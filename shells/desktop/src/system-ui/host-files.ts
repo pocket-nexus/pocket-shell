@@ -1,8 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { createState } from "./reactivity.ts";
 
-export interface HostFile { path: string; name: string; kind: "directory" | "application" | "file"; size: number }
+export interface HostFile { path: string; name: string; kind: "directory" | "application" | "file"; size: number; icon?: string }
 export type FilesIntent = { t: "files-list" | "files-open"; request: number; path: string; offset?: number; hidden?: boolean };
+// Exactly 32 x 32 straight RGBA, base64 encoded. No arbitrary dimensions or payloads.
+export function validNativeIcon(value: unknown): value is string {
+  return typeof value === "string" && value.length === 5464 && /^[A-Za-z0-9+/]{5462}==$/.test(value);
+}
+export function decodeNativeIcon(value: string): Uint8Array {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  const bytes = new Uint8Array(4096);
+  let bits = 0, count = 0, at = 0;
+  for (let i = 0; i < value.length - 2; i++) {
+    bits = (bits << 6) | alphabet.indexOf(value[i]!); count += 6;
+    if (count >= 8) { count -= 8; bytes[at++] = (bits >>> count) & 255; }
+  }
+  return bytes;
+}
 let sequence = 0;
 
 /** A request generation per window prevents late directory pages and launch
@@ -50,7 +64,7 @@ export function createHostFiles(send: (request: FilesIntent) => void) {
       }
       if (v.offset !== expectedOffset || !Array.isArray(v.entries) || v.entries.length > 32 ||
           !v.entries.every((e: HostFile) => e && typeof e.path === "string" && e.path.startsWith("/") &&
-            typeof e.name === "string" && ["directory", "application", "file"].includes(e.kind) && Number.isFinite(e.size)) ||
+            typeof e.name === "string" && ["directory", "application", "file"].includes(e.kind) && Number.isFinite(e.size) && (e.icon === undefined || validNativeIcon(e.icon))) ||
           !Number.isSafeInteger(v.next) || v.next !== expectedOffset + v.entries.length ||
           typeof v.path !== "string" || typeof v.label !== "string" || typeof v.parent !== "string") return false;
       entries.set([...entries(), ...v.entries]);

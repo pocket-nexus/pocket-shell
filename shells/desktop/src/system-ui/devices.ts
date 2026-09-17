@@ -35,20 +35,9 @@ export function deviceSnapshot(value: unknown): DeviceSnapshot | null {
   return { t: "devices", devices, ...(typeof message.error === "string" ? { error: message.error.slice(0, 256) } : {}) };
 }
 
-export const DEVICE_LAYOUT = {
-  sidebar: 168, toolbar: 38, header: 24, row: 32,
-  status: 22, details: 94, treeTop: 8, treeRow: 28,
-} as const;
-
+export const DEVICE_LAYOUT = { toolbar: 30, header: 20, row: 22, status: 20, cellW: 112, cellH: 76, pad: 6 } as const;
 export type DeviceClass = "handheld" | "media-player";
-export type DevicePlace = "all" | DeviceClass;
-export const DEVICE_PLACES = [
-  { id: "all", label: "Connected devices", icon: "devices" },
-  { id: "handheld", label: "Game consoles", icon: "handheld" },
-  { id: "media-player", label: "Media players", icon: "media-player" },
-] as const;
 export const deviceClass = (d: ConnectedDevice): DeviceClass => d.kind === "psp" ? "handheld" : "media-player";
-export const deviceClassName = (d: ConnectedDevice): string => d.kind === "psp" ? "Game console" : "Media player";
 
 /** One discovery feed per desktop; windows own only navigation state. */
 export function createDeviceInventory() {
@@ -76,7 +65,7 @@ export function createDeviceInventory() {
   };
 }
 
-/** Explorer navigation and selection are local to each window. Discovery is shared. */
+/** Discovery is shared; view mode, sorting, scrolling and selection belong to each window. */
 export function createDevicesWindow(
   inventory: ReturnType<typeof createDeviceInventory>,
   viewport: () => { w: number; h: number },
@@ -84,93 +73,64 @@ export function createDevicesWindow(
 ) {
   const L = DEVICE_LAYOUT;
   const selected = createState<string | null>(null);
-  const expanded = createState(true);
+  const mode = createState<"icons" | "list">("icons");
   const offset = createState(0);
-  const history = createState<{ items: DevicePlace[]; at: number }>({ items: ["all"], at: 0 });
   const descending = createState(false);
-  const place = () => history().items[history().at]!;
-  const label = () => DEVICE_PLACES.find(p => p.id === place())!.label;
-  const filtered = () => inventory.devices()
-    .filter(d => place() === "all" || deviceClass(d) === place())
-    .sort((a, b) => (a.name.localeCompare(b.name) || a.id.localeCompare(b.id)) * (descending() ? -1 : 1));
-  const capacity = () => Math.max(1, Math.floor((viewport().h - L.toolbar - L.header - L.details - L.status) / L.row));
-  const nameWidth = () => Math.max(132, Math.floor((viewport().w - L.sidebar - 12) * 0.49));
+  const filtered = () => [...inventory.devices()].sort((a, b) =>
+    (a.name.localeCompare(b.name) || a.id.localeCompare(b.id)) * (descending() ? -1 : 1));
+  const columns = () => mode() === "list" ? 1 : Math.max(1, Math.floor((viewport().w - 12 - L.pad * 2) / L.cellW));
+  const contentTop = () => L.toolbar + (mode() === "list" ? L.header : L.pad);
+  const rowHeight = () => mode() === "list" ? L.row : L.cellH;
+  const capacity = () => columns() * Math.max(1, Math.floor((viewport().h - contentTop() - L.status) / rowHeight()));
+  const maxOffset = () => Math.max(0, Math.ceil((filtered().length - capacity()) / columns()) * columns());
+  const clampOffset = (value: number) => offset.set(Math.min(maxOffset(), Math.max(0, Math.floor(value / columns()) * columns())));
   const visible = () => filtered().slice(offset(), offset() + capacity());
   const current = () => filtered().find(d => d.id === selected());
-  const clampOffset = (value: number) => offset.set(Math.min(Math.max(0, filtered().length - capacity()), Math.max(0, value)));
-  const clearSelection = () => { selected.set(null); offset.set(0); };
-  const go = (next: DevicePlace) => {
-    if (next !== place()) {
-      const h = history();
-      history.set({ items: [...h.items.slice(0, h.at + 1), next], at: h.at + 1 });
-    }
-    clearSelection();
+  const reveal = () => {
+    const index = filtered().findIndex(d => d.id === selected());
+    if (index >= 0 && index < offset()) clampOffset(index);
+    else if (index >= offset() + capacity()) clampOffset(index - capacity() + columns());
+    else clampOffset(offset());
   };
-  const back = () => {
-    const h = history();
-    if (h.at > 0) { history.set({ ...h, at: h.at - 1 }); clearSelection(); }
-  };
-  const forward = () => {
-    const h = history();
-    if (h.at < h.items.length - 1) { history.set({ ...h, at: h.at + 1 }); clearSelection(); }
-  };
+  const setMode = (next: "icons" | "list") => { mode.set(next); offset.set(0); reveal(); };
   return {
-    ...inventory, selected, expanded, visible, current, refresh, viewport, capacity,
-    offset, filtered, place, label, history, descending, go, back, forward, nameWidth,
-    sync() {
-      if (!filtered().some(d => d.id === selected())) selected.set(null);
-      clampOffset(offset());
-    },
+    ...inventory, selected, mode, setMode, visible, current, refresh, viewport, capacity,
+    offset, filtered, descending, columns, contentTop, rowHeight, maxOffset,
+    nameWidth: () => Math.floor((viewport().w - 12) * .46),
+    sync() { if (!current()) selected.set(null); clampOffset(offset()); },
     click(x: number, y: number) {
-      if (x < 0 || y < 0 || x >= viewport().w || y >= viewport().h) return;
+      const { w, h } = viewport();
+      if (x < 0 || y < 0 || x >= w || y >= h - L.status) return;
       if (y < L.toolbar) {
-        if (y < 7 || y >= 31) return;
-        if (x >= 8 && x < 36) back();
-        else if (x >= 40 && x < 68) forward();
-        else if (x >= viewport().w - 86 && x < viewport().w - 8) refresh();
+        if (y < 4 || y >= 26) return;
+        if (x >= 6 && x < 70) refresh();
+        else if (x >= w - 136 && x < w - 72) setMode("icons");
+        else if (x >= w - 70 && x < w - 6) setMode("list");
         return;
       }
-      if (y >= viewport().h - L.status) return;
-      if (x < L.sidebar) {
-        const row = Math.floor((y - L.toolbar - L.treeTop) / L.treeRow);
-        if (row === 0) {
-          if (x < 24) expanded.set(!expanded());
-          else go("all");
-        } else if (expanded() && (row === 1 || row === 2)) go(DEVICE_PLACES[row]!.id);
+      if (mode() === "list" && y < contentTop()) {
+        if (x < w * .46) { descending.set(!descending()); reveal(); }
         return;
       }
-      if (y < L.toolbar + L.header) {
-        if (x < L.sidebar + nameWidth()) {
-          descending.set(!descending());
-          const index = filtered().findIndex(d => d.id === selected());
-          clampOffset(index < 0 ? 0 : index);
-        }
-      } else if (y < viewport().h - L.status - L.details) {
-        const index = Math.floor((y - L.toolbar - L.header) / L.row);
-        if (x >= viewport().w - 12 && filtered().length > capacity()) {
-          const height = viewport().h - L.toolbar - L.header - L.status - L.details;
-          clampOffset(Math.round((y - L.toolbar - L.header) / height * (filtered().length - capacity())));
-        } else selected.set(visible()[index]?.id ?? null);
+      if (y < contentTop()) return;
+      if (x >= w - 12 && maxOffset() > 0) {
+        clampOffset(Math.round((y - contentTop()) / (h - contentTop() - L.status) * maxOffset()));
+        return;
       }
+      const col = mode() === "list" ? 0 : Math.floor((x - L.pad) / L.cellW);
+      const row = Math.floor((y - contentTop()) / rowHeight());
+      selected.set(col >= 0 && col < columns() ? visible()[row * columns() + col]?.id ?? null : null);
     },
     key(key: string) {
       const k = key.toLowerCase();
       if (k === "escape") return selected.set(null);
-      if (k === "backspace" || k === "left") return back();
-      if (k === "right") return forward();
-      if (k !== "up" && k !== "down" && k !== "home" && k !== "end") return;
-      const devices = filtered();
-      const index = devices.findIndex(d => d.id === selected());
-      const next = k === "home" ? 0 : k === "end" ? devices.length - 1
-        : Math.min(devices.length - 1, Math.max(0, index + (k === "down" ? 1 : -1)));
-      if (devices[next]) {
-        selected.set(devices[next]!.id);
-        if (next < offset()) clampOffset(next);
-        else if (next >= offset() + capacity()) clampOffset(next - capacity() + 1);
-      }
+      if (!["up", "down", "left", "right", "home", "end", "pageup", "pagedown"].includes(k)) return;
+      const devices = filtered(), index = devices.findIndex(d => d.id === selected());
+      const delta = k === "up" ? -columns() : k === "down" ? columns() : k === "left" ? -1 : k === "right" ? 1 : k === "pageup" ? -capacity() : capacity();
+      const next = k === "home" ? 0 : k === "end" ? devices.length - 1 : index < 0 ? 0 : Math.min(devices.length - 1, Math.max(0, index + delta));
+      if (devices[next]) { selected.set(devices[next]!.id); reveal(); }
     },
-    scroll(dy: number) { clampOffset(offset() + Math.sign(dy)); },
+    scroll(dy: number) { clampOffset(offset() + Math.sign(dy) * columns()); },
   };
 }
-
 export type DevicesData = ReturnType<typeof createDevicesWindow>;

@@ -18,7 +18,7 @@ func identify(vendor: Int, product: Int, serial: String, location: Int) -> Devic
     let identity = serial.isEmpty ? "port-\(location)" : serial
     switch (vendor, product) {
     case (0x054c, 0x01c8), (0x054c, 0x01c9):
-        return Device(id: "psp-\(identity)", kind: "psp", name: "PSP",
+        return Device(id: "psp-\(identity)", kind: "psp", name: "Sony PSP",
                       connection: product == 0x01c9 ? "PSPLINK USB" : "USB storage",
                       serial: serial, vendor: vendor, product: product)
     case (0x05ac, 0x129e):

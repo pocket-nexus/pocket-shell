@@ -403,5 +403,23 @@
   },
   "icons/classic-mines-selected-32.png": {
     "linear": false
+  },
+  "icons/aqua-tool.png": {
+    "linear": true
+  },
+  "icons/aqua-tool-down.png": {
+    "linear": true
+  },
+  "icons/aqua-tool-disabled.png": {
+    "linear": true
+  },
+  "icons/aqua-tool-wide.png": {
+    "linear": true
+  },
+  "icons/aqua-tool-wide-down.png": {
+    "linear": true
+  },
+  "icons/aqua-tool-wide-disabled.png": {
+    "linear": true
   }
 }

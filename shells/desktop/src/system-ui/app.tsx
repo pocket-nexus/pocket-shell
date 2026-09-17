@@ -498,7 +498,7 @@ export default function App(props: { macDesktop?: boolean }) {
     const w = createWin({
       kind: "devices", title: "Devices", icon: "devices",
       geo: fitDesktopGeo(cascadePos(wins().length, vp().w, vp().h, 660, 450, metrics())),
-      minW: 560, minH: 380,
+      minW: 360, minH: 240,
     });
     const data = createDevicesWindow(inventory, () => deviceViewport(w), () => svc?.send({ t: "devices-refresh" }));
     w.data = data;
@@ -508,10 +508,8 @@ export default function App(props: { macDesktop?: boolean }) {
         { label: "Close Window", shortcut: "Cmd+W", act: () => closeWin(w.id) },
       ] },
       { label: "View", width: menuW("View"), items: () => [
-        { label: "All Devices", act: () => data.go("all") },
-        { label: "Game Consoles", act: () => data.go("handheld") },
-        { label: "Media Players", act: () => data.go("media-player") },
-        { label: "Expand Categories", checked: data.expanded(), act: () => data.expanded.set(!data.expanded()) },
+        { label: "Icons", checked: data.mode() === "icons", act: () => data.setMode("icons") },
+        { label: "List", checked: data.mode() === "list", act: () => data.setMode("list") },
         { label: "Refresh", shortcut: "Cmd+R", act: data.refresh },
       ] },
     ];
@@ -2269,7 +2267,7 @@ export default function App(props: { macDesktop?: boolean }) {
           if (d.host.label()) w.title.set(`${d.host.label()} - Files`);
           d.rows.set(d.host.entries().map(entry => ({
             icon: entry.kind === "directory" ? "files" : entry.kind === "application" ? "native-apps" : "document-file",
-            name: entry.name,
+            name: entry.name, nativeIcon: entry.icon,
             size: entry.kind !== "file" ? "" : entry.size >= 1048576 ? `${(entry.size / 1048576).toFixed(1)} MB` : `${Math.ceil(entry.size / 1024)} KB`,
             type: entry.kind === "directory" ? "Folder" : entry.kind === "application" ? "Application" : "File",
             open: () => entry.kind === "directory" ? navigate(w, entry.path as PlaceId) : d.host!.open(entry.path, virtualNow()),

@@ -125,20 +125,24 @@ def draw_icon(name, size):
         for y in (10,15,20,25): rect((8,y,16,1),"light")
         rect((5,4,22,3),"white"); rect((7,5,18,1),"dark")
     elif name == "openstrike":
-        polygon([(3,14),(5,6),(11,2),(21,2),(27,7),(29,16),(26,22),(6,22)],"ink")
-        polygon([(4,14),(6,7),(11,3),(21,3),(26,8),(28,15),(25,20),(7,20)],"gold")
-        polygon([(6,11),(8,7),(12,5),(21,5),(24,8),(25,11)],"grey")
-        rect((3,13,26,3),"ink"); rect((7,16,18,7),"ink")
-        rect((8,17,7,4),"dark"); rect((17,17,7,4),"dark")
-        rect((8,17,6,1),"light"); rect((17,17,6,1),"light")
-        rect((6,23,3,6),"dark"); rect((24,23,3,6),"dark"); rect((22,27,5,3),"grey")
+        polygon([(1,14),(8,11),(11,11),(11,16),(5,19),(1,20)],"ink")
+        polygon([(2,15),(8,12),(10,12),(10,15),(5,17),(2,18)],"gold")
+        rect((8,10,13,5),"ink"); rect((9,11,11,2),"dark"); rect((9,11,9,1),"light")
+        rect((19,11,12,2),"ink"); rect((20,11,10,1),"grey")
+        rect((28,9,1,3),"ink"); rect((10,9,2,2),"ink")
+        rect((18,13,6,3),"ink"); rect((19,13,4,2),"gold")
+        polygon([(10,14),(13,14),(11,21),(8,21)],"ink")
+        polygon([(10,15),(12,15),(10,20),(9,20)],"gold")
+        polygon([(16,15),(19,15),(21,23),(18,25),(16,24),(17,21)],"ink")
+        polygon([(17,16),(18,16),(20,23),(18,24),(17,23),(18,21)],"dark")
+        rect((12,18,4,1),"ink"); rect((15,15,1,3),"ink")
     elif name == "mines":
         polygon([(8,7),(22,7),(27,12),(27,24),(22,29),(9,29),(4,24),(4,12)],"ink")
         polygon([(9,8),(21,8),(25,13),(25,23),(21,27),(10,27),(6,23),(6,13)],"dark")
         rect((10,10,7,5),"grey"); rect((11,10,4,2),"white")
         rect((13,3,5,6),"ink"); rect((1,16,6,4),"ink"); rect((25,16,6,4),"ink")
         rect((24,3,4,4),"yellow")
-    return image
+    return image.rotate(30, resample=Image.Resampling.NEAREST) if name == "openstrike" else image
 
 
 if __name__ == "__main__":

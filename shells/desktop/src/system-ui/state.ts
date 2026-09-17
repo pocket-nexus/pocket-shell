@@ -107,6 +107,7 @@ export interface MinesData {
 }
 
 export interface FolderRow {
+  nativeIcon?: string;
   icon: IconName;
   name: string;
   size: string;
@@ -133,14 +134,9 @@ export const PLACES: readonly Place[] = [
 
 /** Virtual launchers sit beside real macOS filesystem locations. */
 export const MAC_PLACES: readonly Place[] = [
-  { id: "computer", label: "Macintosh HD", icon: "disk" },
   { id: "home", label: "Home", icon: "home" },
-  { id: "desktop", label: "Desktop", icon: "desktop-place" },
-  { id: "documents", label: "Documents", icon: "documents-place" },
-  { id: "downloads", label: "Downloads", icon: "downloads" },
   { id: "native-apps", label: "Native Apps", icon: "native-apps" },
   { id: "pocket-apps", label: "Pocket Apps", icon: "pocket-apps" },
-  { id: "recycle", label: "Trash", icon: "trash" },
 ];
 
 export interface FolderData {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { expect, test } from "bun:test";
-import { createHostFiles, type FilesIntent } from "../src/system-ui/host-files.ts";
+import { validNativeIcon, decodeNativeIcon, createHostFiles, type FilesIntent } from "../src/system-ui/host-files.ts";
 import { selectedIcon } from "../scripts/selected-icon.ts";
 import { decodePng } from "../../../vendor/pocketjs/framework/compiler/pak.ts";
 import { readFileSync } from "node:fs";
@@ -51,4 +51,12 @@ test("selection preserves icon alpha and applies each theme's paint at both dens
     }
     expect(changed).toBeGreaterThan(100);
   }
+});
+
+test("native icon transport preserves every RGBA byte and bounds its payload", () => {
+  const bytes = new Uint8Array(4096).map((_, i) => (i * 31) & 255);
+  const encoded = Buffer.from(bytes).toString("base64");
+  expect(validNativeIcon(encoded)).toBe(true);
+  expect(decodeNativeIcon(encoded)).toEqual(bytes);
+  for (const value of [undefined, null, 12, "", encoded.slice(1), encoded + "A", "!" + encoded.slice(1)]) expect(validNativeIcon(value)).toBe(false);
 });

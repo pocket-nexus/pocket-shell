@@ -88,16 +88,30 @@ def build(name, theme, box, panel, cylinder, material, finish):
             bpy.ops.mesh.primitive_torus_add(major_radius=.9,minor_radius=.026,major_segments=64,minor_segments=8,location=(0,0,z))
             finish(bpy.context.object,"Woven wire ring",silver,0)
     elif name == "openstrike":
-        olive=material("Worn olive helmet",(.12,.18,.10) if theme=="aqua" else (.28,.37,.10),.64,.28,.13)
-        sphere("Steel helmet dome",(0,.12,1.48),(1.3,.88,1.34),olive)
-        box("Helmet brow",(0,-.70,1.63),(2.55,.48,.24),olive,.11)
-        box("Goggle rubber surround",(0,-.83,1.34),(1.97,.27,.62),dark,.14)
-        lens=material("Smoked amber lenses",(.20,.105,.019),.16,.65)
-        for x in (-.48,.48): box("Protective lens",(x,-.99,1.36),(.83,.12,.43),lens,.095)
-        for x in (-1.08,1.08):
-            box("Chin strap",(x,-.25,.46),(.16,.14,.92),dark,.025)
-            cylinder("Steel strap rivet",(x,-.76,1.70),.053,.022,silver)
-        box("Chin strap buckle",(.92,-.32,.28),(.3,.15,.28),silver,.035)
+        # A side-on sporting-game rifle silhouette: walnut stock, dark receiver,
+        # separate barrel and magazine. No floating badge or background tile.
+        wood=material("Oiled walnut" if theme=="aqua" else "Amber stock",(.25,.09,.024) if theme=="aqua" else (.55,.23,.045),.34,.04,.14)
+        steel=material("Blued gunmetal",(.045,.062,.08) if theme=="aqua" else (.14,.20,.28),.26,.78,.06)
+        panel("Sculpted shoulder stock", [(-1.85,.72),(-1.80,1.45),(-1.02,1.64),(-.54,1.59),(-.57,1.25),(-1.20,1.07)], -.16,.16,wood,.055)
+        box("Stock butt plate",(-1.85,0,1.09),(.09,.39,.75),dark,.025)
+        box("Receiver",(-.18,0,1.51),(1.25,.38,.38),steel,.035)
+        panel("Grip", [(-.39,1.36),(-.06,1.34),(-.24,.70),(-.57,.75)],-.15,.15,wood,.025)
+        panel("Magazine", [(.29,1.40),(.58,1.42),(.67,.61),(.52,.39),(.25,.48),(.36,.73)],-.12,.12,steel,.026)
+        box("Wood fore-end",(.81,0,1.47),(.76,.34,.34),wood,.065)
+        cylinder("Barrel",(1.40,0,1.61),.075,1.11,steel,(0,math.pi/2,0))
+        cylinder("Muzzle",(1.98,0,1.61),.10,.15,steel,(0,math.pi/2,0))
+        box("Front sight",(1.67,0,1.80),(.08,.12,.28),steel,.014)
+        box("Rear sight",(-.32,0,1.78),(.18,.18,.12),steel,.015)
+        box("Receiver highlight",(-.17,-.197,1.62),(.87,.012,.043),silver,.008)
+        box("Trigger guard base",(-.03,0,1.07),(.48,.15,.055),steel,.01)
+        box("Trigger guard front",(.18,0,1.20),(.055,.15,.30),steel,.01)
+        box("Trigger",(-.01,0,1.23),(.055,.10,.23),steel,.012,(0,-.20,0))
+        from mathutils import Matrix, Vector
+        pivot=Vector((0,0,1.17))
+        turn=Matrix.Translation(pivot) @ Matrix.Rotation(-.52,4,"Y") @ Matrix.Translation(-pivot)
+        for obj in list(bpy.context.scene.objects):
+            if obj.type == "MESH": obj.matrix_world=turn @ obj.matrix_world
+        return (0,0,1.17), (1.5,-12,4.3), 3.95
     elif name == "mines":
         sphere("Cast iron mine",(0,0,1.35),(1.12,1.12,1.12),dark)
         for x,y,z in ((1.08,0,1.35),(-1.08,0,1.35),(0,-1.08,1.35),(0,0,2.43),(0,-.75,2.12)):

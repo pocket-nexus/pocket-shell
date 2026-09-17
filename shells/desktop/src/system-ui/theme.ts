@@ -195,11 +195,13 @@ export interface DesktopTheme {
   id: ThemeId;
   label: string;
   devices: {
-    toolbar: string; status: string; sidebar: string; header: string; details: string;
-    treeRow: (selected: boolean, active: boolean) => string;
+    toolbar: string; status: string; header: string;
     listRow: (selected: boolean, zebra: boolean) => string;
+    iconLabel: (selected: boolean) => string;
+    button: (pressed: boolean) => string;
     selectedText: string;
   };
+  toolFace: (wide: boolean, enabled: boolean, pressed: boolean) => string;
   metrics: ChromeMetrics;
   fontSlot: (role: FontRole) => number;
   /** Artwork for a semantic icon at a logical size. */
@@ -538,18 +540,16 @@ function aquaIcon(name: IconName, size: IconSize, selected = false): string {
 // compiler resolves the complete class table at build time.
 export const CLASSIC_THEME: DesktopTheme = {
   id: "classic",
+  toolFace: () => "",
   devices: {
-    toolbar: "absolute left-0 right-0 top-0 h-[38] bg-[#c0c0c0]",
-    status: "absolute left-0 right-0 bottom-0 h-[22] flex-row items-center px-[8] bg-[#c0c0c0] border-[#808080] overflow-hidden",
-    sidebar: "absolute left-0 top-[38] bottom-[22] w-[168] bg-[#ffffff] border-[#808080] overflow-hidden",
-    header: "absolute left-[168] right-0 top-[38] h-[24] flex-row bg-[#c0c0c0] border-[#808080]",
-    details: "absolute left-[168] right-0 bottom-[22] h-[94] bg-[#c0c0c0] border-[#808080] overflow-hidden",
-    treeRow: (selected, active) => selected
-      ? active ? "absolute left-0 right-0 h-[28] flex-row items-center bg-[#000080]" : "absolute left-0 right-0 h-[28] flex-row items-center bg-[#b8bec6]"
-      : "absolute left-0 right-0 h-[28] flex-row items-center",
+    toolbar: "absolute left-0 right-0 top-0 h-[30] bg-[#c0c0c0]",
+    status: "absolute left-0 right-0 bottom-0 h-[20] flex-row items-center px-[6] bg-[#c0c0c0] border-[#808080] overflow-hidden",
+    header: "absolute left-0 right-0 top-[30] h-[20] flex-row bg-[#c0c0c0] border-[#808080]",
     listRow: (selected, zebra) => selected
-      ? "absolute left-0 right-0 h-[32] flex-row bg-[#000080]"
-      : zebra ? "absolute left-0 right-0 h-[32] flex-row bg-[#f0f4f8]" : "absolute left-0 right-0 h-[32] flex-row bg-[#ffffff]",
+      ? "absolute left-0 right-0 h-[22] flex-row bg-[#000080]"
+      : "absolute left-0 right-0 h-[22] flex-row bg-[#ffffff]",
+    iconLabel: selected => selected ? "px-[3] bg-[#000080]" : "px-[3]",
+    button: pressed => pressed ? "relative w-[64] h-[22] flex-col items-center justify-center bg-[#c0c0c0] bevel-[#808080,#ffffff]" : "relative w-[64] h-[22] flex-col items-center justify-center bg-[#c0c0c0] bevel-[#ffffff,#808080]",
     selectedText: "text-[#ffffff]",
   },
   label: "Classic 98",
@@ -817,18 +817,16 @@ export const CLASSIC_THEME: DesktopTheme = {
 // the button meets the screen edge square and curves on the right.
 export const XP_THEME: DesktopTheme = {
   id: "xp",
+  toolFace: () => "",
   devices: {
-    toolbar: "absolute left-0 right-0 top-0 h-[38] bg-[#ece9d8]",
-    status: "absolute left-0 right-0 bottom-0 h-[22] flex-row items-center px-[8] bg-[#ece9d8] border-[#aca899] overflow-hidden",
-    sidebar: "absolute left-0 top-[38] bottom-[22] w-[168] bg-[#d6dff7] border-[#aca899] overflow-hidden",
-    header: "absolute left-[168] right-0 top-[38] h-[24] flex-row bg-[#ece9d8] border-[#aca899]",
-    details: "absolute left-[168] right-0 bottom-[22] h-[94] bg-[#ece9d8] border-[#aca899] overflow-hidden",
-    treeRow: (selected, active) => selected
-      ? active ? "absolute left-0 right-0 h-[28] flex-row items-center bg-[#316ac5]" : "absolute left-0 right-0 h-[28] flex-row items-center bg-[#b8bec6]"
-      : "absolute left-0 right-0 h-[28] flex-row items-center",
+    toolbar: "absolute left-0 right-0 top-0 h-[30] bg-[#ece9d8]",
+    status: "absolute left-0 right-0 bottom-0 h-[20] flex-row items-center px-[6] bg-[#ece9d8] border-[#aca899] overflow-hidden",
+    header: "absolute left-0 right-0 top-[30] h-[20] flex-row bg-[#ece9d8] border-[#aca899]",
     listRow: (selected, zebra) => selected
-      ? "absolute left-0 right-0 h-[32] flex-row bg-[#316ac5]"
-      : zebra ? "absolute left-0 right-0 h-[32] flex-row bg-[#f0f4f8]" : "absolute left-0 right-0 h-[32] flex-row bg-[#ffffff]",
+      ? "absolute left-0 right-0 h-[22] flex-row bg-[#316ac5]"
+      : "absolute left-0 right-0 h-[22] flex-row bg-[#ffffff]",
+    iconLabel: selected => selected ? "px-[3] bg-[#316ac5]" : "px-[3]",
+    button: pressed => pressed ? "relative w-[64] h-[22] flex-col items-center justify-center bg-[#ece9d8] bevel-[#808080,#ffffff]" : "relative w-[64] h-[22] flex-col items-center justify-center bg-[#ece9d8] bevel-[#ffffff,#808080]",
     selectedText: "text-[#ffffff]",
   },
   label: "Windows XP",
@@ -1183,20 +1181,22 @@ export const XP_THEME: DesktopTheme = {
 // invisible. Selection highlights are the two-stop #6c9ef0 → #3875d7
 // gradient. Menus hang from the screen bar with square top
 // corners and rounded bottom ones — a rounded panel under a square patch.
+function aquaToolFace(wide: boolean, enabled: boolean, pressed: boolean): string {
+  if (wide) return pressed ? "icons/aqua-tool-wide-down.png" : enabled ? "icons/aqua-tool-wide.png" : "icons/aqua-tool-wide-disabled.png";
+  return pressed ? "icons/aqua-tool-down.png" : enabled ? "icons/aqua-tool.png" : "icons/aqua-tool-disabled.png";
+}
 export const AQUA_THEME: DesktopTheme = {
   id: "aqua",
+  toolFace: aquaToolFace,
   devices: {
-    toolbar: "absolute left-0 right-0 top-0 h-[38] bg-gradient-to-b from-[#f0f0f0] to-[#d6d6d6]",
-    status: "absolute left-0 right-0 bottom-0 h-[22] flex-row items-center px-[8] bg-[#ededed] border-[#a8a8a8] overflow-hidden",
-    sidebar: "absolute left-0 top-[38] bottom-[22] w-[168] bg-[#dee3e9] border-[#a8a8a8] overflow-hidden",
-    header: "absolute left-[168] right-0 top-[38] h-[24] flex-row bg-[#ededed] border-[#a8a8a8]",
-    details: "absolute left-[168] right-0 bottom-[22] h-[94] bg-[#ededed] border-[#a8a8a8] overflow-hidden",
-    treeRow: (selected, active) => selected
-      ? active ? "absolute left-0 right-0 h-[28] flex-row items-center bg-[#3875d7]" : "absolute left-0 right-0 h-[28] flex-row items-center bg-[#b8bec6]"
-      : "absolute left-0 right-0 h-[28] flex-row items-center",
+    toolbar: "absolute left-0 right-0 top-0 h-[30] bg-gradient-to-b from-[#f0f0f0] to-[#d6d6d6]",
+    status: "absolute left-0 right-0 bottom-0 h-[20] flex-row items-center px-[6] bg-[#ededed] border-[#a8a8a8] overflow-hidden",
+    header: "absolute left-0 right-0 top-[30] h-[20] flex-row bg-[#ededed] border-[#a8a8a8]",
     listRow: (selected, zebra) => selected
-      ? "absolute left-0 right-0 h-[32] flex-row bg-[#3875d7]"
-      : zebra ? "absolute left-0 right-0 h-[32] flex-row bg-[#f0f4f8]" : "absolute left-0 right-0 h-[32] flex-row bg-[#ffffff]",
+      ? "absolute left-0 right-0 h-[22] flex-row bg-[#3875d7]"
+      : zebra ? "absolute left-0 right-0 h-[22] flex-row bg-[#f0f4f8]" : "absolute left-0 right-0 h-[22] flex-row bg-[#ffffff]",
+    iconLabel: selected => selected ? "px-[3] bg-[#3875d7]" : "px-[3]",
+    button: pressed => "relative w-[64] h-[22] flex-col items-center justify-center",
     selectedText: "text-[#ffffff]",
   },
   label: "Aqua",
@@ -1481,13 +1481,9 @@ export const AQUA_THEME: DesktopTheme = {
   folderToolbar:
     "h-[38] flex-row items-center gap-[4] px-[8] bg-gradient-to-b from-[#f0f0f0] to-[#d6d6d6]",
   folderToolLayers: ["absolute left-0 right-0 bottom-0 h-[1] bg-[#9c9c9c]"],
-  folderToolButton: (enabled, pressed) => {
-    if (!enabled)
-      return "w-[28] h-[22] flex-col justify-center items-center rounded-[11] border-[#b4b4b4] bg-[#ececec] opacity-60";
-    return pressed
-      ? "w-[28] h-[22] flex-col justify-center items-center rounded-[11] border-[#6f6f6f] bg-gradient-to-b from-[#c9c9c9] via-[#bcbcbc] to-[#c4c4c4]"
-      : "w-[28] h-[22] flex-col justify-center items-center rounded-[11] border-[#8a8a8a] bg-gradient-to-b from-[#ffffff] via-[#f3f3f3] to-[#dedede]";
-  },
+  folderToolButton: enabled => enabled
+    ? "relative w-[28] h-[22] flex-col justify-center items-center"
+    : "relative w-[28] h-[22] flex-col justify-center items-center opacity-60",
   folderAddressLabel: "",
   folderAddress: "flex-1 h-[22] ml-[6] flex-row items-center gap-[6] px-[4]",
   folderAddressText: "text-[#1e1e1e]",

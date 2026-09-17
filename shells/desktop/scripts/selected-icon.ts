@@ -19,6 +19,10 @@ export function selectedIcon(input: Uint8Array, theme: string, density: number):
       for (let c = 0; c < 3; c++) rgba[i + c] = Math.round(rgba[i + c] * .58);
     }
   }
+  return encodeRgbaPng(width, height, rgba);
+}
+
+export function encodeRgbaPng(width: number, height: number, rgba: Uint8Array): Buffer {
   function chunk(type: string, payload: Buffer): Buffer {
     const body = Buffer.concat([Buffer.from(type), payload]);
     let crc = 0xffffffff;

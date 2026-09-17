@@ -2,12 +2,36 @@
 // Local filesystem and Launch Services belong to the macOS companion. The
 // guest owns navigation; request ids and bounded pages keep windows isolated.
 import Foundation
+import AppKit
 
 struct FileEntry: Codable {
     let path: String
     let name: String
     let kind: String
     let size: Int64
+}
+
+/// Launch Services artwork at twice the logical 16 px row size. The service
+/// sends straight RGBA; each visible guest row owns and releases its texture.
+func applicationIcon(_ path: String) -> String? {
+    let image = NSWorkspace.shared.icon(forFile: path)
+    var rect = CGRect(x: 0, y: 0, width: 32, height: 32)
+    guard let cgImage = image.cgImage(forProposedRect: &rect, context: nil, hints: nil) else { return nil }
+    var rgba = [UInt8](repeating: 0, count: 32 * 32 * 4)
+    let rendered = rgba.withUnsafeMutableBytes { storage -> Bool in
+        guard let context = CGContext(data: storage.baseAddress, width: 32, height: 32, bitsPerComponent: 8,
+            bytesPerRow: 128, space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue) else { return false }
+        context.interpolationQuality = .high
+        context.draw(cgImage, in: rect)
+        return true
+    }
+    guard rendered else { return nil }
+    for i in stride(from: 0, to: rgba.count, by: 4) {
+        let alpha = Int(rgba[i + 3])
+        if alpha > 0 { for c in 0..<3 { rgba[i + c] = UInt8(min(255, (Int(rgba[i + c]) * 255 + alpha / 2) / alpha)) } }
+    }
+    return Data(rgba).base64EncodedString()
 }
 
 func fileURL(_ path: String) throws -> URL {
@@ -129,9 +153,11 @@ final class FileSession {
                 var bytes = 0
                 while next < sorted.count && page.count < 32 {
                     let item = sorted[next]
-                    let encoded = try JSONEncoder().encode(item)
+                    var value = try JSONSerialization.jsonObject(with: JSONEncoder().encode(item)) as! [String: Any]
+                    if item.kind == "application" { value["icon"] = applicationIcon(item.path) }
+                    let encoded = try JSONSerialization.data(withJSONObject: value)
                     if bytes + encoded.count > 24000 && !page.isEmpty { break }
-                    page.append(try JSONSerialization.jsonObject(with: encoded) as! [String: Any])
+                    page.append(value)
                     bytes += encoded.count; next += 1
                 }
                 reply["entries"] = page

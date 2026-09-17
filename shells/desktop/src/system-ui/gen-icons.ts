@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+import { aquaControl } from "../../scripts/aqua-controls.ts";
 // src/system-ui/gen-icons.ts — pixel-art icon source. ASCII grids compile to
 // crispEdges SVGs in src/system-ui/icons/ (ignored; rebuilt before packaging):
 //
@@ -1763,5 +1764,13 @@ for (const prefix of ["", "xp-", "classic-"]) {
       copyFileSync(join(baked, `${name}-${size}.png`), join(outDir, `${name}-${size}.png`));
       copyFileSync(join(baked, `${name}-${size * 2}.png`), join(outDir, `${name}-${size}@2x.png`));
     }
+  }
+}
+
+// Supersampled capsule faces avoid gradient-band stair steps in small radii.
+for (const wide of [false, true]) for (const state of ["normal", "down", "disabled"] as const) {
+  for (const density of [1, 2]) {
+    const name = `aqua-tool${wide ? "-wide" : ""}${state === "normal" ? "" : `-${state}`}${density === 2 ? "@2x" : ""}.png`;
+    writeFileSync(join(outDir, name), aquaControl(wide ? 64 : 28, state, density));
   }
 }

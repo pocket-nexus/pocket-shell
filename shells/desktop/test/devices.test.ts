@@ -16,27 +16,35 @@ test("macOS installs the shared desktop and three independent example packages",
   }
 });
 
-test("device categories retain identity through sorting, history and removal", () => {
+test("device views retain identity through mode switches, sorting, resizing and removal", () => {
   const inventory = createDeviceInventory();
-  const psp = { id: "psp", kind: "psp", name: "PSP", connection: "USB", serial: "", vendor: 1, product: 1 };
-  const ipod = { ...psp, id: "ipod", kind: "ipodtouch4", name: "iPod" };
+  const psp = { id: "psp", kind: "psp", name: "Sony PSP", connection: "USB", serial: "", vendor: 1, product: 1 };
+  const ipod = { ...psp, id: "ipod", kind: "ipodtouch4", name: "iPod touch 4" };
   inventory.accept({ t: "devices", devices: [psp, ipod] }, 0);
-  const first = createDevicesWindow(inventory, () => ({ w: 560, h: 280 }), () => {});
-  const second = createDevicesWindow(inventory, () => ({ w: 560, h: 280 }), () => {});
-  first.go("handheld"); first.key("Home");
+  const viewport = { w: 560, h: 280 };
+  const first = createDevicesWindow(inventory, () => viewport, () => {});
+  const second = createDevicesWindow(inventory, () => viewport, () => {});
+  first.key("Home"); first.key("Right");
   expect(first.current()?.id).toBe("psp");
-  expect(second.filtered()).toHaveLength(2);
-  first.back(); first.key("Home");
-  expect(first.current()?.id).toBe("ipod");
-  first.click(200, 45); // sort header; selection is a stable device id
-  expect(first.current()?.id).toBe("ipod");
+  first.setMode("list");
+  expect(second.mode()).toBe("icons");
+  expect(first.current()?.id).toBe("psp");
+  first.click(100, 35);
   expect(first.filtered()[0]?.id).toBe("psp");
-  first.forward();
-  expect(first.place()).toBe("handheld");
+  expect(first.current()?.id).toBe("psp");
   inventory.accept({ t: "devices", devices: [ipod] }, 1); first.sync();
   expect(first.current()).toBeUndefined();
-  expect(first.filtered()).toHaveLength(0);
-  expect(second.filtered()).toHaveLength(1);
+  expect(first.filtered()).toHaveLength(1);
+  inventory.accept({ t: "devices", devices: Array.from({ length: 40 }, (_, i) => ({ ...psp, id: `psp-${i}`, name: `PSP ${String(i).padStart(2, "0")}` })) }, 2);
+  first.descending.set(false); first.setMode("icons"); first.key("End");
+  expect(first.visible().at(-1)?.id).toBe("psp-39");
+  viewport.w = 360; viewport.h = 180; first.sync(); first.key("End");
+  expect(first.offset() % first.columns()).toBe(0);
+  expect(first.visible().some(d => d.id === first.selected())).toBe(true);
+  first.setMode("list");
+  expect(first.visible().some(d => d.id === first.selected())).toBe(true);
+  first.key("Home");
+  expect(first.offset()).toBe(0);
 });
 
 test("each theme supplies application and category art at both render densities", () => {

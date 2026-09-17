@@ -14,6 +14,7 @@ import {
   View,
 } from "@pocketjs/framework/components";
 import { getOps } from "@pocketjs/framework/host";
+import { NativeAppIcon } from "./native-app-icon.tsx";
 import { UiText } from "./chrome.tsx";
 import { FONT, type DesktopTheme, type FolderTool } from "./theme.ts";
 import {
@@ -504,6 +505,7 @@ export function FolderView(props: {
               d.toolHeld() === tool,
             )}
           >
+            {props.theme.toolFace(false, folderToolEnabled(d, tool), d.toolHeld() === tool) ? <Image class="absolute inset-0 w-[28] h-[22]" src={props.theme.toolFace(false, folderToolEnabled(d, tool), d.toolHeld() === tool)} /> : null}
             <Image class="w-[16] h-[16]" src={props.theme.icon(tool, 16)} />
           </View>
         ))}
@@ -573,7 +575,7 @@ export function FolderView(props: {
           <View
             class={props.theme.folderRow(d.selected() === i, i % 2 === 1)}
           >
-            <Image class="w-[16] h-[16] mr-[4]" src={props.theme.icon(row.icon, 16)} />
+            <NativeAppIcon rgba={row.nativeIcon} fallback={props.theme.icon(row.icon, 16)} />
             <View class="flex-1 flex-row overflow-hidden">
               <UiText
                 theme={props.theme}

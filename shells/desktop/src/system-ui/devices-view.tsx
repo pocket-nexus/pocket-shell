@@ -1,82 +1,57 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Explorer client: navigation tree, details list and selection inspector.
-// Paint and input share DEVICE_LAYOUT; discovery stays in the headless model.
+// Compact My Computer content; category names only choose the icon artwork.
 import { For } from "solid-js";
 import { Image, View } from "@pocketjs/framework/components";
 import { UiText } from "./chrome.tsx";
 import type { DesktopTheme } from "./theme.ts";
-import { DEVICE_LAYOUT as L, DEVICE_PLACES, deviceClass, deviceClassName, type DevicesData } from "./devices.ts";
+import { DEVICE_LAYOUT as L, deviceClass, type DevicesData } from "./devices.ts";
 
 export function DevicesView(props: { data: DevicesData; theme: DesktopTheme; active: boolean }) {
   const d = props.data;
-  const nameWidth = d.nameWidth;
-  const listHeight = () => d.viewport().h - L.toolbar - L.header - L.status - L.details;
+  const listHeight = () => d.viewport().h - d.contentTop() - L.status;
   const thumbHeight = () => Math.max(20, listHeight() * d.capacity() / Math.max(1, d.filtered().length));
-  const text = (value: string, muted = false, bold = false) =>
-    <UiText theme={props.theme} t={value} bold={bold} cls={muted ? props.theme.mutedText : "text-[#20252b]"} />;
+  const text = (value: string, muted = false) => <UiText theme={props.theme} t={value} cls={muted ? props.theme.mutedText : "text-[#20252b]"} />;
+  const button = (title: string, pressed: boolean) => <View class={props.theme.devices.button(pressed)}>
+    {props.theme.toolFace(true, true, pressed) ? <Image class="absolute inset-0 w-[64] h-[22]" src={props.theme.toolFace(true, true, pressed)} /> : null}
+    {text(title)}
+  </View>;
   return <View class="relative flex-1 bg-[#ffffff] overflow-hidden">
     <View class={props.theme.devices.toolbar}>
-      <View class="absolute left-[8] top-[7] w-[28] h-[24]">
-        <View class={props.theme.folderToolButton(d.history().at > 0, false)} style={{ width: 28, height: 24 }}>
-          <Image class="w-[16] h-[16]" src={props.theme.icon("back", 16)} />
-        </View>
-      </View>
-      <View class="absolute left-[40] top-[7] w-[28] h-[24]">
-        <View class={props.theme.folderToolButton(d.history().at < d.history().items.length - 1, false)} style={{ width: 28, height: 24 }}>
-          <Image class="w-[16] h-[16]" src={props.theme.icon("forward", 16)} />
-        </View>
-      </View>
-      <View class="absolute left-[82] right-[98] top-[7] h-[24] flex-row items-center gap-[6] overflow-hidden">
-        <Image class="w-[16] h-[16]" src={props.theme.icon(d.place() === "all" ? "devices" : d.place() as "handheld" | "media-player", 16)} />
-        {text(d.label())}
-      </View>
-      <View class="absolute right-[8] top-[7] w-[78] h-[24]">
-        <View class={props.theme.dialogButton(false, false)} style={{ width: 78, height: 24 }}>{text("Refresh")}</View>
-      </View>
+      <View class="absolute left-[6] top-[4]">{button("Refresh", false)}</View>
+      <View class="absolute right-[72] top-[4]">{button("Icons", d.mode() === "icons")}</View>
+      <View class="absolute right-[6] top-[4]">{button("List", d.mode() === "list")}</View>
     </View>
-    <View class={props.theme.devices.sidebar}>
-      <For each={d.expanded() ? DEVICE_PLACES : DEVICE_PLACES.slice(0, 1)}>{(place, i) =>
-        <View class={props.theme.devices.treeRow(d.place() === place.id, props.active)} style={{ insetT: L.treeTop + i() * L.treeRow }}>
-          <View class={i() === 0 ? "flex-row items-center gap-[5] pl-[4] overflow-hidden" : "flex-row items-center gap-[5] pl-[24] overflow-hidden"}>
-            {i() === 0 ? <UiText theme={props.theme} cls={d.place() === place.id && props.active ? props.theme.devices.selectedText : props.theme.folderSideText(false, props.active)} t={d.expanded() ? "-" : "+"} /> : null}
-            <Image class="w-[16] h-[16]" src={props.theme.icon(place.icon, 16)} />
-            <UiText theme={props.theme} cls={d.place() === place.id && props.active ? props.theme.devices.selectedText : props.theme.folderSideText(false, props.active)} t={i() === 0 ? "Devices" : place.label} />
+    {d.mode() === "list" ? <View class={props.theme.devices.header}>
+      <View class="h-[20] flex-row items-center pl-[6]" style={{ width: d.nameWidth() }}>{text(d.descending() ? "Name v" : "Name ^")}</View>
+      <View class="flex-1 h-[20] flex-row items-center pl-[6]">{text("Connection")}</View>
+    </View> : null}
+    <View class="absolute left-0 right-[12] bottom-[20] overflow-hidden" style={{ insetT: d.contentTop() }}>
+      <For each={d.visible()}>{(device, i) => <>{d.mode() === "list"
+        ? <View class={props.theme.devices.listRow(d.selected() === device.id, i() % 2 === 1)} style={{ insetT: i() * L.row }}>
+            <View class="h-[22] flex-row items-center gap-[6] px-[6] overflow-hidden" style={{ width: d.nameWidth() }}>
+              <Image class="w-[16] h-[16]" src={props.theme.icon(deviceClass(device), 16)} />
+              <UiText theme={props.theme} t={device.name} cls={d.selected() === device.id ? props.theme.devices.selectedText : "text-[#20252b]"} />
+            </View>
+            <View class="flex-1 h-[22] flex-row items-center pl-[6] overflow-hidden">
+              <UiText theme={props.theme} t={device.connection} cls={d.selected() === device.id ? props.theme.devices.selectedText : props.theme.mutedText} />
+            </View>
           </View>
-        </View>
-      }</For>
-    </View>
-    <View class={props.theme.devices.header}>
-      <View class="h-[24] flex-row items-center pl-[8]" style={{ width: nameWidth() }}>{text(d.descending() ? "Name v" : "Name ^")}</View>
-      <View class="flex-1 h-[24] flex-row items-center pl-[8]">{text("Connection")}</View>
-    </View>
-    <View class="absolute left-[168] right-[12] top-[62] bottom-[116] overflow-hidden">
-      <For each={d.visible()}>{(device, i) =>
-        <View class={props.theme.devices.listRow(d.selected() === device.id, i() % 2 === 1)} style={{ insetT: i() * L.row }}>
-          <View class="h-[32] flex-row items-center gap-[7] px-[8] overflow-hidden" style={{ width: nameWidth() }}>
-            <Image class="w-[16] h-[16]" src={props.theme.icon(deviceClass(device), 16)} />
-            <UiText theme={props.theme} t={device.name} cls={d.selected() === device.id ? props.theme.devices.selectedText : "text-[#20252b]"} />
+        : <View class="absolute w-[112] h-[76] flex-col items-center pt-[6] gap-[5] overflow-hidden" style={{ insetL: L.pad + (i() % d.columns()) * L.cellW, insetT: Math.floor(i() / d.columns()) * L.cellH }}>
+            <Image class="w-[32] h-[32]" src={props.theme.icon(deviceClass(device), 32, d.selected() === device.id)} />
+            <View class={props.theme.devices.iconLabel(d.selected() === device.id)}>
+              <UiText theme={props.theme} t={device.name} cls={d.selected() === device.id ? props.theme.devices.selectedText : "text-[#20252b]"} />
+            </View>
           </View>
-          <View class="flex-1 h-[32] flex-row items-center pl-[8] overflow-hidden">
-            <UiText theme={props.theme} t={device.connection} cls={d.selected() === device.id ? props.theme.devices.selectedText : props.theme.mutedText} />
-          </View>
-        </View>
-      }</For>
-      {d.filtered().length === 0 ? <View class="absolute inset-0 flex-col justify-center items-center gap-[8]">
+      }</>}</For>
+      {d.filtered().length === 0 ? <View class="absolute left-[12] top-[12] right-[12] flex-col gap-[8]">
         {text(!d.received() ? "Looking for connected devices..." : "No supported devices connected", true)}
         {text("Connect a device using USB.", true)}
       </View> : null}
     </View>
-    {d.filtered().length > d.capacity() ? <View class="absolute right-0 top-[62] bottom-[116] w-[12] bg-[#efefef]">
-      <View class="absolute left-[3] w-[6] rounded-[3] bg-[#a0a0a0]" style={{ height: thumbHeight(), insetT: (listHeight() - thumbHeight()) * d.offset() / (d.filtered().length - d.capacity()) }} />
+    {d.maxOffset() > 0 ? <View class="absolute right-0 bottom-[20] w-[12] bg-[#efefef]" style={{ insetT: d.contentTop() }}>
+      <View class="absolute left-[3] w-[6] rounded-[3] bg-[#a0a0a0]" style={{ height: thumbHeight(), insetT: (listHeight() - thumbHeight()) * d.offset() / d.maxOffset() }} />
     </View> : null}
-    <View class={props.theme.devices.details}>
-      <Image class="absolute left-[12] top-[18] w-[32] h-[32]" src={props.theme.icon(d.current() ? deviceClass(d.current()!) : "devices", 32)} />
-      <View class="absolute left-[56] right-[12] top-[10] flex-col gap-[7] overflow-hidden">
-        {text(d.current()?.name ?? d.label(), false, true)}
-        {text(d.current() ? `${deviceClassName(d.current()!)} / ${d.current()!.connection}` : `${d.filtered().length} connected devices`, true)}
-        {text(d.current()?.serial ? `Serial: ${d.current()!.serial}` : d.current() ? "USB connected" : "Select a device to view its properties.", true)}
-      </View>
-    </View>
-    <View class={props.theme.devices.status}>{text(d.status(), true)}</View>
+    <View class={props.theme.devices.status}>{text(d.current()
+      ? `${d.current()!.name} / ${d.current()!.connection}${d.current()!.serial ? ` / ${d.current()!.serial}` : ""}` : d.status(), true)}</View>
   </View>;
 }

@@ -102,10 +102,11 @@ test("native companion handles fragmented handshakes, refresh and bounded messag
     expect((await files({ t: "files-list", request: 3, path: "relative/path" }, 3)).error).toBe("Invalid file path");
     expect((await files({ t: "files-open", request: 4, path: resolve(fixture, "missing.app") }, 4)).error).toContain("no longer exists");
     let offset = 0;
-    const apps: { name: string; path: string; kind: string }[] = [];
+    const apps: { name: string; path: string; kind: string; icon: string }[] = [];
     while (true) {
       const page = await files({ t: "files-list", request: 5, path: "native-apps", offset }, 5);
       expect(page.error).toBeUndefined();
+      expect(Buffer.byteLength(JSON.stringify(page))).toBeLessThan(26000);
       apps.push(...page.entries);
       if (page.done) break;
       offset = page.next;
@@ -113,6 +114,14 @@ test("native companion handles fragmented handshakes, refresh and bounded messag
     expect(apps.some(a => a.name === "Finder")).toBe(true);
     expect(apps.some(a => a.name === "Calculator")).toBe(true);
     expect(apps.every(a => a.path.startsWith("/") && a.kind === "application")).toBe(true);
+    for (const name of ["Finder", "Calculator"]) {
+      const icon = Buffer.from(apps.find(a => a.name === name)!.icon, "base64");
+      expect(icon.length).toBe(4096);
+      const alpha = Array.from({ length: 1024 }, (_, i) => icon[i * 4 + 3]);
+      expect(alpha.some(a => a > 0 && a < 255)).toBe(true);
+      expect(alpha.some(a => a === 0)).toBe(true);
+    }
+    expect(apps.find(a => a.name === "Finder")!.icon).not.toBe(apps.find(a => a.name === "Calculator")!.icon);
     const oversized = Buffer.alloc(8);
     oversized[0] = 0x10;
     oversized.writeUInt32LE(4097, 4);

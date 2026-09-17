@@ -35,7 +35,8 @@ Aqua raises the Dock when the first app opens and lowers it after the last
 app closes, using a 240 ms native animation that can reverse mid-transition.
 
 Files browses the Mac filesystem through the native companion. Its sidebar opens
-the startup disk, home, Desktop, Documents, Downloads and Trash. Directory reads
+only **Home**, **Native Apps** and **Pocket Apps**. Home provides access to the
+real directory tree, including Desktop, Documents and Downloads. Directory reads
 use bounded pages from a stable host snapshot. Each window owns its navigation
 history, selection and scroll position; late replies cannot replace a newer path.
 Double-click or **Enter** opens the selected directory, file or application.
@@ -46,7 +47,9 @@ navigate long lists. Files does not yet rename, move or delete filesystem items.
 
 **Native Apps** gathers application bundles from `/Applications`,
 `/System/Applications`, the system utility applications and `~/Applications`.
-Opening one uses macOS Launch Services through `/usr/bin/open`; ordinary files
+Each row uses the bundle icon supplied by macOS Launch Services at Retina density.
+The native companion sends bounded icon payloads; only visible rows retain GPU
+textures, released on scroll, navigation or window close. Opening one uses macOS Launch Services through `/usr/bin/open`; ordinary files
 open in their associated Mac application. **Pocket Apps** opens Files, Devices,
 Minesweeper, Cards, Motions and Stats in Shell windows.
 
@@ -64,18 +67,18 @@ appear in Files; game logs go to `~/Library/Logs/Pocket Shell/OpenStrike.log`.
 Minesweeper restores the 9-by-9 game: click to reveal, right-click to flag,
 and use **F2**, **Cmd+N**, the smiley or **Game → New** to start again.
 
-Devices uses an Explorer-style category tree, sortable details list and property
-pane. **Game consoles** and **Media players** filter the connected inventory;
-each category shares one icon across device models. Select a row to see its
-class, connection mode and serial when available. Toolbar arrows and the
-Left/Right keys navigate each window's category history.
+Devices opens a compact My Computer-style icon grid containing **Sony PSP** and
+**iPod touch 4** when connected. **Icons** and **List** switch layouts; the list's
+Name header changes sorting. Device classes choose shared theme artwork internally
+and never appear as navigation categories. Selection shows the connection mode
+and serial, when available, in the status bar.
 PSP USB storage (`054c:01c8`), PSP PSPLINK (`054c:01c9`) and iPod touch 4
 (`05ac:129e`) are recognized. Other USB devices are omitted. The inventory
 refreshes every second; removed devices and expired companion snapshots are
-cleared. Refresh also runs with **Cmd+R**. Up/Down and Home/End navigate the list;
-**Escape** clears its selection. The sidebar's Devices row shows every category. Choose
-**Appearance** in the logo menu or use **Cmd+Shift+T** to cycle Aqua, Classic 98
-and Windows XP; windows keep their state and client geometry.
+cleared. Refresh also runs with **Cmd+R**. Arrow keys, Home/End and Page Up/Down
+navigate both layouts; **Escape** clears selection. Each window keeps its own
+view mode, selection and scroll position. Choose **Appearance** in the logo menu
+or use **Cmd+Shift+T** to cycle Aqua, Classic 98 and Windows XP.
 
 The native launcher reads IOKit USB registry properties without claiming an
 interface, starting a bridge or changing anything on a device. Connection
@@ -86,7 +89,7 @@ the app and requires no background installation.
 
 `bun run desktop test:macos` checks package contents, the icon, signature,
 device filtering and the native wire protocol. Simulator tests cover listing,
-collapse/expand, selection, refresh, removal, stale connection state, desktop
+icon/list switching, selection, refresh, removal, stale connection state, desktop
 launching, window movement and resizing, Dock restore, close/reopen, independent
 window state and theme switching. The multi-app journey also checks Files
 navigation and history, independent file windows, playable Minesweeper and
