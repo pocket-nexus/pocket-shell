@@ -18,6 +18,9 @@ to one of them:
   pocket-desktop. It owns windows, application presentation and themes.
   PocketJS owns package isolation, scheduling and native composition.
   macOS and Linux are native targets; the browser is an interactive preview.
+  The macOS product is a standalone Devices companion without preinstalled
+  demo apps. Its read-only USB discovery and bundle launcher live in
+  `shells/desktop/macos`; native rendering remains in PocketJS.
 
 Each shell owns its sources, manifests, scripts, tests, assets and documentation.
 Root scripts provide setup and command routing. They share one runtime

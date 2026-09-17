@@ -1,5 +1,14 @@
 # Third-party notices
 
+## macOS application icon
+
+[AppIcon.icns](assets/macos/AppIcon.icns) is copied unchanged from SHERU's
+`apps/macos/Sources/Sheru/Resources/AppIcon.icns`, at the project owner's request.
+Source revision: `650a2710954dc951e84a665088f5e726325ecd44`.
+SHA-256: `2d79a34419b16ddaac2539490a3138589b1fea64c15bdf82967305908d3c85d2`.
+The bundle uses this file for its Finder and Dock icon; the build does not
+require a SHERU checkout.
+
 ## PocketJS
 
 `../../vendor/pocketjs` is a pinned Git submodule of

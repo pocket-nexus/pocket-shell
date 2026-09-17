@@ -25,6 +25,7 @@ jobs:
       - run: bun run check
       - run: bun run desktop test:rust
       - run: bun run desktop build
+      - run: bun run desktop test:macos
 
   linux-web:
     name: Linux distribution + WASM preview

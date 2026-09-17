@@ -8,6 +8,7 @@ Build intermediates and individual validation runs stay ignored.
 | --- | --- |
 | Desktop `gen-icons.ts` | Original pixel grids and vector definitions; retained as source. Its 100 SVG outputs in `src/system-ui/icons/` are ignored and regenerated before builds. |
 | Desktop `gen-assets.ts`, W95FA OTF and its OFL notice | Font recipe and original input; retained. The ten 1×/2× `.bin` atlases in `src/system-ui/fonts/` are ignored. Inter comes from the pinned PocketJS submodule. |
+| Desktop `assets/macos/AppIcon.icns` | Original SHERU macOS icon, reused unchanged for the Pocket Shell app bundle. Provenance and digest are in the desktop third-party notices. The `.app` itself stays in ignored `dist/`. |
 | 3DS `src/wall/*.png` and `images.json` | The three texture inputs the guest uses. The preparation script needs external Omarchy originals and macOS `sips`; deleting the only bundled inputs would break a clean build. |
 | iPod `src/fonts/SymbolsNerdFont-subset.otf` and its license | Shipped font input. The complete Nerd Font used to make this subset is not stored here. |
 | iPod `src/menu.ts` | Versioned Omarchy menu snapshot. Regeneration reads an external machine or JSONC file; ordinary builds must not depend on a live Omarchy installation. The source version and digest are in its header. |

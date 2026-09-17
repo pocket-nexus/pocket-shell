@@ -180,6 +180,7 @@ export interface ChromeMetrics {
 export interface DesktopTheme {
   id: ThemeId;
   label: string;
+  devices: { toolbar: string; status: string; sidebar: string; border: string; row: (selected: boolean) => string };
   metrics: ChromeMetrics;
   fontSlot: (role: FontRole) => number;
   /** Artwork for a semantic icon at a logical size. */
@@ -495,6 +496,15 @@ function aquaIcon(name: IconName, size: IconSize): string {
 // compiler resolves the complete class table at build time.
 export const CLASSIC_THEME: DesktopTheme = {
   id: "classic",
+  devices: {
+    toolbar: "absolute left-0 right-0 top-0 h-[56] flex-row items-center px-[20] bg-[#c0c0c0] bevel-[#ffffff,#808080]",
+    status: "absolute left-0 right-0 bottom-0 h-[28] flex-row items-center px-[16] bg-[#c0c0c0] bevel-[#ffffff,#808080]",
+    sidebar: "absolute left-0 top-[56] bottom-[28] w-[216] bg-[#c0c0c0]",
+    border: "absolute left-[215] top-[56] bottom-[28] w-[1] bg-[#808080]",
+    row: selected => selected
+      ? "absolute left-[8] right-[8] h-[48] flex-row items-center gap-[8] px-[8] bg-[#000080]"
+      : "absolute left-[8] right-[8] h-[48] flex-row items-center gap-[8] px-[8]",
+  },
   label: "Classic 98",
   fontSlot: (role) =>
     role === "xl" ? FONT_XL : role === "bold" ? FONT_B : FONT,
@@ -760,6 +770,15 @@ export const CLASSIC_THEME: DesktopTheme = {
 // the button meets the screen edge square and curves on the right.
 export const XP_THEME: DesktopTheme = {
   id: "xp",
+  devices: {
+    toolbar: "absolute left-0 right-0 top-0 h-[56] flex-row items-center px-[20] bg-[#ece9d8]",
+    status: "absolute left-0 right-0 bottom-0 h-[28] flex-row items-center px-[16] bg-[#ece9d8]",
+    sidebar: "absolute left-0 top-[56] bottom-[28] w-[216] bg-[#d6dff7]",
+    border: "absolute left-[215] top-[56] bottom-[28] w-[1] bg-[#aca899]",
+    row: selected => selected
+      ? "absolute left-[8] right-[8] h-[48] flex-row items-center gap-[8] px-[8] bg-[#316ac5]"
+      : "absolute left-[8] right-[8] h-[48] flex-row items-center gap-[8] px-[8]",
+  },
   label: "Windows XP",
   fontSlot: (role) => (role === "ui" ? FONT_SMOOTH : FONT_SMOOTH_B),
   icon: xpIcon,
@@ -1114,6 +1133,15 @@ export const XP_THEME: DesktopTheme = {
 // corners and rounded bottom ones — a rounded panel under a square patch.
 export const AQUA_THEME: DesktopTheme = {
   id: "aqua",
+  devices: {
+    toolbar: "absolute left-0 right-0 top-0 h-[56] flex-row items-center px-[20] bg-gradient-to-b from-[#f7f7f7] to-[#d4d4d4]",
+    status: "absolute left-0 right-0 bottom-0 h-[28] flex-row items-center px-[16] bg-[#ededed]",
+    sidebar: "absolute left-0 top-[56] bottom-[28] w-[216] bg-[#e8eef5]",
+    border: "absolute left-[215] top-[56] bottom-[28] w-[1] bg-[#b6bbc1]",
+    row: selected => selected
+      ? "absolute left-[8] right-[8] h-[48] flex-row items-center gap-[8] px-[8] bg-gradient-to-b from-[#6c9ef0] to-[#3875d7]"
+      : "absolute left-[8] right-[8] h-[48] flex-row items-center gap-[8] px-[8]",
+  },
   label: "Aqua",
   fontSlot: (role) => (role === "ui" ? FONT_SMOOTH : FONT_SMOOTH_B),
   icon: aquaIcon,

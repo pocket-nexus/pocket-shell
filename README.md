@@ -9,7 +9,7 @@ shell owns its interface and input model.
 | --- | --- | --- |
 | Nintendo 3DS | Self-rendered tiling windows on the top screen; chords and touch controls on the lower screen | [shells/3ds](shells/3ds/README.md) |
 | iPod touch 4 | An Omarchy companion that mirrors and controls a desktop over USB or Wi-Fi | [shells/ipod](shells/ipod/README.md) |
-| Desktop OS | Windows, application launching and Classic 98, XP and Aqua themes on macOS and Linux, with a browser preview | [shells/desktop](shells/desktop/README.md) |
+| Desktop OS | macOS app for connected PocketJS devices; Linux and browser desktop showcase with Classic 98, XP and Aqua themes | [shells/desktop](shells/desktop/README.md) |
 
 The former **pocket-desktop** project is now the desktop OS shell in this
 repository. Its application code, assets, tests, native build scripts, browser
@@ -61,7 +61,8 @@ bun run check:3ds                # or check:ipod / check:desktop
 bun run desktop macos            # build and launch on macOS
 bun run desktop linux            # build and launch on Linux
 bun run desktop web              # interactive browser preview
-bun run desktop build            # macOS release build without launching
+bun run desktop build            # build the standalone Pocket Shell.app
+bun run desktop test:macos       # verify the built Mac bundle and USB companion
 bun run desktop package:linux    # relocatable Linux distribution
 bun run desktop test:web         # browser interaction smoke test
 bun run desktop build:site
@@ -70,6 +71,12 @@ bun run desktop test:site
 
 Desktop outputs are in `shells/desktop/dist/`. Use `bun run desktop --help`
 to list its commands, including captures, benchmarks and the text companion.
+
+On macOS, open `shells/desktop/dist/Pocket Shell.app` or drag it into
+Applications. It starts in Devices with no preinstalled demo applications.
+Expand Devices to see connected PSPs and iPod touch 4 devices over USB.
+Discovery does not require Bun, Homebrew, an existing device bridge or this
+checkout once the app has been built.
 
 ```sh
 bun run guest                    # bundle the 3DS guest for the simulator

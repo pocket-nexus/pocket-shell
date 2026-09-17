@@ -18,6 +18,17 @@ export async function resolveDesktopSystem(
 ): Promise<ResolvedSystemPlan> {
   const systemPath = resolve(ROOT, "pocket.system.json");
   const input = await Bun.file(systemPath).json();
+  // macOS is the device companion product. Linux and the website retain the
+  // desktop demonstration catalog; none of those packages enter the Mac bundle.
+  if (target === "macos-app") {
+    input.title = "Pocket Shell";
+    input.applications.catalog = [{
+      package: input.roles.systemUI,
+      manifest: "shells/desktop/pocket.macos.json",
+      required: true,
+    }];
+    input.installation.installedPackages = [input.roles.systemUI];
+  }
   const validated = validatePocketSystem(input);
   if (!validated.ok) {
     throw new Error(

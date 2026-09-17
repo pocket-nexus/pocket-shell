@@ -1,0 +1,23 @@
+{
+  "$schema": "https://pocketjs.dev/schema/pocket-2.json",
+  "pocket": 2,
+  "id": "dev.pocket-stack.desktop.system-ui",
+  "name": "pocket-desktop-system-ui",
+  "title": "Pocket Shell",
+  "version": "0.1.0",
+  "engine": {
+    "capabilities": {
+      "requires": ["text.glyphs.baked", "input.buttons", "ui.compositor-surfaces"],
+      "enhances": ["input.text", "input.pointer", "display.viewport.live"]
+    }
+  },
+  "app": {
+    "entry": "src/system-ui/devices-main.tsx",
+    "output": "pocket-desktop-system-ui",
+    "framework": "solid",
+    "companions": ["system-ui"],
+    "viewport": {
+      "dynamic": { "default": [800, 600], "min": [640, 480] }
+    }
+  }
+}
