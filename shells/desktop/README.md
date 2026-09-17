@@ -1,9 +1,10 @@
 # Pocket Shell Desktop
 
 Pocket Shell Desktop is the desktop OS shell in [Pocket Shell](../../README.md).
-On macOS it is a standalone **Pocket Shell.app** for connected devices.
-Linux and the browser retain the imported desktop showcase. Both interfaces
-use SolidJS and PocketJS's universal renderer; PocketJS owns native rendering.
+On macOS the standalone **Pocket Shell.app** opens an Aqua desktop with a
+Devices application. Linux and the browser also include the demo app catalog.
+All targets share the same desktop, headless window chrome and theme system,
+using SolidJS and PocketJS's universal renderer.
 
 ## macOS Devices
 
@@ -17,17 +18,27 @@ bun run desktop test:macos
 The app can be moved into Applications and launched without Bun, Homebrew or
 a repository checkout. It reuses SHERU's macOS icon unchanged and is locally
 ad-hoc signed. Release signing and notarization are separate from this build.
-The macOS System contains only `dev.pocket-stack.desktop.system-ui`, whose
-entry is `devices-main.tsx`; no demo package is compiled into the bundle.
+The macOS System contains only `dev.pocket-stack.desktop.system-ui`, using the
+same `main.tsx` desktop entry as Linux and web. Devices is a built-in windowed
+application, like the showcase's file manager; no demo package is installed.
+Its headless navigation model and client view use the shell's existing theme,
+window controls, focus routing, menu bar and Dock. Device discovery is polled
+once by the shell and shared across windows, with independent selection state.
 
-Expand **Devices** to see supported USB hardware attached to this Mac. Select
-a device to see its family, connection mode and serial when available.
+The desktop opens a Devices window at startup. Double-click its desktop icon
+or choose **Devices** from the logo menu to reopen it. Windows can be moved,
+resized, minimized to the Dock and closed. **Cmd+N** opens another Devices
+window, **Cmd+M** minimizes and **Cmd+W** closes the focused window.
+
+Expand **Devices** in the window sidebar to see supported USB hardware attached
+to this Mac. Select a device to see its family, connection mode and serial when available.
 PSP USB storage (`054c:01c8`), PSP PSPLINK (`054c:01c9`) and iPod touch 4
 (`05ac:129e`) are recognized. Other USB devices are omitted. The inventory
 refreshes every second; removed devices and expired companion snapshots are
 cleared. Refresh also runs with **Cmd+R**. Arrow keys navigate the list;
-**Escape** returns to the overview. The theme button or **Cmd+Shift+T** cycles
-Aqua, Classic 98 and Windows XP.
+**Escape** or the **Overview** toolbar item returns to the overview. Choose
+**Appearance** in the logo menu or use **Cmd+Shift+T** to cycle Aqua, Classic 98
+and Windows XP; windows keep their state and client geometry.
 
 The native launcher reads IOKit USB registry properties without claiming an
 interface, starting a bridge or changing anything on a device. Connection
@@ -38,11 +49,13 @@ the app and requires no background installation.
 
 `bun run desktop test:macos` checks package contents, the icon, signature,
 device filtering and the native wire protocol. Simulator tests cover listing,
-collapse/expand, selection, refresh, removal and stale connection state.
+collapse/expand, selection, refresh, removal, stale connection state, desktop
+launching, window movement and resizing, Dock restore, close/reopen, independent
+window state and theme switching.
 Native screenshots require macOS Screen Recording permission; simulator
 renders are not native-window captures.
 
-## Linux and browser desktop themes
+## Desktop themes
 
 Pocket Shell Desktop ships three System UI themes: Classic 98, Windows XP and Aqua.
 Each is a period desktop rebuilt from PocketJS-native drawing — no bitmaps of
@@ -204,7 +217,7 @@ simulator with `bun run desktop capture`.
 The [Aqua GPU comparison](docs/bench/aqua-gpu-2026-09-10.md) and
 [classic baseline](docs/bench/classic-2026-08-23.md) describe the imported
 desktop showcase at their recorded revisions. They do not measure the
-current macOS Devices product. Replay `benchmark:drag` or `benchmark:classic`
+current macOS desktop with Devices. Replay `benchmark:drag` or `benchmark:classic`
 from the corresponding historical revision; both scripts reject a Devices
 plan instead of reporting its lighter workload as the old desktop.
 New benchmark receipts stay in ignored `.pocket/bench/` directories.

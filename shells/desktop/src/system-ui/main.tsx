@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // src/system-ui/main.tsx — Pocket Shell Desktop entry point (SolidJS, JSX).
-import { mount } from "@pocketjs/framework";
+import { getOps, mount } from "@pocketjs/framework";
 import App from "./app.tsx";
 
-mount(() => <App />);
+// Each target keeps the same desktop and window manager. macOS ships a
+// small application catalog and starts in Aqua.
+mount(() => <App devicesOnly={getOps().__host === "macos-app"} />);

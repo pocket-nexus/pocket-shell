@@ -3,11 +3,11 @@ import { expect, test } from "bun:test";
 import { resolveDesktopSystem } from "../scripts/system-plan.ts";
 import { deviceSnapshot } from "../src/system-ui/devices.ts";
 
-test("macOS installs only Devices while Linux and web retain their own catalog", async () => {
+test("macOS keeps the shared desktop entry without preinstalled demo packages", async () => {
   const mac = await resolveDesktopSystem("macos-app");
   expect(mac.applications).toEqual([]);
   expect(mac.installation.installedPackages).toEqual([mac.roles.systemUI]);
-  expect(mac.systemUI.plan.app.entry).toBe("src/system-ui/devices-main.tsx");
+  expect(mac.systemUI.plan.app.entry).toBe("src/system-ui/main.tsx");
   for (const target of ["linux-app", "web-app"] as const) {
     expect((await resolveDesktopSystem(target)).applications).toHaveLength(11);
   }

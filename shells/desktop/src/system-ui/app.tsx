@@ -21,6 +21,8 @@
 // Without the System UI companion (sim, goldens, consoles) the app boots a
 // static arrangement and just renders it — the unmodified-app base case.
 
+import { DevicesView } from "./devices-view.tsx";
+import { createDeviceInventory, createDevicesWindow, type DevicesData } from "./devices.ts";
 import { For, onCleanup } from "solid-js";
 import { createPadLayout } from "./layout.ts";
 import { createState } from "./reactivity.ts";
@@ -169,6 +171,7 @@ type Drag =
   | null;
 
 // Program data bags (typed views of w.data for render + routing).
+const devicesOf = (w: WinCtl) => w.data as DevicesData;
 const padOf = (w: WinCtl) => w.data as PadData;
 const minesOf = (w: WinCtl) => w.data as MinesData;
 const folderOf = (w: WinCtl) => w.data as FolderData;
@@ -247,7 +250,9 @@ function DesktopWindow(props: {
           </View>
         ) : null}
         <View class={props.theme.windowBody}>
-          {w.kind === "notepad" ? (
+          {w.kind === "devices" ? (
+            <DevicesView data={devicesOf(w)} theme={props.theme} />
+          ) : w.kind === "notepad" ? (
             <NotepadView
               data={padOf(w)}
               wrapW={padWrapW(w, props.theme.metrics.frame)}
@@ -281,8 +286,10 @@ function DesktopWindow(props: {
   );
 }
 
-export default function App() {
+export default function App(props: { devicesOnly?: boolean }) {
   const svc = connectSvc();
+  const devicesOnly = props.devicesOnly ?? false;
+  const inventory = createDeviceInventory();
 
   const vp = createState<{ w: number; h: number }>({ w: 800, h: 600 });
   const wins = createState<WinCtl[]>([]);
@@ -295,7 +302,7 @@ export default function App() {
   const popup = createState<{ popup: Popup; winId?: number } | null>(null);
   const popupHover = createState(-1);
   const clock = createState("--:--");
-  const themeId = createState<ThemeId>("classic");
+  const themeId = createState<ThemeId>(devicesOnly ? "aqua" : "classic");
   const theme = () => themeById(themeId());
   const metrics = () => theme().metrics;
   const uiSlot = () => theme().fontSlot("ui");
@@ -448,6 +455,47 @@ export default function App() {
   }
 
   // ---- programs ---------------------------------------------------------------
+
+  function deviceViewport(w: WinCtl) {
+    const g = w.geo();
+    return {
+      w: g.w - metrics().frame * 2,
+      h: g.h - metrics().frame - contentTop(chromeOpts(w), metrics()),
+    };
+  }
+
+  function fitDevicesGeo(geo: Geo): Geo {
+    const w = Math.min(geo.w, vp().w - 16);
+    const h = Math.min(geo.h, vp().h - metrics().screenBarH - metrics().taskH - 16);
+    return { ...geo, w, h,
+      x: Math.max(8, Math.min(geo.x, vp().w - w - 8)),
+      y: Math.max(metrics().screenBarH + 8, Math.min(geo.y, vp().h - metrics().taskH - h - 8)),
+    };
+  }
+
+  function openDevices(newWindow = false) {
+    const existing = wins().find(w => w.kind === "devices");
+    if (existing && !newWindow) return raise(existing.id);
+    const w = createWin({
+      kind: "devices", title: "Devices", icon: "computer",
+      geo: fitDevicesGeo(cascadePos(wins().length, vp().w, vp().h, 660, 450, metrics())),
+      minW: 560, minH: 380,
+    });
+    const data = createDevicesWindow(inventory, () => deviceViewport(w), () => svc?.send({ t: "devices-refresh" }));
+    w.data = data;
+    w.menus = [
+      { label: "File", width: menuW("File"), items: () => [
+        { label: "New Window", shortcut: "Cmd+N", act: () => openDevices(true) },
+        { label: "Close Window", shortcut: "Cmd+W", act: () => closeWin(w.id) },
+      ] },
+      { label: "View", width: menuW("View"), items: () => [
+        { label: "All Devices", act: () => data.selected.set(null) },
+        { label: "Show Devices", checked: data.expanded(), act: () => data.expanded.set(!data.expanded()) },
+        { label: "Refresh", shortcut: "Cmd+R", act: data.refresh },
+      ] },
+    ];
+    addWin(w);
+  }
 
   function openNotepad(title: string, content: string[]) {
     const existing = wins().find(
@@ -889,7 +937,9 @@ export default function App() {
 
   // ---- desktop icons + start menu ----------------------------------------------
 
-  const icons: DeskIcon[] = [
+  const icons: DeskIcon[] = devicesOnly ? [
+    { icon: "computer", label: "Devices", open: () => openDevices() },
+  ] : [
     { icon: "computer", label: "My Computer", open: openMyComputer },
     { icon: "documents", label: "My Documents", open: openDocuments },
     { icon: "recycle", label: "Recycle Bin", open: openRecycle },
@@ -1086,6 +1136,14 @@ export default function App() {
   ];
 
   const startItems = (): PopupItem[] => {
+    if (devicesOnly) return [
+      { label: "About Pocket Shell Desktop", act: openAbout },
+      { sep: true, label: "" },
+      { label: "Devices", icon: "computer", act: () => openDevices() },
+      { label: "Appearance", icon: "settings", sub: themeItems() },
+      { sep: true, label: "" },
+      { label: "Shut Down...", icon: "shutdown", act: openShutdown },
+    ];
     const style = theme().startStyle;
     if (style === "panel") return xpStartItems();
     if (style === "menu") return aquaStartItems();
@@ -1169,6 +1227,7 @@ export default function App() {
     if (w.kind === "notepad") return "Notepad";
     if (w.kind === "mines") return "Minesweeper";
     if (w.kind === "folder") return "Files";
+    if (w.kind === "devices") return "Devices";
     if (w.kind === "pocket") return pocketOf(w).app.title;
     return "Pocket Shell Desktop";
   }
@@ -1409,6 +1468,10 @@ export default function App() {
   }
 
   function routeContentDown(w: WinCtl, cx: number, cy: number, shift: boolean) {
+    if (w.kind === "devices") {
+      devicesOf(w).click(cx, cy);
+      return;
+    }
     if (w.kind === "notepad") {
       const d = padOf(w);
       const doc = d.doc();
@@ -1569,7 +1632,11 @@ export default function App() {
       const icon = iconAt(mx, my);
       iconSel.set(icon);
       popup.set({
-        popup: buildPopup(mx, my, [
+        popup: buildPopup(mx, my, devicesOnly ? [
+          { label: "Open Devices", act: () => openDevices() },
+          { label: "New Devices Window", act: () => openDevices(true) },
+          { label: "Next Theme", act: () => setTheme(nextThemeId(themeId())) },
+        ] : [
           { label: "Arrange Icons", act: () => {} },
           { label: "Refresh", act: () => {} },
           { sep: true, label: "" },
@@ -1880,7 +1947,11 @@ export default function App() {
       case "`":
         cycleWindows();
         return;
+      case "r":
+        if (focused()?.kind === "devices") devicesOf(focused()!).refresh();
+        return;
       case "n":
+        if (devicesOnly) return openDevices(true);
         openNotepad("Untitled - Notepad", [""]);
         return;
       case "w": {
@@ -1918,10 +1989,15 @@ export default function App() {
     }
     if (k === "Escape") {
       if (startOpen() || popup()) closeMenus();
+      else if (focused()?.kind === "devices") devicesOf(focused()!).key(k);
       return;
     }
     const w = focused();
     if (!w) return;
+    if (w.kind === "devices") {
+      devicesOf(w).key(k);
+      return;
+    }
     if (w.kind === "pocket") {
       // The CompositorSurface focused flag routes input natively.
       return;
@@ -2065,8 +2141,11 @@ export default function App() {
 
   function handleEvent(ev: HostEvent) {
     switch (ev.t) {
+      case "devices":
+        inventory.accept(ev, virtualNow());
+        break;
       case "hello": {
-        vp.set({ w: ev.w ?? 800, h: ev.h ?? 600 });
+        handleEvent({ t: "resize", w: ev.w ?? 800, h: ev.h ?? 600 });
         epoch = ev.epoch ?? 0;
         epochAt = virtualNow();
         break;
@@ -2078,7 +2157,10 @@ export default function App() {
         for (const win of wins()) {
           if (win.maximized())
             win.geo.set(maximizedGeo(w, h, metrics()));
-          else win.geo.set(clampMove(win.geo(), w, h, metrics()));
+          else {
+            const geo = win.kind === "devices" ? fitDevicesGeo(win.geo()) : win.geo();
+            win.geo.set(clampMove(geo, w, h, metrics()));
+          }
         }
         break;
       }
@@ -2128,6 +2210,7 @@ export default function App() {
       }
       case "scroll": {
         const hover = hitWindows(mx, my);
+        if (hover?.win.kind === "devices" && hover.region.kind === "content") devicesOf(hover.win).scroll(ev.dy ?? 0);
         if (hover?.win.kind === "notepad") {
           const d = padOf(hover.win);
           const contentH =
@@ -2144,6 +2227,7 @@ export default function App() {
   }
 
   function boot() {
+    if (devicesOnly) return openDevices();
     openNotepad("welcome.txt - Notepad", WELCOME);
     if (!svc) {
       // Standalone (sim, goldens): a lively static arrangement.
@@ -2156,6 +2240,10 @@ export default function App() {
 
   onFrame(() => {
     if (svc) for (const ev of svc.poll()) handleEvent(ev);
+    if (devicesOnly) {
+      inventory.tick(virtualNow());
+      for (const w of wins()) if (w.kind === "devices") devicesOf(w).sync();
+    }
     for (const layout of layouts.values()) layout.step(metrics().frame, uiSlot());
 
     // Taskbar clock (minute precision, anchored at the hello epoch).

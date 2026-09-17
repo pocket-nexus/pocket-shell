@@ -249,7 +249,7 @@ if (lockProbe.includes("1")) {
 }
 
 const systemPlan = await Bun.file(systemPlanPath).json();
-if (systemPlan.systemUI.plan.app.entry !== "src/system-ui/main.tsx") {
+if (systemPlan.applications.length === 0) {
   throw new Error("The classic baseline requires the historical desktop showcase. It must not label a Devices build as the classic desktop; use the revision recorded in docs/bench.");
 }
 const packageOutputs: string[] = [

@@ -9,7 +9,7 @@ import { deviceSnapshot } from "../src/system-ui/devices.ts";
 const contents = resolve(ROOT, "dist/Pocket Shell.app/Contents");
 const binary = resolve(contents, "MacOS/PocketShell");
 
-test("the signed bundle contains only the Devices package and the original icon", async () => {
+test("the signed bundle contains the desktop with Devices and the original icon", async () => {
   expect(readdirSync(resolve(contents, "Resources/dist")).sort()).toEqual([
     "pocket-desktop-system-ui.js", "pocket-desktop-system-ui.pak",
   ]);

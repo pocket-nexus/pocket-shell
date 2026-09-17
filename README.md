@@ -9,7 +9,7 @@ shell owns its interface and input model.
 | --- | --- | --- |
 | Nintendo 3DS | Self-rendered tiling windows on the top screen; chords and touch controls on the lower screen | [shells/3ds](shells/3ds/README.md) |
 | iPod touch 4 | An Omarchy companion that mirrors and controls a desktop over USB or Wi-Fi | [shells/ipod](shells/ipod/README.md) |
-| Desktop OS | macOS app for connected PocketJS devices; Linux and browser desktop showcase with Classic 98, XP and Aqua themes | [shells/desktop](shells/desktop/README.md) |
+| Desktop OS | Desktop with Classic 98, XP and Aqua themes; macOS ships Devices, Linux and browser include the demo catalog | [shells/desktop](shells/desktop/README.md) |
 
 The former **pocket-desktop** project is now the desktop OS shell in this
 repository. Its application code, assets, tests, native build scripts, browser
@@ -73,8 +73,9 @@ Desktop outputs are in `shells/desktop/dist/`. Use `bun run desktop --help`
 to list its commands, including captures, benchmarks and the text companion.
 
 On macOS, open `shells/desktop/dist/Pocket Shell.app` or drag it into
-Applications. It starts in Devices with no preinstalled demo applications.
-Expand Devices to see connected PSPs and iPod touch 4 devices over USB.
+Applications. It opens an Aqua desktop with a Devices window, without the demo
+app catalog. Double-click the Devices desktop icon to reopen it; expand its
+sidebar to see connected PSPs and iPod touch 4 devices over USB.
 Discovery does not require Bun, Homebrew, an existing device bridge or this
 checkout once the app has been built.
 

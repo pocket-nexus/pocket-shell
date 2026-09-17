@@ -44,7 +44,7 @@ rmSync(bundle, { recursive: true, force: true });
 mkdirSync(executables, { recursive: true });
 mkdirSync(resolve(resources, "dist"), { recursive: true });
 const system = await Bun.file(receipt.systemPlanPath).json();
-if (system.applications.length !== 0) throw new Error("The macOS bundle must contain only the Devices shell");
+if (system.applications.length !== 0) throw new Error("The macOS desktop must not install demo packages");
 for (const extension of ["js", "pak"]) {
   const name = `${system.systemUI.plan.app.output}.${extension}`;
   cpSync(resolve(DIST, name), resolve(resources, "dist", name));
@@ -89,7 +89,7 @@ for (const command of [
   const code = await run(command);
   if (code !== 0) process.exit(code);
 }
-console.log(`Pocket Shell: ${bundle} (Devices, no preinstalled demo apps)`);
+console.log(`Pocket Shell: ${bundle} (desktop with Devices, no preinstalled demo apps)`);
 if (buildOnly) process.exit(0);
 const code = await run(
   [binary, ...hostArgs],

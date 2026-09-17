@@ -13,15 +13,13 @@ const SIM_DIST = resolve(POCKETJS_ROOT, "dist");
 // macOS plan does, and needs the pak baked to match or every glyph and icon
 // arrives as upscaled 1x art.
 const density = process.argv.slice(2).find((a) => a.startsWith("--density="));
-const devices = process.argv.includes("--devices");
-const entry = devices ? "devices-main" : "main";
 
 await prepareAssets();
 const child = Bun.spawn(
   [
     process.execPath,
     resolve(POCKETJS_ROOT, "tools/build.ts"),
-    resolve(ROOT, `src/system-ui/${entry}.tsx`),
+    resolve(ROOT, "src/system-ui/main.tsx"),
     "--framework=solid",
     `--outdir=${SIM_DIST}`,
     ...(density ? [density] : []),
@@ -32,7 +30,7 @@ const code = await child.exited;
 if (code !== 0) process.exit(code);
 for (const extension of ["js", "pak"]) {
   renameSync(
-    resolve(SIM_DIST, `${entry}.${extension}`),
-    resolve(SIM_DIST, `${devices ? "pocket-shell-devices" : "pocket-desktop-system-ui"}.${extension}`),
+    resolve(SIM_DIST, `main.${extension}`),
+    resolve(SIM_DIST, `pocket-desktop-system-ui.${extension}`),
   );
 }

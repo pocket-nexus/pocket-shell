@@ -12,7 +12,7 @@ const host = resolve(value("--host", resolve(POCKETJS_ROOT, "hosts/desktop/targe
 const directory = resolve(value("--out", ".pocket/bench/drag"));
 const planPath = resolve(PLAN_DIR, "pocket-desktop.system.plan.json");
 const plan = JSON.parse(readFileSync(planPath, "utf8"));
-if (plan.systemUI.plan.app.entry !== "src/system-ui/main.tsx") {
+if (plan.applications.length === 0) {
   throw new Error("This historical drag tape requires the desktop showcase, not the macOS Devices app. Replay it at the revision recorded in docs/bench.");
 }
 const viewport = plan.systemUI.plan.viewport;
