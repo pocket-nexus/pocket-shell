@@ -212,7 +212,7 @@ describe("Touch shell through the mounted PocketJS guest", () => {
     expect(prop(15, PROP.opacity)).toBe(0);
     expect(writes.get(named.get("TouchHomePage0")!)!.get(PROP.translateX)).toBe(0);
     const finalNodes: number[] = [];
-    const collect = (n: any) => { if (n.n?.startsWith("TouchWindow")) finalNodes.push(n.i); n.k?.forEach(collect); };
+    const collect = (n: any) => { if (/^TouchWindow\d+$/.test(n.n ?? "")) finalNodes.push(n.i); n.k?.forEach(collect); };
     collect(world.getTree());
     expect(finalNodes).toEqual(nodes);
   });

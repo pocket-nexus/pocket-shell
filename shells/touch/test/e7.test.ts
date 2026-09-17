@@ -79,7 +79,7 @@ describe('Nokia E7 native viewport', () => {
       }
       idle();
       const nodes: number[] = [];
-      const collect = (node: any, out: number[]) => { if (node.n?.startsWith('TouchWindow')) out.push(node.i); node.k?.forEach((n: any) => collect(n, out)); };
+      const collect = (node: any, out: number[]) => { if (/^TouchWindow\d+$/.test(node.n ?? '')) out.push(node.i); node.k?.forEach((n: any) => collect(n, out)); };
       collect(world.getTree(), nodes); expect(nodes).toHaveLength(16);
       const l = shellLayout(width, height), cx = width / 2, bar = height - 14;
       glide(cx, bar, cx, bar - 41);
