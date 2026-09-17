@@ -52,6 +52,16 @@ export interface CaptionState {
  *  the theme resolves the artwork, so a theme switch re-skins every icon on
  *  screen — desktop, captions, task strip, menus — without touching state. */
 export type IconName =
+  | "disk"
+  | "home"
+  | "desktop-place"
+  | "documents-place"
+  | "downloads"
+  | "native-apps"
+  | "pocket-apps"
+  | "document-file"
+  | "trash"
+  | "openstrike"
   | "files"
   | "devices"
   | "handheld"
@@ -193,7 +203,7 @@ export interface DesktopTheme {
   metrics: ChromeMetrics;
   fontSlot: (role: FontRole) => number;
   /** Artwork for a semantic icon at a logical size. */
-  icon: (name: IconName, size: IconSize) => string;
+  icon: (name: IconName, size: IconSize, selected?: boolean) => string;
   /** Which launcher panel the shell builds: the Classic rail menu, the XP
    *  two-column panel, or a plain dropdown under a screen-bar logo. */
   startStyle: "rail" | "panel" | "menu";
@@ -345,59 +355,79 @@ export interface DesktopTheme {
 
 /** Themes override semantic application and device-class artwork. Missing
  * overrides fall back to Aqua; identities and window state never change. */
-const APP_ART: Partial<Record<ThemeId, Partial<Record<"files" | "devices" | "handheld" | "media-player", readonly [string, string]>>>> = {
+type Artwork = "files" | "devices" | "handheld" | "media-player" | "disk" | "home" | "desktop-place" | "documents-place" | "downloads" | "native-apps" | "pocket-apps" | "document-file" | "trash" | "openstrike" | "mines";
+const APP_ART: Partial<Record<ThemeId, Partial<Record<Artwork, readonly [string, string, string]>>>> = {
   aqua: {
-    "files": ["icons/files-16.png", "icons/files-32.png"],
-    "devices": ["icons/devices-16.png", "icons/devices-32.png"],
-    "handheld": ["icons/handheld-16.png", "icons/handheld-32.png"],
-    "media-player": ["icons/media-player-16.png", "icons/media-player-32.png"],
+    "files": ["icons/files-16.png", "icons/files-32.png", "icons/files-selected-32.png"],
+    "devices": ["icons/devices-16.png", "icons/devices-32.png", "icons/devices-selected-32.png"],
+    "handheld": ["icons/handheld-16.png", "icons/handheld-32.png", "icons/handheld-selected-32.png"],
+    "media-player": ["icons/media-player-16.png", "icons/media-player-32.png", "icons/media-player-selected-32.png"],
+    "disk": ["icons/disk-16.png", "icons/disk-32.png", "icons/disk-selected-32.png"],
+    "home": ["icons/home-16.png", "icons/home-32.png", "icons/home-selected-32.png"],
+    "desktop-place": ["icons/desktop-place-16.png", "icons/desktop-place-32.png", "icons/desktop-place-selected-32.png"],
+    "documents-place": ["icons/documents-place-16.png", "icons/documents-place-32.png", "icons/documents-place-selected-32.png"],
+    "downloads": ["icons/downloads-16.png", "icons/downloads-32.png", "icons/downloads-selected-32.png"],
+    "native-apps": ["icons/native-apps-16.png", "icons/native-apps-32.png", "icons/native-apps-selected-32.png"],
+    "pocket-apps": ["icons/pocket-apps-16.png", "icons/pocket-apps-32.png", "icons/pocket-apps-selected-32.png"],
+    "document-file": ["icons/document-file-16.png", "icons/document-file-32.png", "icons/document-file-selected-32.png"],
+    "trash": ["icons/trash-16.png", "icons/trash-32.png", "icons/trash-selected-32.png"],
+    "openstrike": ["icons/openstrike-16.png", "icons/openstrike-32.png", "icons/openstrike-selected-32.png"],
+    "mines": ["icons/mines-16.png", "icons/mines-32.png", "icons/mines-selected-32.png"],
   },
   classic: {
-    "files": ["icons/classic-files-16.png", "icons/classic-files-32.png"],
-    "devices": ["icons/classic-devices-16.png", "icons/classic-devices-32.png"],
-    "handheld": ["icons/classic-handheld-16.png", "icons/classic-handheld-32.png"],
-    "media-player": ["icons/classic-media-player-16.png", "icons/classic-media-player-32.png"],
+    "files": ["icons/classic-files-16.png", "icons/classic-files-32.png", "icons/classic-files-selected-32.png"],
+    "devices": ["icons/classic-devices-16.png", "icons/classic-devices-32.png", "icons/classic-devices-selected-32.png"],
+    "handheld": ["icons/classic-handheld-16.png", "icons/classic-handheld-32.png", "icons/classic-handheld-selected-32.png"],
+    "media-player": ["icons/classic-media-player-16.png", "icons/classic-media-player-32.png", "icons/classic-media-player-selected-32.png"],
+    "disk": ["icons/classic-disk-16.png", "icons/classic-disk-32.png", "icons/classic-disk-selected-32.png"],
+    "home": ["icons/classic-home-16.png", "icons/classic-home-32.png", "icons/classic-home-selected-32.png"],
+    "desktop-place": ["icons/classic-desktop-place-16.png", "icons/classic-desktop-place-32.png", "icons/classic-desktop-place-selected-32.png"],
+    "documents-place": ["icons/classic-documents-place-16.png", "icons/classic-documents-place-32.png", "icons/classic-documents-place-selected-32.png"],
+    "downloads": ["icons/classic-downloads-16.png", "icons/classic-downloads-32.png", "icons/classic-downloads-selected-32.png"],
+    "native-apps": ["icons/classic-native-apps-16.png", "icons/classic-native-apps-32.png", "icons/classic-native-apps-selected-32.png"],
+    "pocket-apps": ["icons/classic-pocket-apps-16.png", "icons/classic-pocket-apps-32.png", "icons/classic-pocket-apps-selected-32.png"],
+    "document-file": ["icons/classic-document-file-16.png", "icons/classic-document-file-32.png", "icons/classic-document-file-selected-32.png"],
+    "trash": ["icons/classic-trash-16.png", "icons/classic-trash-32.png", "icons/classic-trash-selected-32.png"],
+    "openstrike": ["icons/classic-openstrike-16.png", "icons/classic-openstrike-32.png", "icons/classic-openstrike-selected-32.png"],
+    "mines": ["icons/classic-mines-16.png", "icons/classic-mines-32.png", "icons/classic-mines-selected-32.png"],
   },
   xp: {
-    "files": ["icons/xp-files-16.png", "icons/xp-files-32.png"],
-    "devices": ["icons/xp-devices-16.png", "icons/xp-devices-32.png"],
-    "handheld": ["icons/xp-handheld-16.png", "icons/xp-handheld-32.png"],
-    "media-player": ["icons/xp-media-player-16.png", "icons/xp-media-player-32.png"],
+    "files": ["icons/xp-files-16.png", "icons/xp-files-32.png", "icons/xp-files-selected-32.png"],
+    "devices": ["icons/xp-devices-16.png", "icons/xp-devices-32.png", "icons/xp-devices-selected-32.png"],
+    "handheld": ["icons/xp-handheld-16.png", "icons/xp-handheld-32.png", "icons/xp-handheld-selected-32.png"],
+    "media-player": ["icons/xp-media-player-16.png", "icons/xp-media-player-32.png", "icons/xp-media-player-selected-32.png"],
+    "disk": ["icons/xp-disk-16.png", "icons/xp-disk-32.png", "icons/xp-disk-selected-32.png"],
+    "home": ["icons/xp-home-16.png", "icons/xp-home-32.png", "icons/xp-home-selected-32.png"],
+    "desktop-place": ["icons/xp-desktop-place-16.png", "icons/xp-desktop-place-32.png", "icons/xp-desktop-place-selected-32.png"],
+    "documents-place": ["icons/xp-documents-place-16.png", "icons/xp-documents-place-32.png", "icons/xp-documents-place-selected-32.png"],
+    "downloads": ["icons/xp-downloads-16.png", "icons/xp-downloads-32.png", "icons/xp-downloads-selected-32.png"],
+    "native-apps": ["icons/xp-native-apps-16.png", "icons/xp-native-apps-32.png", "icons/xp-native-apps-selected-32.png"],
+    "pocket-apps": ["icons/xp-pocket-apps-16.png", "icons/xp-pocket-apps-32.png", "icons/xp-pocket-apps-selected-32.png"],
+    "document-file": ["icons/xp-document-file-16.png", "icons/xp-document-file-32.png", "icons/xp-document-file-selected-32.png"],
+    "trash": ["icons/xp-trash-16.png", "icons/xp-trash-32.png", "icons/xp-trash-selected-32.png"],
+    "openstrike": ["icons/xp-openstrike-16.png", "icons/xp-openstrike-32.png", "icons/xp-openstrike-selected-32.png"],
+    "mines": ["icons/xp-mines-16.png", "icons/xp-mines-32.png", "icons/xp-mines-selected-32.png"],
   },
 };
-function applicationIcon(theme: ThemeId, name: "files" | "devices" | "handheld" | "media-player", size: IconSize): string {
+function artworkName(name: IconName): Artwork | undefined {
+  const aliases: Partial<Record<IconName, Artwork>> = {
+    computer: "desktop-place", documents: "documents-place", folder: "files", recycle: "trash",
+    drive: "disk", file: "document-file", notepad: "document-file", pocket: "pocket-apps",
+  };
+  return aliases[name] ?? (APP_ART.aqua?.[name as Artwork] ? name as Artwork : undefined);
+}
+function applicationIcon(theme: ThemeId, name: Artwork, size: IconSize, selected = false): string {
   const art = APP_ART[theme]?.[name] ?? APP_ART.aqua![name]!;
-  return art[size === 32 ? 1 : 0];
+  return art[size === 32 ? selected ? 2 : 1 : 0];
 }
 
 /** The pixel-art set drawn for Classic (gen-icons.ts ICONS/NATIVE). */
-function classicIcon(name: IconName, size: IconSize): string {
+function classicIcon(name: IconName, size: IconSize, selected = false): string {
+  const art = artworkName(name);
+  if (art) return applicationIcon("classic", art, size, selected);
   switch (name) {
-    case "files":
-    case "devices":
-    case "handheld":
-    case "media-player":
-      return applicationIcon("classic", name, size);
-    case "computer":
-      return size === 32 ? "icons/computer.svg" : "icons/computer-16.svg";
-    case "documents":
-      return size === 32 ? "icons/documents.svg" : "icons/folder-16.svg";
-    case "folder":
-      return size === 32 ? "icons/documents.svg" : "icons/folder-16.svg";
-    case "recycle":
-      return size === 32 ? "icons/recycle.svg" : "icons/recycle-16.svg";
-    case "notepad":
-      return size === 32 ? "icons/notepad.svg" : "icons/notepad-16.svg";
-    case "mines":
-      return size === 32 ? "icons/mines.svg" : "icons/mines-16.svg";
-    case "pocket":
-      return size === 32 ? "icons/pocket-app.svg" : "icons/pocket-app-16.svg";
-    case "drive":
-      return "icons/drive-16.svg";
     case "cdrom":
       return "icons/cdrom-16.svg";
-    case "file":
-      return "icons/file-16.svg";
     case "shutdown":
     case "power":
       return size === 32 ? "icons/shutdown.svg" : "icons/shutdown-16.svg";
@@ -425,6 +455,7 @@ function classicIcon(name: IconName, size: IconSize): string {
       return "icons/nav-forward-16.svg";
     case "up":
       return "icons/nav-up-16.svg";
+    default: return applicationIcon("classic", "document-file", size, selected);
   }
 }
 
@@ -432,26 +463,10 @@ function classicIcon(name: IconName, size: IconSize): string {
  *  system art; the neutral small objects (drives, pages, gear, magnifier,
  *  help, run, check) share the Aqua vectors, which read as smooth 3D the way
  *  XP's own did. Pixel art remains only for the menu chevron and the grip. */
-function xpIcon(name: IconName, size: IconSize): string {
+function xpIcon(name: IconName, size: IconSize, selected = false): string {
+  const art = artworkName(name);
+  if (art) return applicationIcon("xp", art, size, selected);
   switch (name) {
-    case "files":
-    case "devices":
-    case "handheld":
-    case "media-player":
-      return applicationIcon("xp", name, size);
-    case "computer":
-      return size === 32 ? "icons/xp-computer.svg" : "icons/xp-computer-16.svg";
-    case "documents":
-    case "folder":
-      return size === 32 ? "icons/xp-folder.svg" : "icons/xp-folder-16.svg";
-    case "recycle":
-      return size === 32 ? "icons/xp-recycle.svg" : "icons/xp-recycle-16.svg";
-    case "notepad":
-      return size === 32 ? "icons/xp-notepad.svg" : "icons/xp-notepad-16.svg";
-    case "mines":
-      return size === 32 ? "icons/xp-mines.svg" : "icons/xp-mines-16.svg";
-    case "pocket":
-      return size === 32 ? "icons/xp-pocket-app.svg" : "icons/xp-pocket-app-16.svg";
     case "back":
       return "icons/xp-back-16.svg";
     case "forward":
@@ -462,9 +477,7 @@ function xpIcon(name: IconName, size: IconSize): string {
       return "icons/xp-power.svg";
     case "user":
       return "icons/xp-user.svg";
-    case "drive":
     case "cdrom":
-    case "file":
     case "settings":
     case "find":
     case "help":
@@ -478,40 +491,17 @@ function xpIcon(name: IconName, size: IconSize): string {
 
 /** The Aqua vector set (gen-icons.ts AQUA): gel folders, a flat-panel
  *  display, a metal trash can, blue gel plates. */
-function aquaIcon(name: IconName, size: IconSize): string {
+function aquaIcon(name: IconName, size: IconSize, selected = false): string {
+  const art = artworkName(name);
+  if (art) return applicationIcon("aqua", art, size, selected);
   switch (name) {
-    case "files":
-    case "devices":
-    case "handheld":
-    case "media-player":
-      return applicationIcon("aqua", name, size);
-    case "computer":
-      return size === 32
-        ? "icons/aqua-computer.svg"
-        : "icons/aqua-computer-16.svg";
-    case "documents":
-    case "folder":
-      return size === 32 ? "icons/aqua-folder.svg" : "icons/aqua-folder-16.svg";
-    case "recycle":
-      return size === 32 ? "icons/aqua-trash.svg" : "icons/aqua-trash-16.svg";
-    case "notepad":
-      return size === 32
-        ? "icons/aqua-notepad.svg"
-        : "icons/aqua-notepad-16.svg";
-    case "mines":
-      return size === 32 ? "icons/aqua-mines.svg" : "icons/aqua-mines-16.svg";
-    case "pocket":
     case "user":
     case "start":
       return size === 32
         ? "icons/aqua-pocket-app.svg"
         : "icons/aqua-pocket-app-16.svg";
-    case "drive":
-      return "icons/aqua-drive-16.svg";
     case "cdrom":
       return "icons/aqua-cdrom-16.svg";
-    case "file":
-      return "icons/aqua-file-16.svg";
     case "shutdown":
     case "power":
       return size === 32 ? "icons/aqua-power.svg" : "icons/aqua-power-16.svg";
@@ -535,6 +525,7 @@ function aquaIcon(name: IconName, size: IconSize): string {
       return "icons/aqua-forward-16.svg";
     case "up":
       return "icons/aqua-up-16.svg";
+    default: return applicationIcon("aqua", "document-file", size, selected);
   }
 }
 

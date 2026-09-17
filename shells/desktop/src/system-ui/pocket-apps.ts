@@ -5,6 +5,7 @@
 
 import type { PocketSystemV1 } from "@pocketjs/framework/manifest";
 import systemJson from "../../pocket.system.json";
+import macApps from "../../macos-apps.json";
 
 const system = systemJson as unknown as PocketSystemV1;
 const installedPackages = new Set(system.installation.installedPackages);
@@ -28,3 +29,4 @@ export const POCKET_APPS: readonly PocketAppSpec[] = system.applications.catalog
 
 export const POCKET_ICON = "icons/pocket-app.svg";
 export const POCKET_ICON_SMALL = "icons/pocket-app-16.svg";
+export const MAC_POCKET_APPS = POCKET_APPS.filter(app => macApps.includes(app.package));

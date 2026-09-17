@@ -12,8 +12,10 @@
 // density like any other vector asset. Offline Blender application bakes
 // are copied into the same output directory below.
 
-import { copyFileSync, mkdirSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, copyFileSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
+
+import { selectedIcon } from "../../scripts/selected-icon.ts";
 
 const PAL: Record<string, string> = {
   k: "#000000",
@@ -1750,9 +1752,13 @@ console.log(`gen-icons: wrote ${count} SVGs to src/system-ui/icons/`);
 // Reviewed theme artwork: Cycles bakes and native-grid Classic pixel art.
 // Keep normal builds independent of Blender and publish both render densities.
 for (const prefix of ["", "xp-", "classic-"]) {
-  for (const subject of ["files", "devices", "handheld", "media-player"]) {
+  for (const subject of ["files", "devices", "handheld", "media-player", "disk", "home", "desktop-place", "documents-place", "downloads", "native-apps", "pocket-apps", "document-file", "trash", "openstrike", "mines"]) {
     const name = prefix + subject;
     const baked = join(import.meta.dir, "../../assets/icons");
+    for (const density of [1, 2]) {
+      writeFileSync(join(outDir, `${name}-selected-32${density === 2 ? "@2x" : ""}.png`),
+        selectedIcon(readFileSync(join(baked, `${name}-${32 * density}.png`)), prefix, density));
+    }
     for (const size of [16, 32]) {
       copyFileSync(join(baked, `${name}-${size}.png`), join(outDir, `${name}-${size}.png`));
       copyFileSync(join(baked, `${name}-${size * 2}.png`), join(outDir, `${name}-${size}@2x.png`));

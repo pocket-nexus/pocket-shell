@@ -631,7 +631,7 @@ export function DesktopIcons(props: {
             ).y,
           }}
         >
-          <Image class="w-[32] h-[32]" src={props.theme.icon(icon.icon, 32)} />
+          <Image class="w-[32] h-[32]" src={props.theme.icon(icon.icon, 32, props.selected === i)} />
           <View
             class={
               props.selected === i

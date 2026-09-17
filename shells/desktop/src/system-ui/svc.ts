@@ -25,10 +25,12 @@
 //   {t:"cursor", k}            pointer shape: default|text|pointer|move|
 //                              grabbing|ew|ns|nwse|nesw
 
+import type { FilesIntent } from "./host-files.ts";
 import { getOps } from "@pocketjs/framework";
 
 export interface HostEvent {
   t:
+    | "files"
     | "devices"
     | "hello"
     | "resize"
@@ -76,6 +78,7 @@ export interface Svc {
   poll(): HostEvent[];
   send(
     line:
+      | FilesIntent
       | { t: "devices-refresh" }
       | { t: "quit" }
       | { t: "copy"; text: string }

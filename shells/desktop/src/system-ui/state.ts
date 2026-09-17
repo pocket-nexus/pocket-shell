@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+import type { HostFiles } from "./host-files.ts";
 // src/system-ui/state.ts — compositor state: window controls, popups, desktop
 // icons. Hot geometry lives in per-window refs so a drag re-evaluates one
 // window's style binding, not the world; the window LIST only changes on
@@ -115,7 +116,7 @@ export interface FolderRow {
 
 /** The places every file-manager window lists in its sidebar and navigates
  *  among in place (the same window renames and refills itself). */
-export type PlaceId = "computer" | "drivec" | "documents" | "recycle";
+export type PlaceId = "computer" | "drivec" | "documents" | "recycle" | "home" | "desktop" | "downloads" | "native-apps" | "pocket-apps" | `/${string}`;
 
 export interface Place {
   id: PlaceId;
@@ -130,16 +131,25 @@ export const PLACES: readonly Place[] = [
   { id: "recycle", label: "Recycle Bin", icon: "recycle" },
 ];
 
-/** The macOS file browser presents the shell's own sample folders and apps. */
+/** Virtual launchers sit beside real macOS filesystem locations. */
 export const MAC_PLACES: readonly Place[] = [
-  { id: "computer", label: "Pocket Shell", icon: "computer" },
-  { id: "drivec", label: "Applications", icon: "folder" },
-  { id: "documents", label: "Documents", icon: "documents" },
-  { id: "recycle", label: "Trash", icon: "recycle" },
+  { id: "computer", label: "Macintosh HD", icon: "disk" },
+  { id: "home", label: "Home", icon: "home" },
+  { id: "desktop", label: "Desktop", icon: "desktop-place" },
+  { id: "documents", label: "Documents", icon: "documents-place" },
+  { id: "downloads", label: "Downloads", icon: "downloads" },
+  { id: "native-apps", label: "Native Apps", icon: "native-apps" },
+  { id: "pocket-apps", label: "Pocket Apps", icon: "pocket-apps" },
+  { id: "recycle", label: "Trash", icon: "trash" },
 ];
 
 export interface FolderData {
   kind: "folder";
+  host?: HostFiles;
+  offset?: State<number>;
+  capacity?: () => number;
+  typed?: string;
+  typedAt?: number;
   places: readonly Place[];
   place: State<PlaceId>;
   rows: State<FolderRow[]>;

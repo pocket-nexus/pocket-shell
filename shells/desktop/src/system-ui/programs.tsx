@@ -473,7 +473,11 @@ export function folderToolEnabled(d: FolderData, tool: FolderTool): boolean {
   const h = d.hist();
   if (tool === "back") return h.at > 0;
   if (tool === "forward") return h.at < h.items.length - 1;
-  return d.place() !== "computer";
+  return d.host ? !d.host.loading() && d.host.parent() !== d.host.address() : d.place() !== "computer";
+}
+
+export function folderOffset(d: FolderData): number {
+  return Math.max(0, Math.min(d.offset?.() ?? 0, d.rows().length - (d.capacity?.() ?? d.rows().length)));
 }
 
 export function FolderView(props: {
@@ -484,7 +488,9 @@ export function FolderView(props: {
 }) {
   const d = props.data;
   const current = (i: number) => d.places[i].id === d.place();
-  const place = () => d.places.find((p) => p.id === d.place()) ?? d.places[0];
+  const place = () => d.places.find((p) => p.id === d.place()) ?? { icon: "files" as const, label: d.place() };
+  const offset = () => folderOffset(d);
+  const rows = () => d.rows().slice(offset(), offset() + (d.capacity?.() ?? d.rows().length));
   return (
     <View class="flex-1 flex-col">
       <View class={props.theme.folderToolbar}>
@@ -511,10 +517,10 @@ export function FolderView(props: {
           <UiText
             theme={props.theme}
             cls={props.theme.folderAddressText}
-            t={place().label}
+            t={d.host?.label() || place().label}
           />
         </View>
-        {props.theme.folderSearch !== "" ? (
+        {!d.host && props.theme.folderSearch !== "" ? (
           <View class={props.theme.folderSearch}>
             <Image class="w-[16] h-[16]" src={props.theme.icon("find", 16)} />
             <UiText theme={props.theme} cls={props.theme.folderSearchText} t="Search" />
@@ -563,7 +569,7 @@ export function FolderView(props: {
             <UiText theme={props.theme} t="Type" />
           </View>
         </View>
-        {d.rows().map((row, i) => (
+        {rows().map((row, local) => { const i = local + offset(); return (
           <View
             class={props.theme.folderRow(d.selected() === i, i % 2 === 1)}
           >
@@ -602,17 +608,25 @@ export function FolderView(props: {
               />
             </View>
           </View>
-        ))}
+        ); })}
         {d.rows().length === 0 ? (
           <View class="flex-1 flex-col justify-center items-center">
-            <UiText theme={props.theme} cls={props.theme.mutedText} t="(empty)" />
+            <UiText theme={props.theme} cls={props.theme.mutedText} t={d.host?.loading() ? "Loading..." : d.host?.status() && d.host.status() !== "0 items" ? "" : "(empty)"} />
+          </View>
+        ) : null}
+        {d.capacity && d.rows().length > d.capacity() ? (
+          <View class="absolute right-0 top-[17] bottom-0 w-[8] bg-[#e8e8e8]">
+            <View class="absolute left-[1] right-[1] rounded-[3] bg-[#9c9fa5]" style={{
+              translateY: offset() / d.rows().length * d.capacity() * 17,
+              height: Math.max(12, d.capacity() / d.rows().length * d.capacity() * 17),
+            }} />
           </View>
         ) : null}
       </View>
       </View>
       <View class="h-[20] flex-row items-end gap-[2] pt-[2]">
         <View class={props.theme.statusWell}>
-          <UiText theme={props.theme} t={`${d.rows().length} object(s)`} />
+          <UiText theme={props.theme} t={d.host?.status() || `${d.rows().length} object(s)`} />
         </View>
         {props.resizable ? (
           <Image class="w-[16] h-[16]" src={props.theme.icon("grip", 16)} />

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { expect, test } from "bun:test";
 import { connect } from "node:net";
-import { readdirSync } from "node:fs";
+import { readdirSync, mkdtempSync, rmSync, unlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { ROOT } from "../scripts/system-plan.ts";
 import { deviceSnapshot } from "../src/system-ui/devices.ts";
@@ -11,7 +12,8 @@ const binary = resolve(contents, "MacOS/PocketShell");
 
 test("the signed bundle contains the desktop with Devices and the original icon", async () => {
   expect(readdirSync(resolve(contents, "Resources/dist")).sort()).toEqual([
-    "pocket-desktop-system-ui.js", "pocket-desktop-system-ui.pak",
+    "cards-main.js", "cards-main.pak", "motions-main.js", "motions-main.pak",
+    "pocket-desktop-system-ui.js", "pocket-desktop-system-ui.pak", "stats-main.js", "stats-main.pak",
   ]);
   const original = new Uint8Array(await Bun.file(resolve(ROOT, "assets/macos/AppIcon.icns")).arrayBuffer());
   const bundled = new Uint8Array(await Bun.file(resolve(contents, "Resources/AppIcon.icns")).arrayBuffer());
@@ -24,6 +26,7 @@ test("the signed bundle contains the desktop with Devices and the original icon"
 });
 
 test("native companion handles fragmented handshakes, refresh and bounded messages", async () => {
+  const fixture = mkdtempSync(resolve(tmpdir(), "pocket-files-"));
   const service = Bun.spawn([binary, "--device-service"], { stdout: "pipe", stderr: "pipe" });
   const reader = service.stdout.getReader();
   let endpoint = "";
@@ -70,6 +73,46 @@ test("native companion handles fragmented handshakes, refresh and bounded messag
     header.writeUInt32LE(request.length, 4);
     socket.write(Buffer.concat([header, request]));
     await inventory();
+    async function files(message: object, request: number) {
+      const body = Buffer.from(JSON.stringify(message));
+      const frame = Buffer.alloc(8); frame[0] = 0x10; frame.writeUInt32LE(body.length, 4);
+      socket.write(Buffer.concat([frame, body]));
+      while (true) {
+        const header = await bytes(8);
+        const payload = JSON.parse((await bytes(header.readUInt32LE(4))).toString());
+        if (payload.t === "files" && payload.request === request) return payload;
+        expect(payload.t).toBe("devices");
+      }
+    }
+    for (let i = 0; i < 70; i++) await Bun.write(resolve(fixture, `File ${String(i).padStart(2, "0")}.txt`), "real file");
+    await Bun.write(resolve(fixture, ".hidden"), "hidden");
+    const first = await files({ t: "files-list", request: 1, path: fixture }, 1);
+    expect(first.entries).toHaveLength(32);
+    expect(first.total).toBe(70);
+    expect(first.done).toBe(false);
+    // Pagination is a stable host snapshot even if a file disappears mid-read.
+    unlinkSync(resolve(fixture, "File 00.txt"));
+    const second = await files({ t: "files-list", request: 1, path: fixture, offset: 32 }, 1);
+    expect(second.entries[0].name).toBe("File 32.txt");
+    const last = await files({ t: "files-list", request: 1, path: fixture, offset: 64 }, 1);
+    expect(last.entries).toHaveLength(6);
+    expect(last.done).toBe(true);
+    const hidden = await files({ t: "files-list", request: 2, path: fixture, hidden: true }, 2);
+    expect(hidden.entries.some((e: { name: string }) => e.name === ".hidden")).toBe(true);
+    expect((await files({ t: "files-list", request: 3, path: "relative/path" }, 3)).error).toBe("Invalid file path");
+    expect((await files({ t: "files-open", request: 4, path: resolve(fixture, "missing.app") }, 4)).error).toContain("no longer exists");
+    let offset = 0;
+    const apps: { name: string; path: string; kind: string }[] = [];
+    while (true) {
+      const page = await files({ t: "files-list", request: 5, path: "native-apps", offset }, 5);
+      expect(page.error).toBeUndefined();
+      apps.push(...page.entries);
+      if (page.done) break;
+      offset = page.next;
+    }
+    expect(apps.some(a => a.name === "Finder")).toBe(true);
+    expect(apps.some(a => a.name === "Calculator")).toBe(true);
+    expect(apps.every(a => a.path.startsWith("/") && a.kind === "application")).toBe(true);
     const oversized = Buffer.alloc(8);
     oversized[0] = 0x10;
     oversized.writeUInt32LE(4097, 4);
@@ -82,5 +125,6 @@ test("native companion handles fragmented handshakes, refresh and bounded messag
     reader.releaseLock();
     service.kill();
     await service.exited;
+    rmSync(fixture, { recursive: true, force: true });
   }
-}, 10000);
+}, 20000);

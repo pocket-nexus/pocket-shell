@@ -38,7 +38,7 @@ const sourceInputs = new Set([
 ]);
 // Reviewed offline theme artwork consumed by the desktop icon generator.
 for (const prefix of ["", "xp-", "classic-"]) {
-  for (const name of ["files", "devices", "handheld", "media-player"]) {
+  for (const name of ["files", "devices", "handheld", "media-player", "disk", "home", "desktop-place", "documents-place", "downloads", "native-apps", "pocket-apps", "document-file", "trash", "openstrike", "mines"]) {
     for (const size of [16, 32, 64]) sourceInputs.add(`shells/desktop/assets/icons/${prefix}${name}-${size}.png`);
   }
 }

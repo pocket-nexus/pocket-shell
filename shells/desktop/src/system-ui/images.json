@@ -5,10 +5,16 @@
   "icons/files-32.png": {
     "linear": true
   },
+  "icons/files-selected-32.png": {
+    "linear": true
+  },
   "icons/devices-16.png": {
     "linear": true
   },
   "icons/devices-32.png": {
+    "linear": true
+  },
+  "icons/devices-selected-32.png": {
     "linear": true
   },
   "icons/handheld-16.png": {
@@ -17,10 +23,115 @@
   "icons/handheld-32.png": {
     "linear": true
   },
+  "icons/handheld-selected-32.png": {
+    "linear": true
+  },
   "icons/media-player-16.png": {
     "linear": true
   },
   "icons/media-player-32.png": {
+    "linear": true
+  },
+  "icons/media-player-selected-32.png": {
+    "linear": true
+  },
+  "icons/disk-16.png": {
+    "linear": true
+  },
+  "icons/disk-32.png": {
+    "linear": true
+  },
+  "icons/disk-selected-32.png": {
+    "linear": true
+  },
+  "icons/home-16.png": {
+    "linear": true
+  },
+  "icons/home-32.png": {
+    "linear": true
+  },
+  "icons/home-selected-32.png": {
+    "linear": true
+  },
+  "icons/desktop-place-16.png": {
+    "linear": true
+  },
+  "icons/desktop-place-32.png": {
+    "linear": true
+  },
+  "icons/desktop-place-selected-32.png": {
+    "linear": true
+  },
+  "icons/documents-place-16.png": {
+    "linear": true
+  },
+  "icons/documents-place-32.png": {
+    "linear": true
+  },
+  "icons/documents-place-selected-32.png": {
+    "linear": true
+  },
+  "icons/downloads-16.png": {
+    "linear": true
+  },
+  "icons/downloads-32.png": {
+    "linear": true
+  },
+  "icons/downloads-selected-32.png": {
+    "linear": true
+  },
+  "icons/native-apps-16.png": {
+    "linear": true
+  },
+  "icons/native-apps-32.png": {
+    "linear": true
+  },
+  "icons/native-apps-selected-32.png": {
+    "linear": true
+  },
+  "icons/pocket-apps-16.png": {
+    "linear": true
+  },
+  "icons/pocket-apps-32.png": {
+    "linear": true
+  },
+  "icons/pocket-apps-selected-32.png": {
+    "linear": true
+  },
+  "icons/document-file-16.png": {
+    "linear": true
+  },
+  "icons/document-file-32.png": {
+    "linear": true
+  },
+  "icons/document-file-selected-32.png": {
+    "linear": true
+  },
+  "icons/trash-16.png": {
+    "linear": true
+  },
+  "icons/trash-32.png": {
+    "linear": true
+  },
+  "icons/trash-selected-32.png": {
+    "linear": true
+  },
+  "icons/openstrike-16.png": {
+    "linear": true
+  },
+  "icons/openstrike-32.png": {
+    "linear": true
+  },
+  "icons/openstrike-selected-32.png": {
+    "linear": true
+  },
+  "icons/mines-16.png": {
+    "linear": true
+  },
+  "icons/mines-32.png": {
+    "linear": true
+  },
+  "icons/mines-selected-32.png": {
     "linear": true
   },
   "icons/xp-files-16.png": {
@@ -29,10 +140,16 @@
   "icons/xp-files-32.png": {
     "linear": true
   },
+  "icons/xp-files-selected-32.png": {
+    "linear": true
+  },
   "icons/xp-devices-16.png": {
     "linear": true
   },
   "icons/xp-devices-32.png": {
+    "linear": true
+  },
+  "icons/xp-devices-selected-32.png": {
     "linear": true
   },
   "icons/xp-handheld-16.png": {
@@ -41,10 +158,115 @@
   "icons/xp-handheld-32.png": {
     "linear": true
   },
+  "icons/xp-handheld-selected-32.png": {
+    "linear": true
+  },
   "icons/xp-media-player-16.png": {
     "linear": true
   },
   "icons/xp-media-player-32.png": {
+    "linear": true
+  },
+  "icons/xp-media-player-selected-32.png": {
+    "linear": true
+  },
+  "icons/xp-disk-16.png": {
+    "linear": true
+  },
+  "icons/xp-disk-32.png": {
+    "linear": true
+  },
+  "icons/xp-disk-selected-32.png": {
+    "linear": true
+  },
+  "icons/xp-home-16.png": {
+    "linear": true
+  },
+  "icons/xp-home-32.png": {
+    "linear": true
+  },
+  "icons/xp-home-selected-32.png": {
+    "linear": true
+  },
+  "icons/xp-desktop-place-16.png": {
+    "linear": true
+  },
+  "icons/xp-desktop-place-32.png": {
+    "linear": true
+  },
+  "icons/xp-desktop-place-selected-32.png": {
+    "linear": true
+  },
+  "icons/xp-documents-place-16.png": {
+    "linear": true
+  },
+  "icons/xp-documents-place-32.png": {
+    "linear": true
+  },
+  "icons/xp-documents-place-selected-32.png": {
+    "linear": true
+  },
+  "icons/xp-downloads-16.png": {
+    "linear": true
+  },
+  "icons/xp-downloads-32.png": {
+    "linear": true
+  },
+  "icons/xp-downloads-selected-32.png": {
+    "linear": true
+  },
+  "icons/xp-native-apps-16.png": {
+    "linear": true
+  },
+  "icons/xp-native-apps-32.png": {
+    "linear": true
+  },
+  "icons/xp-native-apps-selected-32.png": {
+    "linear": true
+  },
+  "icons/xp-pocket-apps-16.png": {
+    "linear": true
+  },
+  "icons/xp-pocket-apps-32.png": {
+    "linear": true
+  },
+  "icons/xp-pocket-apps-selected-32.png": {
+    "linear": true
+  },
+  "icons/xp-document-file-16.png": {
+    "linear": true
+  },
+  "icons/xp-document-file-32.png": {
+    "linear": true
+  },
+  "icons/xp-document-file-selected-32.png": {
+    "linear": true
+  },
+  "icons/xp-trash-16.png": {
+    "linear": true
+  },
+  "icons/xp-trash-32.png": {
+    "linear": true
+  },
+  "icons/xp-trash-selected-32.png": {
+    "linear": true
+  },
+  "icons/xp-openstrike-16.png": {
+    "linear": true
+  },
+  "icons/xp-openstrike-32.png": {
+    "linear": true
+  },
+  "icons/xp-openstrike-selected-32.png": {
+    "linear": true
+  },
+  "icons/xp-mines-16.png": {
+    "linear": true
+  },
+  "icons/xp-mines-32.png": {
+    "linear": true
+  },
+  "icons/xp-mines-selected-32.png": {
     "linear": true
   },
   "icons/classic-files-16.png": {
@@ -53,10 +275,16 @@
   "icons/classic-files-32.png": {
     "linear": false
   },
+  "icons/classic-files-selected-32.png": {
+    "linear": false
+  },
   "icons/classic-devices-16.png": {
     "linear": false
   },
   "icons/classic-devices-32.png": {
+    "linear": false
+  },
+  "icons/classic-devices-selected-32.png": {
     "linear": false
   },
   "icons/classic-handheld-16.png": {
@@ -65,10 +293,115 @@
   "icons/classic-handheld-32.png": {
     "linear": false
   },
+  "icons/classic-handheld-selected-32.png": {
+    "linear": false
+  },
   "icons/classic-media-player-16.png": {
     "linear": false
   },
   "icons/classic-media-player-32.png": {
+    "linear": false
+  },
+  "icons/classic-media-player-selected-32.png": {
+    "linear": false
+  },
+  "icons/classic-disk-16.png": {
+    "linear": false
+  },
+  "icons/classic-disk-32.png": {
+    "linear": false
+  },
+  "icons/classic-disk-selected-32.png": {
+    "linear": false
+  },
+  "icons/classic-home-16.png": {
+    "linear": false
+  },
+  "icons/classic-home-32.png": {
+    "linear": false
+  },
+  "icons/classic-home-selected-32.png": {
+    "linear": false
+  },
+  "icons/classic-desktop-place-16.png": {
+    "linear": false
+  },
+  "icons/classic-desktop-place-32.png": {
+    "linear": false
+  },
+  "icons/classic-desktop-place-selected-32.png": {
+    "linear": false
+  },
+  "icons/classic-documents-place-16.png": {
+    "linear": false
+  },
+  "icons/classic-documents-place-32.png": {
+    "linear": false
+  },
+  "icons/classic-documents-place-selected-32.png": {
+    "linear": false
+  },
+  "icons/classic-downloads-16.png": {
+    "linear": false
+  },
+  "icons/classic-downloads-32.png": {
+    "linear": false
+  },
+  "icons/classic-downloads-selected-32.png": {
+    "linear": false
+  },
+  "icons/classic-native-apps-16.png": {
+    "linear": false
+  },
+  "icons/classic-native-apps-32.png": {
+    "linear": false
+  },
+  "icons/classic-native-apps-selected-32.png": {
+    "linear": false
+  },
+  "icons/classic-pocket-apps-16.png": {
+    "linear": false
+  },
+  "icons/classic-pocket-apps-32.png": {
+    "linear": false
+  },
+  "icons/classic-pocket-apps-selected-32.png": {
+    "linear": false
+  },
+  "icons/classic-document-file-16.png": {
+    "linear": false
+  },
+  "icons/classic-document-file-32.png": {
+    "linear": false
+  },
+  "icons/classic-document-file-selected-32.png": {
+    "linear": false
+  },
+  "icons/classic-trash-16.png": {
+    "linear": false
+  },
+  "icons/classic-trash-32.png": {
+    "linear": false
+  },
+  "icons/classic-trash-selected-32.png": {
+    "linear": false
+  },
+  "icons/classic-openstrike-16.png": {
+    "linear": false
+  },
+  "icons/classic-openstrike-32.png": {
+    "linear": false
+  },
+  "icons/classic-openstrike-selected-32.png": {
+    "linear": false
+  },
+  "icons/classic-mines-16.png": {
+    "linear": false
+  },
+  "icons/classic-mines-32.png": {
+    "linear": false
+  },
+  "icons/classic-mines-selected-32.png": {
     "linear": false
   }
 }

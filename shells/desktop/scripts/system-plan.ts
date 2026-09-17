@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { resolve } from "node:path";
+import macApps from "../macos-apps.json";
 import {
   validateAndResolveSystemPlan,
   validatePocketSystem,
@@ -22,12 +23,9 @@ export async function resolveDesktopSystem(
   // Linux and the website also install the demonstration catalog.
   if (target === "macos-app") {
     input.title = "Pocket Shell";
-    input.applications.catalog = [{
-      package: input.roles.systemUI,
-      manifest: "shells/desktop/pocket.json",
-      required: true,
-    }];
-    input.installation.installedPackages = [input.roles.systemUI];
+    input.applications.catalog = input.applications.catalog.filter((entry: { package: string }) =>
+      entry.package === input.roles.systemUI || macApps.includes(entry.package));
+    input.installation.installedPackages = [input.roles.systemUI, ...macApps];
   }
   const validated = validatePocketSystem(input);
   if (!validated.ok) {

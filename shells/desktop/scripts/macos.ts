@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { resolve } from "node:path";
 import { cpSync, mkdirSync, rmSync } from "node:fs";
+import { packageOpenStrike } from "./openstrike.ts";
 import { buildDesktopSystem } from "./build-system.ts";
 import { DIST, POCKETJS_ROOT, ROOT } from "./system-plan.ts";
 
@@ -44,23 +45,30 @@ rmSync(bundle, { recursive: true, force: true });
 mkdirSync(executables, { recursive: true });
 mkdirSync(resolve(resources, "dist"), { recursive: true });
 const system = await Bun.file(receipt.systemPlanPath).json();
-if (system.applications.length !== 0) throw new Error("The macOS desktop must not install demo packages");
-for (const extension of ["js", "pak"]) {
-  const name = `${system.systemUI.plan.app.output}.${extension}`;
-  cpSync(resolve(DIST, name), resolve(resources, "dist", name));
+for (const entry of [system.systemUI, ...system.applications]) {
+  for (const extension of ["js", "pak"]) {
+    const name = `${entry.plan.app.output}.${extension}`;
+    cpSync(resolve(DIST, name), resolve(resources, "dist", name));
+  }
 }
 cpSync(receipt.systemPlanPath, resolve(resources, "pocket-desktop.system.plan.json"));
 cpSync(host, resolve(executables, "pocket-shell-runtime"));
+// Finder launches do not inherit the build terminal's environment.
+await Bun.write(resolve(resources, "integrations.json"), JSON.stringify({
+  openStrikeRoot: process.env.OPENSTRIKE_ROOT,
+  openStrikeMaps: process.env.OPENSTRIKE_MAPS,
+}, null, 2) + "\n");
 cpSync(resolve(ROOT, "assets/macos/AppIcon.icns"), resolve(resources, "AppIcon.icns"));
 cpSync(resolve(ROOT, "LICENSE"), resolve(resources, "LICENSE"));
 cpSync(resolve(ROOT, "THIRD_PARTY.md"), resolve(resources, "THIRD_PARTY.md"));
 cpSync(resolve(ROOT, "assets/fonts/LICENSE-W95FA.txt"), resolve(resources, "LICENSE-W95FA.txt"));
 cpSync(resolve(POCKETJS_ROOT, "assets/fonts/LICENSE.txt"), resolve(resources, "LICENSE-Inter.txt"));
+const openStrike = await packageOpenStrike(resources);
 const binary = resolve(executables, "PocketShell");
 const launcherCode = await run([
   "xcrun", "swiftc", "-O", "-warnings-as-errors", "-framework", "IOKit",
   "-target", `${process.arch === "arm64" ? "arm64" : "x86_64"}-apple-macosx12.0`,
-  resolve(ROOT, "macos/Launcher.swift"), "-o", binary,
+  resolve(ROOT, "macos/Launcher.swift"), resolve(ROOT, "macos/Files.swift"), resolve(ROOT, "macos/OpenStrike.swift"), "-o", binary,
 ]);
 if (launcherCode !== 0) process.exit(launcherCode);
 await Bun.write(resolve(contents, "Info.plist"), `<?xml version="1.0" encoding="UTF-8"?>
@@ -80,6 +88,7 @@ await Bun.write(resolve(contents, "Info.plist"), `<?xml version="1.0" encoding="
 `);
 for (const command of [
   [binary, "--self-test"],
+  ...(openStrike ? [["codesign", "--force", "--sign", "-", openStrike]] : []),
   ["plutil", "-lint", resolve(contents, "Info.plist")],
   ["codesign", "--force", "--sign", "-", resolve(executables, "pocket-shell-runtime")],
   ["codesign", "--force", "--sign", "-", binary],
@@ -89,7 +98,7 @@ for (const command of [
   const code = await run(command);
   if (code !== 0) process.exit(code);
 }
-console.log(`Pocket Shell: ${bundle} (Files, Devices and Minesweeper; no external demo packages)`);
+console.log(`Pocket Shell: ${bundle} (Files, Devices, Minesweeper, Cards, Motions and Stats)`);
 if (buildOnly) process.exit(0);
 const code = await run(
   [binary, ...hostArgs],

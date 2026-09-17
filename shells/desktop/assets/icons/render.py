@@ -14,12 +14,16 @@ import sys
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[3]
+sys.path.insert(0, str(HERE))
+sys.dont_write_bytecode = True
+from objects import SUBJECTS, build as build_object
+ALL_SUBJECTS = ["files", "devices", "handheld", "media-player", *SUBJECTS]
 
 
 def arguments():
     args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:]
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--only", choices=["files", "devices", "handheld", "media-player"])
+    parser.add_argument("--only", choices=ALL_SUBJECTS)
     parser.add_argument("--theme", choices=["aqua", "xp", "all"], default="all")
     parser.add_argument("--out", type=Path, default=ROOT / ".pocket-build/validation/blender-icons")
     parser.add_argument("--resolution", type=int, default=1024)
@@ -140,7 +144,9 @@ def render(args):
 
     silver = material("Satin bead-blasted aluminium", (0.58, 0.62, 0.66), 0.27, 0.92, 0.13, (1, 45, 1))
 
-    if args.only == "files":
+    if args.only in SUBJECTS:
+        target, camera_pos, ortho = build_object(args.only, args.theme, box, panel, cylinder, material, finish)
+    elif args.only == "files":
         card = material("Dyed blue cotton card", (0.035, 0.19, 0.36), 0.76, grain=0.12)
         edge = material("Blue compressed fold edges", (0.032, 0.15, 0.28), 0.65, grain=0.12)
         inside = material("Lighter folder lining", (0.10, 0.30, 0.51), 0.78, grain=0.12)
@@ -290,7 +296,7 @@ def bake(args):
     from PIL import Image
     blender = os.environ.get("BLENDER", "/Applications/Blender.app/Contents/MacOS/Blender" if sys.platform == "darwin" else "blender")
     for theme in (["aqua", "xp"] if args.theme == "all" else [args.theme]):
-        for subject in ([args.only] if args.only else ["files", "devices", "handheld", "media-player"]):
+        for subject in ([args.only] if args.only else ALL_SUBJECTS):
             name = ("xp-" if theme == "xp" else "") + subject
             subprocess.run([blender, "--background", "--factory-startup", "--python-exit-code", "1", "--python", str(Path(__file__).resolve()), "--",
                             "--only", subject, "--theme", theme, "--out", str(args.out), "--resolution", str(args.resolution), "--samples", str(args.samples)], check=True)

@@ -22,6 +22,7 @@
 // Without the System UI companion (sim, goldens, consoles) the app boots a
 // static arrangement and just renders it — the unmodified-app base case.
 
+import { createHostFiles } from "./host-files.ts";
 import { DevicesView } from "./devices-view.tsx";
 import { createDeviceInventory, createDevicesWindow, type DevicesData } from "./devices.ts";
 import { For, onCleanup } from "solid-js";
@@ -82,6 +83,7 @@ import {
   aboutHit,
   FolderView,
   folderHit,
+  folderOffset,
   folderToolEnabled,
   measure,
   MINES_GEO,
@@ -120,7 +122,7 @@ import {
   type EditKind,
 } from "./notepad.ts";
 import { newMines, reveal, toggleFlag } from "./mines.ts";
-import { POCKET_APPS, type PocketAppSpec } from "./pocket-apps.ts";
+import { MAC_POCKET_APPS, POCKET_APPS, type PocketAppSpec } from "./pocket-apps.ts";
 import {
   CLASSIC_THEME,
   nextThemeId,
@@ -169,6 +171,7 @@ type Drag =
   | { type: "minehold"; id: number }
   | { type: "smiley"; id: number }
   | { type: "dialogbtn"; id: number; tag: string }
+  | { type: "folderscroll"; id: number; sy: number; offset: number; ratio: number }
   | { type: "toolbtn"; id: number; tool: FolderTool }
   | null;
 
@@ -194,6 +197,19 @@ function DesktopWindow(props: {
   theme: DesktopTheme;
 }) {
   const w = props.win;
+  const compactCaption = () => w.geo().w < 320;
+  const captionTitle = () => {
+    const m = props.theme.metrics;
+    const count = m.buttonOrder.filter(b => m.buttonGhosts || w.buttons.includes(b)).length;
+    const controls = count * m.buttonW + Math.max(0, count - 1) * m.buttonGap;
+    const balanced = !compactCaption() && props.theme.captionSpacer !== "" ? 54 : 0;
+    const available = Math.max(0, w.geo().w - 2 * (m.frame + m.buttonRight) - controls - balanced - (compactCaption() ? 8 : 28));
+    const slot = props.theme.fontSlot("bold");
+    let value = w.title();
+    if (measure(value, slot) <= available) return value;
+    while (value.length && measure(value + "...", slot) > available) value = value.slice(0, -1);
+    return value ? value + "..." : "";
+  };
   return (
     <View
       class={props.theme.windowFrame(props.active, w.maximized())}
@@ -217,21 +233,21 @@ function DesktopWindow(props: {
         ))}
         {props.theme.metrics.buttonSide === "left" ? (
           <CaptionButtons win={w} active={props.active} theme={props.theme} />
-        ) : props.theme.captionSpacer !== "" ? (
+        ) : !compactCaption() && props.theme.captionSpacer !== "" ? (
           <View class={props.theme.captionSpacer} />
         ) : null}
         <View class={props.theme.captionTitleBox}>
-          <Image class={props.theme.captionIcon} src={props.theme.icon(w.icon(), 16)} />
+          {!compactCaption() ? <Image class={props.theme.captionIcon} src={props.theme.icon(w.icon(), 16)} /> : null}
           <UiText
             theme={props.theme}
             bold
             cls={props.theme.captionTitle(props.active)}
-            t={w.title()}
+            t={captionTitle()}
           />
         </View>
         {props.theme.metrics.buttonSide === "right" ? (
           <CaptionButtons win={w} active={props.active} theme={props.theme} />
-        ) : props.theme.captionSpacer !== "" ? (
+        ) : !compactCaption() && props.theme.captionSpacer !== "" ? (
           <View class={props.theme.captionSpacer} />
         ) : null}
       </View>
@@ -714,7 +730,7 @@ export default function App(props: { macDesktop?: boolean }) {
     const w = createWin({
       kind: "pocket",
       title: `PocketJS: ${app.title}`,
-      icon: "pocket",
+      icon: macDesktop ? "pocket-apps" : "pocket",
       geo: cascadePos(
         wins().length,
         vp().w,
@@ -743,25 +759,13 @@ export default function App(props: { macDesktop?: boolean }) {
    *  them: drives and folders navigate in place, documents open Notepad. */
   function placeRows(id: PlaceId, w: WinCtl): FolderRow[] {
     if (macDesktop) {
-      if (id === "computer") return MAC_PLACES.slice(1).map(place => ({
-        icon: place.icon, name: place.label, size: "", type: "Folder",
-        open: () => navigate(w, place.id),
-      }));
-      if (id === "drivec") return [
-        { icon: "files", name: "Files", size: "", type: "Application", open: () => openFolder("computer", true) },
-        { icon: "devices", name: "Devices", size: "", type: "Application", open: () => openDevices() },
-        { icon: "mines", name: "Minesweeper", size: "", type: "Application", open: openMines },
+      if (id === "pocket-apps" || id === "drivec") return [
+        { icon: "files", name: "Files", size: "", type: "Pocket App", open: () => openFolder("home", true) },
+        { icon: "devices", name: "Devices", size: "", type: "Pocket App", open: () => openDevices() },
+        { icon: "mines", name: "Minesweeper", size: "", type: "Pocket App", open: openMines },
+        { icon: "openstrike", name: "OpenStrike", size: "", type: "Pocket3D Game", open: () => folderOf(w).host?.open("pocket:openstrike", virtualNow()) },
+        ...MAC_POCKET_APPS.map(app => ({ icon: "pocket-apps" as const, name: app.title, size: "", type: "Pocket App", open: () => openPocketApp(app) })),
       ];
-      if (id === "documents") return [{
-        icon: "notepad", name: "welcome.txt", size: "1 KB", type: "Text Document",
-        open: () => openNotepad("welcome.txt - Notepad", [
-          "Welcome to Pocket Shell.", "",
-          "Open Files, Devices and Minesweeper from the desktop or Applications folder.", "",
-          "Drag a title bar to move a window. Use the Dock to switch apps or restore a minimized window.", "",
-          "Cmd+N opens another Files or Devices window. Cmd+W closes the focused window; Cmd+M minimizes it.", "",
-          "These sample folders belong to the Pocket Shell desktop.",
-        ]),
-      }];
       return [];
     }
     switch (id) {
@@ -819,12 +823,13 @@ export default function App(props: { macDesktop?: boolean }) {
         ];
       case "recycle":
         return [];
+      default: return [];
     }
   }
 
   function placeOf(id: PlaceId): Place {
     const places = macDesktop ? MAC_PLACES : PLACES;
-    return places.find((p) => p.id === id) ?? places[0];
+    return places.find((p) => p.id === id) ?? { id, label: id.split("/").filter(Boolean).pop() ?? "Macintosh HD", icon: "files" };
   }
 
   /** Point a folder window at another place: title, icon, rows, selection.
@@ -838,9 +843,17 @@ export default function App(props: { macDesktop?: boolean }) {
     }
     d.place.set(id);
     d.rows.set(placeRows(id, w));
+    d.offset?.set(0);
+    d.typed = "";
     d.selected.set(-1);
     w.title.set(macDesktop ? `${place.label} - Files` : place.label);
     w.icon.set(macDesktop ? "files" : place.icon);
+    if (d.host) {
+      if (id === "pocket-apps" || id === "drivec") {
+        d.host.cancel(); d.host.label.set("Pocket Apps"); d.host.address.set("pocket-apps");
+        d.host.parent.set("computer"); d.host.status.set(`${d.rows().length} apps`);
+      } else d.host.list(id, virtualNow());
+    }
   }
 
   /** The place a toolbar action leads to, or null when it does not apply. */
@@ -850,6 +863,7 @@ export default function App(props: { macDesktop?: boolean }) {
     const h = d.hist();
     if (tool === "back") return h.items[h.at - 1];
     if (tool === "forward") return h.items[h.at + 1];
+    if (d.host) return d.host.parent() as PlaceId;
     // Up: (C:) and the Recycle Bin hang off My Computer, My Documents off (C:).
     return !macDesktop && d.place() === "documents" ? "drivec" : "computer";
   }
@@ -874,6 +888,8 @@ export default function App(props: { macDesktop?: boolean }) {
     const data: FolderData = {
       kind: "folder",
       places: macDesktop ? MAC_PLACES : PLACES,
+      host: macDesktop ? createHostFiles(request => svc?.send(request)) : undefined,
+      offset: createState(0),
       place: createState<PlaceId>(id),
       rows: createState<FolderRow[]>([]),
       selected: createState(-1),
@@ -884,9 +900,9 @@ export default function App(props: { macDesktop?: boolean }) {
       kind: "folder",
       title: macDesktop ? `${place.label} - Files` : place.label,
       icon: macDesktop ? "files" : place.icon,
-      geo: cascadePos(wins().length, vp().w, vp().h, 560, 320, metrics()),
-      minW: 380,
-      minH: 180,
+      geo: cascadePos(wins().length, vp().w, vp().h, macDesktop ? 660 : 560, macDesktop ? 430 : 320, metrics()),
+      minW: macDesktop ? 560 : 380,
+      minH: macDesktop ? 340 : 180,
       data,
     });
     if (macDesktop) w.menus = [
@@ -894,6 +910,8 @@ export default function App(props: { macDesktop?: boolean }) {
         { label: "New Window", shortcut: "Cmd+N", act: () => openFolder(data.place(), true) },
         { label: "Open", shortcut: "Enter", disabled: !data.rows()[data.selected()]?.open,
           act: () => data.rows()[data.selected()]?.open?.() },
+        { label: "Refresh", shortcut: "Cmd+R", act: () => navigate(w, data.place(), false) },
+        { label: "Show Hidden Files", checked: data.host?.hidden(), act: () => { data.host?.hidden.set(!data.host.hidden()); navigate(w, data.place(), false); } },
         { label: "Close Window", shortcut: "Cmd+W", act: () => closeWin(w.id) },
       ] },
       { label: "Go", width: menuW("Go"), items: () => [
@@ -904,8 +922,9 @@ export default function App(props: { macDesktop?: boolean }) {
         ...data.places.map(place => ({ label: place.label, act: () => navigate(w, place.id) })),
       ] },
     ];
-    data.rows.set(placeRows(id, w));
+    data.capacity = () => Math.max(1, Math.floor((deviceViewport(w).h - metrics().folderToolH - 17 - 20 - 2) / 17));
     addWin(w);
+    navigate(w, id, false);
   }
 
   const openMyComputer = () => openFolder("computer");
@@ -979,12 +998,23 @@ export default function App(props: { macDesktop?: boolean }) {
     applyEdit(w, "other", insertText(d.doc(), stamp));
   }
 
+  function openStrike() {
+    openFolder("pocket-apps");
+    const w = focused();
+    if (w?.kind === "folder") {
+      const d = folderOf(w);
+      d.selected.set(d.rows().findIndex(row => row.name === "OpenStrike"));
+      d.host?.open("pocket:openstrike", virtualNow());
+    }
+  }
+
   // ---- desktop icons + start menu ----------------------------------------------
 
   const icons: DeskIcon[] = macDesktop ? [
     { icon: "devices", label: "Devices", open: () => openDevices() },
     { icon: "files", label: "Files", open: () => openFolder("computer") },
     { icon: "mines", label: "Minesweeper", open: openMines },
+    { icon: "openstrike", label: "OpenStrike", open: openStrike },
   ] : [
     { icon: "computer", label: "My Computer", open: openMyComputer },
     { icon: "documents", label: "My Documents", open: openDocuments },
@@ -1556,6 +1586,15 @@ export default function App(props: { macDesktop?: boolean }) {
     }
     if (w.kind === "folder") {
       const d = folderOf(w);
+      const capacity = d.capacity?.() ?? d.rows().length;
+      const top = metrics().folderToolH + 17, track = capacity * 17;
+      if (d.offset && d.rows().length > capacity && cx >= deviceViewport(w).w - 10 && cy >= top && cy < top + track) {
+        const ratio = d.rows().length / track;
+        const thumb = Math.max(12, capacity / d.rows().length * track), y = folderOffset(d) / ratio;
+        if (cy - top < y || cy - top > y + thumb) d.offset.set(Math.max(0, Math.min(d.rows().length - capacity, Math.round((cy - top - thumb / 2) * ratio))));
+        drag = { type: "folderscroll", id: w.id, sy: my, offset: folderOffset(d), ratio };
+        return;
+      }
       const hit = folderHit(cx, cy, d.rows().length, d.places.length, theme());
       if (hit?.kind === "tool") {
         if (folderToolEnabled(d, hit.tool)) {
@@ -1568,7 +1607,7 @@ export default function App(props: { macDesktop?: boolean }) {
         navigate(w, d.places[hit.i].id);
         return;
       }
-      const row = hit?.kind === "row" ? hit.i : -1;
+      const row = hit?.kind === "row" && hit.i < capacity ? hit.i + folderOffset(d) : -1;
       d.selected.set(row);
       if (row >= 0 && isDblClick(`row:${w.id}:${row}`)) d.rows()[row].open?.();
       return;
@@ -1787,6 +1826,14 @@ export default function App(props: { macDesktop?: boolean }) {
       sendCursor(cursorForDir(drag.dir));
       return;
     }
+    if (drag?.type === "folderscroll") {
+      const w = byId(drag.id);
+      if (w) {
+        const d = folderOf(w);
+        d.offset?.set(Math.max(0, Math.min(d.rows().length - (d.capacity?.() ?? 1), Math.round(drag.offset + (my - drag.sy) * drag.ratio))));
+      }
+      return;
+    }
     if (drag?.type === "textsel") {
       const w = byId(drag.id);
       if (w) {
@@ -1998,6 +2045,7 @@ export default function App(props: { macDesktop?: boolean }) {
         return;
       case "r":
         if (focused()?.kind === "devices") devicesOf(focused()!).refresh();
+        if (focused()?.kind === "folder") navigate(focused()!, folderOf(focused()!).place(), false);
         return;
       case "n":
         if (macDesktop) {
@@ -2059,10 +2107,18 @@ export default function App(props: { macDesktop?: boolean }) {
     if (w.kind === "folder") {
       const d = folderOf(w);
       if (k === "Enter") d.rows()[d.selected()]?.open?.();
+      else if (k === "Home") d.selected.set(d.rows().length ? 0 : -1);
+      else if (k === "End") d.selected.set(d.rows().length - 1);
+      else if (k === "PageDown" || k === "PageUp") d.selected.set(Math.max(0, Math.min(d.rows().length - 1,
+        d.selected() + (k === "PageDown" ? 1 : -1) * (d.capacity?.() ?? 10))));
       else if (k === "Backspace") runFolderTool(w, "back");
-      else if (k === "Up" || k === "Down") d.selected.set(Math.max(0, Math.min(
+      else if (d.rows().length && (k === "Up" || k === "Down")) d.selected.set(Math.max(0, Math.min(
         d.rows().length - 1, d.selected() + (k === "Down" ? 1 : -1),
       )));
+      if (d.offset && d.capacity && d.selected() >= 0) {
+        if (d.selected() < d.offset()) d.offset.set(d.selected());
+        else if (d.selected() >= d.offset() + d.capacity()) d.offset.set(d.selected() - d.capacity() + 1);
+      }
       return;
     }
     if (w.kind === "mines" && k === "F2") {
@@ -2205,6 +2261,21 @@ export default function App(props: { macDesktop?: boolean }) {
 
   function handleEvent(ev: HostEvent) {
     switch (ev.t) {
+      case "files":
+        for (const w of wins()) {
+          if (w.kind !== "folder") continue;
+          const d = folderOf(w);
+          if (!d.host?.accept(ev, virtualNow())) continue;
+          if (d.host.label()) w.title.set(`${d.host.label()} - Files`);
+          d.rows.set(d.host.entries().map(entry => ({
+            icon: entry.kind === "directory" ? "files" : entry.kind === "application" ? "native-apps" : "document-file",
+            name: entry.name,
+            size: entry.kind !== "file" ? "" : entry.size >= 1048576 ? `${(entry.size / 1048576).toFixed(1)} MB` : `${Math.ceil(entry.size / 1024)} KB`,
+            type: entry.kind === "directory" ? "Folder" : entry.kind === "application" ? "Application" : "File",
+            open: () => entry.kind === "directory" ? navigate(w, entry.path as PlaceId) : d.host!.open(entry.path, virtualNow()),
+          })));
+        }
+        break;
       case "devices":
         inventory.accept(ev, virtualNow());
         break;
@@ -2254,6 +2325,16 @@ export default function App(props: { macDesktop?: boolean }) {
       case "ch": {
         const w = focused();
         if (w?.kind === "notepad" && ev.s) typeInto(w, ev.s);
+        if (w?.kind === "folder" && ev.s) {
+          const d = folderOf(w), now = virtualNow();
+          d.typed = (now - (d.typedAt ?? -10) < 1 ? d.typed ?? "" : "") + ev.s.toLowerCase();
+          d.typedAt = now;
+          const match = d.rows().findIndex(row => row.name.toLowerCase().startsWith(d.typed!));
+          if (match >= 0) {
+            d.selected.set(match);
+            d.offset?.set(Math.max(0, Math.min(match, d.rows().length - (d.capacity?.() ?? 1))));
+          }
+        }
         break;
       }
       case "paste": {
@@ -2275,6 +2356,10 @@ export default function App(props: { macDesktop?: boolean }) {
       case "scroll": {
         const hover = hitWindows(mx, my);
         if (hover?.win.kind === "devices" && hover.region.kind === "content") devicesOf(hover.win).scroll(ev.dy ?? 0);
+        if (hover?.win.kind === "folder" && hover.region.kind === "content") {
+          const d = folderOf(hover.win);
+          d.offset?.set(Math.max(0, Math.min(d.rows().length - (d.capacity?.() ?? 1), folderOffset(d) + Math.sign(ev.dy ?? 0) * 3)));
+        }
         if (hover?.win.kind === "notepad") {
           const d = padOf(hover.win);
           const contentH =
@@ -2295,9 +2380,9 @@ export default function App(props: { macDesktop?: boolean }) {
       openDevices();
       const devices = focused()!;
       devices.geo.set(fitDesktopGeo({ x: 116, y: 148, w: 660, h: 390 }));
-      openFolder("computer");
+      openFolder("home");
       const files = focused()!;
-      files.geo.set(fitDesktopGeo({ x: 24, y: 54, w: 540, h: 340 }));
+      files.geo.set(fitDesktopGeo({ x: 24, y: 54, w: 660, h: 420 }));
       openMines();
       const mines = focused()!;
       mines.geo.set(fitDesktopGeo({ ...mines.geo(), x: 580, y: 64 }));
@@ -2317,7 +2402,10 @@ export default function App(props: { macDesktop?: boolean }) {
     if (svc) for (const ev of svc.poll()) handleEvent(ev);
     if (macDesktop) {
       inventory.tick(virtualNow());
-      for (const w of wins()) if (w.kind === "devices") devicesOf(w).sync();
+      for (const w of wins()) {
+        if (w.kind === "devices") devicesOf(w).sync();
+        if (w.kind === "folder") folderOf(w).host?.tick(virtualNow());
+      }
     }
     for (const layout of layouts.values()) layout.step(metrics().frame, uiSlot());
 

@@ -40,3 +40,11 @@ presentation, and arboard for the clipboard. These dependencies retain their
 MIT and/or Apache-2.0 licenses as recorded by their Cargo package metadata and
 locked dependency graph. They retain those licenses in this GPL distribution. Font data continues to use the separate OFL notices above;
 no macOS system fonts are redistributed.
+
+## Optional OpenStrike game
+
+The local macOS build can package OpenStrike from the configured checkout.
+Its MIT license travels in `Resources/OpenStrike/LICENSE`; the bundled officer
+model is authored by that project. The cooked Dust II map is a user-supplied
+local input and is not part of this repository. An app built with that local
+map is not a redistributable map download.

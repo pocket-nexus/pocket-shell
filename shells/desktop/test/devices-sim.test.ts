@@ -3,6 +3,8 @@ import { expect, test } from "bun:test";
 import { bootWorld, treeHasText, type SimWorld } from "../../../vendor/pocketjs/hosts/sim/sim.ts";
 import { AQUA_THEME, CLASSIC_THEME, XP_THEME } from "../src/system-ui/theme.ts";
 
+import { desktopIconPosition } from "../src/system-ui/wm.ts";
+
 function step(world: SimWorld, frames = 2) {
   for (let i = 0; i < frames; i++) {
     world.frame(0);
@@ -21,7 +23,20 @@ async function desktop(keepBootWindows = false) {
     ops.__host = "macos-app";
     ops.svcOpen = (name: string) => name === "system-ui";
     ops.svcPoll = () => inbox.splice(0).join("\n");
-    ops.svcSend = (line: string) => sent.push(line);
+    ops.svcSend = (line: string) => {
+      sent.push(line);
+      const request = JSON.parse(line);
+      if (request.t === "files-list") {
+        const path = request.path === "home" ? "/Users/example" : request.path === "documents" ? "/Users/example/Documents" : request.path;
+        const entries = request.path === "native-apps"
+          ? [{ path: "/Applications/Calculator.app", name: "Calculator", kind: "application", size: 0 }]
+          : Array.from({ length: request.path === "documents" ? 1 : 40 }, (_, i) => ({
+              path: `${path}/document-${String(i).padStart(2, "0")}.txt`, name: `document-${String(i).padStart(2, "0")}.txt`, kind: "file", size: i * 1024,
+            }));
+        const offset = request.offset ?? 0, next = Math.min(entries.length, offset + 32);
+        send({ t: "files", request: request.request, path, label: request.path === "home" ? "Home" : request.path === "native-apps" ? "Native Apps" : "Documents", parent: "/", offset, next, entries: entries.slice(offset, next), done: next === entries.length });
+      } else if (request.t === "files-open") send({ t: "files", request: request.request, opened: true });
+    };
   }, { width: 800, height: 600 });
   const has = (text: string) => treeHasText(world.getTree(), text);
   const mouse = (x: number, y: number, d: boolean) => send({ t: "mouse", x, y, d });
@@ -165,56 +180,66 @@ test("Aqua Dock rises, lowers and reverses while Classic keeps its taskbar", asy
   expect(count("Start")).toBe(1);
 }, 30000);
 
-test("macOS starts Files, Devices and Minesweeper as independent usable applications", async () => {
-  const { world, send, has, click, key, painted, count } = await desktop(true);
-  expect(has("Pocket Shell - Files")).toBe(true);
-  expect(has("Minesweeper")).toBe(true);
-  expect(count("Connection")).toBe(1);
-  expect(count("Game")).toBe(1); // Minesweeper is initially focused.
-  expect(painted(AQUA_THEME.minesCell("revealed"))).toBe(false);
-  click(596, 144); // first safe reveal in the visible Minesweeper window
-  expect(painted(AQUA_THEME.minesCell("revealed"))).toBe(true);
-  click(280, 141); click(280, 141); // Files -> Applications
-  expect(has("Applications - Files")).toBe(true);
-  expect(has("Go")).toBe(true);
-  expect(count("Game")).toBe(0);
-  key("n", true); // another Files window at the same directory
-  expect(count("Applications - Files")).toBe(2); // independently owned windows
-  key("w", true);
-  expect(count("Applications - Files")).toBe(1);
-  click(45, 96); // Back toolbar button -> desktop root
-  expect(has("Pocket Shell - Files")).toBe(true);
-  click(76, 96); // Forward -> Applications
-  expect(has("Applications - Files")).toBe(true);
-  key("m", true);
-  expect(has("Go")).toBe(false);
-  click(400, 574); // middle Dock tile restores Files
-  expect(has("Go")).toBe(true);
-  click(60, 170); // Documents sidebar
-  expect(has("Documents - Files")).toBe(true);
-  expect(has("welcome.txt")).toBe(true);
-  key("m", true);
-  expect(count("Game")).toBe(1); // focus returns to the next visible app
-  click(448, 574); // minimize the active Minesweeper from the Dock
-  expect(count("Game")).toBe(0);
-  click(448, 574); // restore it without losing the game
+test("Files navigates real directories, launches native apps and keeps Pocket windows independent", async () => {
+  const { world, send, sent, has, click, key, painted, count } = await desktop(true);
+  expect(has("Home - Files")).toBe(true);
   expect(count("Game")).toBe(1);
+  click(596, 144);
   expect(painted(AQUA_THEME.minesCell("revealed"))).toBe(true);
-  key("F2");
-  expect(painted(AQUA_THEME.minesCell("revealed"))).toBe(false);
-  send({ t: "devices", devices: [psp, ipod] });
-  step(world);
-  click(352, 574); // Devices keeps receiving discoveries while behind other apps
-  expect(has("View")).toBe(true);
-  expect(has("PSPLINK USB")).toBe(true);
+  click(280, 69); // focus Files by its caption
+  key("End");
+  expect(has("document-39.txt")).toBe(true);
+  expect(has("document-00.txt")).toBe(false);
+  key("Enter");
+  expect(sent.map(v => JSON.parse(v)).some(v => v.t === "files-open" && v.path === "/Users/example/document-39.txt")).toBe(true);
+  key("Home");
+  expect(has("document-00.txt")).toBe(true);
+  // The eight sidebar places use a 20px row in Aqua.
+  click(80, 228); // Native Apps
+  expect(has("Native Apps - Files")).toBe(true);
+  click(280, 141); click(280, 141);
+  expect(sent.map(v => JSON.parse(v)).some(v => v.t === "files-open" && v.path === "/Applications/Calculator.app")).toBe(true);
+  click(80, 248); // Pocket Apps
+  expect(has("Pocket Apps - Files")).toBe(true);
+  expect(has("Cards")).toBe(true);
+  expect(has("Motions")).toBe(true);
+  expect(has("Stats")).toBe(true);
+  expect(has("OpenStrike")).toBe(true);
+  for (const app of ["Motions", "Cards", "Stats"]) {
+    send({ t: "ch", s: app }); step(world);
+    key("Enter");
+    expect(has(`PocketJS: ${app}`)).toBe(true);
+    click(80, 248); // Files remains independent behind every child window
+    step(world, 70); // next type-ahead query
+  }
+  key("n", true);
+  expect(count("Pocket Apps - Files")).toBe(2);
+  key("w", true);
+  expect(count("Pocket Apps - Files")).toBe(1);
+  click(80, 188); // Documents
+  expect(has("Documents - Files")).toBe(true);
+  expect(has("document-00.txt")).toBe(true);
+  click(45, 96); // Back
+  expect(has("Pocket Apps - Files")).toBe(true);
+  click(76, 96); // Forward
+  expect(has("Documents - Files")).toBe(true);
   for (const theme of [CLASSIC_THEME, XP_THEME, AQUA_THEME]) {
-    key("t", true, true);
+    key("t", true, true); step(world, 20);
     expect(painted(theme.desktop)).toBe(true);
     expect(has("Documents - Files")).toBe(true);
     expect(has("Minesweeper")).toBe(true);
   }
-  key("escape", true);
-  expect(has("Files")).toBe(true);
-  expect(has("Minesweeper")).toBe(true);
-  expect(has("Hero")).toBe(false);
+  for (let i = 0; i < 6; i++) key("w", true); step(world, 20);
+  for (const theme of [AQUA_THEME, CLASSIC_THEME, XP_THEME]) {
+    if (theme !== AQUA_THEME) key("t", true, true);
+    const p = desktopIconPosition(0, 10, theme.metrics, 800);
+    const art = () => {
+      const pixels = world.render();
+      return Buffer.concat(Array.from({ length: 32 }, (_, y) => Buffer.from(pixels.slice(((p.y + y) * 800 + p.x + 21) * 4, ((p.y + y) * 800 + p.x + 53) * 4))));
+    };
+    click(400, 500); // clear selection
+    const before = art();
+    click(p.x + 37, p.y + 16);
+    expect(art().equals(before)).toBe(false);
+  }
 }, 30000);

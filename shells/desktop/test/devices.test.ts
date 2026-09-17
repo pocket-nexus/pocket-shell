@@ -6,10 +6,10 @@ import { AQUA_THEME, CLASSIC_THEME, XP_THEME } from "../src/system-ui/theme.ts";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-test("macOS keeps the shared desktop entry without preinstalled demo packages", async () => {
+test("macOS installs the shared desktop and three independent example packages", async () => {
   const mac = await resolveDesktopSystem("macos-app");
-  expect(mac.applications).toEqual([]);
-  expect(mac.installation.installedPackages).toEqual([mac.roles.systemUI]);
+  expect(mac.applications.map(app => app.package).sort()).toEqual(["dev.pocket-stack.cards", "dev.pocket-stack.motions", "dev.pocket-stack.stats"]);
+  expect(mac.installation.installedPackages.slice().sort()).toEqual([mac.roles.systemUI, ...mac.applications.map(app => app.package)].sort());
   expect(mac.systemUI.plan.app.entry).toBe("src/system-ui/main.tsx");
   for (const target of ["linux-app", "web-app"] as const) {
     expect((await resolveDesktopSystem(target)).applications).toHaveLength(11);

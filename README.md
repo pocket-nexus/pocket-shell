@@ -74,9 +74,11 @@ to list its commands, including captures, benchmarks and the text companion.
 
 On macOS, open `shells/desktop/dist/Pocket Shell.app` or drag it into
 Applications. It opens an Aqua desktop with Files, Devices and Minesweeper
-windows. Each app has a desktop icon and a Dock entry. Files restores the
-shell's sample directories, navigation history and document viewer; Devices
-lists connected PSPs and iPod touch 4 devices over USB.
+windows. Each app has a desktop icon and a Dock entry. Files browses the
+Mac filesystem, launches Native Apps through macOS, and opens Pocket Apps as
+Shell windows. Cards, Motions and Stats are included. A local OpenStrike checkout
+can supply the packaged Pocket3D game. Devices lists connected PSPs and iPod
+touch 4 devices over USB.
 Discovery does not require Bun, Homebrew, an existing device bridge or this
 checkout once the app has been built.
 

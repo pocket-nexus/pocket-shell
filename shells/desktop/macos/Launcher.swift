@@ -132,6 +132,7 @@ func serve(_ client: Int32) {
           let name = readExactly(client, Int(hello[6])),
           String(bytes: name, encoding: .utf8) == "pocket-desktop-system-ui",
           writeAll(client, Data([0x50, 0x4b, 0x4e, 0x54, 1, 0, 0, 0])) else { return }
+    let files = FileSession()
     var nextScan = Date.distantPast
     while true {
         if Date() >= nextScan {
@@ -150,9 +151,9 @@ func serve(_ client: Int32) {
         if header[0] == 0x01 {
             guard sendFrame(client, 0x02, Data(payload)) else { return }
         } else if header[0] == 0x10,
-                  let message = try? JSONSerialization.jsonObject(with: Data(payload)) as? [String: Any],
-                  message["t"] as? String == "devices-refresh" {
-            nextScan = .distantPast
+                  let message = try? JSONSerialization.jsonObject(with: Data(payload)) as? [String: Any] {
+            if message["t"] as? String == "devices-refresh" { nextScan = .distantPast }
+            else if let reply = files.reply(message), !sendFrame(client, 0x10, reply) { return }
         }
     }
 }
@@ -210,8 +211,13 @@ func run() throws {
     exit(runtime.terminationStatus)
 }
 
-do { try run() }
-catch {
-    FileHandle.standardError.write(Data("Pocket Shell: \(error.localizedDescription)\n".utf8))
-    exit(1)
+@main
+struct PocketShellMain {
+    static func main() {
+        do { try run() }
+        catch {
+            FileHandle.standardError.write(Data("Pocket Shell: \(error.localizedDescription)\n".utf8))
+            exit(1)
+        }
+    }
 }

@@ -2,7 +2,7 @@
 
 Pocket Shell Desktop is the desktop OS shell in [Pocket Shell](../../README.md).
 On macOS the standalone **Pocket Shell.app** opens an Aqua desktop with
-Files, Devices and Minesweeper applications. Linux and the browser also include the demo app catalog.
+Files, Devices and Minesweeper, plus Cards, Motions and Stats as separate PocketJS applications. Linux and the browser include the full demo catalog.
 All targets share the same desktop, headless window chrome and theme system,
 using SolidJS and PocketJS's universal renderer.
 
@@ -18,10 +18,10 @@ bun run desktop test:macos
 The app can be moved into Applications and launched without Bun, Homebrew or
 a repository checkout. It reuses SHERU's macOS icon unchanged and is locally
 ad-hoc signed. Release signing and notarization are separate from this build.
-The macOS System contains only `dev.pocket-stack.desktop.system-ui`, using the
-same `main.tsx` desktop entry as Linux and web. Files, Devices and Minesweeper
-are built-in windowed applications; the eleven external demo packages are
-omitted from the Mac installation.
+The macOS System uses the same `main.tsx` desktop entry as Linux and web.
+Files, Devices and Minesweeper are built-in windowed applications; the
+[`macos-apps.json`](macos-apps.json) list also installs three independent PocketJS
+packages. Each package retains its own plan, runtime instance and compositor surface.
 Its headless navigation model and client view use the shell's existing theme,
 window controls, focus routing, menu bar and Dock. Device discovery is polled
 once by the shell and shared across windows, with independent selection state.
@@ -34,14 +34,32 @@ switches apps and restores minimized windows without resetting their state.
 Aqua raises the Dock when the first app opens and lowers it after the last
 app closes, using a 240 ms native animation that can reverse mid-transition.
 
-Files reuses the Finder-style toolbar, places sidebar and details list. Its
-Pocket Shell, Applications, Documents and Trash places are the shell's sample
-directories, not the Mac filesystem. Double-click a folder or use **Enter** to
-open the selected row; the toolbar and Go menu navigate back, forward and up.
-Applications launches the three built-in apps; Documents contains a welcome
-text that opens in the existing Notepad viewer. **Cmd+N** opens another Files
-window at the current directory, or a new Devices window when Devices is
-focused. Each window keeps its own selection and navigation history.
+Files browses the Mac filesystem through the native companion. Its sidebar opens
+the startup disk, home, Desktop, Documents, Downloads and Trash. Directory reads
+use bounded pages from a stable host snapshot. Each window owns its navigation
+history, selection and scroll position; late replies cannot replace a newer path.
+Double-click or **Enter** opens the selected directory, file or application.
+Back/Forward and the Go menu navigate history and enclosing folders. **Cmd+R**
+refreshes, **File → Show Hidden Files** includes dotfiles, and **Cmd+N** opens
+another window. Wheel, scrollbar, Home/End, Page Up/Down and typing a name
+navigate long lists. Files does not yet rename, move or delete filesystem items.
+
+**Native Apps** gathers application bundles from `/Applications`,
+`/System/Applications`, the system utility applications and `~/Applications`.
+Opening one uses macOS Launch Services through `/usr/bin/open`; ordinary files
+open in their associated Mac application. **Pocket Apps** opens Files, Devices,
+Minesweeper, Cards, Motions and Stats in Shell windows.
+
+**OpenStrike** is a Pocket3D game with its own native game host. Its desktop and
+Pocket Apps shortcuts launch the complete game in a separate macOS window.
+When `~/code/open-strike` (or `OPENSTRIKE_ROOT`) is present, the Mac build runs its
+`build:desktop` command and copies the host, matching macOS UI, police model and
+local `dist/maps/de_dust2.p3d` into the app. No checkout is needed to play from
+that built bundle. The OpenStrike checkout needs desktop cooked-map support;
+`OPENSTRIKE_MAPS` can select another directory containing the cooked default map.
+Builds without a local OpenStrike checkout omit the game payload. Maps and game
+binaries remain local build inputs and are never committed here. Launch errors
+appear in Files; game logs go to `~/Library/Logs/Pocket Shell/OpenStrike.log`.
 
 Minesweeper restores the 9-by-9 game: click to reveal, right-click to flag,
 and use **F2**, **Cmd+N**, the smiley or **Game → New** to start again.
@@ -78,11 +96,14 @@ renders are not native-window captures.
 
 ## Application and device-class icons
 
-The existing `DesktopTheme.icon(name, size)` contract resolves semantic artwork
-for every theme. Files, Devices, game consoles and media players now have
+The `DesktopTheme.icon(name, size, selected?)` contract resolves semantic artwork
+for every theme. Applications, device classes and all Files places have
 independent Classic 98, XP and Aqua images; a missing theme override falls back
 to Aqua. Switching themes updates desktop icons, Dock/taskbar, captions, menus
-and the device browser without changing application or device identities.
+and both browsers without changing application or device identities.
+The generated selected variants preserve the image alpha: Classic applies navy
+stipple, XP applies a blue tint and Aqua darkens the object. Labels retain each
+theme's own selection treatment.
 
 The [Blender recipe](assets/icons/render.py) models complete Cycles scenes for
 Aqua and XP. Aqua uses blue cardstock and graphite/aluminium devices; XP uses
@@ -101,10 +122,11 @@ python3 shells/desktop/assets/icons/pixel-icons.py
 `BLENDER` selects another Blender executable. `--theme aqua` / `--theme xp`
 and `--only files` / `devices` / `handheld` / `media-player` limit a Blender bake.
 Editable scenes and full-size renders stay in `.pocket-build/validation/blender-icons/`.
-The 36 reviewed PNGs cover four subjects, three themes and 16/32/64 px sizes.
+The 135 reviewed PNGs cover fifteen subjects, three themes and 16/32/64 px sizes.
 Normal builds copy these product inputs and select 1×/2× density variants;
-they require neither Blender nor Pillow. Ordinary folder and chrome symbols
-retain their existing theme artwork, with object ground shadows removed.
+they require neither Blender nor Pillow. Files sidebar, directory rows and
+application artwork use these bitmaps; the small navigation/control glyphs keep
+their theme definitions.
 
 ## Desktop themes
 
