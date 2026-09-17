@@ -5,4 +5,4 @@ import App from "./app.tsx";
 
 // Each target keeps the same desktop and window manager. macOS ships a
 // small application catalog and starts in Aqua.
-mount(() => <App devicesOnly={getOps().__host === "macos-app"} />);
+mount(() => <App macDesktop={getOps().__host === "macos-app"} />);

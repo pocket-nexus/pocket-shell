@@ -2,7 +2,7 @@
 
 Pocket Shell Desktop is the desktop OS shell in [Pocket Shell](../../README.md).
 On macOS the standalone **Pocket Shell.app** opens an Aqua desktop with a
-Devices application. Linux and the browser also include the demo app catalog.
+Files, Devices and Minesweeper applications. Linux and the browser also include the demo app catalog.
 All targets share the same desktop, headless window chrome and theme system,
 using SolidJS and PocketJS's universal renderer.
 
@@ -19,16 +19,30 @@ The app can be moved into Applications and launched without Bun, Homebrew or
 a repository checkout. It reuses SHERU's macOS icon unchanged and is locally
 ad-hoc signed. Release signing and notarization are separate from this build.
 The macOS System contains only `dev.pocket-stack.desktop.system-ui`, using the
-same `main.tsx` desktop entry as Linux and web. Devices is a built-in windowed
-application, like the showcase's file manager; no demo package is installed.
+same `main.tsx` desktop entry as Linux and web. Files, Devices and Minesweeper
+are built-in windowed applications; the eleven external demo packages are
+omitted from the Mac installation.
 Its headless navigation model and client view use the shell's existing theme,
 window controls, focus routing, menu bar and Dock. Device discovery is polled
 once by the shell and shared across windows, with independent selection state.
 
-The desktop opens a Devices window at startup. Double-click its desktop icon
-or choose **Devices** from the logo menu to reopen it. Windows can be moved,
-resized, minimized to the Dock and closed. **Cmd+N** opens another Devices
-window, **Cmd+M** minimizes and **Cmd+W** closes the focused window.
+The desktop opens Files, Devices and Minesweeper together at startup, with
+staggered windows and separate Dock entries. Double-click a desktop icon or
+choose an app from the logo menu to reopen it. **Cmd+M** minimizes, **Cmd+W**
+closes the focused window and **Cmd+`** cycles visible windows. The Dock
+switches apps and restores minimized windows without resetting their state.
+
+Files reuses the Finder-style toolbar, places sidebar and details list. Its
+Pocket Shell, Applications, Documents and Trash places are the shell's sample
+directories, not the Mac filesystem. Double-click a folder or use **Enter** to
+open the selected row; the toolbar and Go menu navigate back, forward and up.
+Applications launches the three built-in apps; Documents contains a welcome
+text that opens in the existing Notepad viewer. **Cmd+N** opens another Files
+window at the current directory, or a new Devices window when Devices is
+focused. Each window keeps its own selection and navigation history.
+
+Minesweeper restores the 9-by-9 game: click to reveal, right-click to flag,
+and use **F2**, **Cmd+N**, the smiley or **Game → New** to start again.
 
 Expand **Devices** in the window sidebar to see supported USB hardware attached
 to this Mac. Select a device to see its family, connection mode and serial when available.
@@ -51,7 +65,9 @@ the app and requires no background installation.
 device filtering and the native wire protocol. Simulator tests cover listing,
 collapse/expand, selection, refresh, removal, stale connection state, desktop
 launching, window movement and resizing, Dock restore, close/reopen, independent
-window state and theme switching.
+window state and theme switching. The multi-app journey also checks Files
+navigation and history, independent file windows, playable Minesweeper and
+game-state preservation through Dock switches.
 Native screenshots require macOS Screen Recording permission; simulator
 renders are not native-window captures.
 

@@ -14,7 +14,8 @@
 //
 // Shortcuts are macOS-style: the host forwards ⌘ chords as cmd-flagged key
 // lines (⌘Q quits and ⌘V pastes host-side) — ⌘W closes, ⌘M minimizes,
-// ⌘` cycles, ⌘N opens Notepad, ⌘Esc toggles Start, ⌘A/C/X edit the
+// ⌘` cycles, ⌘N opens a window or restarts the focused game, ⌘Esc toggles
+// Start, ⌘A/C/X edit the
 // focused Notepad. Pocket app input and scheduling are owned by the native
 // compositor using the focused surface fact emitted by this shell.
 //
@@ -59,6 +60,7 @@ import {
 import {
   createWin,
   PLACES,
+  MAC_PLACES,
   type AboutData,
   type DeskIcon,
   type FolderData,
@@ -286,9 +288,9 @@ function DesktopWindow(props: {
   );
 }
 
-export default function App(props: { devicesOnly?: boolean }) {
+export default function App(props: { macDesktop?: boolean }) {
   const svc = connectSvc();
-  const devicesOnly = props.devicesOnly ?? false;
+  const macDesktop = props.macDesktop ?? false;
   const inventory = createDeviceInventory();
 
   const vp = createState<{ w: number; h: number }>({ w: 800, h: 600 });
@@ -302,7 +304,7 @@ export default function App(props: { devicesOnly?: boolean }) {
   const popup = createState<{ popup: Popup; winId?: number } | null>(null);
   const popupHover = createState(-1);
   const clock = createState("--:--");
-  const themeId = createState<ThemeId>(devicesOnly ? "aqua" : "classic");
+  const themeId = createState<ThemeId>(macDesktop ? "aqua" : "classic");
   const theme = () => themeById(themeId());
   const metrics = () => theme().metrics;
   const uiSlot = () => theme().fontSlot("ui");
@@ -464,7 +466,7 @@ export default function App(props: { devicesOnly?: boolean }) {
     };
   }
 
-  function fitDevicesGeo(geo: Geo): Geo {
+  function fitDesktopGeo(geo: Geo): Geo {
     const w = Math.min(geo.w, vp().w - 16);
     const h = Math.min(geo.h, vp().h - metrics().screenBarH - metrics().taskH - 16);
     return { ...geo, w, h,
@@ -478,7 +480,7 @@ export default function App(props: { devicesOnly?: boolean }) {
     if (existing && !newWindow) return raise(existing.id);
     const w = createWin({
       kind: "devices", title: "Devices", icon: "computer",
-      geo: fitDevicesGeo(cascadePos(wins().length, vp().w, vp().h, 660, 450, metrics())),
+      geo: fitDesktopGeo(cascadePos(wins().length, vp().w, vp().h, 660, 450, metrics())),
       minW: 560, minH: 380,
     });
     const data = createDevicesWindow(inventory, () => deviceViewport(w), () => svc?.send({ t: "devices-refresh" }));
@@ -737,6 +739,28 @@ export default function App(props: { devicesOnly?: boolean }) {
   /** Rows of a place, with row actions bound to the window that shows
    *  them: drives and folders navigate in place, documents open Notepad. */
   function placeRows(id: PlaceId, w: WinCtl): FolderRow[] {
+    if (macDesktop) {
+      if (id === "computer") return MAC_PLACES.slice(1).map(place => ({
+        icon: place.icon, name: place.label, size: "", type: "Folder",
+        open: () => navigate(w, place.id),
+      }));
+      if (id === "drivec") return [
+        { icon: "folder", name: "Files", size: "", type: "Application", open: () => openFolder("computer", true) },
+        { icon: "computer", name: "Devices", size: "", type: "Application", open: () => openDevices() },
+        { icon: "mines", name: "Minesweeper", size: "", type: "Application", open: openMines },
+      ];
+      if (id === "documents") return [{
+        icon: "notepad", name: "welcome.txt", size: "1 KB", type: "Text Document",
+        open: () => openNotepad("welcome.txt - Notepad", [
+          "Welcome to Pocket Shell.", "",
+          "Open Files, Devices and Minesweeper from the desktop or Applications folder.", "",
+          "Drag a title bar to move a window. Use the Dock to switch apps or restore a minimized window.", "",
+          "Cmd+N opens another Files or Devices window. Cmd+W closes the focused window; Cmd+M minimizes it.", "",
+          "These sample folders belong to the Pocket Shell desktop.",
+        ]),
+      }];
+      return [];
+    }
     switch (id) {
       case "computer":
         return [
@@ -796,7 +820,8 @@ export default function App(props: { devicesOnly?: boolean }) {
   }
 
   function placeOf(id: PlaceId): Place {
-    return PLACES.find((p) => p.id === id) ?? PLACES[0];
+    const places = macDesktop ? MAC_PLACES : PLACES;
+    return places.find((p) => p.id === id) ?? places[0];
   }
 
   /** Point a folder window at another place: title, icon, rows, selection.
@@ -811,8 +836,8 @@ export default function App(props: { devicesOnly?: boolean }) {
     d.place.set(id);
     d.rows.set(placeRows(id, w));
     d.selected.set(-1);
-    w.title.set(place.label);
-    w.icon.set(place.icon);
+    w.title.set(macDesktop ? `${place.label} - Files` : place.label);
+    w.icon.set(macDesktop ? "folder" : place.icon);
   }
 
   /** The place a toolbar action leads to, or null when it does not apply. */
@@ -823,7 +848,7 @@ export default function App(props: { devicesOnly?: boolean }) {
     if (tool === "back") return h.items[h.at - 1];
     if (tool === "forward") return h.items[h.at + 1];
     // Up: (C:) and the Recycle Bin hang off My Computer, My Documents off (C:).
-    return d.place() === "documents" ? "drivec" : "computer";
+    return !macDesktop && d.place() === "documents" ? "drivec" : "computer";
   }
 
   function runFolderTool(w: WinCtl, tool: FolderTool) {
@@ -837,14 +862,15 @@ export default function App(props: { devicesOnly?: boolean }) {
   }
 
   /** Raise the window already showing `id`, or open one there. */
-  function openFolder(id: PlaceId) {
+  function openFolder(id: PlaceId, newWindow = false) {
     const existing = wins().find(
       (w) => w.kind === "folder" && folderOf(w).place() === id,
     );
-    if (existing) return raise(existing.id);
+    if (existing && !newWindow) return raise(existing.id);
     const place = placeOf(id);
     const data: FolderData = {
       kind: "folder",
+      places: macDesktop ? MAC_PLACES : PLACES,
       place: createState<PlaceId>(id),
       rows: createState<FolderRow[]>([]),
       selected: createState(-1),
@@ -853,13 +879,28 @@ export default function App(props: { devicesOnly?: boolean }) {
     };
     const w = createWin({
       kind: "folder",
-      title: place.label,
-      icon: place.icon,
+      title: macDesktop ? `${place.label} - Files` : place.label,
+      icon: macDesktop ? "folder" : place.icon,
       geo: cascadePos(wins().length, vp().w, vp().h, 560, 320, metrics()),
       minW: 380,
       minH: 180,
       data,
     });
+    if (macDesktop) w.menus = [
+      { label: "File", width: menuW("File"), items: () => [
+        { label: "New Window", shortcut: "Cmd+N", act: () => openFolder(data.place(), true) },
+        { label: "Open", shortcut: "Enter", disabled: !data.rows()[data.selected()]?.open,
+          act: () => data.rows()[data.selected()]?.open?.() },
+        { label: "Close Window", shortcut: "Cmd+W", act: () => closeWin(w.id) },
+      ] },
+      { label: "Go", width: menuW("Go"), items: () => [
+        { label: "Back", disabled: !folderToolEnabled(data, "back"), act: () => runFolderTool(w, "back") },
+        { label: "Forward", disabled: !folderToolEnabled(data, "forward"), act: () => runFolderTool(w, "forward") },
+        { label: "Enclosing Folder", disabled: !folderToolEnabled(data, "up"), act: () => runFolderTool(w, "up") },
+        { sep: true, label: "" },
+        ...data.places.map(place => ({ label: place.label, act: () => navigate(w, place.id) })),
+      ] },
+    ];
     data.rows.set(placeRows(id, w));
     addWin(w);
   }
@@ -937,8 +978,10 @@ export default function App(props: { devicesOnly?: boolean }) {
 
   // ---- desktop icons + start menu ----------------------------------------------
 
-  const icons: DeskIcon[] = devicesOnly ? [
+  const icons: DeskIcon[] = macDesktop ? [
     { icon: "computer", label: "Devices", open: () => openDevices() },
+    { icon: "folder", label: "Files", open: () => openFolder("computer") },
+    { icon: "mines", label: "Minesweeper", open: openMines },
   ] : [
     { icon: "computer", label: "My Computer", open: openMyComputer },
     { icon: "documents", label: "My Documents", open: openDocuments },
@@ -1136,10 +1179,12 @@ export default function App(props: { devicesOnly?: boolean }) {
   ];
 
   const startItems = (): PopupItem[] => {
-    if (devicesOnly) return [
+    if (macDesktop) return [
       { label: "About Pocket Shell Desktop", act: openAbout },
       { sep: true, label: "" },
+      { label: "Files", icon: "folder", act: () => openFolder("computer") },
       { label: "Devices", icon: "computer", act: () => openDevices() },
+      { label: "Minesweeper", icon: "mines", act: openMines },
       { label: "Appearance", icon: "settings", sub: themeItems() },
       { sep: true, label: "" },
       { label: "Shut Down...", icon: "shutdown", act: openShutdown },
@@ -1508,7 +1553,7 @@ export default function App(props: { devicesOnly?: boolean }) {
     }
     if (w.kind === "folder") {
       const d = folderOf(w);
-      const hit = folderHit(cx, cy, d.rows().length, PLACES.length, theme());
+      const hit = folderHit(cx, cy, d.rows().length, d.places.length, theme());
       if (hit?.kind === "tool") {
         if (folderToolEnabled(d, hit.tool)) {
           drag = { type: "toolbtn", id: w.id, tool: hit.tool };
@@ -1517,7 +1562,7 @@ export default function App(props: { devicesOnly?: boolean }) {
         return;
       }
       if (hit?.kind === "place") {
-        navigate(w, PLACES[hit.i].id);
+        navigate(w, d.places[hit.i].id);
         return;
       }
       const row = hit?.kind === "row" ? hit.i : -1;
@@ -1632,9 +1677,10 @@ export default function App(props: { devicesOnly?: boolean }) {
       const icon = iconAt(mx, my);
       iconSel.set(icon);
       popup.set({
-        popup: buildPopup(mx, my, devicesOnly ? [
+        popup: buildPopup(mx, my, macDesktop ? [
           { label: "Open Devices", act: () => openDevices() },
-          { label: "New Devices Window", act: () => openDevices(true) },
+          { label: "Open Files", act: () => openFolder("computer") },
+          { label: "Minesweeper", act: openMines },
           { label: "Next Theme", act: () => setTheme(nextThemeId(themeId())) },
         ] : [
           { label: "Arrange Icons", act: () => {} },
@@ -1799,7 +1845,7 @@ export default function App(props: { devicesOnly?: boolean }) {
         const d = folderOf(w);
         const hit =
           r?.kind === "content"
-            ? folderHit(r.cx, r.cy, d.rows().length, PLACES.length, theme())
+            ? folderHit(r.cx, r.cy, d.rows().length, d.places.length, theme())
             : null;
         d.toolHeld.set(hit?.kind === "tool" && hit.tool === drag.tool ? drag.tool : null);
       }
@@ -1951,7 +1997,12 @@ export default function App(props: { devicesOnly?: boolean }) {
         if (focused()?.kind === "devices") devicesOf(focused()!).refresh();
         return;
       case "n":
-        if (devicesOnly) return openDevices(true);
+        if (macDesktop) {
+          const w = focused();
+          if (w?.kind === "devices") return openDevices(true);
+          if (w?.kind === "mines") return minesNew(w);
+          return openFolder(w?.kind === "folder" ? folderOf(w).place() : "computer", true);
+        }
         openNotepad("Untitled - Notepad", [""]);
         return;
       case "w": {
@@ -2000,6 +2051,15 @@ export default function App(props: { devicesOnly?: boolean }) {
     }
     if (w.kind === "pocket") {
       // The CompositorSurface focused flag routes input natively.
+      return;
+    }
+    if (w.kind === "folder") {
+      const d = folderOf(w);
+      if (k === "Enter") d.rows()[d.selected()]?.open?.();
+      else if (k === "Backspace") runFolderTool(w, "back");
+      else if (k === "Up" || k === "Down") d.selected.set(Math.max(0, Math.min(
+        d.rows().length - 1, d.selected() + (k === "Down" ? 1 : -1),
+      )));
       return;
     }
     if (w.kind === "mines" && k === "F2") {
@@ -2158,7 +2218,7 @@ export default function App(props: { devicesOnly?: boolean }) {
           if (win.maximized())
             win.geo.set(maximizedGeo(w, h, metrics()));
           else {
-            const geo = win.kind === "devices" ? fitDevicesGeo(win.geo()) : win.geo();
+            const geo = macDesktop ? fitDesktopGeo(win.geo()) : win.geo();
             win.geo.set(clampMove(geo, w, h, metrics()));
           }
         }
@@ -2227,7 +2287,18 @@ export default function App(props: { devicesOnly?: boolean }) {
   }
 
   function boot() {
-    if (devicesOnly) return openDevices();
+    if (macDesktop) {
+      openDevices();
+      const devices = focused()!;
+      devices.geo.set(fitDesktopGeo({ x: 116, y: 148, w: 660, h: 390 }));
+      openFolder("computer");
+      const files = focused()!;
+      files.geo.set(fitDesktopGeo({ x: 24, y: 54, w: 540, h: 340 }));
+      openMines();
+      const mines = focused()!;
+      mines.geo.set(fitDesktopGeo({ ...mines.geo(), x: 580, y: 64 }));
+      return;
+    }
     openNotepad("welcome.txt - Notepad", WELCOME);
     if (!svc) {
       // Standalone (sim, goldens): a lively static arrangement.
@@ -2240,7 +2311,7 @@ export default function App(props: { devicesOnly?: boolean }) {
 
   onFrame(() => {
     if (svc) for (const ev of svc.poll()) handleEvent(ev);
-    if (devicesOnly) {
+    if (macDesktop) {
       inventory.tick(virtualNow());
       for (const w of wins()) if (w.kind === "devices") devicesOf(w).sync();
     }

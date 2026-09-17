@@ -18,7 +18,7 @@ export async function resolveDesktopSystem(
 ): Promise<ResolvedSystemPlan> {
   const systemPath = resolve(ROOT, "pocket.system.json");
   const input = await Bun.file(systemPath).json();
-  // macOS keeps the desktop System UI with Devices as its built-in app.
+  // macOS keeps the desktop System UI and its small set of built-in apps.
   // Linux and the website also install the demonstration catalog.
   if (target === "macos-app") {
     input.title = "Pocket Shell";

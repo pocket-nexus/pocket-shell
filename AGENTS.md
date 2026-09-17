@@ -18,8 +18,8 @@ to one of them:
   pocket-desktop. It owns windows, application presentation and themes.
   PocketJS owns package isolation, scheduling and native composition.
   macOS and Linux are native targets; the browser is an interactive preview.
-  The macOS product keeps the desktop and headless window chrome, with Devices
-  as its built-in app and no preinstalled demo packages. Its read-only USB
+  The macOS product keeps the desktop and headless window chrome, with Files,
+  Devices and Minesweeper as built-in apps, without the external demo catalog. Its read-only USB
   discovery and bundle launcher live in `shells/desktop/macos`; native rendering remains in PocketJS.
 
 Each shell owns its sources, manifests, scripts, tests, assets and documentation.

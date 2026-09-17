@@ -12,7 +12,7 @@ function step(world: SimWorld, frames = 2) {
 const psp = { id: "psp-1", kind: "psp", name: "PSP", connection: "PSPLINK USB", serial: "", vendor: 0x054c, product: 0x01c9 };
 const ipod = { id: "ipod-1", kind: "ipodtouch4", name: "iPod touch 4", connection: "USB", serial: "fixture", vendor: 0x05ac, product: 0x129e };
 
-async function desktop() {
+async function desktop(keepBootWindows = false) {
   const inbox: string[] = [];
   const sent: string[] = [];
   const send = (message: object) => inbox.push(JSON.stringify(message));
@@ -31,6 +31,11 @@ async function desktop() {
   const count = (text: string) => JSON.stringify(world.getTree()).split(`"x":${JSON.stringify(text)}`).length - 1;
   send({ t: "hello", w: 800, h: 600 });
   step(world);
+  if (!keepBootWindows) {
+    // Exercise the real boot first, then isolate Devices through user controls.
+    key("w", true); key("w", true); key("w", true);
+    click(750, 50); click(750, 50);
+  }
   return { world, send, sent, has, mouse, click, key, painted, count };
 }
 
@@ -41,7 +46,7 @@ test("Devices runs inside the Aqua desktop and tracks the USB discovery feed", a
   expect(painted(AQUA_THEME.taskList)).toBe(true);
   expect(painted(AQUA_THEME.caption(true))).toBe(true);
   expect(has("Looking for connected devices...")).toBe(true);
-  for (const unwanted of ["Notepad", "Minesweeper", "Hero", "All Programs", "My Computer"]) expect(has(unwanted)).toBe(false);
+  for (const unwanted of ["Notepad", "Hero", "All Programs", "My Computer"]) expect(has(unwanted)).toBe(false);
   send({ t: "devices", devices: [psp, ipod] });
   step(world);
   expect(has("PSPLINK USB")).toBe(true);
@@ -88,9 +93,9 @@ test("Devices uses desktop dragging, resizing, Dock, close/reopen and independen
   click(735, 131); // refresh follows the resized client's right edge
   expect(sent).toContain(JSON.stringify({ t: "devices-refresh" }));
   key("m", true);
-  expect(has("File")).toBe(false); // no focused window's screen menus
+  expect(count("File")).toBe(0); // no focused window's screen menus
   click(400, 574); // Dock restores the minimized window
-  expect(has("File")).toBe(true);
+  expect(count("File")).toBe(1);
   click(195, 278);
   expect(has("Apple iPod touch (4th generation)")).toBe(true);
   key("w", true);
@@ -138,7 +143,8 @@ test("Devices stays usable at the minimum viewport and scrolls long inventories"
   expect(has("PSP 0")).toBe(false);
   expect(has("PSP 7")).toBe(true);
   key("w", true);
-  key("n", true);
+  // With no focused app Cmd+N now opens Files; launch Devices from its icon.
+  click(600, 50); click(600, 50);
   expect(count("Overview")).toBe(1);
   click(109, 178);
   expect(has("device-0")).toBe(true);
@@ -148,4 +154,59 @@ test("Devices stays usable at the minimum viewport and scrolls long inventories"
   expect(has("device-0")).toBe(true);
   key("w", true);
   expect(count("Overview")).toBe(0);
+}, 30000);
+
+
+test("macOS starts Files, Devices and Minesweeper as independent usable applications", async () => {
+  const { world, send, has, click, key, painted, count } = await desktop(true);
+  expect(has("Pocket Shell - Files")).toBe(true);
+  expect(has("Minesweeper")).toBe(true);
+  expect(count("Overview")).toBe(1);
+  expect(has("Game")).toBe(true); // Minesweeper is initially focused.
+  expect(painted(AQUA_THEME.minesCell("revealed"))).toBe(false);
+  click(596, 144); // first safe reveal in the visible Minesweeper window
+  expect(painted(AQUA_THEME.minesCell("revealed"))).toBe(true);
+  click(280, 141); click(280, 141); // Files -> Applications
+  expect(has("Applications - Files")).toBe(true);
+  expect(has("Go")).toBe(true);
+  expect(has("Game")).toBe(false);
+  key("n", true); // another Files window at the same directory
+  expect(count("Applications - Files")).toBe(2); // independently owned windows
+  key("w", true);
+  expect(count("Applications - Files")).toBe(1);
+  click(45, 96); // Back toolbar button -> desktop root
+  expect(has("Pocket Shell - Files")).toBe(true);
+  click(76, 96); // Forward -> Applications
+  expect(has("Applications - Files")).toBe(true);
+  key("m", true);
+  expect(has("Go")).toBe(false);
+  click(400, 574); // middle Dock tile restores Files
+  expect(has("Go")).toBe(true);
+  click(60, 170); // Documents sidebar
+  expect(has("Documents - Files")).toBe(true);
+  expect(has("welcome.txt")).toBe(true);
+  key("m", true);
+  expect(has("Game")).toBe(true); // focus returns to the next visible app
+  click(448, 574); // minimize the active Minesweeper from the Dock
+  expect(has("Game")).toBe(false);
+  click(448, 574); // restore it without losing the game
+  expect(has("Game")).toBe(true);
+  expect(painted(AQUA_THEME.minesCell("revealed"))).toBe(true);
+  key("F2");
+  expect(painted(AQUA_THEME.minesCell("revealed"))).toBe(false);
+  send({ t: "devices", devices: [psp, ipod] });
+  step(world);
+  click(352, 574); // Devices keeps receiving discoveries while behind other apps
+  expect(has("View")).toBe(true);
+  expect(has("PSPLINK USB")).toBe(true);
+  for (const theme of [CLASSIC_THEME, XP_THEME, AQUA_THEME]) {
+    key("t", true, true);
+    expect(painted(theme.desktop)).toBe(true);
+    expect(has("Documents - Files")).toBe(true);
+    expect(has("Minesweeper")).toBe(true);
+  }
+  key("escape", true);
+  expect(has("Files")).toBe(true);
+  expect(has("Minesweeper")).toBe(true);
+  expect(has("Hero")).toBe(false);
 }, 30000);

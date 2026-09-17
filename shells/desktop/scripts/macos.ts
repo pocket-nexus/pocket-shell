@@ -89,7 +89,7 @@ for (const command of [
   const code = await run(command);
   if (code !== 0) process.exit(code);
 }
-console.log(`Pocket Shell: ${bundle} (desktop with Devices, no preinstalled demo apps)`);
+console.log(`Pocket Shell: ${bundle} (Files, Devices and Minesweeper; no external demo packages)`);
 if (buildOnly) process.exit(0);
 const code = await run(
   [binary, ...hostArgs],
