@@ -74,8 +74,9 @@ renders are not native-window captures.
 ## Blender application icons
 
 Files and Devices use original Cycles-rendered objects: a folded blue cardstock
-folder with paper sheets and a metal label holder, and a brushed-aluminium USB
-hub with a rubber cable and metal connector. Their silhouettes, bevels, contact
+folder with paper sheets and a metal label holder, and a compact handheld
+console in front of an upright touch player, with aluminium rims and dark
+glass screens. Their silhouettes, bevels, contact
 shadows and material highlights come from geometry and studio lights.
 
 The [scene recipe](assets/icons/render.py) rebuilds the complete editable scenes

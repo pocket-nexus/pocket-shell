@@ -121,31 +121,11 @@ def render(args):
         scene.collection.objects.link(obj)
         return finish(obj, name, mat, bevel)
 
-    def wire(name, points, radius, mat):
-        curve = bpy.data.curves.new(name, "CURVE")
-        curve.dimensions = "3D"
-        curve.resolution_u = 32
-        curve.bevel_depth = radius
-        curve.bevel_resolution = 5
-        spline = curve.splines.new("BEZIER")
-        spline.bezier_points.add(len(points) - 1)
-        for vertex, point in zip(spline.bezier_points, points):
-            vertex.co = point
-            vertex.handle_left_type = vertex.handle_right_type = "AUTO"
-        obj = bpy.data.objects.new(name, curve)
-        scene.collection.objects.link(obj)
-        obj.data.materials.append(mat)
-        return obj
-
     def cylinder(name, loc, radius, depth, mat, rotation=(math.pi / 2, 0, 0)):
         bpy.ops.mesh.primitive_cylinder_add(vertices=64, radius=radius, depth=depth, location=loc, rotation=rotation)
         return finish(bpy.context.object, name, mat, 0.006)
 
     silver = material("Satin bead-blasted aluminium", (0.58, 0.62, 0.66), 0.27, 0.92, 0.13, (1, 45, 1))
-    chrome = material("Polished edge aluminium", (0.74, 0.79, 0.82), 0.17, 1)
-    dark = material("Black anodized port recess", (0.008, 0.012, 0.018), 0.43, 0.3)
-    rubber = material("Graphite rubber cable", (0.023, 0.028, 0.034), 0.58, grain=0.08)
-    gold = material("Gold contact pads", (0.72, 0.43, 0.10), 0.25, 0.86)
 
     if args.only == "files":
         card = material("Dyed blue cotton card", (0.035, 0.19, 0.36), 0.76, grain=0.12)
@@ -178,41 +158,72 @@ def render(args):
         camera_pos = (4.0, -10.5, 4.7)
         ortho = 3.75
     else:
-        # Substantial, square-edged aluminium USB hub / device dock.
-        box("Unibody aluminium hub", (-0.12, 0, 0.47), (2.66, 1.65, 0.66), silver, 0.115)
-        box("Underside shadow gasket", (-0.12, 0, 0.19), (2.46, 1.47, 0.12), rubber, 0.065)
-        box("Inset front fascia", (-0.12, -0.831, 0.47), (2.35, 0.045, 0.40), dark, 0.055)
-        for x in (-0.72, 0.32):
-            box("USB receptacle metal rim", (x, -0.865, 0.46), (0.73, 0.046, 0.29), chrome, 0.02)
-            box("USB receptacle hollow", (x, -0.893, 0.46), (0.63, 0.015, 0.215), dark, 0.012)
-            box("USB receptacle tongue", (x, -0.914, 0.445), (0.56, 0.025, 0.073), rubber, 0.005)
-            for dx in (-0.18, -0.06, 0.06, 0.18):
-                box("USB receptacle contact", (x + dx, -0.932, 0.475), (0.054, 0.009, 0.019), gold, 0.003)
-        led = material("Muted green status glass", (0.18, 0.51, 0.25), 0.22)
-        cylinder("Power indicator", (0.87, -0.861, 0.47), 0.043, 0.025, led)
-        for x in (-1.14, 0.89):
-            cylinder("Flush fastener", (x, -0.834, 0.73), 0.032, 0.012, chrome)
-        # Cable rises behind the hub into a large recognisable USB-A connector.
-        wire("Flexible USB cable", [(-0.85, 0.50, 0.75), (-1.2, 0.56, 1.32),
-             (-1.02, 0.46, 1.83), (-0.32, 0.27, 1.99), (0.45, 0.11, 1.77)], 0.077, rubber)
-        box("Connector rubber grip", (0.57, -0.02, 1.88), (0.74, 0.44, 0.76), rubber, 0.09)
-        for z in (1.58, 1.66, 1.74):
-            box("Strain-relief rib", (0.57, -0.02, z), (0.77, 0.45, 0.036), dark, 0.018)
-        box("USB plug metal shell", (0.57, -0.02, 2.50), (0.68, 0.34, 0.61), chrome, 0.028)
-        box("Connector mouth", (0.57, -0.02, 2.807), (0.57, 0.24, 0.008), dark, 0.008)
-        box("Connector inner tongue", (0.57, 0.025, 2.81), (0.51, 0.085, 0.012), rubber, 0.005)
-        for x in (0.38, 0.76):
-            box("USB shell retention recess", (x, -0.194, 2.51), (0.125, 0.007, 0.16), dark, 0.005)
-        # Raised, subdued USB trident on the rubber grip.
-        symbol = material("Moulded connector marking", (0.12, 0.14, 0.16), 0.62)
-        wire("USB mark stem", [(0.57, -0.247, 1.78), (0.57, -0.247, 2.10)], 0.013, symbol)
-        wire("USB mark fork", [(0.42, -0.247, 1.98), (0.42, -0.247, 1.90), (0.57, -0.247, 1.83)], 0.013, symbol)
-        wire("USB mark fork", [(0.72, -0.247, 2.01), (0.72, -0.247, 1.95), (0.57, -0.247, 1.87)], 0.013, symbol)
-        cylinder("USB mark circle", (0.42, -0.247, 2.01), 0.027, 0.012, symbol)
-        box("USB mark square", (0.72, -0.247, 2.04), (0.045, 0.012, 0.045), symbol, 0.003)
-        target = (0, 0, 1.40)
-        camera_pos = (4.2, -10.5, 5.5)
-        ortho = 3.78
+        # Two overlapping device silhouettes read at small sizes: a landscape
+        # handheld in front and a taller touch player behind it, both cordless.
+        chrome = material("Polished aluminium rim", (0.74, 0.79, 0.82), 0.20, 1)
+        graphite = material("Satin graphite casing", (0.026, 0.033, 0.043), 0.36, 0.38, 0.06)
+        glass = material("Smoked black glass bezel", (0.006, 0.010, 0.018), 0.19, 0.20)
+        controls = material("Dark machined controls", (0.055, 0.067, 0.080), 0.32, 0.40)
+        marks = material("Ivory control markings", (0.69, 0.72, 0.72), 0.52)
+
+        def screen(name, low, high):
+            mat = material(name, low, 0.24, 0.20)
+            nodes, links = mat.node_tree.nodes, mat.node_tree.links
+            coord = nodes.new("ShaderNodeTexCoord")
+            separate = nodes.new("ShaderNodeSeparateXYZ")
+            ramp = nodes.new("ShaderNodeValToRGB")
+            ramp.color_ramp.elements[0].color = (*low, 1)
+            ramp.color_ramp.elements[1].color = (*high, 1)
+            links.new(coord.outputs["Generated"], separate.inputs[0])
+            links.new(separate.outputs["Z"], ramp.inputs[0])
+            bsdf = nodes.get("Principled BSDF")
+            links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
+            links.new(ramp.outputs["Color"], bsdf.inputs["Emission Color"])
+            bsdf.inputs["Emission Strength"].default_value = 0.18
+            return mat
+
+        blue = screen("Blue-grey handheld display", (0.023, 0.068, 0.11), (0.16, 0.36, 0.48))
+        teal = screen("Slate teal touch display", (0.016, 0.060, 0.073), (0.12, 0.30, 0.32))
+
+        # The touch player has a thin metal edge, continuous glass and a round
+        # home key. Its exposed height separates it from the foreground device.
+        box("Touch player aluminium back", (0.68, 0.22, 1.54), (1.29, 0.25, 2.88), silver, 0.12)
+        box("Touch player polished rim", (0.68, 0.074, 1.54), (1.26, 0.08, 2.85), chrome, 0.105)
+        box("Touch player black glass", (0.68, 0.023, 1.54), (1.19, 0.045, 2.77), glass, 0.095)
+        box("Touch player display", (0.68, -0.005, 1.58), (1.03, 0.016, 2.04), teal, 0.025)
+        cylinder("Touch player home key rim", (0.68, -0.009, 0.36), 0.10, 0.015, graphite)
+        cylinder("Touch player home key", (0.68, -0.020, 0.36), 0.079, 0.012, glass)
+        cylinder("Front camera ring", (0.68, -0.010, 2.77), 0.031, 0.012, graphite)
+        cylinder("Front camera glass", (0.68, -0.018, 2.77), 0.017, 0.012, blue)
+        box("Touch player sleep key", (1.01, 0.22, 2.992), (0.22, 0.11, 0.035), chrome, 0.014)
+
+        # The handheld's broad screen, d-pad and four face buttons carry its
+        # identity without text or fine cables disappearing during downsampling.
+        box("Handheld aluminium body", (-0.18, -0.36, 0.83), (2.95, 0.37, 1.49), silver, 0.175)
+        box("Handheld polished bezel", (-0.18, -0.56, 0.83), (2.91, 0.08, 1.45), chrome, 0.16)
+        box("Handheld graphite face", (-0.18, -0.611, 0.83), (2.83, 0.046, 1.37), graphite, 0.15)
+        box("Handheld black glass surround", (-0.18, -0.647, 0.89), (1.86, 0.030, 1.08), glass, 0.04)
+        box("Handheld display", (-0.18, -0.667, 0.91), (1.69, 0.018, 0.92), blue, 0.025)
+        for x in (-1.26, 0.90):
+            box("Handheld shoulder key", (x, -0.35, 1.574), (0.44, 0.27, 0.10), chrome, 0.045)
+        x, z = -1.31, 1.01
+        cross = [(-0.065, -0.21), (0.065, -0.21), (0.065, -0.065), (0.21, -0.065),
+                 (0.21, 0.065), (0.065, 0.065), (0.065, 0.21), (-0.065, 0.21),
+                 (-0.065, 0.065), (-0.21, 0.065), (-0.21, -0.065), (-0.065, -0.065)]
+        panel("Directional cross", [(x + dx, z + dz) for dx, dz in cross], -0.708, -0.642, controls, 0.014)
+        cylinder("Analogue stick metal seat", (-1.28, -0.654, 0.50), 0.137, 0.025, chrome)
+        cylinder("Analogue stick cap", (-1.28, -0.688, 0.50), 0.104, 0.040, controls)
+        for dx, dz in ((0, 0.19), (0.19, 0), (0, -0.19), (-0.19, 0)):
+            cylinder("Round action key", (0.97 + dx, -0.677, 1.00 + dz), 0.081, 0.063, controls)
+            cylinder("Action key inset", (0.97 + dx, -0.712, 1.00 + dz), 0.023, 0.008, marks)
+        for x in (-0.39, 0.05):
+            box("Small system key", (x, -0.650, 0.275), (0.14, 0.026, 0.032), chrome, 0.013)
+        for x in (-0.86, 0.50):
+            for i in range(3):
+                box("Speaker slit", (x + i * 0.054, -0.640, 0.277), (0.017, 0.012, 0.076), glass, 0.006)
+        target = (-0.02, 0, 1.53)
+        camera_pos = (3.3, -12.5, 5.0)
+        ortho = 3.85
 
     floor = material("Studio shadow catcher", (0.35, 0.35, 0.35), 0.8)
     ground = box("Contact shadow plane", (0, 0, 0.04), (200, 200, 0.04), floor, 0)
