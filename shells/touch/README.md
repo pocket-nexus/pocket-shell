@@ -2,7 +2,8 @@
 
 A PocketJS navigation demo for iPod touch 4 (320 × 480 logical points) and
 Nokia E7 (360 × 640 portrait or 640 × 360 landscape).
-Sixteen retained mock apps share two Home pages: Today, Music, Places, Weather,
+Sixteen app slots share two Home pages. Hosts without native app navigation use
+retained mock apps: Today, Music, Places, Weather,
 Notes, Photos, Mail, Calendar, Clock, Safari, Files, Settings, Camera, Health,
 Books and Calculator. They contain sample content and do not connect to external
 services.
@@ -92,8 +93,8 @@ its content stays mounted. A desktop icon reopens it without duplicate entries.
 An empty deck offers a return to the desktop. **Opening an icon or switcher card
 expands only that app to full screen.** Neighboring cards keep their compact
 geometry and fade out.
-**Text cells scale with their positions** through the core's atlas-backed `TEX_QUAD` path. No bitmap screenshot
-replaces a live card during the gesture.
+**Mock text cells scale with their positions** through the core's atlas-backed `TEX_QUAD` path. Mock windows remain live during the gesture. Native E7 windows use the last
+frame captured by their own process.
 
 ## Build and run
 
@@ -134,7 +135,7 @@ The same navigation model drives both devices. Window dimensions, icon hit
 targets, minimizing destinations, deck positions and content extents use the
 current viewport. Rotating cancels the previous contact before its release can
 commit an action, then retains open-window order, selected app and Home page.
-The E7 host presents at **30 Hz with two 60 Hz core ticks per frame**, and sends
+The E7 build targets **60 Hz with one core tick per frame**, and sends
 the wide touch format so coordinates beyond 511 reach the guest.
 
 With the phone connected in Nokia Suite mode and CODA available:
@@ -169,10 +170,8 @@ The painter retains all app nodes and skips unchanged property writes. Settled
 springs stop before evaluating their exponential. Neither optimization changes
 contact positions, spring targets, or animation timing.
 
-The native profiling workflow requires a PocketJS build with `--perf-trace`
-support; the current submodule pin predates that option. Build against the
-upstream profiling checkout, with this shell as its `--project-root`, and
-install the resulting SIS before running the commands below. Use matching
+Build with `bun run touch:e7 build --perf-trace` and install the resulting
+SIS before running the commands below. Use matching
 viewport dimensions and keep the phone in that orientation during the run.
 Replay builds fix orientation to the manifest's initial viewport. The analyzer
 rejects inactive-window samples and mismatched viewport dimensions; pass the
@@ -225,3 +224,32 @@ run directory. **Injected device input does not measure physical touch-to-photon
 latency.** Human touch feel remains a separate acceptance check.
 
 Original shell code and the [wallpaper](src/wallpaper.svg) are GPL-3.0-or-later.
+
+
+### Native Pocket apps on E7
+
+**Clear on page one and Voxel on page two open separate installed apps.** The
+remaining slots retain their mock content. `native-apps.json` fixes the three
+package identities; Shell and both children must be built with this registry.
+The standard E7 build includes it. Other hosts keep the original mock catalog.
+
+Each child has a reserved 28-pixel return strip below its content. Tap or swipe
+up to return Home; lift and hold for 220 ms to enter the switcher. The host
+passes the release pose to Shell, which continues the minimization. The
+operating system Home key stays with Symbian. Clear and Voxel use portrait;
+Shell still follows device orientation.
+
+**Reopening a native app foregrounds its retained process.** Clear's current
+list and Voxel's game state survive a return to Shell. Background processes
+pause their guest and simulation. Switcher cards use captured app frames;
+dragging a card upward asks its task to close. Reopening after a close starts a
+new process. State after OS termination depends on the app's own persistence.
+Launch errors return Home without adding a failed app to the recent-window
+order. A refused close restores its card.
+
+Build Clear from the pinned runtime with `apps/clear/pocket.symbian.json`, and
+Voxel from its repository with `POCKETJS_NAVIGATION` pointing to this registry
+and `bun run symbian`. Install all three SIS files, then launch Pocket Shell.
+Their UIDs are `EA360236` (Shell), `E16ACD8E` (Clear), and `E9A45CD9` (Voxel).
+Voxel's E7 port provides native GLES2 graphics and touch controls; it has no
+audio output. This integration does not change the iPod installation.

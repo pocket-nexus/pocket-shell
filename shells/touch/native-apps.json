@@ -1,0 +1,8 @@
+{
+  "shell": "0xEA360236",
+  "apps": [
+    { "uid": "0xEA360236", "id": "dev.pocket-stack.fluid", "output": "pocketshell-touch", "title": "Pocket Shell Touch" },
+    { "uid": "0xE16ACD8E", "id": "dev.pocket-stack.clear", "output": "clear-main", "title": "Pocket Clear", "orientation": "portrait" },
+    { "uid": "0xE9A45CD9", "id": "dev.pocket-stack.voxel", "output": "pocket-voxel", "title": "Pocket Voxel", "orientation": "portrait" }
+  ]
+}

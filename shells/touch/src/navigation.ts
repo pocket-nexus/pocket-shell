@@ -237,6 +237,41 @@ export class Navigation {
     this.record("open");
   }
 
+  /** A native process returns to the retained shell; keep its MRU position
+   * and the Home page from which it was launched. */
+  returnFromApp(index: number, destination: "home" | "switcher" = "home", pose = { x: 0, y: 0, scale: 1 }): void {
+    if (!Number.isInteger(index) || index < 0 || index >= COUNT) return;
+    this.drag = null;
+    this.markRecent(index);
+    this.selected = this.foreground = index;
+    const card = this.cards[index];
+    Object.assign(card.x, axis(pose.x * this.layout.width)); Object.assign(card.y, axis(pose.y * this.layout.height));
+    Object.assign(card.scale, axis(pose.scale)); Object.assign(card.visibility, axis(1));
+    Object.assign(this.scene, axis(pose.scale));
+    this.destination = "app";
+    this.targets(destination);
+    this.record("native-return");
+  }
+
+  showHome(): void { this.targets("home"); }
+
+  rejectNativeLaunch(index: number): void {
+    const rank = this.opened.indexOf(index);
+    if (rank >= 0) this.opened.splice(rank, 1);
+    this.cards[index].visibility.target = 0;
+    this.selected = this.foreground = this.opened.at(-1) ?? index;
+    this.drag = null;
+    this.targets("home");
+    this.record("native-launch-failed");
+  }
+
+  restoreNativeCard(index: number, rank: number): void {
+    if (!this.opened.includes(index)) this.opened.splice(rank, 0, index);
+    this.selected = index;
+    this.targets("switcher");
+    this.record("native-close-failed");
+  }
+
   private close(index: number): void {
     const rank = this.opened.indexOf(index);
     if (rank < 0) return;
