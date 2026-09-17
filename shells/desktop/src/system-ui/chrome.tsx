@@ -16,7 +16,12 @@
 // build time and template-interpolated fragments are a compile error, so the
 // complete theme-selected classes stay visible to the compiler.
 
-import { Image, Text, View } from "@pocketjs/framework/components";
+import { createEffect } from "solid-js";
+import { Image, Text, View, type NodeMirror } from "@pocketjs/framework/components";
+import { animate, jump } from "@pocketjs/framework/animation";
+import { onFrame } from "@pocketjs/framework/lifecycle";
+import { virtualNow } from "@pocketjs/framework/clock";
+import { createState } from "./reactivity.ts";
 import { type CaptionState, type DesktopTheme } from "./theme.ts";
 import type { DeskIcon, MenuDef, Popup, TaskEntry, WinCtl } from "./state.ts";
 import { captionSlots, desktopIconPosition } from "./wm.ts";
@@ -167,12 +172,57 @@ export function Taskbar(props: {
   clock: string;
   buttonW: number;
   theme: DesktopTheme;
+  onTransition?: (until: number) => void;
 }) {
   // Read through props on every evaluation: a bare const here would capture
   // the boot theme's answer for the life of the component.
   const dock = () => props.theme.metrics.screenBarH > 0;
+  const retained = createState<TaskEntry[]>([]);
+  const entries = () => dock() ? retained() : props.entries;
+  let shelf: NodeMirror | undefined;
+  let lastDock = false;
+  let shown = false;
+  let clearAt = 0;
+  createEffect(() => {
+    const next = props.entries;
+    const isDock = dock();
+    const visible = next.length > 0;
+    if (!shelf) return;
+    if (!isDock) {
+      jump(shelf, "translateY", 0);
+      jump(shelf, "opacity", 1);
+      clearAt = 0;
+      retained.set([]);
+      props.onTransition?.(0);
+    } else {
+      if (visible) { retained.set(next); clearAt = 0; }
+      if (!lastDock) {
+        jump(shelf, "translateY", props.theme.metrics.taskH + 8);
+        jump(shelf, "opacity", 0);
+      }
+      if (!lastDock || visible !== shown) {
+        // The native animator starts from the current value when reversed.
+        // Keep the last tiles mounted until the downward motion completes.
+        const until = virtualNow() + 0.24;
+        animate(shelf, "translateY", visible ? 0 : props.theme.metrics.taskH + 8, { dur: 240, easing: "in-out" });
+        animate(shelf, "opacity", visible ? 1 : 0, { dur: 240, easing: "in-out" });
+        if (!visible) clearAt = until;
+        props.onTransition?.(until);
+      }
+    }
+    lastDock = isDock;
+    shown = visible;
+  });
+  onFrame(() => {
+    if (clearAt > 0 && virtualNow() >= clearAt) {
+      clearAt = 0;
+      if (dock() && props.entries.length === 0) retained.set([]);
+    }
+  });
   return (
     <View
+      ref={node => { shelf = node; }}
+      debugName="TaskShelf"
       class={props.theme.taskbar}
       style={{ zIndex: 10000 }}
     >
@@ -202,9 +252,9 @@ export function Taskbar(props: {
         </View>
       ) : null}
       {!dock() ? <View class={props.theme.taskDivider} /> : null}
-      {!dock() || props.entries.length > 0 ? (
+      {!dock() || entries().length > 0 ? (
         <View class={props.theme.taskList}>
-          {props.entries.map((entry) => (
+          {entries().map((entry) => (
             <View
               class={props.theme.taskButton(entry.id === props.activeId)}
               style={{ width: props.buttonW }}

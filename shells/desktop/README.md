@@ -1,7 +1,7 @@
 # Pocket Shell Desktop
 
 Pocket Shell Desktop is the desktop OS shell in [Pocket Shell](../../README.md).
-On macOS the standalone **Pocket Shell.app** opens an Aqua desktop with a
+On macOS the standalone **Pocket Shell.app** opens an Aqua desktop with
 Files, Devices and Minesweeper applications. Linux and the browser also include the demo app catalog.
 All targets share the same desktop, headless window chrome and theme system,
 using SolidJS and PocketJS's universal renderer.
@@ -31,6 +31,8 @@ staggered windows and separate Dock entries. Double-click a desktop icon or
 choose an app from the logo menu to reopen it. **Cmd+M** minimizes, **Cmd+W**
 closes the focused window and **Cmd+`** cycles visible windows. The Dock
 switches apps and restores minimized windows without resetting their state.
+Aqua raises the Dock when the first app opens and lowers it after the last
+app closes, using a 240 ms native animation that can reverse mid-transition.
 
 Files reuses the Finder-style toolbar, places sidebar and details list. Its
 Pocket Shell, Applications, Documents and Trash places are the shell's sample
@@ -44,13 +46,16 @@ focused. Each window keeps its own selection and navigation history.
 Minesweeper restores the 9-by-9 game: click to reveal, right-click to flag,
 and use **F2**, **Cmd+N**, the smiley or **Game → New** to start again.
 
-Expand **Devices** in the window sidebar to see supported USB hardware attached
-to this Mac. Select a device to see its family, connection mode and serial when available.
+Devices uses an Explorer-style category tree, sortable details list and property
+pane. **Game consoles** and **Media players** filter the connected inventory;
+each category shares one icon across device models. Select a row to see its
+class, connection mode and serial when available. Toolbar arrows and the
+Left/Right keys navigate each window's category history.
 PSP USB storage (`054c:01c8`), PSP PSPLINK (`054c:01c9`) and iPod touch 4
 (`05ac:129e`) are recognized. Other USB devices are omitted. The inventory
 refreshes every second; removed devices and expired companion snapshots are
-cleared. Refresh also runs with **Cmd+R**. Arrow keys navigate the list;
-**Escape** or the **Overview** toolbar item returns to the overview. Choose
+cleared. Refresh also runs with **Cmd+R**. Up/Down and Home/End navigate the list;
+**Escape** clears its selection. The sidebar's Devices row shows every category. Choose
 **Appearance** in the logo menu or use **Cmd+Shift+T** to cycle Aqua, Classic 98
 and Windows XP; windows keep their state and client geometry.
 
@@ -71,27 +76,35 @@ game-state preservation through Dock switches.
 Native screenshots require macOS Screen Recording permission; simulator
 renders are not native-window captures.
 
-## Blender application icons
+## Application and device-class icons
 
-Files and Devices use original Cycles-rendered objects: a folded blue cardstock
-folder with paper sheets and a metal label holder, and a compact handheld
-console in front of an upright touch player, with aluminium rims and dark
-glass screens. Their silhouettes, bevels, contact
-shadows and material highlights come from geometry and studio lights.
+The existing `DesktopTheme.icon(name, size)` contract resolves semantic artwork
+for every theme. Files, Devices, game consoles and media players now have
+independent Classic 98, XP and Aqua images; a missing theme override falls back
+to Aqua. Switching themes updates desktop icons, Dock/taskbar, captions, menus
+and the device browser without changing application or device identities.
 
-The [scene recipe](assets/icons/render.py) rebuilds the complete editable scenes
-and renders transparent masters. To rebake with Blender 5.1 and Pillow:
+The [Blender recipe](assets/icons/render.py) models complete Cycles scenes for
+Aqua and XP. Aqua uses blue cardstock and graphite/aluminium devices; XP uses
+a gold folder and blue device shells. The [pixel recipe](assets/icons/pixel-icons.py)
+draws Classic artwork on separate 16 and 32 px grids, enlarging the 32 px grid
+to 64 px with nearest-neighbour sampling. All icons have transparent silhouettes without baked ground
+shadows; surface shading and material highlights remain on the objects.
+
+To regenerate with Blender 5.1 and Pillow:
 
 ```sh
 python3 shells/desktop/assets/icons/render.py --publish
+python3 shells/desktop/assets/icons/pixel-icons.py
 ```
 
-`BLENDER` can point to another Blender executable. The recipe writes `.blend`
-scenes and large renders under `.pocket-build/validation/blender-icons/` and
-publishes six reviewed PNGs at 16, 32 and 64 px. Normal builds only copy the
-bakes into the icon pack, including Retina variants. Application artwork is
-resolved through the theme for desktop icons, Dock, captions and menus;
-ordinary folder symbols keep each theme's own artwork.
+`BLENDER` selects another Blender executable. `--theme aqua` / `--theme xp`
+and `--only files` / `devices` / `handheld` / `media-player` limit a Blender bake.
+Editable scenes and full-size renders stay in `.pocket-build/validation/blender-icons/`.
+The 36 reviewed PNGs cover four subjects, three themes and 16/32/64 px sizes.
+Normal builds copy these product inputs and select 1×/2× density variants;
+they require neither Blender nor Pillow. Ordinary folder and chrome symbols
+retain their existing theme artwork, with object ground shadows removed.
 
 ## Desktop themes
 

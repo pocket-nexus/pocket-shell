@@ -225,7 +225,7 @@ describe("system-ui System UI companion journey", () => {
     for (const ch of ["H", "i"]) svc.push({ t: "ch", s: ch });
     await step(world, 24);
     tree = world.getTree();
-    expect(treeHasText(tree, "HiWelcome to Pocket Shell Desktop.")).toBe(true);
+    expect(treeHasText(tree, "HiWelcome to Pocket Shell.")).toBe(true);
 
     // Double-click selects the word under the pointer; ⌘C ships it as a
     // copy intent (the welcome window sits at 64,28; content text origin
@@ -257,7 +257,7 @@ describe("system-ui System UI companion journey", () => {
     expect(typeof copy2.text).toBe("string");
     const dragged = copy2.text as string;
     expect(dragged.length).toBeGreaterThan(0);
-    expect("HiWelcome to Pocket Shell Desktop.".startsWith(dragged)).toBe(true);
+    expect("HiWelcome to Pocket Shell.".startsWith(dragged)).toBe(true);
     tree = world.getTree();
     expect(treeHasText(tree, dragged)).toBe(true);
 

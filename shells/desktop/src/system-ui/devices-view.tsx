@@ -1,80 +1,82 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Devices paints a window client using the desktop theme. Input and discovery
-// are supplied by the headless model; this view never mounts a second shell.
+// Explorer client: navigation tree, details list and selection inspector.
+// Paint and input share DEVICE_LAYOUT; discovery stays in the headless model.
 import { For } from "solid-js";
-import { View } from "@pocketjs/framework/components";
+import { Image, View } from "@pocketjs/framework/components";
 import { UiText } from "./chrome.tsx";
 import type { DesktopTheme } from "./theme.ts";
-import { DEVICE_LAYOUT as L, type ConnectedDevice, type DevicesData } from "./devices.ts";
+import { DEVICE_LAYOUT as L, DEVICE_PLACES, deviceClass, deviceClassName, type DevicesData } from "./devices.ts";
 
-function DeviceGlyph(props: { kind: ConnectedDevice["kind"]; large?: boolean }) {
-  return <View class="relative w-[44] h-[36]" style={{ scaleX: props.large ? 2 : 1, scaleY: props.large ? 2 : 1 }}>
-    {props.kind === "psp" ? <>
-      <View class="absolute left-0 top-[7] w-[44] h-[23] rounded-[9] bg-[#353b44]" />
-      <View class="absolute left-[10] top-[10] w-[24] h-[17] rounded-[2] bg-[#a6c4dc]" />
-      <View class="absolute left-[3] top-[16] w-[5] h-[2] bg-[#c9cdd2]" />
-      <View class="absolute left-[5] top-[14] w-[2] h-[6] bg-[#c9cdd2]" />
-      <View class="absolute left-[37] top-[16] w-[3] h-[3] rounded-[2] bg-[#c9cdd2]" />
-    </> : <>
-      <View class="absolute left-[12] top-0 w-[21] h-[36] rounded-[5] bg-[#353b44]" />
-      <View class="absolute left-[14] top-[5] w-[17] h-[24] bg-[#a6c4dc]" />
-      <View class="absolute left-[20] top-[31] w-[5] h-[3] rounded-[2] bg-[#c9cdd2]" />
-    </>}
-  </View>;
-}
-
-export function DevicesView(props: { data: DevicesData; theme: DesktopTheme }) {
-  const { current, devices, visible, selected, expanded, received, status } = props.data;
-  const T = (text: { text: string; muted?: boolean; bold?: boolean }) =>
-    <UiText theme={props.theme} t={text.text} bold={text.bold} cls={text.muted ? props.theme.mutedText : "text-[#20252b]"} />;
+export function DevicesView(props: { data: DevicesData; theme: DesktopTheme; active: boolean }) {
+  const d = props.data;
+  const nameWidth = d.nameWidth;
+  const listHeight = () => d.viewport().h - L.toolbar - L.header - L.status - L.details;
+  const thumbHeight = () => Math.max(20, listHeight() * d.capacity() / Math.max(1, d.filtered().length));
+  const text = (value: string, muted = false, bold = false) =>
+    <UiText theme={props.theme} t={value} bold={bold} cls={muted ? props.theme.mutedText : "text-[#20252b]"} />;
   return <View class="relative flex-1 bg-[#ffffff] overflow-hidden">
     <View class={props.theme.devices.toolbar}>
-      <T text="Overview" bold />
-    </View>
-    <View class="absolute top-[14] right-[14] w-[88] h-[28]">
-      <View class={props.theme.dialogButton(false, false)} style={{ width: 88, height: 28 }}>
-      <T text="Refresh" />
+      <View class="absolute left-[8] top-[7] w-[28] h-[24]">
+        <View class={props.theme.folderToolButton(d.history().at > 0, false)} style={{ width: 28, height: 24 }}>
+          <Image class="w-[16] h-[16]" src={props.theme.icon("back", 16)} />
+        </View>
+      </View>
+      <View class="absolute left-[40] top-[7] w-[28] h-[24]">
+        <View class={props.theme.folderToolButton(d.history().at < d.history().items.length - 1, false)} style={{ width: 28, height: 24 }}>
+          <Image class="w-[16] h-[16]" src={props.theme.icon("forward", 16)} />
+        </View>
+      </View>
+      <View class="absolute left-[82] right-[98] top-[7] h-[24] flex-row items-center gap-[6] overflow-hidden">
+        <Image class="w-[16] h-[16]" src={props.theme.icon(d.place() === "all" ? "devices" : d.place() as "handheld" | "media-player", 16)} />
+        {text(d.label())}
+      </View>
+      <View class="absolute right-[8] top-[7] w-[78] h-[24]">
+        <View class={props.theme.dialogButton(false, false)} style={{ width: 78, height: 24 }}>{text("Refresh")}</View>
       </View>
     </View>
     <View class={props.theme.devices.sidebar}>
-      <View class="absolute left-[16] top-0 h-[44] flex-row items-center gap-[10]">
-        <T text={expanded() ? "v" : ">"} />
-        <T text="Devices" bold />
-        <T text={String(devices().length)} muted />
-      </View>
-      {expanded() ? <For each={visible()}>{(device, i) =>
-        <View class={props.theme.devices.row(selected() === device.id)}
-          style={{ insetT: L.section + i() * L.row }}>
-          <DeviceGlyph kind={device.kind} />
-          <UiText t={device.name} theme={props.theme} cls={selected() === device.id ? props.theme.selectionText : "text-[#20252b]"} />
+      <For each={d.expanded() ? DEVICE_PLACES : DEVICE_PLACES.slice(0, 1)}>{(place, i) =>
+        <View class={props.theme.devices.treeRow(d.place() === place.id, props.active)} style={{ insetT: L.treeTop + i() * L.treeRow }}>
+          <View class={i() === 0 ? "flex-row items-center gap-[5] pl-[4] overflow-hidden" : "flex-row items-center gap-[5] pl-[24] overflow-hidden"}>
+            {i() === 0 ? <UiText theme={props.theme} cls={d.place() === place.id && props.active ? props.theme.devices.selectedText : props.theme.folderSideText(false, props.active)} t={d.expanded() ? "-" : "+"} /> : null}
+            <Image class="w-[16] h-[16]" src={props.theme.icon(place.icon, 16)} />
+            <UiText theme={props.theme} cls={d.place() === place.id && props.active ? props.theme.devices.selectedText : props.theme.folderSideText(false, props.active)} t={i() === 0 ? "Devices" : place.label} />
+          </View>
         </View>
-      }</For> : null}
+      }</For>
     </View>
-    <View class={props.theme.devices.border} />
-    <View class="absolute left-[244] top-[82] right-[28] flex-col gap-[12]">
-      <T text={current()?.name ?? "Connected devices"} bold />
-      <T text={current() ? "Connected to this Mac" : "Supported PocketJS hardware"} muted />
+    <View class={props.theme.devices.header}>
+      <View class="h-[24] flex-row items-center pl-[8]" style={{ width: nameWidth() }}>{text(d.descending() ? "Name v" : "Name ^")}</View>
+      <View class="flex-1 h-[24] flex-row items-center pl-[8]">{text("Connection")}</View>
     </View>
-    {current() ? <View class="absolute left-[244] top-[144] right-[28] flex-col gap-[12]">
-      <View class="h-[48] justify-center pl-[24]"><DeviceGlyph kind={current()!.kind} large /></View>
-      <T text={`Connection: ${current()!.connection}`} />
-      <T text={current()!.kind === "psp" ? "Sony PlayStation Portable" : "Apple iPod touch (4th generation)"} />
-      <T text="USB connected" />
-      <T text={current()!.serial ? "Serial number" : "USB device detected on this Mac"} muted />
-      <T text={current()!.serial ?? ""} muted />
-    </View> : <>
-      <For each={visible()}>{(device, i) => <View class="absolute left-[244] right-[28] h-[66] bg-[#f6f7f9] rounded-[5] flex-row items-center px-[16] gap-[16]"
-        style={{ insetT: L.cardTop + i() * L.cardRow }}>
-        <DeviceGlyph kind={device.kind} />
-        <View class="flex-col gap-[7]"><T text={device.name} bold /><T text={device.connection} muted /></View>
-      </View>}</For>
-      {devices().length === 0 ? <View class="absolute left-[244] top-[160] right-[28] flex-col gap-[14]">
-        <T text={!received() ? "Looking for connected devices..." : "No supported devices connected"} />
-        <T text="Connect a PSP or iPod touch 4." muted />
+    <View class="absolute left-[168] right-[12] top-[62] bottom-[116] overflow-hidden">
+      <For each={d.visible()}>{(device, i) =>
+        <View class={props.theme.devices.listRow(d.selected() === device.id, i() % 2 === 1)} style={{ insetT: i() * L.row }}>
+          <View class="h-[32] flex-row items-center gap-[7] px-[8] overflow-hidden" style={{ width: nameWidth() }}>
+            <Image class="w-[16] h-[16]" src={props.theme.icon(deviceClass(device), 16)} />
+            <UiText theme={props.theme} t={device.name} cls={d.selected() === device.id ? props.theme.devices.selectedText : "text-[#20252b]"} />
+          </View>
+          <View class="flex-1 h-[32] flex-row items-center pl-[8] overflow-hidden">
+            <UiText theme={props.theme} t={device.connection} cls={d.selected() === device.id ? props.theme.devices.selectedText : props.theme.mutedText} />
+          </View>
+        </View>
+      }</For>
+      {d.filtered().length === 0 ? <View class="absolute inset-0 flex-col justify-center items-center gap-[8]">
+        {text(!d.received() ? "Looking for connected devices..." : "No supported devices connected", true)}
+        {text("Connect a device using USB.", true)}
       </View> : null}
-    </>}
-    <View class={props.theme.devices.status}>
-      <T text={status()} muted />
     </View>
+    {d.filtered().length > d.capacity() ? <View class="absolute right-0 top-[62] bottom-[116] w-[12] bg-[#efefef]">
+      <View class="absolute left-[3] w-[6] rounded-[3] bg-[#a0a0a0]" style={{ height: thumbHeight(), insetT: (listHeight() - thumbHeight()) * d.offset() / (d.filtered().length - d.capacity()) }} />
+    </View> : null}
+    <View class={props.theme.devices.details}>
+      <Image class="absolute left-[12] top-[18] w-[32] h-[32]" src={props.theme.icon(d.current() ? deviceClass(d.current()!) : "devices", 32)} />
+      <View class="absolute left-[56] right-[12] top-[10] flex-col gap-[7] overflow-hidden">
+        {text(d.current()?.name ?? d.label(), false, true)}
+        {text(d.current() ? `${deviceClassName(d.current()!)} / ${d.current()!.connection}` : `${d.filtered().length} connected devices`, true)}
+        {text(d.current()?.serial ? `Serial: ${d.current()!.serial}` : d.current() ? "USB connected" : "Select a device to view its properties.", true)}
+      </View>
+    </View>
+    <View class={props.theme.devices.status}>{text(d.status(), true)}</View>
   </View>;
 }

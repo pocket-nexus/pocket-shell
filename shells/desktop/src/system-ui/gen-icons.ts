@@ -1127,10 +1127,6 @@ function trapStripes(
   }
   return out;
 }
-/** Soft contact shadow under an object. */
-function groundShadow(cx: number, cy: number, rx: number, ry: number): string {
-  return P(ellipse(cx, cy, rx, ry), "#00000022") + P(ellipse(cx, cy, rx * 0.7, ry * 0.6), "#0000002a");
-}
 
 // Aqua palette: gel blues for folders and plates, and neutral metal grays.
 const AQ = {
@@ -1144,7 +1140,7 @@ const AQ = {
 
 /** The PocketJS mark, from site/assets/favicon.svg without its plate: the
  *  rounded-rect frame (stroke 2.6), the lens at (10, 16) and the two bars,
- *  on a soft contact shadow. The frame is a filled ring (outer minus inner,
+ *  with a transparent silhouette. The frame is a filled ring (outer minus inner,
  *  even-odd) since bake-svg has no strokes; a theme supplies the metal. */
 function pocketMark(pal: {
   frame: string;
@@ -1157,7 +1153,6 @@ function pocketMark(pal: {
   const ring = (dx: number, dy: number, fill: string) =>
     `<path fill="${fill}" fill-rule="evenodd" d="${rrect(2 + dx, 6 + dy, 28, 20, 6)}${rrect(4.6 + dx, 8.6 + dy, 22.8, 14.8, 3.4)}"/>`;
   return (
-    groundShadow(16, 28.4, 13, 1.6) +
     // Shade below-right, highlight above-left, metal in between.
     ring(0.6, 0.7, pal.frameShade) +
     ring(-0.4, -0.5, pal.frameLight) +
@@ -1195,10 +1190,9 @@ function blissScreen(x: number, y: number, w: number, h: number, r: number): str
   );
 }
 
-/** Document page with a soft shadow, an edge and a dog-eared corner. */
+/** Document page with an edge and a dog-eared corner. */
 function page(lines: string, extra = ""): string {
   return (
-    groundShadow(16, 29.6, 10, 1.4) +
     P(rrect(6.5, 2.5, 19, 27, 1.5), AQ.paperEdge) +
     vgrad(7, 3, 18, 26, 1, ["#ffffff", "#fafafa", "#f0f0f0"], 4) +
     P(poly([[19, 3], [25, 9], [19, 9]]), "#dcdcdc") +
@@ -1218,10 +1212,9 @@ interface AquaIcon {
 
 const AQUA: AquaIcon[] = [
   {
-    // Gel folder: tab, shaded back panel, glossy front flap on a soft shadow.
+    // Gel folder: tab, shaded back panel, glossy front flap.
     name: "aqua-folder",
     body:
-      groundShadow(16, 28.8, 13, 1.8) +
       P(rrect(3, 4.5, 12, 6, 2.5), AQ.outline) +
       P(rrect(3, 7, 26, 20, 3), AQ.outline) +
       vgrad(4, 5.5, 10, 5, 2, ["#9cc4f2", "#6ea3e6"], 3) +
@@ -1233,10 +1226,9 @@ const AQUA: AquaIcon[] = [
   },
   {
     // Flat-panel display: brushed bezel, Aqua-blue screen with a glossy
-    // reflection, chrome neck and foot on a contact shadow.
+    // reflection, chrome neck and foot.
     name: "aqua-computer",
     body:
-      groundShadow(16, 29.4, 10, 1.6) +
       P(rrect(2.5, 2.5, 27, 20, 3), "#7d7d7d") +
       vgrad(3, 3, 26, 19, 2.5, ["#fbfbfb", "#e9e9e9", "#d2d2d2"], 6) +
       P(rrect(5, 5, 22, 13, 1.5), "#123f8f") +
@@ -1251,7 +1243,6 @@ const AQUA: AquaIcon[] = [
     // Wire-mesh trash: metal sheen left to right, a rimmed lid, a handle.
     name: "aqua-trash",
     body:
-      groundShadow(16, 29.6, 9, 1.4) +
       P(rrect(13, 3.2, 6, 3, 1.4), "#7a7a7a") +
       P(rrect(13.6, 3.7, 4.8, 1.6, 0.8), "#d9d9d9") +
       P(rrect(6.5, 5.8, 19, 4, 1.8), "#7a7a7a") +
@@ -1282,7 +1273,6 @@ const AQUA: AquaIcon[] = [
     // Round bomb with a lit fuse; shaded by offset discs, glossy glint.
     name: "aqua-mines",
     body:
-      groundShadow(15, 29.2, 9.5, 1.6) +
       P(sweep([[20, 10.5], [23, 7.5], [26, 7]], 1.8), "#4a4a4a") +
       C(27, 6, 2.4, "#ffb020") +
       C(27, 6, 1.2, "#fff0a0") +
@@ -1311,7 +1301,6 @@ const AQUA: AquaIcon[] = [
     // Shut Down: the power mark on a red gel disc.
     name: "aqua-power",
     body:
-      groundShadow(16, 29.8, 10, 1.4) +
       C(16, 16.5, 13, "#8f1f16") +
       C(16, 16.5, 12, "#c8372a") +
       C(16, 16, 11.2, "#dc4b3d") +
@@ -1436,7 +1425,6 @@ const XP: AquaIcon[] = [
     // power light, a tapered neck on a round foot. No side faces.
     name: "xp-computer",
     body:
-      groundShadow(16, 29.6, 11, 1.4) +
       P(rrect(3, 2.5, 26, 19.5, 2.2), "#5d6b7d") +
       vgrad(3.6, 3.1, 24.8, 18.3, 1.8, ["#fbfcfe", "#e3e8ee", "#c5cdd7"], 6) +
       P(rrect(5.6, 5, 20.8, 13.6, 0.9), "#33475f") +
@@ -1466,7 +1454,6 @@ const XP: AquaIcon[] = [
     // Manila folder with XP's warm gradient and an open lighter flap.
     name: "xp-folder",
     body:
-      groundShadow(16, 28.8, 13, 1.8) +
       P(rrect(3, 4.5, 12, 6, 2), "#b98a25") +
       P(rrect(3, 7, 26, 20, 2.5), "#b98a25") +
       vgrad(4, 5.5, 10, 5, 1.5, ["#f8e39a", "#e8c15a"], 3) +
@@ -1479,7 +1466,6 @@ const XP: AquaIcon[] = [
     // Recycle Bin: a translucent blue-gray basket with a crumpled sheet.
     name: "xp-recycle",
     body:
-      groundShadow(16, 29.6, 9, 1.4) +
       P(poly([[7, 9.5], [25, 9.5], [23, 29.5], [9, 29.5]]), "#6d8db3") +
       trapStripes(10, 29, 7.6, 24.4, 9.5, 22.5, ["#c6d8ec", "#eaf2fa", "#b4c9e0", "#dbe7f3", "#a9bfd8"], 10) +
       P(rrect(5.5, 7, 21, 3.6, 1.8), "#5b7ba3") +
@@ -1496,7 +1482,6 @@ const XP: AquaIcon[] = [
     // Notepad: a spiral-bound white pad with light-blue rules.
     name: "xp-notepad",
     body:
-      groundShadow(16, 29.6, 10, 1.4) +
       P(rrect(6.5, 4.5, 19, 25, 1.5), "#7d8794") +
       vgrad(7, 5, 18, 24, 1, ["#ffffff", "#f6f8fb", "#e5e9ee"], 4) +
       R(9, 8.5, 14, 0.9, "#9fb6d4") +
@@ -1762,12 +1747,15 @@ for (const icon of NATIVE) {
 }
 console.log(`gen-icons: wrote ${count} SVGs to src/system-ui/icons/`);
 
-// These six reviewed PNGs are offline Cycles bakes, not regenerated SVGs.
+// Reviewed theme artwork: Cycles bakes and native-grid Classic pixel art.
 // Keep normal builds independent of Blender and publish both render densities.
-for (const name of ["files", "devices"]) {
-  const baked = join(import.meta.dir, "../../assets/icons");
-  for (const size of [16, 32]) {
-    copyFileSync(join(baked, `${name}-${size}.png`), join(outDir, `${name}-${size}.png`));
-    copyFileSync(join(baked, `${name}-${size * 2}.png`), join(outDir, `${name}-${size}@2x.png`));
+for (const prefix of ["", "xp-", "classic-"]) {
+  for (const subject of ["files", "devices", "handheld", "media-player"]) {
+    const name = prefix + subject;
+    const baked = join(import.meta.dir, "../../assets/icons");
+    for (const size of [16, 32]) {
+      copyFileSync(join(baked, `${name}-${size}.png`), join(outDir, `${name}-${size}.png`));
+      copyFileSync(join(baked, `${name}-${size * 2}.png`), join(outDir, `${name}-${size}@2x.png`));
+    }
   }
 }

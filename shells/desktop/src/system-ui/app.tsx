@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// src/system-ui/app.tsx — Pocket Shell Desktop's theme-switchable System UI and
+// src/system-ui/app.tsx — Pocket Shell's theme-switchable System UI and
 // compositor shell — SolidJS, authored in JSX
 // (SolidJS universal renderer, the same path as apps/hero).
 //
@@ -143,7 +143,7 @@ import {
 } from "./chrome.tsx";
 
 const WELCOME = [
-  "Welcome to Pocket Shell Desktop.",
+  "Welcome to Pocket Shell.",
   "",
   "The desktop shell is one PocketJS guest. Every Pocket app icon starts another isolated QuickJS guest in the same PocketJS host process; each guest keeps its own globals, UI tree and fixed clock.",
   "",
@@ -253,7 +253,7 @@ function DesktopWindow(props: {
         ) : null}
         <View class={props.theme.windowBody}>
           {w.kind === "devices" ? (
-            <DevicesView data={devicesOf(w)} theme={props.theme} />
+            <DevicesView data={devicesOf(w)} theme={props.theme} active={props.active} />
           ) : w.kind === "notepad" ? (
             <NotepadView
               data={padOf(w)}
@@ -325,6 +325,7 @@ export default function App(props: { macDesktop?: boolean }) {
   let lastClick = { key: "", t: -1, x: 0, y: 0 };
   let lastCaret = { x: -1, y: -1, h: 0 };
   let minesStart = 0;
+  let taskMotionUntil = 0;
 
   const byId = (id: number) => wins().find((w) => w.id === id);
   const focused = () => byId(focusId());
@@ -491,8 +492,10 @@ export default function App(props: { macDesktop?: boolean }) {
         { label: "Close Window", shortcut: "Cmd+W", act: () => closeWin(w.id) },
       ] },
       { label: "View", width: menuW("View"), items: () => [
-        { label: "All Devices", act: () => data.selected.set(null) },
-        { label: "Show Devices", checked: data.expanded(), act: () => data.expanded.set(!data.expanded()) },
+        { label: "All Devices", act: () => data.go("all") },
+        { label: "Game Consoles", act: () => data.go("handheld") },
+        { label: "Media Players", act: () => data.go("media-player") },
+        { label: "Expand Categories", checked: data.expanded(), act: () => data.expanded.set(!data.expanded()) },
         { label: "Refresh", shortcut: "Cmd+R", act: data.refresh },
       ] },
     ];
@@ -617,7 +620,7 @@ export default function App(props: { macDesktop?: boolean }) {
         {
           label: "Help",
           width: menuW("Help"),
-          items: () => [{ label: "About Pocket Shell Desktop", act: openAbout }],
+          items: () => [{ label: "About Pocket Shell", act: openAbout }],
         },
       ],
       data,
@@ -685,7 +688,7 @@ export default function App(props: { macDesktop?: boolean }) {
         {
           label: "Help",
           width: menuW("Help"),
-          items: () => [{ label: "About Pocket Shell Desktop", act: openAbout }],
+          items: () => [{ label: "About Pocket Shell", act: openAbout }],
         },
       ],
       data,
@@ -915,7 +918,7 @@ export default function App(props: { macDesktop?: boolean }) {
     const data: AboutData = { kind: "about", armed: createState<string | null>(null) };
     const w = createWin({
       kind: "about",
-      title: "About Pocket Shell Desktop",
+      title: "About Pocket Shell",
       icon: "computer",
       geo: centered(ABOUT_GEO.w, ABOUT_GEO.h),
       buttons: ["close"],
@@ -1167,7 +1170,7 @@ export default function App(props: { macDesktop?: boolean }) {
   /** Aqua's logo menu: About first, the places and the theme picker, the
    *  session commands last — the shape of the menu under the mark. */
   const aquaStartItems = (): PopupItem[] => [
-    { label: "About Pocket Shell Desktop", act: openAbout },
+    { label: "About Pocket Shell", act: openAbout },
     { sep: true, label: "" },
     { label: "Programs", icon: "folder", sub: programItems() },
     { label: "Documents", icon: "documents", sub: documentItems() },
@@ -1180,7 +1183,7 @@ export default function App(props: { macDesktop?: boolean }) {
 
   const startItems = (): PopupItem[] => {
     if (macDesktop) return [
-      { label: "About Pocket Shell Desktop", act: openAbout },
+      { label: "About Pocket Shell", act: openAbout },
       { sep: true, label: "" },
       { label: "Files", icon: "files", act: () => openFolder("computer") },
       { label: "Devices", icon: "devices", act: () => openDevices() },
@@ -1268,13 +1271,13 @@ export default function App(props: { macDesktop?: boolean }) {
   /** Program name the screen bar shows beside the logo — the focused
    *  window's program, or the shell's own when nothing is focused. */
   function appNameOf(w: WinCtl | undefined): string {
-    if (!w) return "Pocket Shell Desktop";
+    if (!w) return "Pocket Shell";
     if (w.kind === "notepad") return "Notepad";
     if (w.kind === "mines") return "Minesweeper";
     if (w.kind === "folder") return "Files";
     if (w.kind === "devices") return "Devices";
     if (w.kind === "pocket") return pocketOf(w).app.title;
-    return "Pocket Shell Desktop";
+    return "Pocket Shell";
   }
 
   /** Left x of the first menu title in the screen bar: after the logo and
@@ -2185,6 +2188,7 @@ export default function App(props: { macDesktop?: boolean }) {
     taskLayout(vp().w, vp().h, taskEntries().length, metrics()).buttonW;
 
   function taskEntryAt(x: number, y: number): number {
+    if (metrics().screenBarH > 0 && virtualNow() < taskMotionUntil) return -1;
     const entries = taskEntries();
     const i = taskEntryIndexAt(
       x,
@@ -2436,6 +2440,7 @@ export default function App(props: { macDesktop?: boolean }) {
         clock={clock()}
         buttonW={taskButtonW()}
         theme={theme()}
+        onTransition={until => { taskMotionUntil = until; }}
       />
     </View>
   );

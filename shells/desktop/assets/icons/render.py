@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-only
-"""Model, light and bake the Files / Devices icons in Blender (no image textures).
+"""Model, light and bake Aqua / XP application and device-class icons in Blender.
 
 python3 shells/desktop/assets/icons/render.py --publish
 Requires Blender 5.1 and Pillow; ordinary product builds use the reviewed PNGs.
@@ -19,7 +19,8 @@ ROOT = HERE.parents[3]
 def arguments():
     args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:]
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--only", choices=["files", "devices"])
+    parser.add_argument("--only", choices=["files", "devices", "handheld", "media-player"])
+    parser.add_argument("--theme", choices=["aqua", "xp", "all"], default="all")
     parser.add_argument("--out", type=Path, default=ROOT / ".pocket-build/validation/blender-icons")
     parser.add_argument("--resolution", type=int, default=1024)
     parser.add_argument("--samples", type=int, default=128)
@@ -61,6 +62,18 @@ def render(args):
     scene.world.node_tree.nodes["Background"].inputs[1].default_value = 0.35
 
     def material(name, color, rough=0.4, metal=0, grain=0, scale=(1, 1, 1)):
+        if args.theme == "xp":
+            color = {
+                "Dyed blue cotton card": (0.91, 0.50, 0.045),
+                "Blue compressed fold edges": (0.52, 0.25, 0.025),
+                "Lighter folder lining": (1.0, 0.72, 0.17),
+                "Satin bead-blasted aluminium": (0.76, 0.78, 0.72),
+                "Satin graphite casing": (0.035, 0.18, 0.46),
+                "Dark machined controls": (0.83, 0.86, 0.90),
+                "Ivory control markings": (0.07, 0.15, 0.26),
+            }.get(name, color)
+            if "card" in name or "lining" in name:
+                rough, grain = 0.44, 0.04
         mat = bpy.data.materials.new(name)
         mat.diffuse_color = (*color, 1)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
@@ -167,6 +180,8 @@ def render(args):
         marks = material("Ivory control markings", (0.69, 0.72, 0.72), 0.52)
 
         def screen(name, low, high):
+            if args.theme == "xp":
+                low, high = (0.015, 0.09, 0.29), (0.12, 0.52, 0.82)
             mat = material(name, low, 0.24, 0.20)
             nodes, links = mat.node_tree.nodes, mat.node_tree.links
             coord = nodes.new("ShaderNodeTexCoord")
@@ -225,9 +240,21 @@ def render(args):
         camera_pos = (3.3, -12.5, 5.0)
         ortho = 3.85
 
-    floor = material("Studio shadow catcher", (0.35, 0.35, 0.35), 0.8)
-    ground = box("Contact shadow plane", (0, 0, 0.04), (200, 200, 0.04), floor, 0)
-    ground.is_shadow_catcher = True
+        # Category artwork uses the same authored objects, isolated and framed
+        # as generic classes rather than product-specific model silhouettes.
+        if args.only in ("handheld", "media-player"):
+            player_prefixes = ("Touch player", "Front camera")
+            for obj in list(scene.objects):
+                player = obj.name.startswith(player_prefixes)
+                if player != (args.only == "media-player"):
+                    bpy.data.objects.remove(obj, do_unlink=True)
+            if args.only == "handheld":
+                target, camera_pos, ortho = (-0.18, -0.36, 0.83), (3.1, -12.9, 4.3), 3.5
+            else:
+                target, camera_pos, ortho = (0.68, 0.22, 1.54), (4.0, -12.3, 5.0), 3.35
+
+    # No ground plane or baked drop shadow: icons remain clean silhouettes on
+    # the desktop, in lists and in the Dock. Self-shading comes from geometry.
 
     def area(name, loc, power, color, size, size_y):
         bpy.ops.object.light_add(type="AREA", location=loc)
@@ -250,36 +277,29 @@ def render(args):
     camera.data.type = "ORTHO"
     camera.data.ortho_scale = ortho
     scene.camera = camera
-    scene.render.filepath = str(args.out / f"{args.only}-master.png")
+    name = ("xp-" if args.theme == "xp" else "") + args.only
+    scene.render.filepath = str(args.out / f"{name}-master.png")
     scene["Source recipe"] = "shells/desktop/assets/icons/render.py"
     scene["Purpose"] = f"Pocket Shell {args.only.title()} application icon"
     scene["License"] = "GPL-3.0-only"
-    bpy.ops.wm.save_as_mainfile(filepath=str(args.out / f"{args.only}.blend"))
+    bpy.ops.wm.save_as_mainfile(filepath=str(args.out / f"{name}.blend"))
     bpy.ops.render.render(write_still=True)
 
 
 def bake(args):
-    from PIL import Image, ImageChops, ImageDraw
+    from PIL import Image
     blender = os.environ.get("BLENDER", "/Applications/Blender.app/Contents/MacOS/Blender" if sys.platform == "darwin" else "blender")
-    for name in ([args.only] if args.only else ["files", "devices"]):
-        subprocess.run([blender, "--background", "--factory-startup", "--python-exit-code", "1", "--python", str(Path(__file__).resolve()), "--",
-                        "--only", name, "--out", str(args.out), "--resolution", str(args.resolution), "--samples", str(args.samples)], check=True)
-        master = Image.open(args.out / f"{name}-master.png").convert("RGBA")
-        # Contain the studio floor shadow in the transparent outer margin. The
-        # objects sit inside this 6% border; their silhouette is unchanged.
-        mask = Image.new("L", master.size, 255)
-        draw = ImageDraw.Draw(mask)
-        feather = round(master.width * 0.06)
-        for inset in range(feather):
-            t = inset / feather
-            value = round(255 * t * t * (3 - 2 * t))
-            draw.rectangle((inset, inset, master.width - 1 - inset, master.height - 1 - inset), outline=value)
-        master.putalpha(ImageChops.multiply(master.getchannel("A"), mask))
-        master.save(args.out / f"{name}-icon.png")
-        for size in (16, 32, 64):
-            # Premultiplied alpha prevents dark fringes on translucent edge pixels.
-            icon = master.convert("RGBa").resize((size, size), Image.Resampling.LANCZOS).convert("RGBA")
-            icon.save((HERE if args.publish else args.out) / f"{name}-{size}.png", optimize=True)
+    for theme in (["aqua", "xp"] if args.theme == "all" else [args.theme]):
+        for subject in ([args.only] if args.only else ["files", "devices", "handheld", "media-player"]):
+            name = ("xp-" if theme == "xp" else "") + subject
+            subprocess.run([blender, "--background", "--factory-startup", "--python-exit-code", "1", "--python", str(Path(__file__).resolve()), "--",
+                            "--only", subject, "--theme", theme, "--out", str(args.out), "--resolution", str(args.resolution), "--samples", str(args.samples)], check=True)
+            master = Image.open(args.out / f"{name}-master.png").convert("RGBA")
+            master.save(args.out / f"{name}-icon.png")
+            for size in (16, 32, 64):
+                # Premultiplied alpha prevents dark fringes on translucent edge pixels.
+                icon = master.convert("RGBa").resize((size, size), Image.Resampling.LANCZOS).convert("RGBA")
+                icon.save((HERE if args.publish else args.out) / f"{name}-{size}.png", optimize=True)
 
 
 if __name__ == "__main__":

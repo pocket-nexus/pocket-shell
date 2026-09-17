@@ -54,6 +54,8 @@ export interface CaptionState {
 export type IconName =
   | "files"
   | "devices"
+  | "handheld"
+  | "media-player"
   | "computer"
   | "documents"
   | "folder"
@@ -182,7 +184,12 @@ export interface ChromeMetrics {
 export interface DesktopTheme {
   id: ThemeId;
   label: string;
-  devices: { toolbar: string; status: string; sidebar: string; border: string; row: (selected: boolean) => string };
+  devices: {
+    toolbar: string; status: string; sidebar: string; header: string; details: string;
+    treeRow: (selected: boolean, active: boolean) => string;
+    listRow: (selected: boolean, zebra: boolean) => string;
+    selectedText: string;
+  };
   metrics: ChromeMetrics;
   fontSlot: (role: FontRole) => number;
   /** Artwork for a semantic icon at a logical size. */
@@ -336,11 +343,31 @@ export interface DesktopTheme {
 // one whole string.
 // ---------------------------------------------------------------------------
 
-/** Reviewed Cycles renders shared by the desktop applications. Generic folder
- * and computer symbols still belong to each period theme. */
-function applicationIcon(name: "files" | "devices", size: IconSize): string {
-  if (name === "files") return size === 32 ? "icons/files-32.png" : "icons/files-16.png";
-  return size === 32 ? "icons/devices-32.png" : "icons/devices-16.png";
+/** Themes override semantic application and device-class artwork. Missing
+ * overrides fall back to Aqua; identities and window state never change. */
+const APP_ART: Partial<Record<ThemeId, Partial<Record<"files" | "devices" | "handheld" | "media-player", readonly [string, string]>>>> = {
+  aqua: {
+    "files": ["icons/files-16.png", "icons/files-32.png"],
+    "devices": ["icons/devices-16.png", "icons/devices-32.png"],
+    "handheld": ["icons/handheld-16.png", "icons/handheld-32.png"],
+    "media-player": ["icons/media-player-16.png", "icons/media-player-32.png"],
+  },
+  classic: {
+    "files": ["icons/classic-files-16.png", "icons/classic-files-32.png"],
+    "devices": ["icons/classic-devices-16.png", "icons/classic-devices-32.png"],
+    "handheld": ["icons/classic-handheld-16.png", "icons/classic-handheld-32.png"],
+    "media-player": ["icons/classic-media-player-16.png", "icons/classic-media-player-32.png"],
+  },
+  xp: {
+    "files": ["icons/xp-files-16.png", "icons/xp-files-32.png"],
+    "devices": ["icons/xp-devices-16.png", "icons/xp-devices-32.png"],
+    "handheld": ["icons/xp-handheld-16.png", "icons/xp-handheld-32.png"],
+    "media-player": ["icons/xp-media-player-16.png", "icons/xp-media-player-32.png"],
+  },
+};
+function applicationIcon(theme: ThemeId, name: "files" | "devices" | "handheld" | "media-player", size: IconSize): string {
+  const art = APP_ART[theme]?.[name] ?? APP_ART.aqua![name]!;
+  return art[size === 32 ? 1 : 0];
 }
 
 /** The pixel-art set drawn for Classic (gen-icons.ts ICONS/NATIVE). */
@@ -348,7 +375,9 @@ function classicIcon(name: IconName, size: IconSize): string {
   switch (name) {
     case "files":
     case "devices":
-      return applicationIcon(name, size);
+    case "handheld":
+    case "media-player":
+      return applicationIcon("classic", name, size);
     case "computer":
       return size === 32 ? "icons/computer.svg" : "icons/computer-16.svg";
     case "documents":
@@ -407,7 +436,9 @@ function xpIcon(name: IconName, size: IconSize): string {
   switch (name) {
     case "files":
     case "devices":
-      return applicationIcon(name, size);
+    case "handheld":
+    case "media-player":
+      return applicationIcon("xp", name, size);
     case "computer":
       return size === 32 ? "icons/xp-computer.svg" : "icons/xp-computer-16.svg";
     case "documents":
@@ -451,7 +482,9 @@ function aquaIcon(name: IconName, size: IconSize): string {
   switch (name) {
     case "files":
     case "devices":
-      return applicationIcon(name, size);
+    case "handheld":
+    case "media-player":
+      return applicationIcon("aqua", name, size);
     case "computer":
       return size === 32
         ? "icons/aqua-computer.svg"
@@ -515,13 +548,18 @@ function aquaIcon(name: IconName, size: IconSize): string {
 export const CLASSIC_THEME: DesktopTheme = {
   id: "classic",
   devices: {
-    toolbar: "absolute left-0 right-0 top-0 h-[56] flex-row items-center px-[20] bg-[#c0c0c0] bevel-[#ffffff,#808080]",
-    status: "absolute left-0 right-0 bottom-0 h-[28] flex-row items-center px-[16] bg-[#c0c0c0] bevel-[#ffffff,#808080]",
-    sidebar: "absolute left-0 top-[56] bottom-[28] w-[216] bg-[#c0c0c0]",
-    border: "absolute left-[215] top-[56] bottom-[28] w-[1] bg-[#808080]",
-    row: selected => selected
-      ? "absolute left-[8] right-[8] h-[48] flex-row items-center gap-[8] px-[8] bg-[#000080]"
-      : "absolute left-[8] right-[8] h-[48] flex-row items-center gap-[8] px-[8]",
+    toolbar: "absolute left-0 right-0 top-0 h-[38] bg-[#c0c0c0]",
+    status: "absolute left-0 right-0 bottom-0 h-[22] flex-row items-center px-[8] bg-[#c0c0c0] border-[#808080] overflow-hidden",
+    sidebar: "absolute left-0 top-[38] bottom-[22] w-[168] bg-[#ffffff] border-[#808080] overflow-hidden",
+    header: "absolute left-[168] right-0 top-[38] h-[24] flex-row bg-[#c0c0c0] border-[#808080]",
+    details: "absolute left-[168] right-0 bottom-[22] h-[94] bg-[#c0c0c0] border-[#808080] overflow-hidden",
+    treeRow: (selected, active) => selected
+      ? active ? "absolute left-0 right-0 h-[28] flex-row items-center bg-[#000080]" : "absolute left-0 right-0 h-[28] flex-row items-center bg-[#b8bec6]"
+      : "absolute left-0 right-0 h-[28] flex-row items-center",
+    listRow: (selected, zebra) => selected
+      ? "absolute left-0 right-0 h-[32] flex-row bg-[#000080]"
+      : zebra ? "absolute left-0 right-0 h-[32] flex-row bg-[#f0f4f8]" : "absolute left-0 right-0 h-[32] flex-row bg-[#ffffff]",
+    selectedText: "text-[#ffffff]",
   },
   label: "Classic 98",
   fontSlot: (role) =>
@@ -789,13 +827,18 @@ export const CLASSIC_THEME: DesktopTheme = {
 export const XP_THEME: DesktopTheme = {
   id: "xp",
   devices: {
-    toolbar: "absolute left-0 right-0 top-0 h-[56] flex-row items-center px-[20] bg-[#ece9d8]",
-    status: "absolute left-0 right-0 bottom-0 h-[28] flex-row items-center px-[16] bg-[#ece9d8]",
-    sidebar: "absolute left-0 top-[56] bottom-[28] w-[216] bg-[#d6dff7]",
-    border: "absolute left-[215] top-[56] bottom-[28] w-[1] bg-[#aca899]",
-    row: selected => selected
-      ? "absolute left-[8] right-[8] h-[48] flex-row items-center gap-[8] px-[8] bg-[#316ac5]"
-      : "absolute left-[8] right-[8] h-[48] flex-row items-center gap-[8] px-[8]",
+    toolbar: "absolute left-0 right-0 top-0 h-[38] bg-[#ece9d8]",
+    status: "absolute left-0 right-0 bottom-0 h-[22] flex-row items-center px-[8] bg-[#ece9d8] border-[#aca899] overflow-hidden",
+    sidebar: "absolute left-0 top-[38] bottom-[22] w-[168] bg-[#d6dff7] border-[#aca899] overflow-hidden",
+    header: "absolute left-[168] right-0 top-[38] h-[24] flex-row bg-[#ece9d8] border-[#aca899]",
+    details: "absolute left-[168] right-0 bottom-[22] h-[94] bg-[#ece9d8] border-[#aca899] overflow-hidden",
+    treeRow: (selected, active) => selected
+      ? active ? "absolute left-0 right-0 h-[28] flex-row items-center bg-[#316ac5]" : "absolute left-0 right-0 h-[28] flex-row items-center bg-[#b8bec6]"
+      : "absolute left-0 right-0 h-[28] flex-row items-center",
+    listRow: (selected, zebra) => selected
+      ? "absolute left-0 right-0 h-[32] flex-row bg-[#316ac5]"
+      : zebra ? "absolute left-0 right-0 h-[32] flex-row bg-[#f0f4f8]" : "absolute left-0 right-0 h-[32] flex-row bg-[#ffffff]",
+    selectedText: "text-[#ffffff]",
   },
   label: "Windows XP",
   fontSlot: (role) => (role === "ui" ? FONT_SMOOTH : FONT_SMOOTH_B),
@@ -1152,13 +1195,18 @@ export const XP_THEME: DesktopTheme = {
 export const AQUA_THEME: DesktopTheme = {
   id: "aqua",
   devices: {
-    toolbar: "absolute left-0 right-0 top-0 h-[56] flex-row items-center px-[20] bg-gradient-to-b from-[#f7f7f7] to-[#d4d4d4]",
-    status: "absolute left-0 right-0 bottom-0 h-[28] flex-row items-center px-[16] bg-[#ededed]",
-    sidebar: "absolute left-0 top-[56] bottom-[28] w-[216] bg-[#e8eef5]",
-    border: "absolute left-[215] top-[56] bottom-[28] w-[1] bg-[#b6bbc1]",
-    row: selected => selected
-      ? "absolute left-[8] right-[8] h-[48] flex-row items-center gap-[8] px-[8] bg-gradient-to-b from-[#6c9ef0] to-[#3875d7]"
-      : "absolute left-[8] right-[8] h-[48] flex-row items-center gap-[8] px-[8]",
+    toolbar: "absolute left-0 right-0 top-0 h-[38] bg-gradient-to-b from-[#f0f0f0] to-[#d6d6d6]",
+    status: "absolute left-0 right-0 bottom-0 h-[22] flex-row items-center px-[8] bg-[#ededed] border-[#a8a8a8] overflow-hidden",
+    sidebar: "absolute left-0 top-[38] bottom-[22] w-[168] bg-[#dee3e9] border-[#a8a8a8] overflow-hidden",
+    header: "absolute left-[168] right-0 top-[38] h-[24] flex-row bg-[#ededed] border-[#a8a8a8]",
+    details: "absolute left-[168] right-0 bottom-[22] h-[94] bg-[#ededed] border-[#a8a8a8] overflow-hidden",
+    treeRow: (selected, active) => selected
+      ? active ? "absolute left-0 right-0 h-[28] flex-row items-center bg-[#3875d7]" : "absolute left-0 right-0 h-[28] flex-row items-center bg-[#b8bec6]"
+      : "absolute left-0 right-0 h-[28] flex-row items-center",
+    listRow: (selected, zebra) => selected
+      ? "absolute left-0 right-0 h-[32] flex-row bg-[#3875d7]"
+      : zebra ? "absolute left-0 right-0 h-[32] flex-row bg-[#f0f4f8]" : "absolute left-0 right-0 h-[32] flex-row bg-[#ffffff]",
+    selectedText: "text-[#ffffff]",
   },
   label: "Aqua",
   fontSlot: (role) => (role === "ui" ? FONT_SMOOTH : FONT_SMOOTH_B),

@@ -1,6 +1,74 @@
 {
-  "icons/files-16.png": { "linear": true },
-  "icons/files-32.png": { "linear": true },
-  "icons/devices-16.png": { "linear": true },
-  "icons/devices-32.png": { "linear": true }
+  "icons/files-16.png": {
+    "linear": true
+  },
+  "icons/files-32.png": {
+    "linear": true
+  },
+  "icons/devices-16.png": {
+    "linear": true
+  },
+  "icons/devices-32.png": {
+    "linear": true
+  },
+  "icons/handheld-16.png": {
+    "linear": true
+  },
+  "icons/handheld-32.png": {
+    "linear": true
+  },
+  "icons/media-player-16.png": {
+    "linear": true
+  },
+  "icons/media-player-32.png": {
+    "linear": true
+  },
+  "icons/xp-files-16.png": {
+    "linear": true
+  },
+  "icons/xp-files-32.png": {
+    "linear": true
+  },
+  "icons/xp-devices-16.png": {
+    "linear": true
+  },
+  "icons/xp-devices-32.png": {
+    "linear": true
+  },
+  "icons/xp-handheld-16.png": {
+    "linear": true
+  },
+  "icons/xp-handheld-32.png": {
+    "linear": true
+  },
+  "icons/xp-media-player-16.png": {
+    "linear": true
+  },
+  "icons/xp-media-player-32.png": {
+    "linear": true
+  },
+  "icons/classic-files-16.png": {
+    "linear": false
+  },
+  "icons/classic-files-32.png": {
+    "linear": false
+  },
+  "icons/classic-devices-16.png": {
+    "linear": false
+  },
+  "icons/classic-devices-32.png": {
+    "linear": false
+  },
+  "icons/classic-handheld-16.png": {
+    "linear": false
+  },
+  "icons/classic-handheld-32.png": {
+    "linear": false
+  },
+  "icons/classic-media-player-16.png": {
+    "linear": false
+  },
+  "icons/classic-media-player-32.png": {
+    "linear": false
+  }
 }
