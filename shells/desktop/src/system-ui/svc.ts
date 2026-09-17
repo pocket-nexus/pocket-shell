@@ -29,6 +29,7 @@ import { getOps } from "@pocketjs/framework";
 
 export interface HostEvent {
   t:
+    | "devices"
     | "hello"
     | "resize"
     | "ch"
@@ -75,6 +76,7 @@ export interface Svc {
   poll(): HostEvent[];
   send(
     line:
+      | { t: "devices-refresh" }
       | { t: "quit" }
       | { t: "copy"; text: string }
       | { t: "paste-req" }

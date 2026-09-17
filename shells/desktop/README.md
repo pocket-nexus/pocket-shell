@@ -1,13 +1,77 @@
 # Pocket Shell Desktop
 
 Pocket Shell Desktop is the desktop OS shell in [Pocket Shell](../../README.md).
-It runs multiple isolated Pocket applications inside one native process,
-using a Pocket System manifest. The entire System UI uses SolidJS and
-PocketJS's universal renderer. It owns windows, taskbar,
-application presentation and theme selection; PocketJS owns package
-resolution, AppInstance isolation, scheduling and native composition.
+On macOS the standalone **Pocket Shell.app** opens an Aqua desktop with a
+Files, Devices and Minesweeper applications. Linux and the browser also include the demo app catalog.
+All targets share the same desktop, headless window chrome and theme system,
+using SolidJS and PocketJS's universal renderer.
 
-## Themes
+## macOS Devices
+
+```sh
+bun run setup
+bun run desktop build
+open "shells/desktop/dist/Pocket Shell.app"
+bun run desktop test:macos
+```
+
+The app can be moved into Applications and launched without Bun, Homebrew or
+a repository checkout. It reuses SHERU's macOS icon unchanged and is locally
+ad-hoc signed. Release signing and notarization are separate from this build.
+The macOS System contains only `dev.pocket-stack.desktop.system-ui`, using the
+same `main.tsx` desktop entry as Linux and web. Files, Devices and Minesweeper
+are built-in windowed applications; the eleven external demo packages are
+omitted from the Mac installation.
+Its headless navigation model and client view use the shell's existing theme,
+window controls, focus routing, menu bar and Dock. Device discovery is polled
+once by the shell and shared across windows, with independent selection state.
+
+The desktop opens Files, Devices and Minesweeper together at startup, with
+staggered windows and separate Dock entries. Double-click a desktop icon or
+choose an app from the logo menu to reopen it. **Cmd+M** minimizes, **Cmd+W**
+closes the focused window and **Cmd+`** cycles visible windows. The Dock
+switches apps and restores minimized windows without resetting their state.
+
+Files reuses the Finder-style toolbar, places sidebar and details list. Its
+Pocket Shell, Applications, Documents and Trash places are the shell's sample
+directories, not the Mac filesystem. Double-click a folder or use **Enter** to
+open the selected row; the toolbar and Go menu navigate back, forward and up.
+Applications launches the three built-in apps; Documents contains a welcome
+text that opens in the existing Notepad viewer. **Cmd+N** opens another Files
+window at the current directory, or a new Devices window when Devices is
+focused. Each window keeps its own selection and navigation history.
+
+Minesweeper restores the 9-by-9 game: click to reveal, right-click to flag,
+and use **F2**, **Cmd+N**, the smiley or **Game → New** to start again.
+
+Expand **Devices** in the window sidebar to see supported USB hardware attached
+to this Mac. Select a device to see its family, connection mode and serial when available.
+PSP USB storage (`054c:01c8`), PSP PSPLINK (`054c:01c9`) and iPod touch 4
+(`05ac:129e`) are recognized. Other USB devices are omitted. The inventory
+refreshes every second; removed devices and expired companion snapshots are
+cleared. Refresh also runs with **Cmd+R**. Arrow keys navigate the list;
+**Escape** or the **Overview** toolbar item returns to the overview. Choose
+**Appearance** in the logo menu or use **Cmd+Shift+T** to cycle Aqua, Classic 98
+and Windows XP; windows keep their state and client geometry.
+
+The native launcher reads IOKit USB registry properties without claiming an
+interface, starting a bridge or changing anything on a device. Connection
+means the hardware is present; it does not certify installed firmware or a
+running PocketJS guest. The companion binds an ephemeral loopback port and
+sends bounded snapshots over PocketJS's existing PKNT channel. It lives with
+the app and requires no background installation.
+
+`bun run desktop test:macos` checks package contents, the icon, signature,
+device filtering and the native wire protocol. Simulator tests cover listing,
+collapse/expand, selection, refresh, removal, stale connection state, desktop
+launching, window movement and resizing, Dock restore, close/reopen, independent
+window state and theme switching. The multi-app journey also checks Files
+navigation and history, independent file windows, playable Minesweeper and
+game-state preservation through Dock switches.
+Native screenshots require macOS Screen Recording permission; simulator
+renders are not native-window captures.
+
+## Desktop themes
 
 Pocket Shell Desktop ships three System UI themes: Classic 98, Windows XP and Aqua.
 Each is a period desktop rebuilt from PocketJS-native drawing — no bitmaps of
@@ -164,38 +228,15 @@ does not deploy the site.
 Regenerate the checked-in theme screenshots from the deterministic PocketJS
 simulator with `bun run desktop capture`.
 
-## Native drag benchmark
+## Historical desktop benchmarks
 
-After `bun run desktop build`, run `bun run desktop benchmark:drag` in an unlocked desktop
-session. It replays Aqua window movement at the default 800×600 size and writes
-native logs, artifact hashes and stage distributions under `.pocket/bench/drag`.
-The measurements bracket CPU tick, GPU command submission and presentation
-submission; they do not measure GPU completion or mouse-to-panel latency.
-Optional `--max-work-ms=16.7 --max-render-ms=3 --max-present-ms=3` checks apply
-p95 CPU budgets for the acceptance machine. A run with fewer than 320 of the
-340 measured drag frames fails, including when external input interrupts it.
-
-The [dated Aqua GPU comparison](docs/bench/aqua-gpu-2026-09-10.md) retains
-the measurements and their limits.
-
-## Historical classic baseline benchmark
-
-The checked-in August baseline measures the previous gpui host and is not a
-performance claim for the portable renderer. To record a new comparable run,
-build the macOS release host, keep the desktop session unlocked and run:
-
-```sh
-bun run desktop build
-bun run desktop benchmark:classic
-```
-
-The benchmark records the native executable and complete installed System
-artifact sizes, ten process-cold/cache-warm launches from spawn to the first
-painted frame, and settled idle process-tree RSS plus macOS physical footprint.
-It writes the raw samples, machine identity, source revisions and a Markdown
-summary to `.pocket/bench/classic/<run>/classic-<date>.{json,md}`. Promote
-reviewed baselines into `docs/bench/` explicitly. Use `--quick` for a three-run
-smoke check; quick results cannot replace the checked-in baseline.
+The [Aqua GPU comparison](docs/bench/aqua-gpu-2026-09-10.md) and
+[classic baseline](docs/bench/classic-2026-08-23.md) describe the imported
+desktop showcase at their recorded revisions. They do not measure the
+current macOS desktop with Devices. Replay `benchmark:drag` or `benchmark:classic`
+from the corresponding historical revision; both scripts reject a Devices
+plan instead of reporting its lighter workload as the old desktop.
+New benchmark receipts stay in ignored `.pocket/bench/` directories.
 
 Pass native-host script flags after `--`, for example:
 

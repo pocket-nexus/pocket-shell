@@ -80,7 +80,7 @@ function mockSvc(): MockSvc {
         surfaceBindings.push([node, surface, focused]);
         setCompositorSurface(node, surface, focused);
       };
-      ops.__host = "macos-app";
+      ops.__host = "linux-app";
       ops.svcOpen = (name: string) => name === "system-ui";
       ops.svcPoll = () => {
         if (toGuest.length === 0) return null;

@@ -12,7 +12,7 @@ import type { Mines } from "./mines.ts";
 import type { PocketAppSpec } from "./pocket-apps.ts";
 
 export type WinKind =
-  "notepad" | "mines" | "folder" | "pocket" | "about" | "shutdown";
+  "notepad" | "mines" | "folder" | "pocket" | "about" | "shutdown" | "devices";
 
 export interface MenuDef {
   label: string;
@@ -130,8 +130,17 @@ export const PLACES: readonly Place[] = [
   { id: "recycle", label: "Recycle Bin", icon: "recycle" },
 ];
 
+/** The macOS file browser presents the shell's own sample folders and apps. */
+export const MAC_PLACES: readonly Place[] = [
+  { id: "computer", label: "Pocket Shell", icon: "computer" },
+  { id: "drivec", label: "Applications", icon: "folder" },
+  { id: "documents", label: "Documents", icon: "documents" },
+  { id: "recycle", label: "Trash", icon: "recycle" },
+];
+
 export interface FolderData {
   kind: "folder";
+  places: readonly Place[];
   place: State<PlaceId>;
   rows: State<FolderRow[]>;
   selected: State<number>;

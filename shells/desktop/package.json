@@ -12,8 +12,9 @@
   "scripts": {
     "setup": "bun ../../scripts/setup.ts",
     "typecheck": "bun ../../vendor/pocketjs/node_modules/typescript/bin/tsc --noEmit",
-    "test": "bun test test/system-ui.test.ts",
-    "test:sim": "bun ../../vendor/pocketjs/tools/wasm.ts && bun ../../vendor/pocketjs/tools/text-wasm.ts && bun scripts/build-sim.ts && bun test --conditions=browser test/system-ui-sim.test.ts",
+    "test": "bun test test/system-ui.test.ts test/devices.test.ts",
+    "test:sim": "bun ../../vendor/pocketjs/tools/wasm.ts && bun ../../vendor/pocketjs/tools/text-wasm.ts && bun scripts/build-sim.ts && bun test --conditions=browser test/system-ui-sim.test.ts test/devices-sim.test.ts",
+    "test:macos": "bun test test/macos.test.ts",
     "test:wrap": "bun test --conditions=browser test/wrap-op.test.ts",
     "check": "bun run typecheck && bun run test && bun run test:sim && bun run test:wrap && bun run test:text",
     "build": "bun scripts/macos.ts --build-only",

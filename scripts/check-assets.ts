@@ -33,6 +33,7 @@ const goldens = new Set(TAPES.flatMap((tape) => tape.capture.flatMap((frame) =>
 )));
 const sourceInputs = new Set([
   "shells/desktop/assets/fonts/W95FA.otf",
+  "shells/desktop/assets/macos/AppIcon.icns",
   "shells/ipod/src/fonts/SymbolsNerdFont-subset.otf",
 ]);
 const wallpapers = JSON.parse(readFileSync(resolve(ROOT, "shells/3ds/src/images.json"), "utf8"));
@@ -41,7 +42,7 @@ for (const key of Object.keys(wallpapers)) sourceInputs.add(`shells/3ds/src/${ke
 for (const path of [...goldens, ...sourceInputs]) {
   if (!tracked.includes(path)) failures.push(`missing committed input or golden: ${path}`);
 }
-const mediaExtensions = new Set([".svg", ".png", ".gif", ".bin", ".otf", ".ttf", ".jpg", ".jpeg", ".webp", ".wasm", ".pak", ".pocket"]);
+const mediaExtensions = new Set([".svg", ".png", ".gif", ".bin", ".otf", ".ttf", ".jpg", ".jpeg", ".webp", ".icns", ".wasm", ".pak", ".pocket"]);
 for (const path of tracked.filter((path) => mediaExtensions.has(extname(path)))) {
   if (!referenced.has(path) && !goldens.has(path) && !sourceInputs.has(path)) {
     failures.push(`asset has no document, test or declared source consumer: ${path}`);

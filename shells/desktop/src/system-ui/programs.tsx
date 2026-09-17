@@ -23,7 +23,6 @@ import {
 } from "./notepad.ts";
 import { MINES_W, type Cell } from "./mines.ts";
 import {
-  PLACES,
   type AboutData,
   type FolderData,
   type MinesData,
@@ -484,8 +483,8 @@ export function FolderView(props: {
   theme: DesktopTheme;
 }) {
   const d = props.data;
-  const current = (i: number) => PLACES[i].id === d.place();
-  const place = () => PLACES.find((p) => p.id === d.place()) ?? PLACES[0];
+  const current = (i: number) => d.places[i].id === d.place();
+  const place = () => d.places.find((p) => p.id === d.place()) ?? d.places[0];
   return (
     <View class="flex-1 flex-col">
       <View class={props.theme.folderToolbar}>
@@ -538,7 +537,7 @@ export function FolderView(props: {
           </View>
         ) : null}
         <View class={props.theme.folderSidePanel}>
-          {PLACES.map((place, i) => (
+          {d.places.map((place, i) => (
             <View class={props.theme.folderSideItem(current(i), props.active)}>
               <Image class="w-[16] h-[16]" src={props.theme.icon(place.icon, 16)} />
               <View class="flex-1 flex-row overflow-hidden">
