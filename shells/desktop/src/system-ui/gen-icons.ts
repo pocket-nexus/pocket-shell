@@ -9,9 +9,10 @@
 // grids at native size. Luna's caption glyphs and the whole Aqua set are
 // drawn vectors (filled paths, circles and rects — the subset bake-svg
 // rasterizes) further down. The build then rasterizes each SVG at the plan's
-// density like any other asset — no hand-baked PNGs.
+// density like any other vector asset. Offline Blender application bakes
+// are copied into the same output directory below.
 
-import { mkdirSync, rmSync } from "node:fs";
+import { copyFileSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
 const PAL: Record<string, string> = {
@@ -1760,3 +1761,13 @@ for (const icon of NATIVE) {
   count++;
 }
 console.log(`gen-icons: wrote ${count} SVGs to src/system-ui/icons/`);
+
+// These six reviewed PNGs are offline Cycles bakes, not regenerated SVGs.
+// Keep normal builds independent of Blender and publish both render densities.
+for (const name of ["files", "devices"]) {
+  const baked = join(import.meta.dir, "../../assets/icons");
+  for (const size of [16, 32]) {
+    copyFileSync(join(baked, `${name}-${size}.png`), join(outDir, `${name}-${size}.png`));
+    copyFileSync(join(baked, `${name}-${size * 2}.png`), join(outDir, `${name}-${size}@2x.png`));
+  }
+}

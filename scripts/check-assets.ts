@@ -36,6 +36,10 @@ const sourceInputs = new Set([
   "shells/desktop/assets/macos/AppIcon.icns",
   "shells/ipod/src/fonts/SymbolsNerdFont-subset.otf",
 ]);
+// Reviewed offline Blender bakes consumed by the desktop icon generator.
+for (const name of ["files", "devices"]) {
+  for (const size of [16, 32, 64]) sourceInputs.add(`shells/desktop/assets/icons/${name}-${size}.png`);
+}
 const wallpapers = JSON.parse(readFileSync(resolve(ROOT, "shells/3ds/src/images.json"), "utf8"));
 for (const key of Object.keys(wallpapers)) sourceInputs.add(`shells/3ds/src/${key}`);
 

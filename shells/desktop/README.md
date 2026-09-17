@@ -71,6 +71,27 @@ game-state preservation through Dock switches.
 Native screenshots require macOS Screen Recording permission; simulator
 renders are not native-window captures.
 
+## Blender application icons
+
+Files and Devices use original Cycles-rendered objects: a folded blue cardstock
+folder with paper sheets and a metal label holder, and a brushed-aluminium USB
+hub with a rubber cable and metal connector. Their silhouettes, bevels, contact
+shadows and material highlights come from geometry and studio lights.
+
+The [scene recipe](assets/icons/render.py) rebuilds the complete editable scenes
+and renders transparent masters. To rebake with Blender 5.1 and Pillow:
+
+```sh
+python3 shells/desktop/assets/icons/render.py --publish
+```
+
+`BLENDER` can point to another Blender executable. The recipe writes `.blend`
+scenes and large renders under `.pocket-build/validation/blender-icons/` and
+publishes six reviewed PNGs at 16, 32 and 64 px. Normal builds only copy the
+bakes into the icon pack, including Retina variants. Application artwork is
+resolved through the theme for desktop icons, Dock, captions and menus;
+ordinary folder symbols keep each theme's own artwork.
+
 ## Desktop themes
 
 Pocket Shell Desktop ships three System UI themes: Classic 98, Windows XP and Aqua.

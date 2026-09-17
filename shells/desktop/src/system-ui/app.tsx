@@ -479,7 +479,7 @@ export default function App(props: { macDesktop?: boolean }) {
     const existing = wins().find(w => w.kind === "devices");
     if (existing && !newWindow) return raise(existing.id);
     const w = createWin({
-      kind: "devices", title: "Devices", icon: "computer",
+      kind: "devices", title: "Devices", icon: "devices",
       geo: fitDesktopGeo(cascadePos(wins().length, vp().w, vp().h, 660, 450, metrics())),
       minW: 560, minH: 380,
     });
@@ -745,8 +745,8 @@ export default function App(props: { macDesktop?: boolean }) {
         open: () => navigate(w, place.id),
       }));
       if (id === "drivec") return [
-        { icon: "folder", name: "Files", size: "", type: "Application", open: () => openFolder("computer", true) },
-        { icon: "computer", name: "Devices", size: "", type: "Application", open: () => openDevices() },
+        { icon: "files", name: "Files", size: "", type: "Application", open: () => openFolder("computer", true) },
+        { icon: "devices", name: "Devices", size: "", type: "Application", open: () => openDevices() },
         { icon: "mines", name: "Minesweeper", size: "", type: "Application", open: openMines },
       ];
       if (id === "documents") return [{
@@ -837,7 +837,7 @@ export default function App(props: { macDesktop?: boolean }) {
     d.rows.set(placeRows(id, w));
     d.selected.set(-1);
     w.title.set(macDesktop ? `${place.label} - Files` : place.label);
-    w.icon.set(macDesktop ? "folder" : place.icon);
+    w.icon.set(macDesktop ? "files" : place.icon);
   }
 
   /** The place a toolbar action leads to, or null when it does not apply. */
@@ -880,7 +880,7 @@ export default function App(props: { macDesktop?: boolean }) {
     const w = createWin({
       kind: "folder",
       title: macDesktop ? `${place.label} - Files` : place.label,
-      icon: macDesktop ? "folder" : place.icon,
+      icon: macDesktop ? "files" : place.icon,
       geo: cascadePos(wins().length, vp().w, vp().h, 560, 320, metrics()),
       minW: 380,
       minH: 180,
@@ -979,8 +979,8 @@ export default function App(props: { macDesktop?: boolean }) {
   // ---- desktop icons + start menu ----------------------------------------------
 
   const icons: DeskIcon[] = macDesktop ? [
-    { icon: "computer", label: "Devices", open: () => openDevices() },
-    { icon: "folder", label: "Files", open: () => openFolder("computer") },
+    { icon: "devices", label: "Devices", open: () => openDevices() },
+    { icon: "files", label: "Files", open: () => openFolder("computer") },
     { icon: "mines", label: "Minesweeper", open: openMines },
   ] : [
     { icon: "computer", label: "My Computer", open: openMyComputer },
@@ -1182,8 +1182,8 @@ export default function App(props: { macDesktop?: boolean }) {
     if (macDesktop) return [
       { label: "About Pocket Shell Desktop", act: openAbout },
       { sep: true, label: "" },
-      { label: "Files", icon: "folder", act: () => openFolder("computer") },
-      { label: "Devices", icon: "computer", act: () => openDevices() },
+      { label: "Files", icon: "files", act: () => openFolder("computer") },
+      { label: "Devices", icon: "devices", act: () => openDevices() },
       { label: "Minesweeper", icon: "mines", act: openMines },
       { label: "Appearance", icon: "settings", sub: themeItems() },
       { sep: true, label: "" },

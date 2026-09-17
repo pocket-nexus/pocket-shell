@@ -52,6 +52,8 @@ export interface CaptionState {
  *  the theme resolves the artwork, so a theme switch re-skins every icon on
  *  screen — desktop, captions, task strip, menus — without touching state. */
 export type IconName =
+  | "files"
+  | "devices"
   | "computer"
   | "documents"
   | "folder"
@@ -334,9 +336,19 @@ export interface DesktopTheme {
 // one whole string.
 // ---------------------------------------------------------------------------
 
+/** Reviewed Cycles renders shared by the desktop applications. Generic folder
+ * and computer symbols still belong to each period theme. */
+function applicationIcon(name: "files" | "devices", size: IconSize): string {
+  if (name === "files") return size === 32 ? "icons/files-32.png" : "icons/files-16.png";
+  return size === 32 ? "icons/devices-32.png" : "icons/devices-16.png";
+}
+
 /** The pixel-art set drawn for Classic (gen-icons.ts ICONS/NATIVE). */
 function classicIcon(name: IconName, size: IconSize): string {
   switch (name) {
+    case "files":
+    case "devices":
+      return applicationIcon(name, size);
     case "computer":
       return size === 32 ? "icons/computer.svg" : "icons/computer-16.svg";
     case "documents":
@@ -393,6 +405,9 @@ function classicIcon(name: IconName, size: IconSize): string {
  *  XP's own did. Pixel art remains only for the menu chevron and the grip. */
 function xpIcon(name: IconName, size: IconSize): string {
   switch (name) {
+    case "files":
+    case "devices":
+      return applicationIcon(name, size);
     case "computer":
       return size === 32 ? "icons/xp-computer.svg" : "icons/xp-computer-16.svg";
     case "documents":
@@ -434,6 +449,9 @@ function xpIcon(name: IconName, size: IconSize): string {
  *  display, a metal trash can, blue gel plates. */
 function aquaIcon(name: IconName, size: IconSize): string {
   switch (name) {
+    case "files":
+    case "devices":
+      return applicationIcon(name, size);
     case "computer":
       return size === 32
         ? "icons/aqua-computer.svg"
