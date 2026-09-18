@@ -210,10 +210,9 @@ pocket.system.json
 The System UI is in `src/system-ui`. Demo applications are consumed from the
 pinned `vendor/pocketjs` submodule and are not copied into this product.
 
-The experimental framework implementation is pinned directly in
-`vendor/pocketjs` from [PocketJS PR #399](https://github.com/pocket-stack/pocketjs/pull/399),
-which adds GPU composition on top of [PR #390](https://github.com/pocket-stack/pocketjs/pull/390). A fresh `setup` uses
-that exact published commit; no checkout-local patches are applied.
+The framework implementation is pinned in `vendor/pocketjs`, including the
+native module SDK from [PocketJS PR #451](https://github.com/pocket-stack/pocketjs/pull/451).
+A fresh `setup` uses that exact published commit; no checkout-local patches are applied.
 The desktop host no longer links gpui, CoreText or Fontconfig. Native window
 APIs handle the window, input and clipboard. The existing `pocket-ui-wgpu`
 backend draws through Metal on macOS, retaining child textures and handing GPU
