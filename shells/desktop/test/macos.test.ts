@@ -11,10 +11,14 @@ const contents = resolve(ROOT, "dist/Pocket Shell.app/Contents");
 const binary = resolve(contents, "MacOS/PocketShell");
 
 test("the signed bundle contains the desktop with Devices and the original icon", async () => {
+  const system = await Bun.file(resolve(contents, "Resources/pocket-desktop.system.plan.json")).json();
+  expect(system.systemUI.plan.viewport.logical).toEqual([1024, 768]);
+  const nativeOutputs = system.applications.filter((app: any) => app.plan.hostExtension?.kind === "desktop-native").flatMap((app: any) => [`${app.plan.app.output}.js`, `${app.plan.app.output}.pak`]);
   expect(readdirSync(resolve(contents, "Resources/dist")).sort()).toEqual([
     "cards-main.js", "cards-main.pak", "motions-main.js", "motions-main.pak",
     "pocket-desktop-system-ui.js", "pocket-desktop-system-ui.pak", "stats-main.js", "stats-main.pak",
-  ]);
+    ...nativeOutputs,
+  ].sort());
   const original = new Uint8Array(await Bun.file(resolve(ROOT, "assets/macos/AppIcon.icns")).arrayBuffer());
   const bundled = new Uint8Array(await Bun.file(resolve(contents, "Resources/AppIcon.icns")).arrayBuffer());
   expect(bundled).toEqual(original);

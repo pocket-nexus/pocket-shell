@@ -30,6 +30,8 @@ import { getOps } from "@pocketjs/framework";
 
 export interface HostEvent {
   t:
+    | "native-capture"
+    | "app-error"
     | "files"
     | "devices"
     | "hello"
@@ -40,6 +42,8 @@ export interface HostEvent {
     | "scroll"
     | "paste"
     | "ime";
+  package?: string;
+  error?: string;
   w?: number;
   h?: number;
   epoch?: number;
@@ -79,6 +83,7 @@ export interface Svc {
   send(
     line:
       | FilesIntent
+      | { t: "native-pointer"; package: string; x: number; y: number; d: boolean; b: number }
       | { t: "devices-refresh" }
       | { t: "quit" }
       | { t: "copy"; text: string }

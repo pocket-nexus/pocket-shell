@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { resolve } from "node:path";
+import { resolve, delimiter } from "node:path";
 import { cpSync, mkdirSync, rmSync } from "node:fs";
+import { installNativePackage } from "./native-apps.ts";
 import { packageOpenStrike } from "./openstrike.ts";
 import { buildDesktopSystem } from "./build-system.ts";
 import { DIST, POCKETJS_ROOT, ROOT } from "./system-plan.ts";
@@ -19,7 +20,20 @@ async function run(command: string[], env = process.env): Promise<number> {
 const args = process.argv.slice(2).filter((arg) => arg !== "--");
 const buildOnly = args.includes("--build-only");
 const hostArgs = args.filter((arg) => arg !== "--build-only");
-const receipt = await buildDesktopSystem();
+const bundle = resolve(DIST, "Pocket Shell.app");
+const contents = resolve(bundle, "Contents");
+const executables = resolve(contents, "MacOS");
+const resources = resolve(contents, "Resources");
+rmSync(bundle, { recursive: true, force: true });
+mkdirSync(executables, { recursive: true });
+mkdirSync(resolve(resources, "dist"), { recursive: true });
+const nativePackages = [];
+const openStrike = await packageOpenStrike(resources);
+if (openStrike) nativePackages.push(openStrike);
+for (const path of (process.env.POCKET_NATIVE_APPS ?? "").split(delimiter).filter(Boolean)) {
+  nativePackages.push(await installNativePackage(path, resources, "macos-app"));
+}
+const receipt = await buildDesktopSystem({ nativePackages });
 const manifest = resolve(POCKETJS_ROOT, "hosts/desktop/Cargo.toml");
 const buildCode = await run([
   "cargo",
@@ -35,15 +49,6 @@ const host = resolve(
   POCKETJS_ROOT,
   "hosts/desktop/target/release/pocket-desktop-host",
 );
-const bundle = resolve(DIST, "Pocket Shell.app");
-const contents = resolve(bundle, "Contents");
-const executables = resolve(contents, "MacOS");
-const resources = resolve(contents, "Resources");
-// Recreate the bundle and copy only the resolved packages. Old demo artifacts
-// in dist/ must never become preinstalled applications in a subsequent build.
-rmSync(bundle, { recursive: true, force: true });
-mkdirSync(executables, { recursive: true });
-mkdirSync(resolve(resources, "dist"), { recursive: true });
 const system = await Bun.file(receipt.systemPlanPath).json();
 for (const entry of [system.systemUI, ...system.applications]) {
   for (const extension of ["js", "pak"]) {
@@ -53,22 +58,16 @@ for (const entry of [system.systemUI, ...system.applications]) {
 }
 cpSync(receipt.systemPlanPath, resolve(resources, "pocket-desktop.system.plan.json"));
 cpSync(host, resolve(executables, "pocket-shell-runtime"));
-// Finder launches do not inherit the build terminal's environment.
-await Bun.write(resolve(resources, "integrations.json"), JSON.stringify({
-  openStrikeRoot: process.env.OPENSTRIKE_ROOT,
-  openStrikeMaps: process.env.OPENSTRIKE_MAPS,
-}, null, 2) + "\n");
 cpSync(resolve(ROOT, "assets/macos/AppIcon.icns"), resolve(resources, "AppIcon.icns"));
 cpSync(resolve(ROOT, "LICENSE"), resolve(resources, "LICENSE"));
 cpSync(resolve(ROOT, "THIRD_PARTY.md"), resolve(resources, "THIRD_PARTY.md"));
 cpSync(resolve(ROOT, "assets/fonts/LICENSE-W95FA.txt"), resolve(resources, "LICENSE-W95FA.txt"));
 cpSync(resolve(POCKETJS_ROOT, "assets/fonts/LICENSE.txt"), resolve(resources, "LICENSE-Inter.txt"));
-const openStrike = await packageOpenStrike(resources);
 const binary = resolve(executables, "PocketShell");
 const launcherCode = await run([
   "xcrun", "swiftc", "-O", "-warnings-as-errors", "-framework", "IOKit",
   "-target", `${process.arch === "arm64" ? "arm64" : "x86_64"}-apple-macosx12.0`,
-  resolve(ROOT, "macos/Launcher.swift"), resolve(ROOT, "macos/Files.swift"), resolve(ROOT, "macos/OpenStrike.swift"), "-o", binary,
+  resolve(ROOT, "macos/Launcher.swift"), resolve(ROOT, "macos/Files.swift"), "-o", binary,
 ]);
 if (launcherCode !== 0) process.exit(launcherCode);
 await Bun.write(resolve(contents, "Info.plist"), `<?xml version="1.0" encoding="UTF-8"?>
@@ -88,7 +87,6 @@ await Bun.write(resolve(contents, "Info.plist"), `<?xml version="1.0" encoding="
 `);
 for (const command of [
   [binary, "--self-test"],
-  ...(openStrike ? [["codesign", "--force", "--sign", "-", openStrike]] : []),
   ["plutil", "-lint", resolve(contents, "Info.plist")],
   ["codesign", "--force", "--sign", "-", resolve(executables, "pocket-shell-runtime")],
   ["codesign", "--force", "--sign", "-", binary],
@@ -98,7 +96,7 @@ for (const command of [
   const code = await run(command);
   if (code !== 0) process.exit(code);
 }
-console.log(`Pocket Shell: ${bundle} (Files, Devices, Minesweeper, Cards, Motions and Stats)`);
+console.log(`Pocket Shell: ${bundle} (Files, Devices, Minesweeper, Cards, Motions, Stats and installed native packages)`);
 if (buildOnly) process.exit(0);
 const code = await run(
   [binary, ...hostArgs],

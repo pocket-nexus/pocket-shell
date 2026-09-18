@@ -5,6 +5,7 @@ import {
   validateAndResolveSystemPlan,
   validatePocketSystem,
   type ResolvedSystemPlan,
+  type SystemPackageInput,
 } from "@pocketjs/framework/manifest";
 
 export const ROOT = resolve(import.meta.dir, "..");
@@ -16,6 +17,7 @@ export type DesktopTarget = "macos-app" | "linux-app" | "web-app";
 
 export async function resolveDesktopSystem(
   target: DesktopTarget = "macos-app",
+  nativePackages: readonly SystemPackageInput[] = [],
 ): Promise<ResolvedSystemPlan> {
   const systemPath = resolve(ROOT, "pocket.system.json");
   const input = await Bun.file(systemPath).json();
@@ -26,6 +28,11 @@ export async function resolveDesktopSystem(
     input.applications.catalog = input.applications.catalog.filter((entry: { package: string }) =>
       entry.package === input.roles.systemUI || macApps.includes(entry.package));
     input.installation.installedPackages = [input.roles.systemUI, ...macApps];
+  }
+  for (const pkg of nativePackages) {
+    const manifest = pkg.manifest as { id: string };
+    input.applications.catalog.push({ package: manifest.id, manifest: pkg.source, required: false });
+    input.installation.installedPackages.push(manifest.id);
   }
   const validated = validatePocketSystem(input);
   if (!validated.ok) {
@@ -39,15 +46,20 @@ export async function resolveDesktopSystem(
   const installed = new Set(validated.value.installation.installedPackages);
   const packages = await Promise.all(
     validated.value.applications.catalog
-      .filter((entry) => installed.has(entry.package))
+      .filter((entry) => installed.has(entry.package) && !nativePackages.some(pkg => pkg.source === entry.manifest))
       .map(async (entry) => ({
         source: entry.manifest,
         manifest: await Bun.file(resolve(REPOSITORY, entry.manifest)).json(),
       })),
   );
+  if (target === "macos-app") {
+    const shell = packages.find(pkg => pkg.manifest.id === input.roles.systemUI)!;
+    shell.manifest.title = "Pocket Shell";
+    shell.manifest.app.viewport.dynamic.default = [1024, 768];
+  }
   const resolved = validateAndResolveSystemPlan(input, {
     target,
-    packages,
+    packages: [...packages, ...nativePackages],
   });
   if (!resolved.ok) {
     throw new Error(

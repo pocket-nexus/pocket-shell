@@ -3,6 +3,8 @@
 // The native host receives separately resolved complete package plans; this
 // module carries only System-owned presentation data.
 
+import { getOps } from "@pocketjs/framework/host";
+import type { IconName } from "./theme.ts";
 import type { PocketSystemV1 } from "@pocketjs/framework/manifest";
 import systemJson from "../../pocket.system.json";
 import macApps from "../../macos-apps.json";
@@ -15,6 +17,8 @@ export interface PocketAppSpec {
   package: string;
   /** Compact desktop caption/icon label. */
   title: string;
+  native?: boolean;
+  icon?: IconName;
   /** The macos-app plan's logical viewport. */
   viewport: readonly [number, number];
 }
@@ -30,3 +34,14 @@ export const POCKET_APPS: readonly PocketAppSpec[] = system.applications.catalog
 export const POCKET_ICON = "icons/pocket-app.svg";
 export const POCKET_ICON_SMALL = "icons/pocket-app-16.svg";
 export const MAC_POCKET_APPS = POCKET_APPS.filter(app => macApps.includes(app.package));
+
+
+export const OPENSTRIKE_APP: PocketAppSpec = {
+  package: "dev.pocket-stack.openstrike", title: "OpenStrike", viewport: [800, 450], native: true, icon: "openstrike",
+};
+
+export function nativePocketApps(): readonly PocketAppSpec[] {
+  return (getOps().__applications ?? []).filter(app => app.native).map(app => ({
+    ...app, icon: app.package === OPENSTRIKE_APP.package ? "openstrike" : "pocket-apps",
+  }));
+}

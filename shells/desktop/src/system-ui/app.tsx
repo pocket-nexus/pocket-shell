@@ -122,7 +122,8 @@ import {
   type EditKind,
 } from "./notepad.ts";
 import { newMines, reveal, toggleFlag } from "./mines.ts";
-import { MAC_POCKET_APPS, POCKET_APPS, type PocketAppSpec } from "./pocket-apps.ts";
+import { getOps } from "@pocketjs/framework/host";
+import { MAC_POCKET_APPS, OPENSTRIKE_APP, nativePocketApps, POCKET_APPS, type PocketAppSpec } from "./pocket-apps.ts";
 import {
   CLASSIC_THEME,
   nextThemeId,
@@ -194,6 +195,7 @@ const shutdownOf = (w: WinCtl) => w.data as ShutdownData;
 function DesktopWindow(props: {
   win: WinCtl;
   active: boolean;
+  inputActive: boolean;
   theme: DesktopTheme;
 }) {
   const w = props.win;
@@ -290,7 +292,7 @@ function DesktopWindow(props: {
           ) : w.kind === "pocket" ? (
             <PocketAppView
               data={pocketOf(w)}
-              active={props.active}
+              active={props.inputActive}
               theme={props.theme}
             />
           ) : w.kind === "about" ? (
@@ -718,6 +720,7 @@ export default function App(props: { macDesktop?: boolean }) {
     const data: PocketData = {
       kind: "pocket",
       app,
+      error: createState(app.native && !getOps().__surfaces?.[app.package] ? "This native application is not installed. Rebuild Pocket Shell with its package." : ""),
     };
     // Content is exactly the child plan's logical viewport. Native surface
     // composition therefore needs no scale or second raster pass.
@@ -727,8 +730,8 @@ export default function App(props: { macDesktop?: boolean }) {
       app.viewport[1] + contentTop({ menuWidths: [] }, m) + m.frame;
     const w = createWin({
       kind: "pocket",
-      title: `PocketJS: ${app.title}`,
-      icon: macDesktop ? "pocket-apps" : "pocket",
+      title: app.native ? app.title : `PocketJS: ${app.title}`,
+      icon: app.icon ?? (macDesktop ? "pocket-apps" : "pocket"),
       geo: cascadePos(
         wins().length,
         vp().w,
@@ -737,10 +740,10 @@ export default function App(props: { macDesktop?: boolean }) {
         outerH,
         m,
       ),
-      buttons: ["min", "close"],
-      resizable: false,
-      minW: outerW,
-      minH: outerH,
+      buttons: app.native ? ["min", "max", "close"] : ["min", "close"],
+      resizable: !!app.native,
+      minW: app.native ? 360 : outerW,
+      minH: app.native ? 280 : outerH,
       data,
     });
     addWin(w);
@@ -761,7 +764,7 @@ export default function App(props: { macDesktop?: boolean }) {
         { icon: "files", name: "Files", size: "", type: "Pocket App", open: () => openFolder("home", true) },
         { icon: "devices", name: "Devices", size: "", type: "Pocket App", open: () => openDevices() },
         { icon: "mines", name: "Minesweeper", size: "", type: "Pocket App", open: openMines },
-        { icon: "openstrike", name: "OpenStrike", size: "", type: "Pocket3D Game", open: () => folderOf(w).host?.open("pocket:openstrike", virtualNow()) },
+        ...nativePocketApps().map(app => ({ icon: app.icon ?? "pocket-apps", name: app.title, size: "", type: "Pocket App", open: () => openPocketApp(app) })),
         ...MAC_POCKET_APPS.map(app => ({ icon: "pocket-apps" as const, name: app.title, size: "", type: "Pocket App", open: () => openPocketApp(app) })),
       ];
       return [];
@@ -997,13 +1000,7 @@ export default function App(props: { macDesktop?: boolean }) {
   }
 
   function openStrike() {
-    openFolder("pocket-apps");
-    const w = focused();
-    if (w?.kind === "folder") {
-      const d = folderOf(w);
-      d.selected.set(d.rows().findIndex(row => row.name === "OpenStrike"));
-      d.host?.open("pocket:openstrike", virtualNow());
-    }
+    openPocketApp(nativePocketApps().find(app => app.package === OPENSTRIKE_APP.package) ?? OPENSTRIKE_APP);
   }
 
   // ---- desktop icons + start menu ----------------------------------------------
@@ -1543,7 +1540,14 @@ export default function App(props: { macDesktop?: boolean }) {
     if (icon >= 0 && isDblClick(`icon:${icon}`)) icons[icon].open();
   }
 
+  function nativePointer(w: WinCtl | undefined, down: boolean, button = 0) {
+    if (w?.kind === "pocket" && pocketOf(w).app.native) {
+      svc?.send({ t: "native-pointer", package: pocketOf(w).app.package, x: mx, y: my, d: down, b: button });
+    }
+  }
+
   function routeContentDown(w: WinCtl, cx: number, cy: number, shift: boolean) {
+    if (w.kind === "pocket") { nativePointer(w, true); return; }
     if (w.kind === "devices") {
       devicesOf(w).click(cx, cy);
       return;
@@ -1650,6 +1654,9 @@ export default function App(props: { macDesktop?: boolean }) {
     const hit = hitWindows(mx, my);
     if (hit) {
       const { win: w, region } = hit;
+      if (region.kind === "content" && w.kind === "pocket" && pocketOf(w).app.native) {
+        raise(w.id); nativePointer(w, true, 2); return;
+      }
       if (region.kind === "content" && w.kind === "mines") {
         raise(w.id);
         const d = minesOf(w);
@@ -1933,6 +1940,7 @@ export default function App(props: { macDesktop?: boolean }) {
     // pointer (themes may reveal the control glyphs only then).
     let k: CursorKind = "default";
     const hover = hitWindows(mx, my);
+    if (hover?.region.kind === "content" && focusId() === hover.win.id) nativePointer(hover.win, prevDown);
     if (hover) {
       if (hover.region.kind === "resize") k = cursorForDir(hover.region.dir);
       else if (hover.region.kind === "content" && hover.win.kind === "notepad")
@@ -1949,7 +1957,7 @@ export default function App(props: { macDesktop?: boolean }) {
   function onPrimaryUp() {
     const d = drag;
     drag = null;
-    if (!d) return;
+    if (!d) { nativePointer(focused(), false); return; }
     if (d.type === "capbtn") {
       const w = byId(d.id);
       if (w && w.pressedBtn() === d.btn) {
@@ -2259,6 +2267,12 @@ export default function App(props: { macDesktop?: boolean }) {
 
   function handleEvent(ev: HostEvent) {
     switch (ev.t) {
+      case "native-capture":
+        prevDown = false; drag = null;
+        break;
+      case "app-error":
+        for (const win of wins()) if (win.kind === "pocket" && pocketOf(win).app.package === ev.package) pocketOf(win).error.set(ev.error ?? "Application could not start.");
+        break;
       case "files":
         for (const w of wins()) {
           if (w.kind !== "folder") continue;
@@ -2303,7 +2317,7 @@ export default function App(props: { macDesktop?: boolean }) {
             mx = ev.x ?? mx;
             my = ev.y ?? my;
             onRightDown();
-          }
+          } else nativePointer(focused(), false, 2);
           break;
         }
         mx = ev.x ?? mx;
@@ -2469,6 +2483,7 @@ export default function App(props: { macDesktop?: boolean }) {
         <DesktopWindow
           win={w}
           active={focusId() === w.id}
+          inputActive={focusId() === w.id && !startOpen() && !popup()}
           theme={theme()}
         />
       )}</For>

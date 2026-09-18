@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // test/sim.test.ts — Pocket Shell's render layer in the
 // headless sim: the same button tape the Azahar golden runs, with the dock
-// taps replaced by store calls (the sim has no touch screen; a detached core
-// node stands in for the 3DS bottom screen's host root). What this proves is
+// taps replaced by store calls. The sim owns the bottom screen's auxiliary
+// host root. What this proves is
 // that every chord, layout toggle and workspace switch reconciles the two
 // Solid trees without a renderer error, in milliseconds rather than an
 // emulator boot.
 
 import { describe, expect, test } from "bun:test";
-import { NODE_TYPE } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
 import { bootWorld } from "../../../vendor/pocketjs/hosts/sim/sim.ts";
 import { SHELL_TAPE } from "../film/tape.ts";
 import type { ShellStore } from "../src/store.ts";
@@ -16,9 +15,8 @@ import type { ShellStore } from "../src/store.ts";
 const spec = SHELL_TAPE;
 
 async function boot(): Promise<{ world: Awaited<ReturnType<typeof bootWorld>>; store: ShellStore }> {
-  const world = await bootWorld("pocketshell-main", 60, undefined, (ops) => {
-    const createNode = ops.createNode as (type: number) => number;
-    ops.__auxiliarySurface = { root: createNode(NODE_TYPE.view), w: 320, h: 240 };
+  const world = await bootWorld("pocketshell-main", 60, undefined, undefined, {
+    width: 400, height: 240, auxiliary: [320, 240],
   });
   const store = (globalThis as { __pocketShell?: ShellStore }).__pocketShell;
   if (!store) throw new Error("the bundle did not publish __pocketShell");

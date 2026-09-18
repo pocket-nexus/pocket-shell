@@ -7,7 +7,7 @@
 // (cx, cy) from wm.ts hitRegion — origin at the frame's inner top-left,
 // below caption (and menu bar if present).
 
-import { createMemo } from "solid-js";
+import { createMemo, Show } from "solid-js";
 import {
   CompositorSurface,
   Image,
@@ -190,15 +190,17 @@ export function PocketAppView(props: {
   return (
     <View class="flex-1 relative overflow-hidden bg-[#000000]">
       <View class={props.theme.pocketLoading}>
-        <Image class="w-[32] h-[32] mb-[8]" src={props.theme.icon("pocket", 32)} />
-        <UiText theme={props.theme} t={`Starting ${props.data.app.title}...`} />
-        <UiText theme={props.theme} cls={props.theme.mutedText} t="Arrow keys + Z/X/A/S + Q/W" />
+        <Image class="w-[32] h-[32] mb-[8]" src={props.theme.icon(props.data.app.icon ?? "pocket", 32)} />
+        <UiText theme={props.theme} t={props.data.error() || `Starting ${props.data.app.title}...`} />
+        <UiText theme={props.theme} cls={props.theme.mutedText} t={props.data.app.native ? "Click to play · Esc releases the pointer" : "Arrow keys + Z/X/A/S + Q/W"} />
       </View>
+      <Show when={!props.data.error()}>
       <CompositorSurface
         class="absolute inset-0"
         package={props.data.app.package}
         focused={props.active}
       />
+      </Show>
     </View>
   );
 }

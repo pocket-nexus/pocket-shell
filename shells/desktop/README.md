@@ -53,16 +53,31 @@ textures, released on scroll, navigation or window close. Opening one uses macOS
 open in their associated Mac application. **Pocket Apps** opens Files, Devices,
 Minesweeper, Cards, Motions and Stats in Shell windows.
 
-**OpenStrike** is a Pocket3D game with its own native game host. Its desktop and
-Pocket Apps shortcuts launch the complete game in a separate macOS window.
-When `~/code/open-strike` (or `OPENSTRIKE_ROOT`) is present, the Mac build runs its
-`build:desktop` command and copies the host, matching macOS UI, police model and
-local `dist/maps/de_dust2.p3d` into the app. No checkout is needed to play from
-that built bundle. The OpenStrike checkout needs desktop cooked-map support;
-`OPENSTRIKE_MAPS` can select another directory containing the cooked default map.
-Builds without a local OpenStrike checkout omit the game payload. Maps and game
-binaries remain local build inputs and are never committed here. Launch errors
-appear in Files; game logs go to `~/Library/Logs/Pocket Shell/OpenStrike.log`.
+**OpenStrike** opens in a resizable Shell window. PocketJS loads its native
+module on demand and owns composition, focus, pointer capture and suspension.
+Click the game to capture the pointer; use WASD to move, the mouse to look/fire,
+Space to jump, R to reload, and Escape to release the pointer. Cmd+M minimizes
+and Cmd+W closes the game. Closing releases its state; reopening starts a new game.
+
+When `~/code/open-strike` (or `OPENSTRIKE_ROOT`) is present, the macOS build runs
+its `scripts/native-module.ts` and installs the module, matching HUD, police model
+and cooked `de_dust2.p3d`. `OPENSTRIKE_MAPS` selects the cooked map directory.
+The built bundle runs without either checkout. An older checkout must be updated
+to native-module support. Builds without a checkout omit the game payload.
+Native modules and maps remain generated/local inputs, outside this repository.
+
+Other prebuilt packages can be supplied through `POCKET_NATIVE_APPS` (colon
+separated directories on macOS). Each directory carries `native-app.json` with
+`format: 1`, `target: "macos-app"`, a Pocket manifest, a local `.dylib` filename
+in `library`, and optional `config`, beside its JS, pak and resources. The generic
+installer signs the library before hashing it into the System plan. The runtime
+checks package identity, library integrity and matching SDK/compiler/GPU builds.
+These are trusted, co-built modules in the host process, not sandboxed plugins.
+See [the native module contract](../../vendor/pocketjs/docs/DESKTOP_NATIVE.md).
+Native application failures appear in their Shell window.
+
+The macOS main window starts at 1024×768 logical pixels; the game starts at
+800×450 and follows its Shell window when resized.
 
 Minesweeper restores the 9-by-9 game: click to reveal, right-click to flag,
 and use **F2**, **Cmd+N**, the smiley or **Game → New** to start again.

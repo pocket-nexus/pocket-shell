@@ -85,7 +85,6 @@ struct DirectoryPage {
 }
 
 final class FileSession {
-    private let openStrike = OpenStrikeLauncher()
     private var listings: [Int: DirectoryPage] = [:]
 
     func reply(_ message: [String: Any]) -> Data? {
@@ -93,10 +92,7 @@ final class FileSession {
               let path = message["path"] as? String, let type = message["t"] as? String else { return nil }
         var reply: [String: Any] = ["t": "files", "request": id, "path": path, "entries": [], "done": true]
         do {
-            if type == "files-open" && path == "pocket:openstrike" {
-                try openStrike.open()
-                reply["opened"] = true
-            } else if type == "files-open" {
+            if type == "files-open" {
                 let url = try fileURL(path)
                 guard FileManager.default.fileExists(atPath: url.path) else {
                     throw NSError(domain: "Files", code: 2, userInfo: [NSLocalizedDescriptionKey: "This item no longer exists"])

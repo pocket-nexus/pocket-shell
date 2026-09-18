@@ -159,6 +159,7 @@ export interface FolderData {
 export interface PocketData {
   kind: "pocket";
   app: PocketAppSpec;
+  error: State<string>;
 }
 
 export interface AboutData {

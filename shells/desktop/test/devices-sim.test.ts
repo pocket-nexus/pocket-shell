@@ -4,7 +4,7 @@ import type { HostOps } from "@pocketjs/framework/host";
 import { bootWorld, treeHasText, type SimWorld } from "../../../vendor/pocketjs/hosts/sim/sim.ts";
 import { AQUA_THEME, CLASSIC_THEME, XP_THEME } from "../src/system-ui/theme.ts";
 
-import { desktopIconPosition } from "../src/system-ui/wm.ts";
+import { cascadePos, contentTop, desktopIconPosition } from "../src/system-ui/wm.ts";
 
 function step(world: SimWorld, frames = 2) {
   for (let i = 0; i < frames; i++) {
@@ -15,7 +15,7 @@ function step(world: SimWorld, frames = 2) {
 const psp = { id: "psp-1", kind: "psp", name: "Sony PSP", connection: "PSPLINK USB", serial: "", vendor: 0x054c, product: 0x01c9 };
 const ipod = { id: "ipod-1", kind: "ipodtouch4", name: "iPod touch 4", connection: "USB", serial: "fixture", vendor: 0x05ac, product: 0x129e };
 
-async function desktop(keepBootWindows = false) {
+async function desktop(keepBootWindows = false, native = false) {
   const inbox: string[] = [];
   const sent: string[] = [];
   const iconTextures = new Set<number>();
@@ -31,6 +31,10 @@ async function desktop(keepBootWindows = false) {
     };
     textures.freeTexture = handle => { iconTextures.delete(handle); free?.(handle); };
     ops.__host = "macos-app";
+    if (native) {
+      ops.__applications = [{ package: "dev.pocket-stack.openstrike", title: "OpenStrike", viewport: [640, 360], native: true }];
+      ops.__surfaces = { "dev.pocket-stack.openstrike": 1 };
+    }
     ops.svcOpen = (name: string) => name === "system-ui";
     ops.svcPoll = () => inbox.splice(0).join("\n");
     ops.svcSend = (line: string) => {
@@ -254,3 +258,24 @@ test("Files navigates real directories, launches native apps and keeps Pocket wi
     expect(art().equals(before)).toBe(false);
   }
 }, 30000);
+
+
+test("native content claims pointer input after chrome, and failures stay in their window", async () => {
+  const { world, send, sent, has, mouse, click, key } = await desktop(true, true);
+  key("w", true); key("w", true); key("w", true);
+  click(750, 224); click(750, 224);
+  expect(has("OpenStrike")).toBe(true);
+  const m = AQUA_THEME.metrics;
+  const geo = cascadePos(0, 800, 600, 640 + m.frame * 2, 360 + contentTop({ menuWidths: [] }, m) + m.frame, m);
+  sent.length = 0;
+  mouse(geo.x + geo.w - 2, geo.y + geo.h - 2, true); step(world);
+  mouse(geo.x + geo.w - 82, geo.y + geo.h - 52, true); step(world);
+  mouse(geo.x + geo.w - 82, geo.y + geo.h - 52, false); step(world);
+  expect(sent.map(line => JSON.parse(line)).some(line => line.t === "native-pointer" && line.d)).toBe(false);
+  click(geo.x + 100, geo.y + 100);
+  expect(sent.map(line => JSON.parse(line)).some(line => line.t === "native-pointer" && line.d && line.package === "dev.pocket-stack.openstrike")).toBe(true);
+  send({ t: "app-error", package: "dev.pocket-stack.openstrike", error: "Native module build mismatch" }); step(world);
+  expect(has("Native module build mismatch")).toBe(true);
+  key("w", true);
+  expect(has("Native module build mismatch")).toBe(false);
+});
