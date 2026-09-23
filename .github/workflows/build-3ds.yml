@@ -1,0 +1,66 @@
+name: 3DS release build
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/*3ds.yml'
+      - 'scripts/**'
+      - 'shells/3ds/**'
+      - 'vendor/pocketjs'
+      - 'package.json'
+      - 'bun.lock'
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build 3DSX and CIA
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - name: Install dependencies
+        run: bun run setup
+      - name: Test release version and artifact checks
+        run: bun test ./scripts/release-3ds.test.ts
+      - name: Prepare calendar version
+        id: version
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+        run: |
+          version="${REQUESTED_VERSION:-$(bun scripts/release-3ds.ts version)}"
+          bun scripts/release-3ds.ts prepare "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Install the runtime's pinned Rust toolchain
+        working-directory: vendor/pocketjs/hosts/3ds/core
+        run: rustup show active-toolchain
+      - name: Pull the runtime's pinned devkitARM image
+        run: |
+          image=$(bun -e 'import { THREE_DS_CONTAINER_IMAGE } from "./vendor/pocketjs/tools/3ds-toolchain.ts"; console.log(THREE_DS_CONTAINER_IMAGE)')
+          docker pull "$image"
+      - name: Build both release binaries
+        run: bun run 3ds --cia --locked
+      - name: Verify and stage release files
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          bun scripts/release-3ds.ts stage "$RELEASE_VERSION"
+          cd dist/release
+          sha256sum --check SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 3ds-release
+          path: dist/release/
+          if-no-files-found: error
+          retention-days: 14
