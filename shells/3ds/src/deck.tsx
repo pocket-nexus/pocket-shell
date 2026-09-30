@@ -19,7 +19,7 @@
 // drag the gap between two windows to resize the split, and in the
 // scrolling layout drag the background to pan the strip.
 
-import { createMemo, createSignal, For, Index, Show } from "solid-js";
+import { createMemo, createSignal, For, Index, onCleanup, Show } from "solid-js";
 import { Image, Text, View } from "@pocketjs/framework/components";
 import { createGesture } from "@pocketjs/framework/gesture";
 import { onFrame } from "@pocketjs/framework/lifecycle";
@@ -28,6 +28,7 @@ import {
   chordFor,
   dpadLabel,
   FACE_ORDER,
+  HELD_LAYERS,
   labelFor,
   LAYER_HINT,
   LAYER_TITLE,
@@ -38,9 +39,9 @@ import {
 import type { IconName, IconTone } from "./gen-icons.ts";
 import { icon } from "./icons.ts";
 import { Keyboard, keyboardHit, createKeyPress } from "./keyboard.tsx";
-import { isTextApp, MENU, samePlacement, type AppId, type MenuItem, type ShellStore } from "./store.ts";
+import { isApp, isTextApp, MENU, type AppId, type ShellStore } from "./store.ts";
 import { BTN } from "@pocketjs/framework/input";
-import { BAR_H, WORKSPACES, type LayoutKind, type Rect } from "./wm.ts";
+import { BAR_H, samePlacement, WORKSPACES, type LayoutKind, type Rect } from "./wm.ts";
 
 const STRIP_H = 22;
 const PILL_W = 26;
@@ -85,19 +86,7 @@ const DOCK: readonly DockItem[] = [
   { act: "bar", icon: "bar", x: 282, label: "bar" },
 ];
 const dockAt = (x: number): DockItem | null => DOCK.find((d) => x >= d.x && x < d.x + DOCK_CELL) ?? null;
-const isApp = (act: DockAct): act is AppId => act === "term" || act === "notes" || act === "top";
 
-/** Each menu row's glyph, keyed by its app or action. */
-const MENU_ICON: Record<string, IconName> = {
-  term: "term",
-  notes: "notes",
-  top: "top",
-  keys: "keys",
-  wallpaper: "wall",
-  bar: "bar",
-  about: "menu",
-};
-const menuIcon = (item: MenuItem): IconName => MENU_ICON[item.kind === "app" ? item.app : item.action];
 const MENU_X = 36;
 const MENU_W = 248;
 const MENU_Y = BODY_TOP + 6;
@@ -108,13 +97,12 @@ const CHORD_TITLE_Y = BODY_TOP + 6;
 const CHORD_ROWS_Y = BODY_TOP + 24;
 const CHORD_ROW_H = 24;
 const CHORD_COL_SPLIT = 160;
-const CHORD_LAYERS: readonly Layer[] = ["super", "shift", "ws"];
 
 const within = (x: number, y: number, r: Rect): boolean =>
   x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
 const toStage = (x: number, y: number) => ({ x: (x - MAP_X) / S, y: (y - MAP_Y) / S });
 
-type BodyMode = "launcher" | "chords" | "keyboard" | "map";
+type BodyMode = "menu" | "chords" | "keyboard" | "map";
 
 /** A touch target's transient pressed look.
  *
@@ -148,15 +136,33 @@ function createPressTracker(): {
 
 const PRESS_LINGER_FRAMES = 5;
 
-/** A shoulder keycap on the strip. Its held look is a second layer faded in
- *  by opacity, a paint-only prop: a shoulder press restyles nothing, so it
- *  never relayouts the deck. */
+/** A fill behind a target's content, faded in by opacity. Opacity is a
+ *  paint-only prop: a press restyles nothing, so it never relayouts the deck,
+ *  where swapping a class would. */
+function Fill(props: { on: boolean; color: string }) {
+  return <View class="absolute inset-0" style={{ bgColor: props.color, opacity: props.on ? 1 : 0 }} />;
+}
+
+/** `read()` while `live()` holds; otherwise the value it returned last. A
+ *  covered body keeps what it last showed instead of relaying out under the
+ *  body in front of it; it catches up when it is shown again. */
+function frozenUnless<T>(live: () => boolean, read: () => T): () => T {
+  let primed = false;
+  return createMemo<T | undefined>((last) => {
+    if (primed && !live()) return last;
+    primed = true;
+    return read();
+  }) as () => T;
+}
+
+/** A shoulder keycap on the strip; its pressed and held looks are layers
+ *  faded in by opacity. */
 function Pill(props: { x: number; label: string; held: boolean; pressed: boolean }) {
   return (
     <View class="absolute top-[3] w-[24] h-[16]" style={{ insetL: props.x }}>
-      <View
-        class={props.pressed ? "absolute inset-0 bg-[#292e42] border border-[#414868] items-center justify-center" : "absolute inset-0 bg-[#1a1b26] border border-[#292e42] items-center justify-center"}
-      >
+      <View class="absolute inset-0 bg-[#1a1b26] border border-[#292e42]" />
+      <View class="absolute inset-0 bg-[#292e42] border border-[#414868]" style={{ opacity: props.pressed ? 1 : 0 }} />
+      <View class="absolute inset-0 items-center justify-center">
         <Text class="text-xs text-[#565f89] font-bold">{props.label}</Text>
       </View>
       <View class="absolute inset-0 bg-[#7aa2f7] items-center justify-center" style={{ opacity: props.held ? 1 : 0 }}>
@@ -172,17 +178,15 @@ export function Deck(props: { store: ShellStore }) {
   const press = createPressTracker();
 
   const bodyMode = (): BodyMode => {
-    if (store.launcherOpen()) return "launcher";
+    if (store.menuOpen()) return "menu";
     if (store.layer() !== "plain") return "chords";
     if (store.kbVisible()) return "keyboard";
     return "map";
   };
-  // While the chord map, menu or keyboard covers it, the minimap keeps what
-  // it last showed instead of relaying out under them on every change.
-  const frozen = <T,>(read: () => T) => createMemo<T | undefined>((last) => (bodyMode() === "map" || last === undefined ? read() : last)) as () => T;
-  const mapOrder = frozen(() => store.order());
-  const mapPlacements = frozen(() => store.placements());
-  const mapFocus = frozen(() => store.focusedId());
+  const mapShown = () => bodyMode() === "map";
+  const mapOrder = frozenUnless(mapShown, () => store.order());
+  const mapPlacements = frozenUnless(mapShown, () => store.placements());
+  const mapFocus = frozenUnless(mapShown, () => store.focusedId());
   const lHeld = () => store.layer() === "super" || store.layer() === "ws";
   const rHeld = () => store.layer() === "shift" || store.layer() === "ws";
 
@@ -213,7 +217,7 @@ export function Deck(props: { store: ShellStore }) {
       return item ? `dock:${item.act}` : null;
     }
     switch (bodyMode()) {
-      case "launcher": {
+      case "menu": {
         const row = menuRowAt(x, y);
         return row === null ? null : `menu:${row}`;
       }
@@ -279,8 +283,7 @@ export function Deck(props: { store: ShellStore }) {
     if (!item) return;
     switch (item.act) {
       case "menu":
-        store.setLauncherIndex(0);
-        store.setLauncherOpen(!store.launcherOpen());
+        store.run("menu");
         break;
       case "kbd":
         store.toggleKeyboard();
@@ -301,7 +304,7 @@ export function Deck(props: { store: ShellStore }) {
 
   const tapBody = (x: number, y: number) => {
     switch (bodyMode()) {
-      case "launcher": {
+      case "menu": {
         const row = menuRowAt(x, y);
         if (row !== null) store.runMenu(row);
         return;
@@ -471,7 +474,7 @@ export function Deck(props: { store: ShellStore }) {
   const dockOn = (act: DockAct): boolean => {
     switch (act) {
       case "menu":
-        return store.launcherOpen();
+        return store.menuOpen();
       case "kbd":
         return store.kbVisible();
       case "keys":
@@ -491,16 +494,9 @@ export function Deck(props: { store: ShellStore }) {
         <Pill x={2} label="L" held={lHeld()} pressed={press.is("pill:L")} />
         <Index each={store.counts()}>
           {(count, i) => (
-            <View
-              class={
-                store.drag()?.overWs === i + 1
-                  ? "absolute top-0 h-[22] items-center justify-center bg-[#9ece6a33]"
-                  : press.is(`tab:${i + 1}`)
-                    ? "absolute top-0 h-[22] items-center justify-center bg-[#24283b]"
-                    : "absolute top-0 h-[22] items-center justify-center"
-              }
-              style={{ insetL: TABS_X + i * TAB_W, width: TAB_W }}
-            >
+            <View class="absolute top-0 h-[22] items-center justify-center" style={{ insetL: TABS_X + i * TAB_W, width: TAB_W }}>
+              <Fill on={press.is(`tab:${i + 1}`)} color="#24283b" />
+              <Fill on={store.drag()?.overWs === i + 1} color="#9ece6a33" />
               {/* Omarchy draws the active workspace as a rounded square
                   instead of its number, and empty ones at half strength. */}
               <Show
@@ -512,15 +508,9 @@ export function Deck(props: { store: ShellStore }) {
             </View>
           )}
         </Index>
-        <View
-          class={press.is("badge:layout") ? "absolute top-0 h-[22] bg-[#24283b]" : "absolute top-0 h-[22]"}
-          style={{ insetL: LAYOUT_X, width: LAYOUT_W }}
-        >
-          <Image
-            class="absolute top-[3] w-[16] h-[16]"
-            src={icon(store.layoutKind() === "dwindle" ? "dwindle" : "scrolling", "fg")}
-            style={{ insetL: (LAYOUT_W - 16) / 2 }}
-          />
+        <View class="absolute top-0 h-[22]" style={{ insetL: LAYOUT_X, width: LAYOUT_W }}>
+          <Fill on={press.is("badge:layout")} color="#24283b" />
+          <Image class="absolute top-[3] w-[16] h-[16]" src={icon(store.layoutKind(), "fg")} style={{ insetL: (LAYOUT_W - 16) / 2 }} />
         </View>
         <Pill x={R_PILL_X} label="R" held={rHeld()} pressed={press.is("pill:R")} />
       </View>
@@ -611,7 +601,7 @@ export function Deck(props: { store: ShellStore }) {
                 : "absolute left-0 right-0 flex-row items-center justify-center gap-[6] bg-[#3b2230]"
             }
             style={{ insetT: CLOSE_BAR_Y, height: CLOSE_BAR_H }}
-            ref={(el) => store.bindCloseBar(el, CLOSE_BAR_H)}
+            ref={(el) => onCleanup(store.bindCloseBar(el, CLOSE_BAR_H))}
           >
             <Text class={store.closing()?.over ? "text-sm text-[#1a1b26] font-bold" : "text-sm text-[#f7768e] font-bold"}>×</Text>
             <Text class={store.closing()?.over ? "text-xs text-[#1a1b26]" : "text-xs text-[#f7768e]"}>
@@ -625,11 +615,11 @@ export function Deck(props: { store: ShellStore }) {
       {/* ---- body: chord maps ----
           One per layer, so a shoulder press only swaps which is displayed;
           their labels change with the layout, not with every press. */}
-      <For each={CHORD_LAYERS}>
+      <For each={HELD_LAYERS}>
         {(layer) => {
-          // A hidden map keeps the layout it last showed; its labels catch
-          // up when its shoulder goes down, not on every layout toggle.
-          const layout = createMemo<LayoutKind>((last) => (store.layer() === layer || last === undefined ? store.layoutKind() : last));
+          // A hidden map's labels catch up when its shoulder goes down, not
+          // on every layout toggle.
+          const layout = frozenUnless(() => store.layer() === layer, () => store.layoutKind());
           return (
       <View
         debugName="ChordMap"
@@ -642,13 +632,10 @@ export function Deck(props: { store: ShellStore }) {
           <Index each={chordLeft(layer, layout())}>
             {(row, i) => (
               <View
-                class={
-                  press.is(`chord:l${i}`)
-                    ? "absolute left-[8] h-[24] flex-row items-center gap-[6] overflow-hidden bg-[#24283b]"
-                    : "absolute left-[8] h-[24] flex-row items-center gap-[6] overflow-hidden"
-                }
+                class="absolute left-[8] h-[24] flex-row items-center gap-[6] overflow-hidden"
                 style={{ insetT: CHORD_ROWS_Y - BODY_TOP + i * CHORD_ROW_H, width: CHORD_COL_SPLIT - 12 }}
               >
+                <Fill on={press.is(`chord:l${i}`)} color="#24283b" />
                 <Show when={row().badge === "dpad"}>
                   <View class="w-[18] h-[18] bg-[#1a1b26] border border-[#414868] items-center justify-center">
                     <Text class="text-xs text-[#c0caf5] font-bold">+</Text>
@@ -671,13 +658,10 @@ export function Deck(props: { store: ShellStore }) {
           <Index each={chordRight(layer, layout())}>
             {(row, i) => (
               <View
-                class={
-                  press.is(`chord:r${i}`)
-                    ? "absolute h-[24] flex-row items-center gap-[6] overflow-hidden bg-[#24283b]"
-                    : "absolute h-[24] flex-row items-center gap-[6] overflow-hidden"
-                }
+                class="absolute h-[24] flex-row items-center gap-[6] overflow-hidden"
                 style={{ insetL: CHORD_COL_SPLIT + 6, insetT: CHORD_ROWS_Y - BODY_TOP + i * CHORD_ROW_H, width: 320 - CHORD_COL_SPLIT - 12 }}
               >
+                <Fill on={press.is(`chord:r${i}`)} color="#24283b" />
                 <View class="w-[18] h-[18] rounded-full bg-[#1a1b26] border border-[#414868] items-center justify-center">
                   <Text class="text-xs text-[#c0caf5] font-bold">{row().badge}</Text>
                 </View>
@@ -697,19 +681,17 @@ export function Deck(props: { store: ShellStore }) {
         <View
           debugName="Menu"
           class="absolute bg-[#1a1b26] border border-[#7aa2f7]"
-          style={{ insetL: MENU_X, insetT: MENU_Y, width: MENU_W, height: MENU_ROWS_Y - MENU_Y + MENU.length * MENU_ROW_H + 6, opacity: bodyMode() === "launcher" ? 1 : 0 }}
+          style={{ insetL: MENU_X, insetT: MENU_Y, width: MENU_W, height: MENU_ROWS_Y - MENU_Y + MENU.length * MENU_ROW_H + 6, opacity: bodyMode() === "menu" ? 1 : 0 }}
         >
           <Text class="absolute left-[10] top-[5] text-sm text-[#c0caf5] font-bold">Menu</Text>
           <Text class="absolute left-[46] top-[5] text-sm text-[#565f89]">…</Text>
           <Index each={MENU}>
             {(item, i) => {
-              const selected = () => press.is(`menu:${i}`) || store.launcherIndex() === i;
+              const selected = () => press.is(`menu:${i}`) || store.menuIndex() === i;
               return (
-                <View
-                  class={selected() ? "absolute left-[2] right-[2] h-[20] bg-[#c0caf514]" : "absolute left-[2] right-[2] h-[20]"}
-                  style={{ insetT: MENU_ROWS_Y - MENU_Y - 2 + i * MENU_ROW_H }}
-                >
-                  <Image class="absolute left-[8] top-[2] w-[16] h-[16]" src={icon(menuIcon(item()), selected() ? "accent" : "fg")} />
+                <View class="absolute left-[2] right-[2] h-[20]" style={{ insetT: MENU_ROWS_Y - MENU_Y - 2 + i * MENU_ROW_H }}>
+                  <Fill on={selected()} color="#c0caf514" />
+                  <Image class="absolute left-[8] top-[2] w-[16] h-[16]" src={icon(item().icon, selected() ? "accent" : "fg")} />
                   <Text class={selected() ? "absolute left-[32] top-[3] text-sm text-[#7aa2f7]" : "absolute left-[32] top-[3] text-sm text-[#c0caf5]"}>
                     {item().label}
                   </Text>
@@ -734,10 +716,8 @@ export function Deck(props: { store: ShellStore }) {
             const tone = (): IconTone => (pressed() ? "ink" : dockOn(item.act) ? "accent" : "fg");
             const mark = () => (isApp(item.act) ? runState(item.act) : "none");
             return (
-              <View
-                class={pressed() ? "absolute top-0 w-[36] h-[36] bg-[#7aa2f7]" : "absolute top-0 w-[36] h-[36]"}
-                style={{ insetL: item.x }}
-              >
+              <View class="absolute top-0 w-[36] h-[36]" style={{ insetL: item.x }}>
+                <Fill on={pressed()} color="#7aa2f7" />
                 <Image class="absolute left-[10] top-[8] w-[16] h-[16]" src={icon(item.icon, tone())} style={{ opacity: disabled() ? 0.3 : 1 }} />
                 <Show when={mark() !== "none"}>
                   <View
@@ -763,5 +743,3 @@ export function Deck(props: { store: ShellStore }) {
     </View>
   );
 }
-
-export { BAR_H };

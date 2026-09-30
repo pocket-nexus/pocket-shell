@@ -24,7 +24,7 @@ export const SHELL_TAPE: GoldenSpec = {
   // RIGHT swaps term with notes (84); L + START turns the workspace into
   // the scrolling layout (112); L+R + RIGHT lands on the empty workspace 2
   // with the L+R map up (126) and L+R + LEFT returns; L + SELECT opens the
-  // key sheet (160); L + A opens the launcher on the deck (176) and B
+  // key sheet (160); L + A opens the menu on the deck (176) and B
   // closes it. Last, a hold on term's minimap tile arms the close bar
   // (214) and a slide onto it closes the window (240).
   input: (frame) => {
@@ -213,16 +213,16 @@ export const CUTS: readonly Cut[] = [
     to: 162,
     step: 1,
     fps: 30,
-    caption: "L + SELECT puts the whole chord table on the stage as a window",
+    caption: "L + SELECT puts the whole chord table over the stage",
   },
   {
-    name: "launcher",
+    name: "menu",
     tape: "pocket-shell",
     from: 162,
     to: 184,
     step: 1,
     fps: 30,
-    caption: "L + A opens the launcher on the deck; the d-pad picks and B closes it",
+    caption: "L + A opens the menu on the deck; the d-pad picks and B closes it",
   },
   {
     name: "close",

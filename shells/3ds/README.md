@@ -45,7 +45,7 @@ the console's own GPU, stacked top screen over touch screen, **at half speed**
 
 | the key sheet | the menu |
 |---|---|
-| <img src="media/keysheet.gif" width="320" alt="L and SELECT put the whole chord table on the stage as a window" /> | <img src="media/launcher.gif" width="320" alt="L and A open Omarchy's menu card on the deck; the d-pad picks and B closes it" /> |
+| <img src="media/keysheet.gif" width="320" alt="L and SELECT put the whole chord table over the stage" /> | <img src="media/menu.gif" width="320" alt="L and A open Omarchy's menu card on the deck; the d-pad picks and B closes it" /> |
 | `L + SELECT` opens the whole table as a window on the stage — the same array the deck's map and the dispatcher read. | `L + A` puts Omarchy's `SUPER + SPACE` menu on the deck: the apps, then keys, wallpaper, bar and about. The d-pad picks, A opens, B closes. |
 
 ## The two screens
@@ -76,7 +76,7 @@ latch a layer for one action, so a stylus alone can reach every chord.
 
 | holding L | holding L + R |
 |---|---|
-| <img src="media/hw/chords-l.png" width="320" alt="the window layer's chord map on the touch screen: focus, resize, launcher, close, fullscreen, toggle split, layout and key sheet, each against its button" /> | <img src="media/hw/chords-ws.png" width="320" alt="the workspace layer's chord map, with the d-pad bound to switch and carry" /> |
+| <img src="media/hw/chords-l.png" width="320" alt="the window layer's chord map on the touch screen: focus, resize, menu, close, fullscreen, toggle split, layout and key sheet, each against its button" /> | <img src="media/hw/chords-ws.png" width="320" alt="the workspace layer's chord map, with the d-pad bound to switch and carry" /> |
 
 The map and the dispatcher read the same table (`src/chords.ts`), so a label
 cannot describe something the button does not do. `L + SELECT` puts the whole
@@ -118,7 +118,7 @@ with no network:
   `focus`, `ws`, `layout`, `wall`, `tz`, `keys`, `fetch`, `date`, `uptime`,
   `echo`, `clear`
 - **notes** — a scratch pad
-- **top** — fps large, a 32-second fps graph, uptime, frame, windows,
+- **top** — fps large, a 32-second fps graph, uptime, windows,
   workspace and host: Omarchy's btop, reading the frame loop
 
 The time lives in the bar and the chord table in the key sheet, so neither

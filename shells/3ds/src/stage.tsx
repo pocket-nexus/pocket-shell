@@ -5,17 +5,15 @@
 // during a transition.
 
 import { createMemo, For, Index, onCleanup, Show } from "solid-js";
-import { Image, Text, View, type NodeMirror } from "@pocketjs/framework/components";
-import { keySheet, LAYER_TITLE, type Layer } from "./chords.ts";
+import { Image, Text, View } from "@pocketjs/framework/components";
+import { HELD_LAYERS, keySheet, LAYER_TITLE } from "./chords.ts";
 import { formatBarClock } from "./shell.ts";
-import { Applet, type SheetLine } from "./applets.tsx";
-import type { ShellStore } from "./store.ts";
-import { BAR_H, BORDER, type LayoutKind, type Rect } from "./wm.ts";
+import { Applet } from "./applets.tsx";
+import { COUNTDOWN_ORIGIN, WINDOW_ORIGIN, type ShellStore } from "./store.ts";
+import { BAR_H, BORDER, sameRect, type LayoutKind, type Rect } from "./wm.ts";
 
 const HEADER_H = 14;
 const NO_RECT: Rect = { x: 0, y: 0, w: 0, h: 0 };
-const sameRect = (a: Rect, b: Rect): boolean => a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
-const HELD_LAYERS: readonly Layer[] = ["super", "shift", "ws"];
 
 /** The three cooked wallpapers. Only the current one is mounted. */
 function Wallpaper(props: { store: ShellStore }) {
@@ -41,15 +39,9 @@ function Win(props: { id: number; store: ShellStore }) {
   // borders and nothing else.
   const focused = createMemo(() => store.focusedId() === props.id);
   const rect = createMemo(() => store.placementOf(props.id)?.rect ?? NO_RECT, undefined, { equals: sameRect });
-  const title = createMemo(() => {
-    store.rev();
-    return store.windowOf(props.id)?.title ?? "";
-  });
-  // Transform origin at the top-left corner, so the store's translate lands
-  // the corner and its scale grows the window from there.
-  const geometry = () => ({ insetL: rect().x, insetT: rect().y, width: rect().w, height: rect().h, originX: -0.5, originY: -0.5 });
-  let node: NodeMirror | undefined;
-  onCleanup(() => node && store.unbindWindow(props.id, node));
+  // A window's title is fixed when it opens.
+  const title = win()?.title ?? "";
+  const geometry = () => ({ insetL: rect().x, insetT: rect().y, width: rect().w, height: rect().h, ...WINDOW_ORIGIN });
   const contentW = createMemo(() => Math.max(0, rect().w - 2 * BORDER));
   const contentH = createMemo(() => Math.max(0, rect().h - 2 * BORDER - HEADER_H));
   return (
@@ -57,17 +49,14 @@ function Win(props: { id: number; store: ShellStore }) {
       debugName="Win"
       class="absolute overflow-hidden"
       style={geometry()}
-      ref={(el) => {
-        node = el;
-        store.bindWindow(props.id, el);
-      }}
+      ref={(el) => onCleanup(store.bindWindow(props.id, el))}
     >
       {/* Omarchy's tokyo-night borders: the accent when focused, grey otherwise. */}
       <View class={focused() ? "absolute inset-0 bg-[#7aa2f7]" : "absolute inset-0 bg-[#595959aa]"} />
       <View class="absolute inset-[2] bg-[#1a1b26] overflow-hidden">
         <View class={focused() ? "absolute left-0 right-0 top-0 h-[14] bg-[#24283b]" : "absolute left-0 right-0 top-0 h-[14] bg-[#16161e]"}>
           <Text class={focused() ? "absolute left-[6] top-0 text-xs text-[#c0caf5]" : "absolute left-[6] top-0 text-xs text-[#565f89]"}>
-            {title()}
+            {title}
           </Text>
         </View>
         <View class="absolute left-0 right-0 top-[14] bottom-0 overflow-hidden">
@@ -123,7 +112,6 @@ function Bar(props: { store: ShellStore }) {
  *  the accent. The bar shrinks on the core's animation track. */
 function Toast(props: { store: ShellStore }) {
   const store = props.store;
-  onCleanup(() => store.bindToastBar(undefined));
   return (
     <View
       debugName="Toast"
@@ -133,8 +121,8 @@ function Toast(props: { store: ShellStore }) {
       <Text class="text-xs text-[#c0caf5]">{store.toast()}</Text>
       <View
         class="absolute left-0 right-0 bottom-0 h-[2] bg-[#7aa2f7]"
-        style={{ originX: -0.5 }}
-        ref={(el) => store.bindToastBar(el)}
+        style={COUNTDOWN_ORIGIN}
+        ref={(el) => onCleanup(store.bindToastBar(el))}
       />
     </View>
   );
@@ -148,20 +136,28 @@ const SHEET_COL_W = 184;
 const SHEET_KEYS_W = 80;
 const SHEET_ROW_H = 12;
 
-function SheetColumn(props: { store: ShellStore; x: number; groups: number[]; layout: () => LayoutKind }) {
-  const lines = () => {
-    const all = keySheet(props.layout());
-    const out: SheetLine[] = [];
-    for (const index of props.groups) {
-      const group = all[index];
-      out.push({ kind: "title", keys: group.title, what: "" });
-      for (const row of group.rows) out.push({ kind: "row", keys: row.keys, what: row.what });
-      out.push({ kind: "gap", keys: "", what: "" });
-    }
-    return out;
-  };
+interface SheetLine {
+  kind: "title" | "row" | "gap";
+  keys: string;
+  what: string;
+}
+
+/** The chosen groups of the chord table as one list of fixed-height lines. */
+function sheetLines(layout: LayoutKind, groups: readonly number[]): SheetLine[] {
+  const all = keySheet(layout);
+  const out: SheetLine[] = [];
+  for (const index of groups) {
+    const group = all[index];
+    out.push({ kind: "title", keys: group.title, what: "" });
+    for (const row of group.rows) out.push({ kind: "row", keys: row.keys, what: row.what });
+    out.push({ kind: "gap", keys: "", what: "" });
+  }
+  return out;
+}
+
+function SheetColumn(props: { x: number; groups: readonly number[]; layout: () => LayoutKind }) {
   return (
-    <Index each={lines()}>
+    <Index each={sheetLines(props.layout(), props.groups)}>
       {(line, i) => (
         <View
           class="absolute h-[12] overflow-hidden"
@@ -197,8 +193,8 @@ function KeySheet(props: { store: ShellStore }) {
       <Text class="absolute left-[44] top-[5] text-sm text-[#565f89]">…</Text>
       <Text class="absolute right-[10] top-[7] text-xs text-[#565f89]">B closes</Text>
       {/* keySheet() returns L, R, L+R, always — pair the long groups with the short. */}
-      <SheetColumn store={props.store} x={10} groups={[0, 3]} layout={layout} />
-      <SheetColumn store={props.store} x={196} groups={[1, 2]} layout={layout} />
+      <SheetColumn x={10} groups={[0, 3]} layout={layout} />
+      <SheetColumn x={196} groups={[1, 2]} layout={layout} />
     </View>
   );
 }
@@ -239,5 +235,3 @@ export function Stage(props: { store: ShellStore }) {
     </View>
   );
 }
-
-export { BAR_H };

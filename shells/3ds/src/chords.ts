@@ -37,7 +37,7 @@ export type ActionId =
   | "ws.next"
   | "carry.prev"
   | "carry.next"
-  | "launcher"
+  | "menu"
   | "close"
   | "fullscreen"
   | "maximize"
@@ -65,7 +65,7 @@ export const CHORDS: readonly Chord[] = [
   { layer: "super", button: BTN.RIGHT, action: "focus.right" },
   { layer: "super", button: BTN.UP, action: "focus.up" },
   { layer: "super", button: BTN.DOWN, action: "focus.down" },
-  { layer: "super", button: BTN.CIRCLE, action: "launcher" },
+  { layer: "super", button: BTN.CIRCLE, action: "menu" },
   { layer: "super", button: BTN.CROSS, action: "close" },
   { layer: "super", button: BTN.TRIANGLE, action: "fullscreen" },
   { layer: "super", button: BTN.SQUARE, action: "split" },
@@ -106,6 +106,9 @@ export function chordFor(layer: Layer, button: number): Chord | undefined {
   return CHORDS.find((chord) => chord.layer === layer && chord.button === button);
 }
 
+/** The layers a shoulder holds, in chord-map order. */
+export const HELD_LAYERS: readonly Exclude<Layer, "plain">[] = ["super", "shift", "ws"];
+
 export const LAYER_TITLE: Record<Layer, string> = {
   plain: "",
   super: "L  window",
@@ -140,7 +143,7 @@ export function labelFor(action: ActionId, layout: LayoutKind): string {
     case "carry.prev":
     case "carry.next":
       return "carry window";
-    case "launcher":
+    case "menu":
       return "menu";
     case "close":
       return "close window";

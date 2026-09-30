@@ -97,6 +97,12 @@ export interface Placement {
   hidden: boolean;
 }
 
+export const sameRect = (a: Rect, b: Rect): boolean => a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
+
+/** Everything a consumer of a placement reads: its window, box and visibility. */
+export const samePlacement = (a: Placement | undefined, b: Placement | undefined): boolean =>
+  a === b || (!!a && !!b && a.id === b.id && a.hidden === b.hidden && sameRect(a.rect, b.rect));
+
 /** A draggable split boundary under a touch point (dwindle). */
 export interface SplitHandle {
   split: Split;

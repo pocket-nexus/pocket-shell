@@ -6,15 +6,15 @@
 // the key sheet, so neither needs a window.
 //
 // An applet is given its content size and reads its own state object from
-// the store (one per window, mutated in place, revalidated through `rev`).
+// the store (one per window, mutated in place, revalidated through that
+// window's `appletRev`, so an edit re-renders one window).
 // Text rows are absolutely positioned: on this host a Text that is a direct
 // flex child of a short bar can paint nothing, so rows are offsets.
 
 import { Index, Show } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { getOps } from "@pocketjs/framework";
-import { keySheet } from "./chords.ts";
-import { formatClock, formatDate, formatUptime } from "./shell.ts";
+import { formatUptime } from "./shell.ts";
 import { FPS_SLOTS, type AppId, type ShellStore } from "./store.ts";
 
 const SLOT_INDEX = Array.from({ length: FPS_SLOTS }, (_, i) => i);
@@ -180,31 +180,13 @@ function Notes(props: AppletProps) {
   );
 }
 
-// ---- keys ---------------------------------------------------------------------
-
-export interface SheetLine {
-  kind: "title" | "row" | "gap";
-  keys: string;
-  what: string;
-}
-
-export function sheetLines(layout: "dwindle" | "scrolling"): SheetLine[] {
-  const out: SheetLine[] = [];
-  for (const group of keySheet(layout)) {
-    out.push({ kind: "title", keys: group.title, what: "" });
-    for (const row of group.rows) out.push({ kind: "row", keys: row.keys, what: row.what });
-    out.push({ kind: "gap", keys: "", what: "" });
-  }
-  return out;
-}
-
 // ---- top ----------------------------------------------------------------------
 
 const GRAPH_H = 24;
 
 function Top(props: AppletProps) {
   const store = props.store;
-  // Uptime is the only row that moves every second; the rest follow `rev`.
+  // fps, the graph and uptime move every second; these rows follow `rev`.
   const rows = () => {
     store.rev();
     const ops = getOps();

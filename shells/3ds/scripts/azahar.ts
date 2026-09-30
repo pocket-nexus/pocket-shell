@@ -98,7 +98,8 @@ function writeFixture(): void {
   // The shell's bar and clock read the RTC, so the emulated clock is pinned
   // to 2000-01-01 00:00:00 instead of this machine's. It still advances with
   // emulated time, so a minute-resolution display is stable for the first
-  // minute of a run.
+  // minute of a run. Azahar shifts that instant by its own time zone, which
+  // runTape pins to UTC.
   set("init_clock", "1");
   set("init_time", "946684800");
   writeFileSync(CONFIG, config);
@@ -147,10 +148,12 @@ export async function runTape(rom: string): Promise<string> {
 
   // LaunchServices, not a direct exec: Azahar only reaches the window server —
   // and only then advances the guest — when it is launched into the user's GUI
-  // session. `--env` carries the fixture $HOME across the hand-off, and `-n`
-  // refuses to reuse an instance that is already up.
+  // session. `--env` carries the fixture $HOME across the hand-off, plus TZ:
+  // Azahar converts the pinned clock with its time zone, so without it every
+  // top-screen golden depends on the recording machine's zone. `-n` refuses to
+  // reuse an instance that is already up.
   const launch = Bun.spawnSync(
-    ["open", "-n", "-a", APP, "--env", `HOME=${FIXTURE}`,
+    ["open", "-n", "-a", APP, "--env", `HOME=${FIXTURE}`, "--env", "TZ=UTC",
       "--stdout", CONSOLE_LOG, "--stderr", CONSOLE_LOG, "--args", rom],
     { stdout: "pipe", stderr: "pipe" },
   );

@@ -203,7 +203,7 @@ Five workspaces exist from boot; nothing is persisted across launches (the
 - **notes** — a scratch pad on the same keyboard; A newline, B backspace.
 - **top** — the frame loop the way Omarchy's btop reads a machine: fps
   large, a 32-second fps graph (green at 55 and up, yellow from 30, red
-  below), then uptime, frame, windows, workspace and host.
+  below), then uptime, windows, workspace and host.
 
 The time is in the bar (`Tuesday 22:38`, Omarchy's `dddd HH:mm`) and the
 chord table is the key sheet, so neither has a window of its own.
@@ -243,9 +243,9 @@ like the shell "turning into" another app.
 
 Two things came out of that. The host budget is now 384 KiB, which is what
 the sibling Pocket Term work already found it needed. And **a row here is an
-offset, not a node**: `Keys` and `Stats` render each column as its own flat
+offset, not a node**: `Term` and `Top` render each column as its own flat
 pass of absolutely-positioned `Text` under the applet root, three levels
-deep, instead of a wrapper view per row (`Top` keeps that shape). Prefer that shape for any new
+deep, instead of a wrapper view per row. Prefer that shape for any new
 applet, and remember an emulator with a generous stack will not warn you —
 `film/tape.ts` has an applets tape that opens every applet from the dock
 precisely because the first tape never did.
@@ -271,9 +271,10 @@ pocketsh states the offset the console could not**.
 ## Determinism
 
 The bar shows the RTC as `dddd HH:mm`. The recorder pins the emulator's clock
-(`init_clock = 1`, `init_time` = 2000-01-01 00:00:00), so a recorded run reads
-Saturday at the pinned hour (shifted by the recording host's zone) for its
-first minute — which is why the stills in `media/` all show one time and the
+(`init_clock = 1`, `init_time` = 2000-01-01 00:00:00) and launches Azahar with
+`TZ=UTC`, because Azahar converts `init_time` through the host's zone. A
+recorded run reads `Saturday 00:00` for its first minute on any machine —
+which is why the stills in `media/` all show one time and the
 photographs in `media/hw/` show the real time. The shell tape
 opens a second term rather than top, whose fps reading comes from the wall
 clock.
