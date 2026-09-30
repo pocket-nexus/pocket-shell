@@ -10,23 +10,13 @@ import {
   GAP_OUT,
   STAGE_H,
   STAGE_W,
+  sameRect,
+  samePlacement,
   WindowManager,
   type Rect,
 } from "../src/wm.ts";
 import { CHORDS, chordFor, keySheet, labelFor, layerOf } from "../src/chords.ts";
-import {
-  CLEAR,
-  civilFromEpoch,
-  complete,
-  detectOffsetMinutes,
-  formatClock,
-  formatDate,
-  formatOffset,
-  parseOffset,
-  formatUptime,
-  run,
-  type ShellApi,
-} from "../src/shell.ts";
+import { CLEAR, civilFromEpoch, complete, detectOffsetMinutes, formatClock, formatDate, formatOffset, parseOffset, formatUptime, run, type ShellApi, formatBarClock } from "../src/shell.ts";
 import { BTN } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
 
 type App = "term" | "clock" | "notes";
@@ -303,6 +293,21 @@ describe("workspaces", () => {
   });
 });
 
+describe("value equality", () => {
+  test("rects and placements compare by value, so a memo over them stops a no-op", () => {
+    const r: Rect = { x: 1, y: 2, w: 3, h: 4 };
+    expect(sameRect(r, { ...r })).toBe(true);
+    expect(sameRect(r, { ...r, w: 5 })).toBe(false);
+    const p = { id: 1, rect: r, hidden: false };
+    expect(samePlacement(p, { ...p, rect: { ...r } })).toBe(true);
+    expect(samePlacement(p, { ...p, rect: { ...r, x: 0 } })).toBe(false);
+    expect(samePlacement(p, { ...p, hidden: true })).toBe(false);
+    expect(samePlacement(p, { ...p, id: 2 })).toBe(false);
+    expect(samePlacement(p, undefined)).toBe(false);
+    expect(samePlacement(undefined, undefined)).toBe(true);
+  });
+});
+
 describe("chords", () => {
   test("layers come from the shoulders", () => {
     expect(layerOf(0)).toBe("plain");
@@ -384,9 +389,10 @@ describe("pocketsh", () => {
     expect(complete("la")).toEqual(["layout"]);
     expect(complete("")).toHaveLength(15);
     const at = (h: number, m: number) => civilFromEpoch(Date.UTC(2000, 0, 1, h, m, 0));
-    expect(formatClock(at(0, 5), false)).toBe("00:05");
-    expect(formatClock(at(13, 5), true)).toBe("01:05");
-    expect(formatClock(at(0, 5), true)).toBe("12:05");
+    expect(formatClock(at(0, 5))).toBe("00:05");
+    expect(formatClock(at(13, 5))).toBe("13:05");
+    // 2000-01-01 was a Saturday.
+    expect(formatBarClock(at(22, 38))).toBe("Saturday 22:38");
     expect(formatUptime(59)).toBe("0m 59s");
   });
 

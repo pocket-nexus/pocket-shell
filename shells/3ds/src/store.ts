@@ -5,33 +5,48 @@
 // windows render. Everything the two screens show reads from here.
 //
 // Reactivity is coarse on purpose. `rev` bumps after every structural change
-// (open, close, focus, layout) and `frame` bumps only on frames where
-// something is still moving, so an idle shell re-evaluates nothing.
+// (open, close, focus, layout), and nothing re-evaluates per frame: window
+// transitions run on the core's animation tracks. A window's node sits at its
+// placement, and a translate/scale carries it from where it was last drawn
+// (FLIP), so a transition costs JS once, when it starts, and never relayouts.
 
 import { createMemo, createSignal } from "solid-js";
 import { BTN } from "@pocketjs/framework/input";
 import { analogX, analogY, onFrame } from "@pocketjs/framework/lifecycle";
+import { animate, jump } from "@pocketjs/framework/animation";
+import { after, TICKS_PER_SECOND, ticksPerFrame, virtualFrame } from "@pocketjs/framework/clock";
+import type { NodeMirror } from "@pocketjs/framework/components";
 import { getOps } from "@pocketjs/framework";
 import { chordsOf, keySheet, layerOf, type ActionId, type Layer } from "./chords.ts";
 import { CLEAR, civilFromEpoch, complete, detectOffsetMinutes, run as runShell, type CivilTime, type ShellApi } from "./shell.ts";
-import { WindowManager, WORKSPACES, type Placement, type Rect } from "./wm.ts";
+import { samePlacement, sameRect, WindowManager, WORKSPACES, type Placement, type Rect } from "./wm.ts";
+import type { IconName } from "./gen-icons.ts";
 
-export type AppId = "term" | "clock" | "notes" | "keys" | "stats" | "about";
-export const APPS: readonly AppId[] = ["term", "clock", "notes", "keys", "stats", "about"];
-/** Short enough for the launcher's 96 px card. */
-export const APP_BLURB: Record<AppId, string> = {
-  term: "pocketsh",
-  clock: "time and date",
-  notes: "scratch pad",
-  keys: "chord table",
-  stats: "frames, host",
-  about: "what this is",
-};
+export type AppId = "term" | "notes" | "top";
+export const APPS: readonly AppId[] = ["term", "notes", "top"];
+
+/** The menu (L + A, or the dock's first cell): Omarchy's SUPER + SPACE list,
+ *  one row per app and then the shell's own settings. */
+export type MenuItem = { icon: IconName; label: string; blurb: string } & (
+  | { kind: "app"; app: AppId }
+  | { kind: "action"; action: "keys" | "wallpaper" | "bar" | "about" }
+);
+export const MENU: readonly MenuItem[] = [
+  { kind: "app", app: "term", icon: "term", label: "Terminal", blurb: "pocketsh" },
+  { kind: "app", app: "notes", icon: "notes", label: "Notes", blurb: "scratch pad" },
+  { kind: "app", app: "top", icon: "top", label: "Top", blurb: "frames, host" },
+  { kind: "action", action: "keys", icon: "keys", label: "Keys", blurb: "every chord" },
+  { kind: "action", action: "wallpaper", icon: "wall", label: "Wallpaper", blurb: "next background" },
+  { kind: "action", action: "bar", icon: "bar", label: "Bar", blurb: "show or hide" },
+  { kind: "action", action: "about", icon: "menu", label: "About", blurb: "Pocket Shell" },
+];
+const ABOUT = "Pocket Shell · Omarchy's chords on a 3DS · PocketJS";
 
 export const WALLPAPERS = ["road", "lake", "swirl"] as const;
 export type Wallpaper = (typeof WALLPAPERS)[number];
 
 export const isTextApp = (app: AppId | undefined): boolean => app === "term" || app === "notes";
+export const isApp = (value: string): value is AppId => (APPS as readonly string[]).includes(value);
 
 export interface TermState {
   kind: "term";
@@ -48,27 +63,24 @@ export interface NotesState {
   text: string;
   scroll: number;
 }
-export interface ClockState {
-  kind: "clock";
-  hour12: boolean;
+export interface TopState {
+  kind: "top";
 }
-export interface KeysState {
-  kind: "keys";
-  scroll: number;
-}
-export interface PlainState {
-  kind: "stats" | "about";
-}
-export type AppletState = TermState | NotesState | ClockState | KeysState | PlainState;
+export type AppletState = TermState | NotesState | TopState;
 
-export interface Anim {
-  cur: Rect;
-  alpha: number;
-}
-
+/** A closed window's outline, fading where the window was last drawn. */
 export interface Ghost {
   rect: Rect;
-  alpha: number;
+}
+
+/** One window's transition: where it was drawn when the transition began,
+ *  where it is heading, and the virtual frame it began on. */
+interface Motion {
+  from: Rect;
+  fromAlpha: number;
+  to: Rect;
+  toAlpha: number;
+  start: number;
 }
 
 export interface Drag {
@@ -86,11 +98,18 @@ export type KbLayer = "lower" | "upper" | "sym";
 
 const PROMPT = "❯ ";
 const MAX_LINES = 200;
-const TOAST_FRAMES = 100;
-const EASE = 0.35;
+/** Omarchy's low-urgency notification lasts 5 s; a status line here reads in less. */
+const TOAST_MS = 1800;
 const SLIDE_PX = 48;
-const MAX_LAUNCHER_INDEX = APPS.length - 1;
-const LAUNCHER_COLS = 3;
+/** Window transitions: the core's "out" curve over MOTION_MS. */
+const MOTION_MS = 200;
+/** How many core ticks a track runs for: the core's own ms-to-ticks rounding. */
+const MOTION_TICKS = Math.max(1, Math.round((MOTION_MS * TICKS_PER_SECOND) / 1000));
+const GHOST_MS = 170;
+const GHOST_SCALE = 0.7;
+const CLOSE_BAR_MS = 100;
+const MAX_MENU_INDEX = MENU.length - 1;
+export const FPS_SLOTS = 32;
 const DEAD_ZONE = 0.25;
 const RESIZE_PX = 3;
 const SCROLL_PX = 6;
@@ -108,20 +127,49 @@ function initialState(app: AppId): AppletState {
       };
     case "notes":
       return { kind: "notes", text: "", scroll: 0 };
-    case "clock":
-      return { kind: "clock", hour12: false };
-    case "keys":
-      return { kind: "keys", scroll: 0 };
-    case "stats":
-    case "about":
-      return { kind: app };
+    case "top":
+      return { kind: "top" };
   }
 }
 
-const lerp = (a: number, b: number): number => {
-  const next = a + (b - a) * EASE;
-  return Math.abs(b - next) < 0.5 ? b : next;
-};
+/** The core's EaseOut, so a transition interrupted mid-flight restarts from
+ *  exactly where it was drawn. */
+const easeOut = (t: number): number => 1 - (1 - t) * (1 - t) * (1 - t);
+const mix = (a: number, b: number, e: number): number => a + (b - a) * e;
+const sameList = <T,>(a: readonly T[], b: readonly T[]): boolean => a.length === b.length && a.every((v, i) => v === b[i]);
+
+/** Where `m` has the window drawn on virtual frame `now`: after `n` core
+ *  ticks a track sits at ease(n / MOTION_TICKS). */
+function drawnAt(m: Motion, now: number): { rect: Rect; alpha: number } {
+  const e = easeOut(Math.min(1, Math.max(0, ((now - m.start) * ticksPerFrame()) / MOTION_TICKS)));
+  return {
+    rect: { x: mix(m.from.x, m.to.x, e), y: mix(m.from.y, m.to.y, e), w: mix(m.from.w, m.to.w, e), h: mix(m.from.h, m.to.h, e) },
+    alpha: mix(m.fromAlpha, m.toAlpha, e),
+  };
+}
+
+/** A stage window's transform origin: its top-left corner, so `play`'s
+ *  translate lands the corner and its scale grows the window from there. */
+export const WINDOW_ORIGIN = { originX: -0.5, originY: -0.5 } as const;
+/** The notification countdown shrinks toward its left end. */
+export const COUNTDOWN_ORIGIN = { originX: -0.5 } as const;
+
+/** Put `node` (laid out at `m.to`, styled with WINDOW_ORIGIN) where `m`
+ *  starts, then let the core carry it home. */
+function play(node: NodeMirror, m: Motion): void {
+  const { from, to } = m;
+  jump(node, "translateX", from.x - to.x);
+  jump(node, "translateY", from.y - to.y);
+  jump(node, "scaleX", to.w > 0 ? from.w / to.w : 1);
+  jump(node, "scaleY", to.h > 0 ? from.h / to.h : 1);
+  jump(node, "opacity", m.fromAlpha);
+  const opts = { dur: MOTION_MS, easing: "out" } as const;
+  animate(node, "translateX", 0, opts);
+  animate(node, "translateY", 0, opts);
+  animate(node, "scaleX", 1, opts);
+  animate(node, "scaleY", 1, opts);
+  animate(node, "opacity", m.toAlpha, opts);
+}
 
 const shrink = (r: Rect, by: number): Rect => ({
   x: r.x + r.w * by * 0.5,
@@ -135,8 +183,17 @@ export type ShellStore = ReturnType<typeof createShellStore>;
 export function createShellStore() {
   const wm = new WindowManager<AppId>();
   const applets = new Map<number, AppletState>();
-  const anims = new Map<number, Anim>();
-  let ghosts: Ghost[] = [];
+  const motions = new Map<number, Motion>();
+  const winNodes = new Map<number, NodeMirror>();
+  /** One revision per window's applet: an edit re-renders that window alone,
+   *  not the whole shell. Created with the window, deleted with it. */
+  const appletRevs = new Map<number, ReturnType<typeof createSignal<number>>>();
+  let closeBarNode: NodeMirror | undefined;
+  let closeBarHeight = 0;
+  let toastBarNode: NodeMirror | undefined;
+  // Pending timers, cancelled when a newer event supersedes them.
+  let closeBarTimer: (() => void) | undefined;
+  let toastTimer: (() => void) | undefined;
 
   // The RTC's epoch is trustworthy; QuickJS's breakdown of it on this device
   // is not (see civilFromEpoch). Read the zone once, then do the arithmetic.
@@ -151,27 +208,29 @@ export function createShellStore() {
 
   const [offsetMinutes, setOffsetMinutes] = createSignal(detectedOffset);
   const [rev, setRev] = createSignal(0);
-  const bump = () => setRev((r) => r + 1);
-  const [frame, setFrame] = createSignal(0);
+  const [ghosts, setGhosts] = createSignal<readonly Ghost[]>([]);
   const [epochSecond, setEpochSecond] = createSignal(0);
   const [layer, setLayer] = createSignal<Layer>("plain");
   const [latchL, setLatchL] = createSignal(false);
   const [latchR, setLatchR] = createSignal(false);
-  const [launcherOpen, setLauncherOpen] = createSignal(false);
-  const [launcherIndex, setLauncherIndex] = createSignal(0);
+  const [menuOpen, setMenuOpen] = createSignal(false);
+  const [menuIndex, setMenuIndex] = createSignal(0);
   const [keysOpen, setKeysOpen] = createSignal(false);
   const [kbOpen, setKbOpen] = createSignal(false);
   const [kbLayer, setKbLayer] = createSignal<KbLayer>("lower");
   const [wallpaper, setWallpaper] = createSignal<Wallpaper>("road");
   const [toast, setToast] = createSignal("");
   const [drag, setDrag] = createSignal<Drag | null>(null);
-  const [closing, setClosing] = createSignal<{ id: number; over: boolean } | null>(null);
-  const [closeAnim, setCloseAnim] = createSignal(0);
+  const [closing, setClosingState] = createSignal<{ id: number; over: boolean } | null>(null);
+  /** The close bar stays mounted while it slides out after `closing` clears. */
+  const [closeBarShown, setCloseBarShown] = createSignal(false);
   const [fps, setFps] = createSignal(0);
+  // top's graph sweeps: each second overwrites one slot and moves the head,
+  // so one bar redraws instead of all of them shifting.
+  const fpsSlots = Array.from({ length: FPS_SLOTS }, () => createSignal(0));
+  const [fpsHead, setFpsHead] = createSignal(0);
 
   let frames = 0;
-  let toastFrames = 0;
-  let slide = 0;
   let prevButtons = 0;
   let lastSecond = -1;
   let fpsFrames = 0;
@@ -193,14 +252,24 @@ export function createShellStore() {
     undefined,
     { equals: false },
   );
-  const placements = createMemo<Placement[]>(() => {
-    rev();
-    return wm.placements();
-  });
-  const order = createMemo(() => {
-    rev();
-    return wm.order();
-  });
+  // Structural changes bump `rev`; these memos compare by value, so a bump
+  // that moved nothing stops here instead of re-running every window.
+  const placements = createMemo<Placement[]>(
+    () => {
+      rev();
+      return wm.placements();
+    },
+    [],
+    { equals: (a, b) => a.length === b.length && a.every((p, i) => samePlacement(p, b[i])) },
+  );
+  const order = createMemo(
+    () => {
+      rev();
+      return wm.order();
+    },
+    undefined,
+    { equals: sameList },
+  );
   const focusedId = createMemo(() => {
     rev();
     return wm.workspace().focus;
@@ -209,10 +278,25 @@ export function createShellStore() {
     const id = focusedId();
     return id === null ? undefined : wm.windows.get(id)?.app;
   });
-  const counts = createMemo(() => {
-    rev();
-    return wm.workspaces.map((ws) => wm.count(ws));
-  });
+  const counts = createMemo(
+    () => {
+      rev();
+      return wm.workspaces.map((ws) => wm.count(ws));
+    },
+    undefined,
+    { equals: sameList },
+  );
+  /** Apps with a window anywhere, for the dock's marks. */
+  const openApps = createMemo(
+    () => {
+      rev();
+      const apps: AppId[] = [];
+      for (const w of wm.windows.values()) if (!apps.includes(w.app)) apps.push(w.app);
+      return apps.sort();
+    },
+    undefined,
+    { equals: sameList },
+  );
   const layoutKind = createMemo(() => workspace().layout);
   const barVisible = createMemo(() => {
     rev();
@@ -222,55 +306,189 @@ export function createShellStore() {
   const now = createMemo<CivilTime>(() => civilFromEpoch(epochSecond() * 1000, offsetMinutes()));
 
   const placementOf = (id: number): Placement | undefined => placements().find((p) => p.id === id);
+
+  const appletRev = (id: number): number => appletRevs.get(id)?.[0]() ?? 0;
+  const touch = (id: number) => appletRevs.get(id)?.[1]((v) => v + 1);
+  const addApplet = (id: number, app: AppId) => {
+    applets.set(id, initialState(app));
+    appletRevs.set(id, createSignal(0));
+  };
   const windowOf = (id: number) => wm.windows.get(id);
   const stateOf = (id: number): AppletState | undefined => applets.get(id);
-  /** Animated geometry for the stage; snaps to the target when unknown. */
-  const animOf = (id: number): Anim => {
-    frame();
-    const anim = anims.get(id);
-    if (anim) return anim;
-    const target = wm.placement(id)?.rect ?? { x: 0, y: 0, w: 0, h: 0 };
-    return { cur: target, alpha: 1 };
+  /** Re-read once a second, with the clock. */
+  const uptimeSeconds = (): number => {
+    epochSecond();
+    return frames / 60;
   };
-  const ghostList = (): Ghost[] => {
-    frame();
-    return ghosts;
+
+  // ---- window transitions ------------------------------------------------------------
+
+  /** After a structural change, send every window whose placement moved from
+   *  where it is drawn now to where it belongs. */
+  const retarget = () => {
+    const now = virtualFrame();
+    const live = new Set<number>();
+    for (const p of placements()) {
+      live.add(p.id);
+      const toAlpha = p.hidden ? 0 : 1;
+      const m = motions.get(p.id);
+      if (m && sameRect(m.to, p.rect) && m.toAlpha === toAlpha) continue;
+      const drawn = m ? drawnAt(m, now) : { rect: p.rect, alpha: toAlpha };
+      startMotion(p.id, { from: drawn.rect, fromAlpha: drawn.alpha, to: p.rect, toAlpha, start: now });
+    }
+    for (const id of [...motions.keys()]) if (!live.has(id)) motions.delete(id);
   };
-  const slideOffset = (): number => {
-    frame();
-    return slide;
+
+  const bump = () => {
+    setRev((r) => r + 1);
+    retarget();
   };
-  const uptimeSeconds = (): number => frames / 60;
-  const frameCount = (): number => {
-    frame();
-    return frames;
+
+  /** Record `m` for window `id` and play it if the window is on stage. A
+   *  window that is not mounted yet plays it from bindWindow. */
+  const startMotion = (id: number, m: Motion) => {
+    motions.set(id, m);
+    const node = winNodes.get(id);
+    if (node) play(node, m);
+  };
+
+  /** Start `id` from `from`: a window opening, or arriving with a workspace. */
+  const enter = (id: number, from: Rect, fromAlpha: number) => {
+    const p = wm.placement(id);
+    if (!p) return;
+    startMotion(id, { from, fromAlpha, to: p.rect, toAlpha: p.hidden ? 0 : 1, start: virtualFrame() });
+  };
+
+  /** A stage window registers its node for as long as it is mounted; one that
+   *  mounts mid-transition (every new window does) plays from where the
+   *  transition has it now. Returns the unregister. */
+  const bindWindow = (id: number, node: NodeMirror): (() => void) => {
+    winNodes.set(id, node);
+    const m = motions.get(id);
+    if (m) {
+      const now = virtualFrame();
+      const drawn = drawnAt(m, now);
+      startMotion(id, { ...m, from: drawn.rect, fromAlpha: drawn.alpha, start: now });
+    }
+    return () => {
+      if (winNodes.get(id) === node) winNodes.delete(id);
+    };
+  };
+
+  /** A closed window's outline pops out where it was drawn (Omarchy's
+   *  windowsOut: short, linear, popin). */
+  const bindGhost = (node: NodeMirror) => {
+    const opts = { dur: GHOST_MS, easing: "linear" } as const;
+    animate(node, "scaleX", GHOST_SCALE, opts);
+    animate(node, "scaleY", GHOST_SCALE, opts);
+    animate(node, "opacity", 0, opts);
+  };
+
+  /** The close bar rises while a window is held and sinks when it is let go. */
+  const setClosing = (next: { id: number; over: boolean } | null) => {
+    const was = closing();
+    setClosingState(next);
+    if (next && !was) {
+      closeBarTimer?.();
+      closeBarTimer = undefined;
+      // Still mounted and sinking: rise again. Otherwise it mounts and
+      // bindCloseBar raises it.
+      if (closeBarShown() && closeBarNode) raiseCloseBar(closeBarNode);
+      else setCloseBarShown(true);
+    } else if (!next && was) {
+      if (!closeBarNode) {
+        setCloseBarShown(false);
+        return;
+      }
+      const opts = { dur: CLOSE_BAR_MS, easing: "in" } as const;
+      animate(closeBarNode, "translateY", closeBarHeight, opts);
+      animate(closeBarNode, "opacity", 0, opts);
+      closeBarTimer?.();
+      closeBarTimer = after(CLOSE_BAR_MS / 1000, () => {
+        closeBarTimer = undefined;
+        setCloseBarShown(false);
+      });
+    }
+  };
+  const raiseCloseBar = (node: NodeMirror) => {
+    jump(node, "translateY", closeBarHeight);
+    jump(node, "opacity", 0);
+    const opts = { dur: CLOSE_BAR_MS, easing: "out" } as const;
+    animate(node, "translateY", 0, opts);
+    animate(node, "opacity", 1, opts);
+  };
+  /** The deck's close bar, while mounted, `height` px tall. Returns the unregister. */
+  const bindCloseBar = (node: NodeMirror, height: number): (() => void) => {
+    closeBarNode = node;
+    closeBarHeight = height;
+    if (closing()) raiseCloseBar(node);
+    return () => {
+      if (closeBarNode === node) closeBarNode = undefined;
+    };
   };
 
   // ---- mutations -----------------------------------------------------------------
 
+  /** A notification card with a countdown bar (Omarchy's), gone after TOAST_MS. */
   const say = (message: string) => {
+    toastTimer?.();
+    toastTimer = undefined;
     setToast(message);
-    toastFrames = TOAST_FRAMES;
+    if (!message) return;
+    if (toastBarNode) runCountdown(toastBarNode);
+    toastTimer = after(TOAST_MS / 1000, () => {
+      toastTimer = undefined;
+      setToast("");
+    });
+  };
+  const runCountdown = (node: NodeMirror) => {
+    jump(node, "scaleX", 1);
+    animate(node, "scaleX", 0, { dur: TOAST_MS, easing: "linear" });
+  };
+  /** The card's countdown bar (styled with COUNTDOWN_ORIGIN), while mounted.
+   *  Returns the unregister. */
+  const bindToastBar = (node: NodeMirror): (() => void) => {
+    toastBarNode = node;
+    if (toast()) runCountdown(node);
+    return () => {
+      if (toastBarNode === node) toastBarNode = undefined;
+    };
+  };
+
+  const runMenu = (index: number) => {
+    const item = MENU[index];
+    setMenuOpen(false);
+    if (!item) return;
+    if (item.kind === "app") open(item.app);
+    else if (item.action === "about") say(ABOUT);
+    else run(item.action);
   };
 
   const open = (app: AppId, wsId: number = wm.active): number => {
     const id = wm.open(app, wsId);
-    applets.set(id, initialState(app));
+    addApplet(id, app);
+    // Omarchy's windowsIn: pop in from 87% while fading up.
     const target = wm.placement(id)?.rect;
-    if (target) anims.set(id, { cur: shrink(target, 0.12), alpha: 0 });
+    if (target) enter(id, shrink(target, 0.13), 0);
     bump();
     return id;
   };
 
   const close = (id: number | null = wm.workspace().focus): boolean => {
     if (id === null) return false;
-    const anim = anims.get(id);
+    const m = motions.get(id);
     const win = wm.windows.get(id);
     const onStage = win?.ws === wm.active;
+    const drawn = m ? drawnAt(m, virtualFrame()) : undefined;
     if (!wm.close(id)) return false;
-    if (anim && onStage) ghosts = [...ghosts, { rect: anim.cur, alpha: anim.alpha }];
-    anims.delete(id);
+    if (drawn && drawn.alpha > 0 && onStage) {
+      const ghost: Ghost = { rect: drawn.rect };
+      setGhosts([...ghosts(), ghost]);
+      after(GHOST_MS / 1000, () => setGhosts(ghosts().filter((g) => g !== ghost)));
+    }
+    motions.delete(id);
     applets.delete(id);
+    appletRevs.delete(id);
     bump();
     return true;
   };
@@ -282,18 +500,17 @@ export function createShellStore() {
 
   const switchWs = (id: number) => {
     if (id < 1 || id > WORKSPACES || id === wm.active) return;
-    slide = (id > wm.active ? 1 : -1) * SLIDE_PX;
+    const slide = (id > wm.active ? 1 : -1) * SLIDE_PX;
     wm.switchWs(id);
-    snapWorkspace();
+    arrive(slide);
     say(`workspace ${id}`);
     bump();
   };
 
-  /** Windows arriving on stage start from their target, offset by the slide. */
-  const snapWorkspace = () => {
-    for (const p of wm.placements()) {
-      anims.set(p.id, { cur: { ...p.rect, x: p.rect.x + slide }, alpha: p.hidden ? 0 : 1 });
-    }
+  /** The arriving workspace's windows slide in from `slide` px beside their
+   *  places, so the direction of the switch stays readable. */
+  const arrive = (slide: number) => {
+    for (const p of wm.placements()) enter(p.id, { ...p.rect, x: p.rect.x + slide }, p.hidden ? 0 : 1);
   };
 
   const toggleLayout = () => {
@@ -346,16 +563,16 @@ export function createShellStore() {
         const delta = action === "carry.next" ? 1 : -1;
         const from = wm.active;
         if (wm.carryWs(delta)) {
-          slide = delta * SLIDE_PX;
-          snapWorkspace();
+          arrive(delta * SLIDE_PX);
           say(`carried to workspace ${wm.active}`);
         } else {
           say(wm.workspace().focus === null ? "nothing to carry" : `workspace ${from} is the ${delta < 0 ? "first" : "last"}`);
         }
         break;
       }
-      case "launcher":
-        setLauncherOpen(!launcherOpen());
+      case "menu":
+        if (!menuOpen()) setMenuIndex(0);
+        setMenuOpen(!menuOpen());
         setKeysOpen(false);
         return;
       case "close":
@@ -382,7 +599,7 @@ export function createShellStore() {
         return;
       case "keys":
         setKeysOpen(!keysOpen());
-        setLauncherOpen(false);
+        setMenuOpen(false);
         return;
       case "another": {
         const app = focusedApp();
@@ -394,9 +611,9 @@ export function createShellStore() {
         const id = wm.reopen();
         if (id === null) say("nothing to reopen");
         else {
-          applets.set(id, initialState(wm.windows.get(id)!.app));
+          addApplet(id, wm.windows.get(id)!.app);
           const target = wm.placement(id)?.rect;
-          if (target) anims.set(id, { cur: shrink(target, 0.12), alpha: 0 });
+          if (target) enter(id, shrink(target, 0.13), 0);
         }
         break;
       }
@@ -412,10 +629,12 @@ export function createShellStore() {
 
   // ---- text input ----------------------------------------------------------------
 
-  const focusedText = (): TermState | NotesState | null => {
+  /** The focused term or notes window. The id is taken before any command
+   *  runs, so a command that moves focus still re-renders the window that ran it. */
+  const focusedText = (): { id: number; state: TermState | NotesState } | null => {
     const id = wm.workspace().focus;
     const state = id === null ? undefined : applets.get(id);
-    return state && (state.kind === "term" || state.kind === "notes") ? state : null;
+    return id !== null && state && (state.kind === "term" || state.kind === "notes") ? { id, state } : null;
   };
 
   const shellApi: ShellApi = {
@@ -484,16 +703,18 @@ export function createShellStore() {
 
   /** A character from the deck keyboard, into whichever text applet has focus. */
   const typeChar = (ch: string) => {
-    const state = focusedText();
-    if (!state) return;
+    const focused = focusedText();
+    if (!focused) return;
+    const { id, state } = focused;
     if (state.kind === "term") state.input += ch;
     else state.text += ch;
-    bump();
+    touch(id);
   };
 
   const typeKey = (key: "enter" | "backspace" | "space" | "tab") => {
-    const state = focusedText();
-    if (!state) return;
+    const focused = focusedText();
+    if (!focused) return;
+    const { id, state } = focused;
     if (state.kind === "term") {
       if (key === "enter") termSubmit(state);
       else if (key === "backspace") state.input = state.input.slice(0, -1);
@@ -505,24 +726,24 @@ export function createShellStore() {
       else if (key === "space") state.text += " ";
       else state.text += "  ";
     }
-    bump();
+    // A submitted command that changed the window manager bumped on its own.
+    touch(id);
   };
 
   // ---- plain-layer buttons: the focused applet's ---------------------------------
 
   const plainInput = (pressed: number) => {
-    if (launcherOpen()) {
-      let index = launcherIndex();
-      if (pressed & BTN.LEFT) index -= 1;
-      if (pressed & BTN.RIGHT) index += 1;
-      if (pressed & BTN.UP) index -= LAUNCHER_COLS;
-      if (pressed & BTN.DOWN) index += LAUNCHER_COLS;
-      setLauncherIndex(Math.max(0, Math.min(MAX_LAUNCHER_INDEX, index)));
-      if (pressed & BTN.CIRCLE) {
-        open(APPS[launcherIndex()]);
-        setLauncherOpen(false);
-      }
-      if (pressed & BTN.CROSS) setLauncherOpen(false);
+    // Nothing went down this frame, so nothing below can change: returning
+    // here keeps an idle frame from bumping `rev` and re-running every
+    // window's effects while a term or notes window has focus.
+    if (pressed === 0) return;
+    if (menuOpen()) {
+      let index = menuIndex();
+      if (pressed & BTN.UP) index -= 1;
+      if (pressed & BTN.DOWN) index += 1;
+      setMenuIndex(Math.max(0, Math.min(MAX_MENU_INDEX, index)));
+      if (pressed & BTN.CIRCLE) runMenu(menuIndex());
+      if (pressed & BTN.CROSS) setMenuOpen(false);
       return;
     }
     if (keysOpen()) {
@@ -534,7 +755,8 @@ export function createShellStore() {
       return;
     }
     const id = wm.workspace().focus;
-    const state = id === null ? undefined : applets.get(id);
+    if (id === null) return;
+    const state = applets.get(id);
     if (!state) return;
     switch (state.kind) {
       case "term":
@@ -554,26 +776,20 @@ export function createShellStore() {
         if (pressed & BTN.CROSS) state.text = state.text.slice(0, -1);
         if (pressed & BTN.SQUARE) state.text += " ";
         break;
-      case "clock":
-        if (pressed & BTN.CIRCLE) state.hour12 = !state.hour12;
-        break;
-      case "keys":
-        if (pressed & BTN.UP) state.scroll = Math.max(0, state.scroll - 1);
-        if (pressed & BTN.DOWN) state.scroll += 1;
-        break;
       default:
         return;
     }
-    bump();
+    touch(id);
   };
 
   const scrollApplet = (lines: number) => {
     const id = wm.workspace().focus;
-    const state = id === null ? undefined : applets.get(id);
+    if (id === null) return;
+    const state = applets.get(id);
     if (!state) return;
-    if (state.kind === "term" || state.kind === "notes" || state.kind === "keys") {
+    if (state.kind === "term" || state.kind === "notes") {
       state.scroll = Math.max(0, state.scroll + lines);
-      bump();
+      touch(id);
     }
   };
 
@@ -590,7 +806,13 @@ export function createShellStore() {
       lastSecond = nowSecond;
       setEpochSecond(nowSecond);
       const stamp = Date.now();
-      if (fpsStamp > 0) setFps(Math.round((fpsFrames * 1000) / Math.max(1, stamp - fpsStamp)));
+      if (fpsStamp > 0) {
+        const sample = Math.round((fpsFrames * 1000) / Math.max(1, stamp - fpsStamp));
+        setFps(sample);
+        const head = fpsHead();
+        fpsSlots[head][1](sample);
+        setFpsHead((head + 1) % FPS_SLOTS);
+      }
       fpsStamp = stamp;
       fpsFrames = 0;
     }
@@ -644,86 +866,42 @@ export function createShellStore() {
       scrollCarry = 0;
     }
 
-    // Geometry animation for the stage.
-    let moving = false;
-    for (const p of wm.placements()) {
-      let anim = anims.get(p.id);
-      if (!anim) {
-        anim = { cur: { ...p.rect }, alpha: p.hidden ? 0 : 1 };
-        anims.set(p.id, anim);
-      }
-      const targetAlpha = p.hidden ? 0 : 1;
-      const cur = anim.cur;
-      const next = {
-        x: lerp(cur.x, p.rect.x),
-        y: lerp(cur.y, p.rect.y),
-        w: lerp(cur.w, p.rect.w),
-        h: lerp(cur.h, p.rect.h),
-      };
-      const alpha = Math.abs(targetAlpha - anim.alpha) < 0.05 ? targetAlpha : anim.alpha + (targetAlpha - anim.alpha) * EASE;
-      if (next.x !== cur.x || next.y !== cur.y || next.w !== cur.w || next.h !== cur.h || alpha !== anim.alpha) {
-        anim.cur = next;
-        anim.alpha = alpha;
-        moving = true;
-      }
-    }
-    if (ghosts.length > 0) {
-      ghosts = ghosts
-        .map((g) => ({ rect: shrink(g.rect, 0.04), alpha: g.alpha - 0.1 }))
-        .filter((g) => g.alpha > 0);
-      moving = true;
-    }
-    if (slide !== 0) {
-      slide *= 0.7;
-      if (Math.abs(slide) < 0.5) slide = 0;
-      moving = true;
-    }
-    if (toastFrames > 0) {
-      toastFrames--;
-      if (toastFrames === 0) setToast("");
-    }
-    const closeTarget = closing() ? 1 : 0;
-    if (closeAnim() !== closeTarget) {
-      const step = 1 / 6;
-      setCloseAnim(closeTarget > closeAnim() ? Math.min(1, closeAnim() + step) : Math.max(0, closeAnim() - step));
-    }
-    if (moving) setFrame(frames);
   });
 
   return {
     wm,
     rev,
-    frame,
-    frameCount,
-    epochSecond,
     now,
     fps,
+    fpsSlot: (i: number) => fpsSlots[i][0](),
+    fpsHead,
     uptimeSeconds,
     layer,
     latchL,
     setLatchL,
     latchR,
     setLatchR,
-    launcherOpen,
-    setLauncherOpen,
-    launcherIndex,
-    setLauncherIndex,
+    menuOpen,
+    setMenuOpen,
+    menuIndex,
+    setMenuIndex,
     keysOpen,
     setKeysOpen,
-    kbOpen,
     setKbOpen,
     kbVisible,
     kbLayer,
     setKbLayer,
     wallpaper,
-    offsetMinutes,
     toast,
     say,
+    bindToastBar,
+    runMenu,
     drag,
     setDrag,
     closing,
     setClosing,
-    closeAnim,
+    closeBarShown,
+    bindCloseBar,
     active,
     workspace,
     layoutKind,
@@ -734,11 +912,13 @@ export function createShellStore() {
     focusedId,
     focusedApp,
     counts,
+    openApps,
+    appletRev,
     windowOf,
     stateOf,
-    animOf,
-    ghostList,
-    slideOffset,
+    bindWindow,
+    ghosts,
+    bindGhost,
     open,
     close,
     focusWin,

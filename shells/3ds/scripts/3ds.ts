@@ -20,6 +20,10 @@ import { basename, resolve } from "node:path";
 import { resolve3dsBuildPlan } from "../../../vendor/pocketjs/tools/3ds-profile.ts";
 import { build3ds } from "../../../vendor/pocketjs/tools/3ds.ts";
 import { DIST_3DS, PLAN_DIR, PROJECT_ROOT, VENDOR } from "./paths.ts";
+import { writeIcons } from "../src/gen-icons.ts";
+
+// The deck's icons are generated, never committed (docs/ASSETS.md).
+writeIcons();
 
 const manifest = JSON.parse(readFileSync(resolve(PROJECT_ROOT, "pocket.json"), "utf8"));
 const plan = resolve3dsBuildPlan(manifest);

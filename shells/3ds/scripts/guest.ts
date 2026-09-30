@@ -12,6 +12,10 @@ import { $ } from "bun";
 import { resolve3dsBuildPlan } from "../../../vendor/pocketjs/tools/3ds-profile.ts";
 import { passThrough } from "../../../scripts/run.ts";
 import { PLAN_DIR, PROJECT_ROOT, VENDOR } from "./paths.ts";
+import { writeIcons } from "../src/gen-icons.ts";
+
+// The deck's icons are generated, never committed (docs/ASSETS.md).
+writeIcons();
 
 const manifest = JSON.parse(readFileSync(resolve(PROJECT_ROOT, "pocket.json"), "utf8"));
 const plan = resolve3dsBuildPlan(manifest);

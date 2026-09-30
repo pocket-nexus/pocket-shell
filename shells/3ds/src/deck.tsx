@@ -8,13 +8,18 @@
 // target, and the L/R pills latch a layer for one action, so a stylus can
 // complete any chord on its own.
 //
+// The dock is Omarchy's bar moved under the thumb: the menu first, then the
+// apps, then the shell's switches, all drawn as 16 px monochrome glyphs
+// (src/gen-icons.ts). Nothing else frames the minimap, so it is drawn at 0.7
+// of the top screen, large enough to hit a window with a stylus.
+//
 // Minimap touch: tap focuses, hold arms the close bar (release on it to
 // close — a resistive panel and a coin-flip × are how shells get killed),
 // drag a window onto another to swap or onto a workspace tab to move it,
 // drag the gap between two windows to resize the split, and in the
 // scrolling layout drag the background to pan the strip.
 
-import { createSignal, For, Index, Show } from "solid-js";
+import { createMemo, createSignal, For, Index, onCleanup, Show } from "solid-js";
 import { Image, Text, View } from "@pocketjs/framework/components";
 import { createGesture } from "@pocketjs/framework/gesture";
 import { onFrame } from "@pocketjs/framework/lifecycle";
@@ -23,6 +28,7 @@ import {
   chordFor,
   dpadLabel,
   FACE_ORDER,
+  HELD_LAYERS,
   labelFor,
   LAYER_HINT,
   LAYER_TITLE,
@@ -30,137 +36,73 @@ import {
   type ActionId,
   type Layer,
 } from "./chords.ts";
+import type { IconName, IconTone } from "./gen-icons.ts";
+import { icon } from "./icons.ts";
 import { Keyboard, keyboardHit, createKeyPress } from "./keyboard.tsx";
-import { APP_BLURB, APPS, isTextApp, type AppId, type ShellStore } from "./store.ts";
+import { isApp, isTextApp, MENU, type AppId, type ShellStore } from "./store.ts";
 import { BTN } from "@pocketjs/framework/input";
-import { BAR_H, WORKSPACES, type Rect } from "./wm.ts";
+import { BAR_H, samePlacement, WORKSPACES, type LayoutKind, type Rect } from "./wm.ts";
 
-const STRIP_H = 24;
-const PILL_W = 28;
-const TABS_X = 28;
+const STRIP_H = 22;
+const PILL_W = 26;
+const TABS_X = 30;
 const TAB_W = 40;
-const BADGE_X = 228;
-const BADGE_W = 64;
-const R_PILL_X = 292;
+const LAYOUT_X = 238;
+const LAYOUT_W = 48;
+const R_PILL_X = 294;
 
-const BODY_TOP = 24;
-const BODY_BOTTOM = 200;
+const BODY_TOP = STRIP_H;
+const BODY_BOTTOM = 204;
 
-const S = 0.6;
-const MAP_X = 40;
-const MAP_Y = 30;
-const MAP_W = 240;
-const MAP_H = 144;
+const S = 0.7;
+const MAP_X = 20;
+const MAP_Y = 28;
+const MAP_W = 400 * S;
+const MAP_H = 240 * S;
 const MAP_RECT: Rect = { x: MAP_X, y: MAP_Y, w: MAP_W, h: MAP_H };
-const HINT_Y = 180;
-const CLOSE_BAR_H = 44;
+const HINT_Y = 184;
+const CLOSE_BAR_H = 40;
 const CLOSE_BAR_Y = BODY_BOTTOM - CLOSE_BAR_H;
 const CLOSE_HOLD_SECONDS = 0.4;
 
-const DOCK_Y = 200;
-const DOCK_X = 16;
-const DOCK_CELL = 48;
-
-const GUTTER_BTN_W = 32;
-const GUTTER_BTN_H = 22;
-interface GutterButton {
+const DOCK_Y = BODY_BOTTOM;
+const DOCK_CELL = 36;
+type DockAct = "menu" | AppId | "kbd" | "keys" | "wall" | "bar";
+interface DockItem {
+  act: DockAct;
+  icon: IconName;
   x: number;
-  y: number;
   label: string;
-  act: "kbd" | "wall" | "keys" | "bar";
 }
-const GUTTER_BUTTONS: GutterButton[] = [
-  { x: 4, y: 34, label: "kbd", act: "kbd" },
-  { x: 4, y: 62, label: "wall", act: "wall" },
-  { x: 284, y: 34, label: "keys", act: "keys" },
-  { x: 284, y: 62, label: "bar", act: "bar" },
+/** The menu, the three apps, then the switches, flush right. */
+const DOCK: readonly DockItem[] = [
+  { act: "menu", icon: "menu", x: 2, label: "menu" },
+  { act: "term", icon: "term", x: 44, label: "terminal" },
+  { act: "notes", icon: "notes", x: 80, label: "notes" },
+  { act: "top", icon: "top", x: 116, label: "top" },
+  { act: "kbd", icon: "kbd", x: 174, label: "keyboard" },
+  { act: "keys", icon: "keys", x: 210, label: "keys" },
+  { act: "wall", icon: "wall", x: 246, label: "wallpaper" },
+  { act: "bar", icon: "bar", x: 282, label: "bar" },
 ];
+const dockAt = (x: number): DockItem | null => DOCK.find((d) => x >= d.x && x < d.x + DOCK_CELL) ?? null;
 
-const CHORD_TITLE_Y = 30;
-const CHORD_ROWS_Y = 48;
+const MENU_X = 36;
+const MENU_W = 248;
+const MENU_Y = BODY_TOP + 6;
+const MENU_ROWS_Y = MENU_Y + 24;
+const MENU_ROW_H = 20;
+
+const CHORD_TITLE_Y = BODY_TOP + 6;
+const CHORD_ROWS_Y = BODY_TOP + 24;
 const CHORD_ROW_H = 24;
 const CHORD_COL_SPLIT = 160;
-
-const LAUNCH_X = 16;
-const LAUNCH_Y = 44;
-const LAUNCH_W = 96;
-const LAUNCH_H = 64;
-const LAUNCH_COLS = 3;
 
 const within = (x: number, y: number, r: Rect): boolean =>
   x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
 const toStage = (x: number, y: number) => ({ x: (x - MAP_X) / S, y: (y - MAP_Y) / S });
 
-type BodyMode = "launcher" | "chords" | "keyboard" | "map";
-
-/** Dock and launcher icons: one literal tree per app. */
-function AppIcon(props: { app: AppId }) {
-  switch (props.app) {
-    case "term":
-      // The chevron is drawn as pixels, not typed and not rotated. `❯`
-      // (U+276F) is not in the baked face, so a Text rendered the placeholder
-      // box; and `-rotate-45` is not a utility this compiler accepts (only
-      // non-negative numbers parse), which would have made the whole class
-      // literal unknown and left the node unstyled.
-      return (
-        <View class="w-[22] h-[22] rounded-[5] bg-[#24283b] border border-[#414868]">
-          <View class="absolute left-[4] top-[5] w-[3] h-[3] bg-[#9ece6a]" />
-          <View class="absolute left-[6] top-[7] w-[3] h-[3] bg-[#9ece6a]" />
-          <View class="absolute left-[8] top-[9] w-[3] h-[3] bg-[#9ece6a]" />
-          <View class="absolute left-[6] top-[11] w-[3] h-[3] bg-[#9ece6a]" />
-          <View class="absolute left-[4] top-[13] w-[3] h-[3] bg-[#9ece6a]" />
-          <View class="absolute left-[12] top-[14] w-[6] h-[2] bg-[#9ece6a]" />
-        </View>
-      );
-    case "clock":
-      return (
-        <View class="w-[22] h-[22] rounded-[5] bg-[#7aa2f7] items-center justify-center">
-          <View class="w-[12] h-[12] rounded-full border border-[#1a1b26]">
-            <View class="absolute left-[5] top-[2] w-[2] h-[5] bg-[#1a1b26]" />
-            <View class="absolute left-[5] top-[5] w-[4] h-[2] bg-[#1a1b26]" />
-          </View>
-        </View>
-      );
-    case "notes":
-      return (
-        <View class="w-[22] h-[22] rounded-[5] bg-[#e0af68] flex-col items-center justify-center gap-[2]">
-          <View class="w-[12] h-[2] bg-[#1a1b26]" />
-          <View class="w-[12] h-[2] bg-[#1a1b26]" />
-          <View class="w-[8] h-[2] bg-[#1a1b26]" />
-        </View>
-      );
-    case "keys":
-      // A keyboard: two rows of caps over a spacebar. The old icon stacked
-      // two flex rows in a container with no `flex-col` — the default
-      // direction here is ROW, so they sat side by side and read as one line
-      // of dots. Absolute placement says what it means.
-      return (
-        <View class="w-[22] h-[22] rounded-[5] bg-[#bb9af7]">
-          <View class="absolute left-[3] top-[5] w-[4] h-[3] rounded-[1] bg-[#1a1b26]" />
-          <View class="absolute left-[9] top-[5] w-[4] h-[3] rounded-[1] bg-[#1a1b26]" />
-          <View class="absolute left-[15] top-[5] w-[4] h-[3] rounded-[1] bg-[#1a1b26]" />
-          <View class="absolute left-[3] top-[10] w-[4] h-[3] rounded-[1] bg-[#1a1b26]" />
-          <View class="absolute left-[9] top-[10] w-[4] h-[3] rounded-[1] bg-[#1a1b26]" />
-          <View class="absolute left-[15] top-[10] w-[4] h-[3] rounded-[1] bg-[#1a1b26]" />
-          <View class="absolute left-[5] top-[15] w-[12] h-[3] rounded-[1] bg-[#1a1b26]" />
-        </View>
-      );
-    case "stats":
-      return (
-        <View class="w-[22] h-[22] rounded-[5] bg-[#9ece6a] flex-row items-end justify-center gap-[2] pb-[4]">
-          <View class="w-[3] h-[6] bg-[#1a1b26]" />
-          <View class="w-[3] h-[12] bg-[#1a1b26]" />
-          <View class="w-[3] h-[9] bg-[#1a1b26]" />
-        </View>
-      );
-    case "about":
-      return (
-        <View class="w-[22] h-[22] rounded-[5] bg-[#7dcfff] items-center justify-center">
-          <Text class="text-sm text-[#1a1b26] font-bold">i</Text>
-        </View>
-      );
-  }
-}
+type BodyMode = "menu" | "chords" | "keyboard" | "map";
 
 /** A touch target's transient pressed look.
  *
@@ -169,7 +111,7 @@ function AppIcon(props: { app: AppId }) {
  *  panel heard you. Every target here therefore darkens or inverts while the
  *  finger is on it, and holds that for a few frames after release so a quick
  *  tap is still visible. Ids are `kind:key` strings so one signal covers the
- *  strip, the gutter, the dock, the chord rows and the launcher. */
+ *  strip, the dock, the chord rows and the menu. */
 function createPressTracker(): {
   is: (id: string) => boolean;
   down: (id: string | null) => void;
@@ -194,17 +136,57 @@ function createPressTracker(): {
 
 const PRESS_LINGER_FRAMES = 5;
 
+/** A fill behind a target's content, faded in by opacity. Opacity is a
+ *  paint-only prop: a press restyles nothing, so it never relayouts the deck,
+ *  where swapping a class would. */
+function Fill(props: { on: boolean; color: string }) {
+  return <View class="absolute inset-0" style={{ bgColor: props.color, opacity: props.on ? 1 : 0 }} />;
+}
+
+/** `read()` while `live()` holds; otherwise the value it returned last. A
+ *  covered body keeps what it last showed instead of relaying out under the
+ *  body in front of it; it catches up when it is shown again. */
+function frozenUnless<T>(live: () => boolean, read: () => T): () => T {
+  let primed = false;
+  return createMemo<T | undefined>((last) => {
+    if (primed && !live()) return last;
+    primed = true;
+    return read();
+  }) as () => T;
+}
+
+/** A shoulder keycap on the strip; its pressed and held looks are layers
+ *  faded in by opacity. */
+function Pill(props: { x: number; label: string; held: boolean; pressed: boolean }) {
+  return (
+    <View class="absolute top-[3] w-[24] h-[16]" style={{ insetL: props.x }}>
+      <View class="absolute inset-0 bg-[#1a1b26] border border-[#292e42]" />
+      <View class="absolute inset-0 bg-[#292e42] border border-[#414868]" style={{ opacity: props.pressed ? 1 : 0 }} />
+      <View class="absolute inset-0 items-center justify-center">
+        <Text class="text-xs text-[#565f89] font-bold">{props.label}</Text>
+      </View>
+      <View class="absolute inset-0 bg-[#7aa2f7] items-center justify-center" style={{ opacity: props.held ? 1 : 0 }}>
+        <Text class="text-xs text-[#1a1b26] font-bold">{props.label}</Text>
+      </View>
+    </View>
+  );
+}
+
 export function Deck(props: { store: ShellStore }) {
   const store = props.store;
   const keyPress = createKeyPress();
   const press = createPressTracker();
 
   const bodyMode = (): BodyMode => {
-    if (store.launcherOpen()) return "launcher";
+    if (store.menuOpen()) return "menu";
     if (store.layer() !== "plain") return "chords";
     if (store.kbVisible()) return "keyboard";
     return "map";
   };
+  const mapShown = () => bodyMode() === "map";
+  const mapOrder = frozenUnless(mapShown, () => store.order());
+  const mapPlacements = frozenUnless(mapShown, () => store.placements());
+  const mapFocus = frozenUnless(mapShown, () => store.focusedId());
   const lHeld = () => store.layer() === "super" || store.layer() === "ws";
   const rHeld = () => store.layer() === "shift" || store.layer() === "ws";
 
@@ -215,39 +197,34 @@ export function Deck(props: { store: ShellStore }) {
   let columnHandle: ReturnType<typeof store.wm.columnEdgeAt> = null;
   let panning = false;
 
+  const menuRowAt = (x: number, y: number): number | null => {
+    if (x < MENU_X || x >= MENU_X + MENU_W) return null;
+    const row = Math.floor((y - MENU_ROWS_Y) / MENU_ROW_H);
+    return row >= 0 && row < MENU.length ? row : null;
+  };
+
   /** Which painted target a point is on, for the pressed look. */
   const targetAt = (x: number, y: number): string | null => {
     if (y < STRIP_H) {
       if (x < PILL_W) return "pill:L";
       if (x >= R_PILL_X) return "pill:R";
-      if (x >= BADGE_X && x < BADGE_X + BADGE_W) return "badge:layout";
+      if (x >= LAYOUT_X && x < LAYOUT_X + LAYOUT_W) return "badge:layout";
       const tab = tabAt(x);
       return tab === null ? null : `tab:${tab}`;
     }
     if (y >= DOCK_Y) {
-      const index = Math.floor((x - DOCK_X) / DOCK_CELL);
-      return x >= DOCK_X && index >= 0 && index < APPS.length ? `dock:${index}` : null;
+      const item = dockAt(x);
+      return item ? `dock:${item.act}` : null;
     }
     switch (bodyMode()) {
-      case "launcher": {
-        const col = Math.floor((x - LAUNCH_X) / LAUNCH_W);
-        const row = Math.floor((y - LAUNCH_Y) / LAUNCH_H);
-        if (x < LAUNCH_X || col < 0 || col >= LAUNCH_COLS || row < 0 || row > 1) return null;
-        const index = row * LAUNCH_COLS + col;
-        return index < APPS.length ? `launch:${index}` : null;
+      case "menu": {
+        const row = menuRowAt(x, y);
+        return row === null ? null : `menu:${row}`;
       }
       case "chords": {
         const row = Math.floor((y - CHORD_ROWS_Y) / CHORD_ROW_H);
         if (row < 0 || row > 3) return null;
         return chordActionAt(x, y) === null ? null : `chord:${x < CHORD_COL_SPLIT ? "l" : "r"}${row}`;
-      }
-      case "map": {
-        for (const button of GUTTER_BUTTONS) {
-          if (within(x, y, { x: button.x, y: button.y, w: GUTTER_BTN_W, h: GUTTER_BTN_H })) {
-            return `gutter:${button.act}`;
-          }
-        }
-        return null;
       }
       default:
         return null;
@@ -267,23 +244,6 @@ export function Deck(props: { store: ShellStore }) {
   const tabAt = (x: number): number | null => {
     if (x < TABS_X || x >= TABS_X + TAB_W * WORKSPACES) return null;
     return 1 + Math.floor((x - TABS_X) / TAB_W);
-  };
-
-  const runGutter = (button: GutterButton) => {
-    switch (button.act) {
-      case "kbd":
-        store.toggleKeyboard();
-        break;
-      case "wall":
-        store.run("wallpaper");
-        break;
-      case "keys":
-        store.run("keys");
-        break;
-      case "bar":
-        store.run("bar");
-        break;
-    }
   };
 
   const chordActionAt = (x: number, y: number): ActionId | null => {
@@ -310,7 +270,7 @@ export function Deck(props: { store: ShellStore }) {
       store.setLatchR(!store.latchR());
       return;
     }
-    if (x >= BADGE_X && x < BADGE_X + BADGE_W) {
+    if (x >= LAYOUT_X && x < LAYOUT_X + LAYOUT_W) {
       store.toggleLayout();
       return;
     }
@@ -319,21 +279,34 @@ export function Deck(props: { store: ShellStore }) {
   };
 
   const tapDock = (x: number) => {
-    const index = Math.floor((x - DOCK_X) / DOCK_CELL);
-    if (x >= DOCK_X && index >= 0 && index < APPS.length) store.open(APPS[index]);
+    const item = dockAt(x);
+    if (!item) return;
+    switch (item.act) {
+      case "menu":
+        store.run("menu");
+        break;
+      case "kbd":
+        store.toggleKeyboard();
+        break;
+      case "keys":
+        store.run("keys");
+        break;
+      case "wall":
+        store.run("wallpaper");
+        break;
+      case "bar":
+        store.run("bar");
+        break;
+      default:
+        store.open(item.act);
+    }
   };
 
   const tapBody = (x: number, y: number) => {
     switch (bodyMode()) {
-      case "launcher": {
-        const col = Math.floor((x - LAUNCH_X) / LAUNCH_W);
-        const row = Math.floor((y - LAUNCH_Y) / LAUNCH_H);
-        if (x < LAUNCH_X || col < 0 || col >= LAUNCH_COLS || row < 0 || row > 1) return;
-        const index = row * LAUNCH_COLS + col;
-        if (index < APPS.length) {
-          store.open(APPS[index]);
-          store.setLauncherOpen(false);
-        }
+      case "menu": {
+        const row = menuRowAt(x, y);
+        if (row !== null) store.runMenu(row);
         return;
       }
       case "chords": {
@@ -362,12 +335,6 @@ export function Deck(props: { store: ShellStore }) {
         return;
       }
       case "map": {
-        for (const button of GUTTER_BUTTONS) {
-          if (within(x, y, { x: button.x, y: button.y, w: GUTTER_BTN_W, h: GUTTER_BTN_H })) {
-            runGutter(button);
-            return;
-          }
-        }
         if (within(x, y, MAP_RECT)) {
           const id = store.wm.windowAt(toStage(x, y));
           if (id !== null) store.focusWin(id);
@@ -400,7 +367,6 @@ export function Deck(props: { store: ShellStore }) {
       press.down(null);
       if (pending && bodyMode() === "map") {
         store.setClosing({ id: pending.id, over: false });
-        store.say("");
       }
       pending = null;
       void c;
@@ -477,22 +443,12 @@ export function Deck(props: { store: ShellStore }) {
 
   // ---- render ----------------------------------------------------------------
 
-  const hint = () => {
-    const toast = store.toast();
-    if (toast) return toast;
-    if (store.drag()) return "drop on a window to swap · on a tab to move";
-    if (store.wm.count() === 0) return "tap the dock to open a window";
-    return LAYER_HINT.plain;
-  };
-
   const closingTitle = () => {
     const c = store.closing();
     return c ? store.windowOf(c.id)?.title ?? "" : "";
   };
 
-  const chordLeft = () => {
-    const layer = store.layer();
-    const layout = store.layoutKind();
+  const chordLeft = (layer: Layer, layout: LayoutKind) => {
     const start = chordFor(layer, BTN.START)?.action;
     const select = chordFor(layer, BTN.SELECT)?.action;
     return [
@@ -502,9 +458,7 @@ export function Deck(props: { store: ShellStore }) {
       { badge: "SELECT", label: select ? labelFor(select, layout) : "—" },
     ];
   };
-  const chordRight = () => {
-    const layer = store.layer();
-    const layout = store.layoutKind();
+  const chordRight = (layer: Layer, layout: LayoutKind) => {
     return FACE_ORDER.map((button) => {
       const chord = chordFor(layer, button);
       return { badge: BUTTON_GLYPH[button], label: chord ? labelFor(chord.action, layout) : "—" };
@@ -512,102 +466,83 @@ export function Deck(props: { store: ShellStore }) {
   };
   const latched = () => store.latchL() || store.latchR();
 
+  /** An app's dock mark: accent under the focused app, dim under one open elsewhere. */
+  const runState = (app: AppId): "focused" | "open" | "none" => {
+    if (store.focusedApp() === app) return "focused";
+    return store.openApps().includes(app) ? "open" : "none";
+  };
+  const dockOn = (act: DockAct): boolean => {
+    switch (act) {
+      case "menu":
+        return store.menuOpen();
+      case "kbd":
+        return store.kbVisible();
+      case "keys":
+        return store.keysOpen();
+      case "bar":
+        return store.barVisible();
+      default:
+        return false;
+    }
+  };
+  const pressedDock = () => DOCK.find((d) => press.is(`dock:${d.act}`)) ?? null;
+
   return (
     <View debugName="Deck" class="relative w-full h-full bg-[#16161e] overflow-hidden">
       {/* ---- workspace strip ---- */}
-      <View debugName="Strip" class="absolute left-0 right-0 top-0 h-[24] bg-[#0e0e14]">
-        <View
-          class={
-            lHeld()
-              ? "absolute left-[2] top-[3] w-[24] h-[18] rounded-[4] bg-[#7aa2f7] items-center justify-center"
-              : press.is("pill:L")
-                ? "absolute left-[2] top-[3] w-[24] h-[18] rounded-[4] bg-[#3d4c63] items-center justify-center"
-                : "absolute left-[2] top-[3] w-[24] h-[18] rounded-[4] bg-[#24283b] items-center justify-center"
-          }
-        >
-          <Text class={lHeld() ? "text-xs text-[#1a1b26] font-bold" : "text-xs text-[#565f89] font-bold"}>L</Text>
-        </View>
+      <View debugName="Strip" class="absolute left-0 right-0 top-0 h-[22] bg-[#0e0e14]">
+        <Pill x={2} label="L" held={lHeld()} pressed={press.is("pill:L")} />
         <Index each={store.counts()}>
           {(count, i) => (
-            <View
-              class={
-                store.drag()?.overWs === i + 1
-                  ? "absolute top-0 h-[24] items-center justify-center bg-[#9ece6a33]"
-                  : press.is(`tab:${i + 1}`)
-                    ? "absolute top-0 h-[24] items-center justify-center bg-[#3d4c63]"
-                    : store.active() === i + 1
-                      ? "absolute top-0 h-[24] items-center justify-center bg-[#1a1b26]"
-                      : "absolute top-0 h-[24] items-center justify-center"
-              }
-              style={{ insetL: TABS_X + i * TAB_W, width: TAB_W }}
-            >
-              <Text
-                class={
-                  store.active() === i + 1
-                    ? "text-sm text-[#c0caf5] font-bold"
-                    : count() > 0
-                      ? "text-sm text-[#a9b1d6]"
-                      : "text-sm text-[#414868]"
-                }
+            <View class="absolute top-0 h-[22] items-center justify-center" style={{ insetL: TABS_X + i * TAB_W, width: TAB_W }}>
+              <Fill on={press.is(`tab:${i + 1}`)} color="#24283b" />
+              <Fill on={store.drag()?.overWs === i + 1} color="#9ece6a33" />
+              {/* Omarchy draws the active workspace as a rounded square
+                  instead of its number, and empty ones at half strength. */}
+              <Show
+                when={store.active() === i + 1}
+                fallback={<Text class={count() > 0 ? "text-sm text-[#a9b1d6]" : "text-sm text-[#414868]"}>{String(i + 1)}</Text>}
               >
-                {String(i + 1)}
-              </Text>
-              <Show when={count() > 0}>
-                <View class="absolute left-0 right-0 bottom-[2] flex-row justify-center gap-[2]">
-                  <Index each={Array.from({ length: Math.min(4, count()) })}>
-                    {() => <View class="w-[3] h-[3] rounded-full bg-[#7aa2f7]" />}
-                  </Index>
-                </View>
-              </Show>
-              <Show when={store.active() === i + 1}>
-                <View class="absolute left-0 right-0 top-0 h-[2] bg-[#7aa2f7]" />
+                <View class="w-[10] h-[10] rounded-[2] bg-[#7aa2f7]" />
               </Show>
             </View>
           )}
         </Index>
-        <View
-          class={
-            press.is("badge:layout")
-              ? "absolute top-[3] h-[18] rounded-[4] bg-[#3d4c63] items-center justify-center"
-              : "absolute top-[3] h-[18] rounded-[4] bg-[#24283b] items-center justify-center"
-          }
-          style={{ insetL: BADGE_X + 2, width: BADGE_W - 4 }}
-        >
-          <Text class="text-xs text-[#a9b1d6]">{store.layoutKind()}</Text>
+        <View class="absolute top-0 h-[22]" style={{ insetL: LAYOUT_X, width: LAYOUT_W }}>
+          <Fill on={press.is("badge:layout")} color="#24283b" />
+          <Image class="absolute top-[3] w-[16] h-[16]" src={icon(store.layoutKind(), "fg")} style={{ insetL: (LAYOUT_W - 16) / 2 }} />
         </View>
-        <View
-          class={
-            rHeld()
-              ? "absolute right-[2] top-[3] w-[24] h-[18] rounded-[4] bg-[#7aa2f7] items-center justify-center"
-              : press.is("pill:R")
-                ? "absolute right-[2] top-[3] w-[24] h-[18] rounded-[4] bg-[#3d4c63] items-center justify-center"
-                : "absolute right-[2] top-[3] w-[24] h-[18] rounded-[4] bg-[#24283b] items-center justify-center"
-          }
-        >
-          <Text class={rHeld() ? "text-xs text-[#1a1b26] font-bold" : "text-xs text-[#565f89] font-bold"}>R</Text>
-        </View>
+        <Pill x={R_PILL_X} label="R" held={rHeld()} pressed={press.is("pill:R")} />
       </View>
 
-      {/* ---- body: minimap ---- */}
-      <Show when={bodyMode() === "map"}>
+      {/* ---- bodies ----
+          The minimap, the three chord maps and the menu stay mounted and laid
+          out; only the current one is opaque, and opacity is a prop rather
+          than a class, which would restyle and relayout. Mounting a chord map
+          took 270 ms of JS on an Old 3DS, and every shoulder press swaps one
+          in; display:none would drop its layout and text runs (~25 ms of core
+          work per swap); the draw walk culls an opacity-0 subtree. The
+          keyboard mounts on demand: kept laid out, its forty keys doubled the
+          relayout behind every focus change. */}
+      <View debugName="MapBody" class="absolute inset-0" style={{ opacity: bodyMode() === "map" ? 1 : 0 }}>
         <View debugName="Minimap" class="absolute overflow-hidden border border-[#292e42]" style={{ insetL: MAP_X, insetT: MAP_Y, width: MAP_W, height: MAP_H }}>
           <Show when={store.wallpaper() === "road"}>
-            <Image class="absolute left-0 top-0 w-[307] h-[154]" src="wall/road.png" />
+            <Image class="absolute left-0 top-0" src="wall/road.png" style={{ width: 512 * S, height: 256 * S }} />
           </Show>
           <Show when={store.wallpaper() === "lake"}>
-            <Image class="absolute left-0 top-0 w-[307] h-[154]" src="wall/lake.png" />
+            <Image class="absolute left-0 top-0" src="wall/lake.png" style={{ width: 512 * S, height: 256 * S }} />
           </Show>
           <Show when={store.wallpaper() === "swirl"}>
-            <Image class="absolute left-0 top-0 w-[307] h-[154]" src="wall/swirl.png" />
+            <Image class="absolute left-0 top-0" src="wall/swirl.png" style={{ width: 512 * S, height: 256 * S }} />
           </Show>
           <View class="absolute inset-0 bg-[#16161e99]" />
           <Show when={store.barVisible()}>
-            <View class="absolute left-0 right-0 top-0 h-[8] bg-[#1a1b26cc]" />
+            <View class="absolute left-0 right-0 top-0 bg-[#1a1b26]" style={{ height: Math.round(BAR_H * S) }} />
           </Show>
-          <For each={store.order()}>
+          <For each={mapOrder()}>
             {(id) => {
-              const p = () => store.placementOf(id);
-              const focused = () => store.focusedId() === id;
+              const p = createMemo(() => mapPlacements().find((placement) => placement.id === id), undefined, { equals: samePlacement });
+              const focused = createMemo(() => mapFocus() === id);
               const target = () => store.drag()?.over === id;
               return (
                 <Show when={p() && !p()!.hidden}>
@@ -616,7 +551,7 @@ export function Deck(props: { store: ShellStore }) {
                       target()
                         ? "absolute border border-[#9ece6a] bg-[#9ece6a33] items-center justify-center overflow-hidden"
                         : focused()
-                          ? "absolute border border-[#33ccff] bg-[#1a1b26e6] items-center justify-center overflow-hidden"
+                          ? "absolute border border-[#7aa2f7] bg-[#1a1b26e6] items-center justify-center overflow-hidden"
                           : "absolute border border-[#595959] bg-[#1a1b26cc] items-center justify-center overflow-hidden"
                     }
                     style={{
@@ -636,100 +571,83 @@ export function Deck(props: { store: ShellStore }) {
               );
             }}
           </For>
+          <Show when={mapOrder().length === 0}>
+            <Text class="absolute left-0 right-0 text-center text-xs text-[#565f89]" style={{ insetT: MAP_H / 2 - 6 }}>
+              empty · tap an app below, or hold L
+            </Text>
+          </Show>
           <Show when={store.drag()}>
             {(d) => (
-              <View
-                class="absolute w-[56] h-[32] border border-[#7aa2f7] bg-[#24283bdd] items-center justify-center"
-                style={{ insetL: d().x * S - 28, insetT: d().y * S - 16 }}
-              >
-                <Text class="text-xs text-[#c0caf5]">{store.windowOf(d().id)?.title ?? ""}</Text>
-              </View>
+              <>
+                <View class="absolute left-0 right-0 top-0 h-[14] bg-[#16161ecc] items-center justify-center">
+                  <Text class="text-xs text-[#a9b1d6]">drop on a window to swap · on a tab to move</Text>
+                </View>
+                <View
+                  class="absolute w-[56] h-[32] border border-[#7aa2f7] bg-[#24283bdd] items-center justify-center"
+                  style={{ insetL: d().x * S - 28, insetT: d().y * S - 16 }}
+                >
+                  <Text class="text-xs text-[#c0caf5]">{store.windowOf(d().id)?.title ?? ""}</Text>
+                </View>
+              </>
             )}
           </Show>
         </View>
-        <For each={GUTTER_BUTTONS}>
-          {(button) => (
-            <View
-              class={
-                button.act === "kbd" && !isTextApp(store.focusedApp())
-                  ? "absolute w-[32] h-[22] rounded-[4] bg-[#1a1b26] items-center justify-center"
-                  : press.is(`gutter:${button.act}`)
-                    ? "absolute w-[32] h-[22] rounded-[4] bg-[#7aa2f7] items-center justify-center"
-                    : button.act === "kbd" && store.kbOpen()
-                      ? "absolute w-[32] h-[22] rounded-[4] bg-[#7aa2f7] items-center justify-center"
-                      : "absolute w-[32] h-[22] rounded-[4] bg-[#24283b] items-center justify-center"
-              }
-              style={{ insetL: button.x, insetT: button.y }}
-            >
-              <Text
-                class={
-                  button.act === "kbd" && !isTextApp(store.focusedApp())
-                    ? "text-xs text-[#414868]"
-                    : press.is(`gutter:${button.act}`) || (button.act === "kbd" && store.kbOpen())
-                      ? "text-xs text-[#1a1b26] font-bold"
-                      : "text-xs text-[#a9b1d6]"
-                }
-              >
-                {button.label}
-              </Text>
-            </View>
-          )}
-        </For>
-        <Text class="absolute left-0 right-0 text-center text-xs text-[#565f89]" style={{ insetT: HINT_Y }}>
-          {hint()}
-        </Text>
-        <Show when={store.closeAnim() > 0}>
+        <Show when={store.closeBarShown()}>
           <View
             debugName="CloseBar"
             class={
               store.closing()?.over
-                ? "absolute left-0 right-0 flex-row items-center justify-center gap-[6] bg-[#a33a3a]"
-                : "absolute left-0 right-0 flex-row items-center justify-center gap-[6] bg-[#5c2626]"
+                ? "absolute left-0 right-0 flex-row items-center justify-center gap-[6] bg-[#f7768e]"
+                : "absolute left-0 right-0 flex-row items-center justify-center gap-[6] bg-[#3b2230]"
             }
-            style={{
-              insetT: CLOSE_BAR_Y,
-              height: CLOSE_BAR_H,
-              translateY: (1 - store.closeAnim()) * CLOSE_BAR_H,
-              opacity: store.closeAnim(),
-            }}
+            style={{ insetT: CLOSE_BAR_Y, height: CLOSE_BAR_H }}
+            ref={(el) => onCleanup(store.bindCloseBar(el, CLOSE_BAR_H))}
           >
-            <Text class="text-sm text-[#ffdede] font-bold">×</Text>
-            <Text class="text-xs text-[#ffdede]">
+            <Text class={store.closing()?.over ? "text-sm text-[#1a1b26] font-bold" : "text-sm text-[#f7768e] font-bold"}>×</Text>
+            <Text class={store.closing()?.over ? "text-xs text-[#1a1b26]" : "text-xs text-[#f7768e]"}>
               {store.closing()?.over ? "release to close" : "slide here to close"}
             </Text>
-            <Text class="text-xs text-[#e0a0a0]">{closingTitle()}</Text>
+            <Text class={store.closing()?.over ? "text-xs text-[#1a1b26] font-bold" : "text-xs text-[#a9b1d6]"}>{closingTitle()}</Text>
           </View>
         </Show>
-      </Show>
+      </View>
 
-      {/* ---- body: chord map ---- */}
-      <Show when={bodyMode() === "chords"}>
-        <View debugName="ChordMap" class="absolute left-0 right-0" style={{ insetT: BODY_TOP, height: BODY_BOTTOM - BODY_TOP }}>
+      {/* ---- body: chord maps ----
+          One per layer, so a shoulder press only swaps which is displayed;
+          their labels change with the layout, not with every press. */}
+      <For each={HELD_LAYERS}>
+        {(layer) => {
+          // A hidden map's labels catch up when its shoulder goes down, not
+          // on every layout toggle.
+          const layout = frozenUnless(() => store.layer() === layer, () => store.layoutKind());
+          return (
+      <View
+        debugName="ChordMap"
+        class="absolute left-0 right-0"
+        style={{ insetT: BODY_TOP, height: BODY_BOTTOM - BODY_TOP, opacity: store.layer() === layer && bodyMode() === "chords" ? 1 : 0 }}
+      >
           <Text class="absolute left-0 right-0 text-center text-xs text-[#7aa2f7] font-bold" style={{ insetT: CHORD_TITLE_Y - BODY_TOP }}>
-            {LAYER_TITLE[store.layer() as Layer]}
+            {LAYER_TITLE[layer]}
           </Text>
-          <Index each={chordLeft()}>
+          <Index each={chordLeft(layer, layout())}>
             {(row, i) => (
               <View
-                class={
-                  press.is(`chord:l${i}`)
-                    ? "absolute left-[8] h-[24] flex-row items-center gap-[6] overflow-hidden rounded-[4] bg-[#3d4c63]"
-                    : "absolute left-[8] h-[24] flex-row items-center gap-[6] overflow-hidden"
-                }
+                class="absolute left-[8] h-[24] flex-row items-center gap-[6] overflow-hidden"
                 style={{ insetT: CHORD_ROWS_Y - BODY_TOP + i * CHORD_ROW_H, width: CHORD_COL_SPLIT - 12 }}
               >
+                <Fill on={press.is(`chord:l${i}`)} color="#24283b" />
                 <Show when={row().badge === "dpad"}>
-                  <View class="w-[18] h-[18] rounded-[3] bg-[#292e42] items-center justify-center">
+                  <View class="w-[18] h-[18] bg-[#1a1b26] border border-[#414868] items-center justify-center">
                     <Text class="text-xs text-[#c0caf5] font-bold">+</Text>
                   </View>
                 </Show>
                 <Show when={row().badge === "pad"}>
-                  <View class="w-[18] h-[18] rounded-full bg-[#292e42] items-center justify-center">
-                    <View class="w-[8] h-[8] rounded-full bg-[#c0caf5]" />
+                  <View class="w-[18] h-[18] rounded-full bg-[#1a1b26] border border-[#414868] items-center justify-center">
+                    <View class="w-[6] h-[6] rounded-full bg-[#c0caf5]" />
                   </View>
                 </Show>
                 <Show when={row().badge === "START" || row().badge === "SELECT"}>
-                  <View class="w-[44] h-[14] rounded-[7] bg-[#292e42] items-center justify-center">
+                  <View class="w-[44] h-[14] bg-[#1a1b26] border border-[#414868] items-center justify-center">
                     <Text class="text-xs text-[#c0caf5] font-bold">{row().badge}</Text>
                   </View>
                 </Show>
@@ -737,17 +655,14 @@ export function Deck(props: { store: ShellStore }) {
               </View>
             )}
           </Index>
-          <Index each={chordRight()}>
+          <Index each={chordRight(layer, layout())}>
             {(row, i) => (
               <View
-                class={
-                  press.is(`chord:r${i}`)
-                    ? "absolute h-[24] flex-row items-center gap-[6] overflow-hidden rounded-[4] bg-[#3d4c63]"
-                    : "absolute h-[24] flex-row items-center gap-[6] overflow-hidden"
-                }
+                class="absolute h-[24] flex-row items-center gap-[6] overflow-hidden"
                 style={{ insetL: CHORD_COL_SPLIT + 6, insetT: CHORD_ROWS_Y - BODY_TOP + i * CHORD_ROW_H, width: 320 - CHORD_COL_SPLIT - 12 }}
               >
-                <View class="w-[18] h-[18] rounded-full bg-[#292e42] items-center justify-center">
+                <Fill on={press.is(`chord:r${i}`)} color="#24283b" />
+                <View class="w-[18] h-[18] rounded-full bg-[#1a1b26] border border-[#414868] items-center justify-center">
                   <Text class="text-xs text-[#c0caf5] font-bold">{row().badge}</Text>
                 </View>
                 <Text class={row().label === "—" ? "text-xs text-[#414868]" : "text-xs text-[#a9b1d6]"}>{row().label}</Text>
@@ -755,45 +670,37 @@ export function Deck(props: { store: ShellStore }) {
             )}
           </Index>
           <Text class="absolute left-0 right-0 text-center text-xs text-[#565f89]" style={{ insetT: HINT_Y - BODY_TOP }}>
-            {latched() ? "tap a row, or press the button · tap L/R again to let go" : LAYER_HINT[store.layer()]}
+            {latched() ? "tap a row, or press the button · tap L/R again to let go" : LAYER_HINT[layer]}
           </Text>
-        </View>
-      </Show>
+      </View>
+          );
+        }}
+      </For>
 
-      {/* ---- body: launcher ---- */}
-      <Show when={bodyMode() === "launcher"}>
-        <View debugName="Launcher" class="absolute left-0 right-0" style={{ insetT: BODY_TOP, height: BODY_BOTTOM - BODY_TOP }}>
-          <Text class="absolute left-0 right-0 top-[6] text-center text-xs text-[#7aa2f7] font-bold">launch</Text>
-          <Index each={APPS}>
-            {(app, i) => (
-              <View
-                class={
-                  press.is(`launch:${i}`)
-                    ? "absolute rounded-[6] bg-[#3d4c63] border border-[#7aa2f7]"
-                    : store.launcherIndex() === i
-                      ? "absolute rounded-[6] bg-[#292e42] border border-[#7aa2f7]"
-                      : "absolute rounded-[6] bg-[#1a1b26]"
-                }
-                style={{
-                  insetL: LAUNCH_X + (i % LAUNCH_COLS) * LAUNCH_W,
-                  insetT: LAUNCH_Y - BODY_TOP + Math.floor(i / LAUNCH_COLS) * LAUNCH_H,
-                  width: LAUNCH_W - 4,
-                  height: LAUNCH_H - 4,
-                }}
-              >
-                <View class="absolute left-[8] top-[8]">
-                  <AppIcon app={app()} />
+      {/* ---- body: the menu (Omarchy's SUPER + SPACE card) ---- */}
+        <View
+          debugName="Menu"
+          class="absolute bg-[#1a1b26] border border-[#7aa2f7]"
+          style={{ insetL: MENU_X, insetT: MENU_Y, width: MENU_W, height: MENU_ROWS_Y - MENU_Y + MENU.length * MENU_ROW_H + 6, opacity: bodyMode() === "menu" ? 1 : 0 }}
+        >
+          <Text class="absolute left-[10] top-[5] text-sm text-[#c0caf5] font-bold">Menu</Text>
+          <Text class="absolute left-[46] top-[5] text-sm text-[#565f89]">…</Text>
+          <Index each={MENU}>
+            {(item, i) => {
+              const selected = () => press.is(`menu:${i}`) || store.menuIndex() === i;
+              return (
+                <View class="absolute left-[2] right-[2] h-[20]" style={{ insetT: MENU_ROWS_Y - MENU_Y - 2 + i * MENU_ROW_H }}>
+                  <Fill on={selected()} color="#c0caf514" />
+                  <Image class="absolute left-[8] top-[2] w-[16] h-[16]" src={icon(item().icon, selected() ? "accent" : "fg")} />
+                  <Text class={selected() ? "absolute left-[32] top-[3] text-sm text-[#7aa2f7]" : "absolute left-[32] top-[3] text-sm text-[#c0caf5]"}>
+                    {item().label}
+                  </Text>
+                  <Text class="absolute right-[8] top-[4] text-xs text-[#565f89]">{item().blurb}</Text>
                 </View>
-                <Text class="absolute left-[36] top-[8] text-sm text-[#c0caf5] font-bold">{app()}</Text>
-                <Text class="absolute left-[8] top-[36] text-xs text-[#565f89]">{APP_BLURB[app()]}</Text>
-              </View>
-            )}
+              );
+            }}
           </Index>
-          <Text class="absolute left-0 right-0 text-center text-xs text-[#565f89]" style={{ insetT: HINT_Y - BODY_TOP }}>
-            d-pad picks · A opens · B or L+A closes
-          </Text>
         </View>
-      </Show>
 
       {/* ---- body: keyboard ---- */}
       <Show when={bodyMode() === "keyboard"}>
@@ -801,37 +708,38 @@ export function Deck(props: { store: ShellStore }) {
       </Show>
 
       {/* ---- dock ---- */}
-      <View debugName="Dock" class="absolute left-0 right-0 bottom-0 h-[40] bg-[#0e0e14]">
-        <Index each={APPS}>
-          {(app, i) => {
-            const running = () => {
-              store.rev();
-              for (const w of store.wm.windows.values()) if (w.app === app()) return true;
-              return false;
-            };
+      <View debugName="Dock" class="absolute left-0 right-0 bottom-0 h-[36] bg-[#0e0e14]">
+        <For each={DOCK}>
+          {(item) => {
+            const pressed = () => press.is(`dock:${item.act}`);
+            const disabled = () => item.act === "kbd" && !isTextApp(store.focusedApp());
+            const tone = (): IconTone => (pressed() ? "ink" : dockOn(item.act) ? "accent" : "fg");
+            const mark = () => (isApp(item.act) ? runState(item.act) : "none");
             return (
-              <View
-                class={
-                  press.is(`dock:${i}`)
-                    ? "absolute top-0 h-[40] bg-[#24283b]"
-                    : "absolute top-0 h-[40]"
-                }
-                style={{ insetL: DOCK_X + i * DOCK_CELL, width: DOCK_CELL }}
-              >
-                <View class="absolute left-[13] top-[3]">
-                  <AppIcon app={app()} />
-                </View>
-                <Show when={running()}>
-                  <View class="absolute left-[37] top-[2] w-[5] h-[5] rounded-full bg-[#9ece6a]" />
+              <View class="absolute top-0 w-[36] h-[36]" style={{ insetL: item.x }}>
+                <Fill on={pressed()} color="#7aa2f7" />
+                <Image class="absolute left-[10] top-[8] w-[16] h-[16]" src={icon(item.icon, tone())} style={{ opacity: disabled() ? 0.3 : 1 }} />
+                <Show when={mark() !== "none"}>
+                  <View
+                    class={mark() === "focused" ? "absolute left-[13] top-[29] w-[10] h-[2] bg-[#7aa2f7]" : "absolute left-[16] top-[29] w-[4] h-[2] bg-[#565f89]"}
+                  />
                 </Show>
-                <Text class="absolute left-0 right-0 top-[26] text-center text-xs text-[#565f89]">{app()}</Text>
               </View>
             );
           }}
-        </Index>
+        </For>
       </View>
+      {/* The pressed cell names itself: the glyphs carry no labels. */}
+      <Show when={pressedDock()}>
+        {(item) => (
+          <View
+            class="absolute h-[16] bg-[#1a1b26] border border-[#7aa2f7] items-center justify-center"
+            style={{ insetL: Math.max(2, Math.min(320 - 66, item().x + DOCK_CELL / 2 - 32)), insetT: DOCK_Y - 20, width: 64 }}
+          >
+            <Text class="text-xs text-[#c0caf5]">{item().label}</Text>
+          </View>
+        )}
+      </Show>
     </View>
   );
 }
-
-export { BAR_H };

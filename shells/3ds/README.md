@@ -30,7 +30,7 @@ the console's own GPU, stacked top screen over touch screen, **at half speed**
 
 | open | change layout |
 |---|---|
-| <img src="media/open.gif" width="320" alt="three dock taps open term, notes and about; each window splits the focused leaf along its longer side, and the deck's minimap follows" /> | <img src="media/layout.gif" width="320" alt="L and START turn the workspace from the dwindle tree into the scrolling strip, keeping window order and focus" /> |
+| <img src="media/open.gif" width="320" alt="three dock taps open term, notes and a second term; each window splits the focused leaf along its longer side, and the deck's minimap follows" /> | <img src="media/layout.gif" width="320" alt="L and START turn the workspace from the dwindle tree into the scrolling strip, keeping window order and focus" /> |
 | Three dock taps open three windows. Each splits the focused leaf along its longer side and takes the far half, so the tiling grows the way a dwindle tree does. | `L + START` turns the workspace from a dwindle tree into a scrolling strip of columns. Window order and focus survive the change; the geometry travels. |
 
 | swap | switch workspace |
@@ -43,22 +43,28 @@ the console's own GPU, stacked top screen over touch screen, **at half speed**
 | <img src="media/chords.gif" width="320" alt="holding L turns the deck's minimap into the chord map for the window layer, and the d-pad moves focus while it is up" /> | <img src="media/close.gif" width="320" alt="closing is a hold, a slide and a release: holding a tile on the minimap arms the close bar, sliding onto it and letting go closes the window" /> |
 | Press a shoulder and the minimap gives way to that layer's table, labelled per button. Release and the minimap comes back. | The panel reports one contact and an 18 px × is a coin flip, so closing a window is a hold, a slide onto the close bar, and a release. |
 
-| the key sheet | the launcher |
+| the key sheet | the menu |
 |---|---|
-| <img src="media/keysheet.gif" width="320" alt="L and SELECT put the whole chord table on the stage as a window" /> | <img src="media/launcher.gif" width="320" alt="L and A open the launcher on the deck; the d-pad picks and B closes it" /> |
-| `L + SELECT` opens the whole table as a window on the stage — the same array the deck's map and the dispatcher read. | `L + A` puts the launcher on the deck. The d-pad picks, A opens, B closes. |
+| <img src="media/keysheet.gif" width="320" alt="L and SELECT put the whole chord table over the stage" /> | <img src="media/menu.gif" width="320" alt="L and A open Omarchy's menu card on the deck; the d-pad picks and B closes it" /> |
+| `L + SELECT` opens the whole table as a window on the stage — the same array the deck's map and the dispatcher read. | `L + A` puts Omarchy's `SUPER + SPACE` menu on the deck: the apps, then keys, wallpaper, bar and about. The d-pad picks, A opens, B closes. |
 
 ## The two screens
 
 The top screen is the **stage**: the wallpaper, the tiled windows, and a 14 px
-bar carrying the workspace digits, the focused window's title, the held
-layer's name and the layout. The touch screen is the **deck**: the workspace
-strip, a live minimap of the stage at 0.6 scale, four gutter buttons, and the
-dock.
+bar laid out like Omarchy's: workspaces on the left (the active one a rounded
+square, empty ones dimmed), `Tuesday 22:38` in the middle, the held layer
+and the layout on the right. Notifications appear as cards at its top right.
+The touch screen is the **deck**: the workspace strip, a live minimap of the
+stage at 0.7 scale, and the dock — the menu, the three apps and four switches
+(keyboard, keys, wallpaper, bar) as 16 px monochrome glyphs.
 
 | an empty workspace | five windows |
 |---|---|
-| <img src="media/hw/empty.png" width="320" alt="Pocket Shell on a 3DS showing an empty workspace: the tokyo-night wallpaper with a hint line, and the deck with the minimap, gutter buttons and dock" /> | <img src="media/hw/dwindle-five.png" width="320" alt="five windows tiled in the dwindle layout, the minimap showing the same arrangement" /> |
+| <img src="media/hw/empty.png" width="320" alt="Pocket Shell on a 3DS showing an empty workspace: the wallpaper with a hint line, and the deck with the minimap and the dock" /> | <img src="media/hw/dwindle-five.png" width="320" alt="five windows tiled in the dwindle layout, the minimap showing the same arrangement" /> |
+
+| the menu | three windows and top |
+|---|---|
+| <img src="media/hw/menu.png" width="320" alt="Omarchy's menu card on the deck: Terminal, Notes, Top, Keys, Wallpaper, Bar and About, each a glyph, a label and a description, with Notes selected" /> | <img src="media/hw/tiled.png" width="320" alt="term, notes and top tiled on the stage; top shows 59 fps and its sweep graph" /> |
 
 **Everything the shell can do by button, it can do by touch.** The minimap is
 not a picture of the stage, it is the stage: tap a window to focus it, drag
@@ -70,7 +76,7 @@ latch a layer for one action, so a stylus alone can reach every chord.
 
 | holding L | holding L + R |
 |---|---|
-| <img src="media/hw/chords-l.png" width="320" alt="the window layer's chord map on the touch screen: focus, resize, launcher, close, fullscreen, toggle split, layout and key sheet, each against its button" /> | <img src="media/hw/chords-ws.png" width="320" alt="the workspace layer's chord map, with the d-pad bound to switch and carry" /> |
+| <img src="media/hw/chords-l.png" width="320" alt="the window layer's chord map on the touch screen: focus, resize, menu, close, fullscreen, toggle split, layout and key sheet, each against its button" /> | <img src="media/hw/chords-ws.png" width="320" alt="the workspace layer's chord map, with the d-pad bound to switch and carry" /> |
 
 The map and the dispatcher read the same table (`src/chords.ts`), so a label
 cannot describe something the button does not do. `L + SELECT` puts the whole
@@ -111,11 +117,12 @@ with no network:
 - **term** — `pocketsh`, the shell's own `hyprctl`: `ls`, `open`, `close`,
   `focus`, `ws`, `layout`, `wall`, `tz`, `keys`, `fetch`, `date`, `uptime`,
   `echo`, `clear`
-- **clock** — the RTC large, the date, a seconds bar
 - **notes** — a scratch pad
-- **keys** — the chord table as a window
-- **stats** — fps, frame, uptime, windows, host, wallpaper, layer
-- **about** — what this is
+- **top** — fps large, a 32-second fps graph, uptime, windows,
+  workspace and host: Omarchy's btop, reading the frame loop
+
+The time lives in the bar and the chord table in the key sheet, so neither
+takes a window.
 
 | pocketsh | the deck keyboard |
 |---|---|
@@ -209,11 +216,12 @@ src/          the guest
   wm.ts       the window manager: pure state and geometry (tested)
   chords.ts   the modifier grammar as one table, plus its labels (tested)
   shell.ts    pocketsh, the command interpreter (tested)
-  store.ts    signals, per-frame input dispatch, geometry animation, applets
-  stage.tsx   top screen: wallpaper, windows, bar, key sheet
-  deck.tsx    touch screen: strip, minimap and its gestures, chord map, dock
+  store.ts    signals, per-frame input dispatch, window transitions, applets
+  stage.tsx   top screen: wallpaper, windows, bar, key sheet, notifications
+  deck.tsx    touch screen: strip, minimap and its gestures, chord map, menu, dock
   keyboard.tsx  the deck's hand-laid touch keyboard
-  applets.tsx   term · clock · notes · keys · stats · about
+  applets.tsx   term · notes · top
+  gen-icons.ts  the dock and menu glyphs as 16 px pixel art (writes icons/, ignored)
   wall/       tokyo-night backgrounds in 512×256 envelopes
 film/tape.ts  the scripted runs: animations, goldens and the sim replay
 scripts/      build, device and recording commands over the vendored toolchain

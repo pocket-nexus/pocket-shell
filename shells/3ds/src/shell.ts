@@ -155,9 +155,15 @@ export function parseOffset(text: string): number | null {
   return signed;
 }
 
-export function formatClock(time: CivilTime, hour12 = false): string {
-  const shown = hour12 ? time.hour % 12 || 12 : time.hour;
-  return `${pad2(shown)}:${pad2(time.minute)}`;
+export function formatClock(time: CivilTime): string {
+  return `${pad2(time.hour)}:${pad2(time.minute)}`;
+}
+
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/** The bar's clock: Omarchy's `dddd HH:mm`. */
+export function formatBarClock(time: CivilTime): string {
+  return `${WEEKDAYS[time.weekday]} ${formatClock(time)}`;
 }
 
 export function formatDate(time: CivilTime): string {
