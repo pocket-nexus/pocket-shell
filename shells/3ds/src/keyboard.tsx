@@ -118,8 +118,8 @@ export function Keyboard(props: { store: ShellStore; pressed: () => KeyHit | nul
   const store = props.store;
   const echo = () => {
     const id = store.focusedId();
+    if (id !== null) store.appletRev(id);
     const state = id === null ? undefined : store.stateOf(id);
-    store.rev();
     if (!state) return "";
     if (state.kind === "term") return `❯ ${state.input}`;
     if (state.kind === "notes") {

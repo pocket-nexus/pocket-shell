@@ -33,7 +33,7 @@ stylus alone can close a window or switch layouts.
 |---|---|---|
 | d-pad | focus the window in that direction | `SUPER + arrows` |
 | circle pad | push the nearest split boundary (dwindle) · column width (scrolling) | `SUPER + -/=` |
-| A | launcher (grid on the deck; d-pad picks, A opens, B closes) | `SUPER + SPACE` |
+| A | the menu (a list on the deck; d-pad ↑↓ picks, A opens, B closes) | `SUPER + SPACE` |
 | B | close the focused window | `SUPER + W` |
 | X | fullscreen (covers the bar) | `SUPER + F` |
 | Y | toggle the split's orientation (dwindle) · cycle column width ⅓ ½ ⅔ 1 (scrolling) | `SUPER + J` |
@@ -67,26 +67,103 @@ through `ir:rst` rather than the HID pad, and have no `BTN` constant in
 
 ### Touch
 
-- **Workspace strip**: tap a tab to switch; the layout badge toggles the
-  layout; L / R pills latch a layer.
-- **Minimap** (the stage at 0.6): tap a window to focus it. **Hold a window
+- **Workspace strip**: tap a tab to switch; the layout glyph toggles the
+  layout; L / R pills latch a layer. As in Omarchy's bar, the active
+  workspace is a rounded square instead of its number and empty ones are
+  dimmed.
+- **Minimap** (the stage at 0.7): tap a window to focus it. **Hold a window
   to arm the close bar**, then release on the bar to close — a resistive
   panel has one contact and an 18 px × is a coin flip, so closing is a hold,
   a slide and a release (the Pocket Term convention). Drag a window onto
   another to swap them, or onto a workspace tab to move it there. Drag the
   gap between two windows to move that split. In the scrolling layout, drag
   the background to pan the strip, or a column's edge to resize it.
-- **Gutter buttons**: `kbd` (keyboard), `wall` (next wallpaper), `keys` (key
-  sheet), `bar` (toggle the bar).
-- **Dock**: tap an app to open it on the current workspace; a green dot marks
-  apps with a window.
+- **Dock**: the menu, then **term, notes and top** (tap to open one on the
+  current workspace), then the switches **keyboard, keys, wallpaper and
+  bar**. Each is a 16 px glyph in a 36 px cell (`src/gen-icons.ts`), drawn
+  on the pixel grid at a 1 px stroke after the Material Design shapes
+  Omarchy's bar uses. The glyphs carry no labels; the pressed cell fills
+  with the accent and names itself above the dock. A 10 px accent mark sits
+  under the focused window's app, a 4 px grey one under an app with a window
+  elsewhere. A switch that is on draws in the accent.
+
+### The menu
+
+`L + A` or the dock's first cell opens Omarchy's `SUPER + SPACE` card on the
+deck: the title `Menu…`, then one row per entry — the three apps, then
+**Keys** (the key sheet), **Wallpaper**, **Bar** and **About**. A row is a
+glyph, a label and a short description; the selected row carries an 8 %
+foreground wash and turns the accent. The d-pad moves by row, A or a tap
+runs it, B closes. Omarchy's 50 px rows would fit three to the panel, so rows
+here are 20 px and the card border is 1 px.
 
 ### Feedback
 
-Anything that cannot happen says why on the deck's hint line for about 1.6 s
-("nothing left", "workspace 1 is the first", "a split needs two windows").
-A focus change is also visible on the stage: the focused window carries
-Omarchy's 2 px active border (cyan to green), unfocused windows a grey one.
+Anything that cannot happen says why in a notification card at the top right
+of the stage for 1.8 s ("nothing left", "workspace 1 is the first", "a split
+needs two windows"). As in Omarchy, the card has an accent border and a 2 px
+countdown bar along its bottom edge. A focus change is also visible on the
+stage: the focused window carries tokyo-night's 2 px active border
+(`#7aa2f7`), unfocused windows a grey one (`#595959aa`).
+
+## Motion
+
+**A window is laid out at its placement, and its transform animates.** When
+a placement changes, `src/store.ts` computes where the window is drawn at
+that moment, sets its `translate` and `scale` so it appears there, and hands
+the return to identity to the core's animation tracks (the core's `out`
+curve over 200 ms). This is FLIP: the JS runs once, at the change, and no
+frame of a transition relayouts the tree or re-evaluates a Solid effect.
+An interrupted transition restarts from where it is drawn, because the store
+replays the core's curve (`1 − (1 − t)³` over whole 60 Hz frames) to find
+that point. Like Hyprland, a resizing window stretches its last frame until
+it lands.
+
+The curves follow Omarchy's: a new window pops in from 87 % while it fades
+up (`windowsIn … popin 87%`), a closed window's outline shrinks and fades in
+170 ms on a linear curve (`windowsOut`), and the close bar rises and sinks
+in 100 ms. A workspace switch slides the arriving windows 48 px, which
+Omarchy leaves instant; on a 3.5" panel the slide says which way you went.
+
+The earlier version eased every window's `left/top/width/height` in JS on
+every frame, so each frame of a transition re-ran the window effects, the
+layout pass and the text layout. See "Old 3DS" below for what that cost.
+
+## Old 3DS
+
+Measured on an Old 3DS (268 MHz ARM11, no L2 cache) with the runtime's
+`devStats` and a per-frame log of `Date.now()` taken by the store's frame
+hook. Both builds run on PocketJS `50b4471b`; "before" is the previous guest.
+
+| three windows, tokyo-night | before | after |
+|---|---:|---:|
+| layout toggled every 30 frames: mean / longest frame | 90–98 / 270–320 ms | 21.7 / 117 ms |
+| idle, term or notes focused: JS per frame | 20–59 ms | 1.7 ms |
+| a shoulder press (the chord map comes up) | 269 ms | 34 ms |
+| a focus change · a typed character · a `rev` bump that moves nothing | 87 · 75 · 75 ms | 37 · 8 · 18 ms |
+| top open: the once-a-second frame | 50 ms | 33 ms |
+
+- **Transitions run on the core's tracks** (see Motion), so JS does no work
+  between the first and last frame of a transition.
+- **An idle frame bumped `rev`**: `plainInput` ended in `bump()` whenever a
+  term or notes window had focus, with or without a key down, so every
+  frame re-ran every window. It now returns when nothing was pressed.
+- **A `rev` bump stops where nothing changed.** `placements`, `order`,
+  `counts` and the dock's open apps compare by value; each window reads its
+  own rect, focus, title and content size through value-equal memos; an
+  applet edit bumps that window's revision (`appletRev`) instead of `rev`.
+- **The deck's bodies stay mounted.** The minimap, one chord map per layer
+  and the menu are laid out once and shown by an opacity prop, which
+  neither restyles nor relayouts; a hidden one keeps the layout it last
+  showed. The keyboard and the key sheet mount on demand: kept laid out,
+  their hundred-odd nodes doubled the relayout behind every focus change.
+- **top's graph sweeps.** A second's sample lands in one slot, scaled and
+  colored through paint-only props, instead of shifting all 32 bars.
+
+What remains: a layout toggle spends about 70 ms of JS in its first frame,
+because three windows re-lay out and term re-wraps its lines; a focus
+change about 37 ms. A full QuickJS cycle collection pauses the guest for
+about 300 ms whenever the heap has grown by half.
 
 ## Layouts
 
@@ -123,11 +200,13 @@ Five workspaces exist from boot; nothing is persisted across launches (the
   `clear`. Plain
   buttons: A enter, B backspace, X tab-complete, Y space, ↑↓ history, START
   clear; the circle pad scrolls. 12 px JetBrains Mono on a 7 px cell.
-- **clock** — the RTC at 36 px, the date, a seconds bar; A toggles 12 h.
 - **notes** — a scratch pad on the same keyboard; A newline, B backspace.
-- **keys** — the chord table as a window; ↑↓ scroll.
-- **stats** — fps, frame, uptime, windows, host, wallpaper, layer.
-- **about** — what this is.
+- **top** — the frame loop the way Omarchy's btop reads a machine: fps
+  large, a 32-second fps graph (green at 55 and up, yellow from 30, red
+  below), then uptime, frame, windows, workspace and host.
+
+The time is in the bar (`Tuesday 22:38`, Omarchy's `dddd HH:mm`) and the
+chord table is the key sheet, so neither has a window of its own.
 
 ## Files
 
@@ -135,13 +214,15 @@ Five workspaces exist from boot; nothing is persisted across launches (the
 src/wm.ts         the window manager: pure state and geometry (tested)
 src/chords.ts     the modifier grammar as one table, plus its labels (tested)
 src/shell.ts      pocketsh, the command interpreter (tested)
-src/store.ts      signals, per-frame input dispatch, geometry animation, applet state
-src/stage.tsx     top screen: wallpaper, windows, bar, key sheet
-src/deck.tsx      touch screen: strip, minimap and its gestures, chord map, launcher, dock
+src/store.ts      signals, per-frame input dispatch, window transitions, applet state
+src/stage.tsx     top screen: wallpaper, windows, bar, key sheet, notifications
+src/deck.tsx      touch screen: strip, minimap and its gestures, chord map, menu, dock
 src/keyboard.tsx  the deck's hand-laid touch keyboard
-src/applets.tsx   term · clock · notes · keys · stats · about
+src/applets.tsx   term · notes · top
+src/gen-icons.ts  the deck's 16 px glyphs as pixel art; writes src/icons/ (ignored)
+src/icons.ts      every icon path as a literal, which is how the build finds them
 src/wall/         tokyo-night backgrounds in 512x256 envelopes (prepare.ts cooks them)
-src/images.json   bakes the wallpapers as PSM_5650
+src/images.json   bakes the wallpapers as PSM_5650 and the icons as PSM_8888
 ```
 
 **Wallpapers are 400x240 crops padded into 512x256**: the pak compiler
@@ -164,7 +245,7 @@ Two things came out of that. The host budget is now 384 KiB, which is what
 the sibling Pocket Term work already found it needed. And **a row here is an
 offset, not a node**: `Keys` and `Stats` render each column as its own flat
 pass of absolutely-positioned `Text` under the applet root, three levels
-deep, instead of a wrapper view per row. Prefer that shape for any new
+deep, instead of a wrapper view per row (`Top` keeps that shape). Prefer that shape for any new
 applet, and remember an emulator with a generous stack will not warn you —
 `film/tape.ts` has an applets tape that opens every applet from the dock
 precisely because the first tape never did.
@@ -189,9 +270,11 @@ pocketsh states the offset the console could not**.
 
 ## Determinism
 
-The bar shows the RTC as `HH:MM`. The recorder pins the emulator's clock
+The bar shows the RTC as `dddd HH:mm`. The recorder pins the emulator's clock
 (`init_clock = 1`, `init_time` = 2000-01-01 00:00:00), so a recorded run reads
-`00:00` for its first minute — which is why the stills in `media/` show
-midnight and the photographs in `media/hw/` show the real time. The shell tape
-avoids the clock and stats applets, whose seconds would differ run to run.
+Saturday at the pinned hour (shifted by the recording host's zone) for its
+first minute — which is why the stills in `media/` all show one time and the
+photographs in `media/hw/` show the real time. The shell tape
+opens a second term rather than top, whose fps reading comes from the wall
+clock.
 Uptime counts frames, not wall time. See [CAPTURE.md](CAPTURE.md).

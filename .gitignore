@@ -9,3 +9,6 @@ dist/
 # Deterministic desktop assets: keep generators and original font inputs.
 /shells/desktop/src/system-ui/icons/
 /shells/desktop/src/system-ui/fonts/
+
+# Deterministic 3DS icons: keep the generator (shells/3ds/src/gen-icons.ts).
+/shells/3ds/src/icons/

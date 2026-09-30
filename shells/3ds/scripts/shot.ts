@@ -37,12 +37,13 @@ const code = value("eval");
 const settle = Number(value("settle") ?? 900);
 
 const keyPath = resolve(ROOT, `.pocket/devices/${host}-8131.key`);
-const client = new PocketRuntimeClient({
-  host,
-  token: parsePocketRuntimeToken(readFileSync(keyPath, "utf8")),
-  timeoutMs: 20_000,
-});
-await client.connect();
+const token = parsePocketRuntimeToken(readFileSync(keyPath, "utf8"));
+const open = async () => {
+  const connection = new PocketRuntimeClient({ host, token, timeoutMs: 20_000 });
+  await connection.connect();
+  return connection;
+};
+let client = await open();
 
 if (code) {
   const id = `shot-${Date.now()}`;
@@ -50,7 +51,11 @@ if (code) {
   await client.sendCtrl({ t: "eval", id, code });
   const evaluated = await result;
   if (evaluated.error) throw new Error(`eval failed on the console: ${String(evaluated.error)}`);
+  // Settle disconnected: while a client is attached the guest sends DevTools
+  // snapshots, and their cost shows up in the picture (top's fps, for one).
+  client.close();
   await Bun.sleep(settle);
+  client = await open();
 }
 
 const pending = client.waitForScreenshot(20_000);

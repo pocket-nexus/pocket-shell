@@ -27,7 +27,7 @@ describe("pocket-shell in the sim", () => {
   test("the golden tape's chords run clean", async () => {
     const { world, store } = await boot();
     // The tape's dock taps land on frames 8, 18 and 28.
-    const taps: Record<number, "term" | "notes" | "about"> = { 8: "term", 18: "notes", 28: "about" };
+    const taps: Record<number, "term" | "notes"> = { 8: "term", 18: "notes", 28: "term" };
     for (let frame = 0; frame <= spec.frames; frame++) {
       const app = taps[frame];
       if (app) store.open(app);
@@ -42,7 +42,7 @@ describe("pocket-shell in the sim", () => {
       world.frame(spec.input!(frame));
       if (frame === 48) {
         expect(store.order().length).toBe(3);
-        expect(store.focusedApp()).toBe("about");
+        expect(store.focusedApp()).toBe("term");
       }
       if (frame === 60) {
         expect(store.layer()).toBe("super");
@@ -86,7 +86,7 @@ describe("pocket-shell in the sim", () => {
       store.run(action);
       world.frame(0);
     }
-    for (const app of ["term", "clock", "notes", "keys", "stats", "about"] as const) store.open(app);
+    for (const app of ["term", "notes", "top"] as const) store.open(app);
     for (let i = 0; i < 10; i++) world.frame(0);
     for (const action of actions) {
       store.run(action);
@@ -101,5 +101,26 @@ describe("pocket-shell in the sim", () => {
     store.typeKey("enter");
     for (let i = 0; i < 3; i++) world.frame(0);
     expect(store.wm.windows.size).toBeGreaterThan(0);
+  });
+
+  test("every menu row runs and closes the menu", async () => {
+    const { world, store } = await boot();
+    const { MENU } = await import("../src/store.ts");
+    world.frame(0);
+    for (let row = 0; row < MENU.length; row++) {
+      store.setLauncherOpen(true);
+      world.frame(0);
+      const before = store.wm.windows.size;
+      store.runMenu(row);
+      world.frame(0);
+      const item = MENU[row];
+      expect(store.launcherOpen()).toBe(false);
+      if (item.kind === "app") {
+        expect(store.wm.windows.size).toBe(before + 1);
+        expect(store.focusedApp()).toBe(item.app);
+      }
+      if (item.kind === "action" && item.action === "about") expect(store.toast()).toContain("Pocket Shell");
+      if (item.kind === "action" && item.action === "keys") store.run("keys");
+    }
   });
 });

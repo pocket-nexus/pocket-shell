@@ -35,8 +35,9 @@ const sourceInputs = new Set([
   "shells/desktop/assets/fonts/W95FA.otf",
   "shells/ipod/src/fonts/SymbolsNerdFont-subset.otf",
 ]);
-const wallpapers = JSON.parse(readFileSync(resolve(ROOT, "shells/3ds/src/images.json"), "utf8"));
-for (const key of Object.keys(wallpapers)) sourceInputs.add(`shells/3ds/src/${key}`);
+const images3ds = JSON.parse(readFileSync(resolve(ROOT, "shells/3ds/src/images.json"), "utf8"));
+// src/icons/ is gen-icons.ts output: ignored and regenerated, never an input.
+for (const key of Object.keys(images3ds)) if (!key.startsWith("icons/")) sourceInputs.add(`shells/3ds/src/${key}`);
 const touchImages = JSON.parse(readFileSync(resolve(ROOT, "shells/touch/src/images.json"), "utf8"));
 for (const key of Object.keys(touchImages)) sourceInputs.add(`shells/touch/src/${key}`);
 

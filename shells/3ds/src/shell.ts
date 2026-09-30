@@ -160,6 +160,13 @@ export function formatClock(time: CivilTime, hour12 = false): string {
   return `${pad2(shown)}:${pad2(time.minute)}`;
 }
 
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/** The bar's clock: Omarchy's `dddd HH:mm`. */
+export function formatBarClock(time: CivilTime): string {
+  return `${WEEKDAYS[time.weekday]} ${formatClock(time)}`;
+}
+
 export function formatDate(time: CivilTime): string {
   return `${DAYS[time.weekday]} ${MONTHS[time.month - 1]} ${time.day} ${time.year}`;
 }

@@ -22,9 +22,13 @@ photographing can be arranged without pressing anything:
 
 ```sh
 bun run shot --host 192.168.1.20 \
-  --eval "const s=globalThis.__pocketShell; s.open('term'); s.open('notes'); s.open('clock')" \
+  --eval "const s=globalThis.__pocketShell; s.open('term'); s.open('notes'); s.open('top')" \
   --out shells/3ds/media/hw/tiled.png
 ```
+
+The shot waits `--settle` milliseconds (default 900) after the expression
+with the connection closed, because an attached client turns on the guest's
+DevTools snapshots and their cost would show in top's fps reading.
 
 That is how `media/hw/` was made. It is honest about what it is: those are
 photographs of the machine, at the panel's own 400×240 and 320×240, with the

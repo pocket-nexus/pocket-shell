@@ -1,5 +1,101 @@
 {
-  "wall/road.png": { "psm": 0 },
-  "wall/lake.png": { "psm": 0 },
-  "wall/swirl.png": { "psm": 0 }
+  "wall/road.png": {
+    "psm": 0
+  },
+  "wall/lake.png": {
+    "psm": 0
+  },
+  "wall/swirl.png": {
+    "psm": 0
+  },
+  "icons/menu-fg.png": {
+    "psm": 3
+  },
+  "icons/menu-accent.png": {
+    "psm": 3
+  },
+  "icons/menu-ink.png": {
+    "psm": 3
+  },
+  "icons/term-fg.png": {
+    "psm": 3
+  },
+  "icons/term-accent.png": {
+    "psm": 3
+  },
+  "icons/term-ink.png": {
+    "psm": 3
+  },
+  "icons/notes-fg.png": {
+    "psm": 3
+  },
+  "icons/notes-accent.png": {
+    "psm": 3
+  },
+  "icons/notes-ink.png": {
+    "psm": 3
+  },
+  "icons/top-fg.png": {
+    "psm": 3
+  },
+  "icons/top-accent.png": {
+    "psm": 3
+  },
+  "icons/top-ink.png": {
+    "psm": 3
+  },
+  "icons/kbd-fg.png": {
+    "psm": 3
+  },
+  "icons/kbd-accent.png": {
+    "psm": 3
+  },
+  "icons/kbd-ink.png": {
+    "psm": 3
+  },
+  "icons/keys-fg.png": {
+    "psm": 3
+  },
+  "icons/keys-accent.png": {
+    "psm": 3
+  },
+  "icons/keys-ink.png": {
+    "psm": 3
+  },
+  "icons/wall-fg.png": {
+    "psm": 3
+  },
+  "icons/wall-accent.png": {
+    "psm": 3
+  },
+  "icons/wall-ink.png": {
+    "psm": 3
+  },
+  "icons/bar-fg.png": {
+    "psm": 3
+  },
+  "icons/bar-accent.png": {
+    "psm": 3
+  },
+  "icons/bar-ink.png": {
+    "psm": 3
+  },
+  "icons/dwindle-fg.png": {
+    "psm": 3
+  },
+  "icons/dwindle-accent.png": {
+    "psm": 3
+  },
+  "icons/dwindle-ink.png": {
+    "psm": 3
+  },
+  "icons/scrolling-fg.png": {
+    "psm": 3
+  },
+  "icons/scrolling-accent.png": {
+    "psm": 3
+  },
+  "icons/scrolling-ink.png": {
+    "psm": 3
+  }
 }

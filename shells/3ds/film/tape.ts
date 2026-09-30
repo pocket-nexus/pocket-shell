@@ -18,7 +18,7 @@ export const SHELL_TAPE: GoldenSpec = {
   name: "pocket-shell",
   frames: 245,
   capture: [3, 48, 60, 84, 112, 126, 160, 176, 214, 240],
-  // Three dock taps open term, notes and about (about stacks under notes:
+  // Three dock taps open term, notes and a second term (it stacks under notes:
   // dwindle splits the taller side). Then the shoulder grammar: L + LEFT
   // focuses term with the deck showing the L chord map (frame 60); R +
   // RIGHT swaps term with notes (84); L + START turns the workspace into
@@ -47,34 +47,40 @@ export const SHELL_TAPE: GoldenSpec = {
     return mask;
   },
   touch: (frame) => {
-    // Dock cells are 48 px from x = 16; the dock is the bottom 40 px.
-    if (frame >= 6 && frame <= 7) return [{ id: 0, x: 40, y: 222 }];
-    if (frame >= 16 && frame <= 17) return [{ id: 0, x: 136, y: 222 }];
-    if (frame >= 26 && frame <= 27) return [{ id: 0, x: 280, y: 222 }];
+    // The dock is the bottom 36 px; term, notes and top are 36 px cells
+    // from x = 44 (src/deck.tsx DOCK).
+    if (frame >= 6 && frame <= 7) return [{ id: 0, x: 62, y: 222 }];
+    if (frame >= 16 && frame <= 17) return [{ id: 0, x: 98, y: 222 }];
+    // A second term, not top: top shows live fps, and a golden must not.
+    if (frame >= 26 && frame <= 27) return [{ id: 0, x: 62, y: 222 }];
     // Hold term's tile on the minimap (scrolling layout: the second
     // column), then slide down onto the close bar and release.
-    if (frame >= 186 && frame <= 216) return [{ id: 1, x: 214, y: 106 }];
-    if (frame >= 217 && frame <= 222) return [{ id: 1, x: 214, y: 106 + (frame - 216) * 12 }];
+    if (frame >= 186 && frame <= 216) return [{ id: 1, x: 223, y: 117 }];
+    if (frame >= 217 && frame <= 222) return [{ id: 1, x: 223, y: 117 + (frame - 216) * 12 }];
     return [];
   },
 };
 
-/** Every applet, opened from the dock. The first tape only ever opened three
- *  of the six, and mounting one of the others is what overflowed the guest's
- *  JS stack on hardware — see docs/DESIGN.md, "The depth budget". */
+/** Every applet, opened from the dock. An early tape opened only some of
+ *  them, and mounting one of the others is what overflowed the guest's JS
+ *  stack on hardware — see docs/DESIGN.md, "The depth budget". Top shows a
+ *  wall-clock fps, which no pinned frame may contain, so the tape opens it
+ *  first and closes it by touch before the last capture. */
 export const APPLETS_TAPE: GoldenSpec = {
   name: "pocket-shell-applets",
   app: "pocket-shell",
   frames: 95,
   // Frame 7 lands inside the first dock tap, so it captures the pressed
   // look a painted button needs on a panel with no hover.
-  capture: [7, 40, 90],
+  capture: [7, 90],
   touch: (frame) => {
-    const taps = [6, 16, 26, 36, 46, 56];
-    const index = taps.indexOf(frame);
-    if (index >= 0) return [{ id: 0, x: 40 + index * 48, y: 222 }];
-    const held = taps.indexOf(frame - 1);
-    if (held >= 0) return [{ id: 0, x: 40 + held * 48, y: 222 }];
+    // top, term, notes: 36 px dock cells from x = 44 (src/deck.tsx DOCK).
+    const taps: [number, number][] = [[6, 134], [16, 62], [26, 98]];
+    for (const [at, x] of taps) if (frame === at || frame === at + 1) return [{ id: 0, x, y: 222 }];
+    // Top holds the left half; hold its minimap tile, slide onto the close
+    // bar and let go.
+    if (frame >= 36 && frame <= 66) return [{ id: 1, x: 90, y: 117 }];
+    if (frame >= 67 && frame <= 72) return [{ id: 1, x: 90, y: 117 + (frame - 66) * 12 }];
     return [];
   },
 };
@@ -160,7 +166,7 @@ export const CUTS: readonly Cut[] = [
     step: 1,
     fps: 30,
     caption:
-      "three dock taps open term, notes and about; each window splits the focused leaf along its longer side, and the deck's minimap follows",
+      "three dock taps open term, notes and a second term; each window splits the focused leaf along its longer side, and the deck's minimap follows",
   },
   {
     name: "chords",

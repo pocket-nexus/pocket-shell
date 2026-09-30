@@ -141,7 +141,7 @@ export function labelFor(action: ActionId, layout: LayoutKind): string {
     case "carry.next":
       return "carry window";
     case "launcher":
-      return "launcher";
+      return "menu";
     case "close":
       return "close window";
     case "fullscreen":
