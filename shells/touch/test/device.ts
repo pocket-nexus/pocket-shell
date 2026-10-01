@@ -15,7 +15,7 @@ const vendor = join(root, "vendor/pocketjs");
 const descriptor = JSON.parse(readFileSync(join(root, "shells/touch/ipodtouch4.json"), "utf8"));
 const output = resolve(process.env.POCKET_SHELL_TOUCH_OUTPUT ?? join(root, ".pocket-build/validation/touch", new Date().toISOString().replaceAll(":", "-")));
 mkdirSync(output, { recursive: true });
-const cache = join(homedir(), ".cache/pocket-stack/ipodtouch4/ssh");
+const cache = join(homedir(), ".cache/pocket-nexus/ipodtouch4/ssh");
 const port = process.env.POCKETJS_IPODTOUCH4_PORT ?? "2224";
 const ssh = ["ssh", "-p", port, "-i", join(cache, "id_rsa"), "-o", `UserKnownHostsFile=${join(cache, "known_hosts")}`,
   "-o", "StrictHostKeyChecking=yes", "-o", "HostKeyAlias=[127.0.0.1]:2224", "-o", "HostKeyAlgorithms=+ssh-rsa",

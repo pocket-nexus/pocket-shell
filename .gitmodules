@@ -1,4 +1,4 @@
 [submodule "vendor/pocketjs"]
 	path = vendor/pocketjs
-	url = https://github.com/pocket-stack/pocketjs.git
+	url = https://github.com/pocket-nexus/pocketjs.git
 	branch = main

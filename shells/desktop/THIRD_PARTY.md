@@ -3,7 +3,7 @@
 ## PocketJS
 
 `../../vendor/pocketjs` is a pinned Git submodule of
-[pocket-stack/pocketjs](https://github.com/pocket-stack/pocketjs), licensed
+[pocket-nexus/pocketjs](https://github.com/pocket-nexus/pocketjs), licensed
 under the MIT License. PocketJS remains a separate MIT dependency.
 
 ## Inter

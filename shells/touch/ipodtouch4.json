@@ -2,7 +2,7 @@
   "id": "touch",
   "projectRoot": ".",
   "manifest": "pocket.json",
-  "bundleId": "dev.pocket-stack.fluid",
+  "bundleId": "dev.pocket-nexus.fluid",
   "bundleName": "PocketShellTouch.app",
   "executable": "PocketShellTouch",
   "title": "Pocket Shell Touch",

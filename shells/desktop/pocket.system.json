@@ -1,12 +1,12 @@
 {
   "$schema": "https://pocketjs.dev/schema/pocket-system-1.json",
   "pocketSystem": 1,
-  "id": "dev.pocket-stack.desktop",
+  "id": "dev.pocket-nexus.desktop",
   "name": "pocket-desktop",
   "title": "Pocket Shell Desktop",
   "version": "0.1.0",
   "roles": {
-    "systemUI": "dev.pocket-stack.desktop.system-ui"
+    "systemUI": "dev.pocket-nexus.desktop.system-ui"
   },
   "applications": {
     "installPolicy": {
@@ -16,72 +16,72 @@
     "backgroundExecution": "suspend",
     "catalog": [
       {
-        "package": "dev.pocket-stack.desktop.system-ui",
+        "package": "dev.pocket-nexus.desktop.system-ui",
         "manifest": "shells/desktop/pocket.json",
         "required": true
       },
       {
-        "package": "dev.pocket-stack.hero",
+        "package": "dev.pocket-nexus.hero",
         "manifest": "vendor/pocketjs/apps/hero/pocket.json",
         "required": false,
         "presentation": { "title": "Hero", "viewport": [640, 360] }
       },
       {
-        "package": "dev.pocket-stack.settings",
+        "package": "dev.pocket-nexus.settings",
         "manifest": "vendor/pocketjs/apps/settings/pocket.json",
         "required": false,
         "presentation": { "title": "Settings", "viewport": [480, 272] }
       },
       {
-        "package": "dev.pocket-stack.motions",
+        "package": "dev.pocket-nexus.motions",
         "manifest": "vendor/pocketjs/apps/motions/pocket.json",
         "required": false,
         "presentation": { "title": "Motions", "viewport": [480, 272] }
       },
       {
-        "package": "dev.pocket-stack.cards",
+        "package": "dev.pocket-nexus.cards",
         "manifest": "vendor/pocketjs/apps/cards/pocket.json",
         "required": false,
         "presentation": { "title": "Cards", "viewport": [480, 272] }
       },
       {
-        "package": "dev.pocket-stack.chrome",
+        "package": "dev.pocket-nexus.chrome",
         "manifest": "vendor/pocketjs/apps/chrome/pocket.json",
         "required": false,
         "presentation": { "title": "Chrome", "viewport": [480, 272] }
       },
       {
-        "package": "dev.pocket-stack.cursor",
+        "package": "dev.pocket-nexus.cursor",
         "manifest": "vendor/pocketjs/apps/cursor/pocket.json",
         "required": false,
         "presentation": { "title": "Cursor", "viewport": [480, 272] }
       },
       {
-        "package": "dev.pocket-stack.gallery",
+        "package": "dev.pocket-nexus.gallery",
         "manifest": "vendor/pocketjs/apps/gallery/pocket.json",
         "required": false,
         "presentation": { "title": "Gallery", "viewport": [480, 272] }
       },
       {
-        "package": "dev.pocket-stack.library",
+        "package": "dev.pocket-nexus.library",
         "manifest": "vendor/pocketjs/apps/library/pocket.json",
         "required": false,
         "presentation": { "title": "Library", "viewport": [480, 272] }
       },
       {
-        "package": "dev.pocket-stack.music",
+        "package": "dev.pocket-nexus.music",
         "manifest": "vendor/pocketjs/apps/music/pocket.json",
         "required": false,
         "presentation": { "title": "Music", "viewport": [480, 272] }
       },
       {
-        "package": "dev.pocket-stack.notifications",
+        "package": "dev.pocket-nexus.notifications",
         "manifest": "vendor/pocketjs/apps/notifications/pocket.json",
         "required": false,
         "presentation": { "title": "Notifications", "viewport": [480, 272] }
       },
       {
-        "package": "dev.pocket-stack.stats",
+        "package": "dev.pocket-nexus.stats",
         "manifest": "vendor/pocketjs/apps/stats/pocket.json",
         "required": false,
         "presentation": { "title": "Stats", "viewport": [480, 272] }
@@ -90,18 +90,18 @@
   },
   "installation": {
     "installedPackages": [
-      "dev.pocket-stack.desktop.system-ui",
-      "dev.pocket-stack.hero",
-      "dev.pocket-stack.settings",
-      "dev.pocket-stack.motions",
-      "dev.pocket-stack.cards",
-      "dev.pocket-stack.chrome",
-      "dev.pocket-stack.cursor",
-      "dev.pocket-stack.gallery",
-      "dev.pocket-stack.library",
-      "dev.pocket-stack.music",
-      "dev.pocket-stack.notifications",
-      "dev.pocket-stack.stats"
+      "dev.pocket-nexus.desktop.system-ui",
+      "dev.pocket-nexus.hero",
+      "dev.pocket-nexus.settings",
+      "dev.pocket-nexus.motions",
+      "dev.pocket-nexus.cards",
+      "dev.pocket-nexus.chrome",
+      "dev.pocket-nexus.cursor",
+      "dev.pocket-nexus.gallery",
+      "dev.pocket-nexus.library",
+      "dev.pocket-nexus.music",
+      "dev.pocket-nexus.notifications",
+      "dev.pocket-nexus.stats"
     ]
   }
 }

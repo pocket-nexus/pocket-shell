@@ -4,7 +4,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { ROOT, VENDOR } from './paths.ts';
 import { symbianPackageIdentity } from '../../../vendor/pocketjs/tools/symbian-package.ts';
 import { resolveSymbianE7BuildPlan } from '../../../vendor/pocketjs/tools/symbian-profile.ts';
-import { pocketStackCacheRoot, withArtifactLock } from '../../../vendor/pocketjs/tools/psp-toolchain.ts';
+import { pocketNexusCacheRoot, withArtifactLock } from '../../../vendor/pocketjs/tools/psp-toolchain.ts';
 
 const manifest = resolve(ROOT, 'pocket.json');
 const plan = resolveSymbianE7BuildPlan(await Bun.file(manifest).json());
@@ -21,7 +21,7 @@ async function device(action: 'deploy' | 'install' | 'status') {
   if (!existsSync(python)) await run(['python3', '-m', 'venv', environment]);
   const probe = Bun.spawn([python, '-c', 'import usb.core'], { stdout: 'ignore', stderr: 'ignore' });
   if (await probe.exited) await run([python, '-m', 'pip', 'install', '--disable-pip-version-check', 'pyusb==1.3.1']);
-  await withArtifactLock(resolve(pocketStackCacheRoot(), 'symbian/.locks/coda-usb-device.lock'), () =>
+  await withArtifactLock(resolve(pocketNexusCacheRoot(), 'symbian/.locks/coda-usb-device.lock'), () =>
     run([python, '-B', resolve(ROOT, 'scripts/e7-device.py'), action,
       '--uid', identity.uid, '--executable', identity.executable + '.exe',
       '--sis', action === 'deploy' ? resolve(output, identity.sisFile) : identity.sisFile]),

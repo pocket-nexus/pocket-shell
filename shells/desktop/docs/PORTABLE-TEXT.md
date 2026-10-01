@@ -125,7 +125,7 @@ cd vendor/pocketjs
 bun tools/text-wasm.ts
 bun tools/pocket.ts build --target psp --manifest apps/text-offload/pocket.json --project-root . -- --release
 bun tools/text-provider.ts --usb /path/to/host0-root \
-  --app dev.pocket-stack.text-offload --pak dist/text-offload-main.pak
+  --app dev.pocket-nexus.text-offload --pak dist/text-offload-main.pak
 ```
 
 USB pairing is the explicit local tether/share grant, scoped by app ID. The

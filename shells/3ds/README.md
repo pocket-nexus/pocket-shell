@@ -155,7 +155,7 @@ rather than incidental:
   [docs/DESIGN.md](docs/DESIGN.md), "The clock".
 
 The 3DS application has no other backend and no portability layer. A sibling
-product, [Pocket Term](https://github.com/pocket-stack/pocket-term), runs on
+product, [Pocket Term](https://github.com/pocket-nexus/pocket-term), runs on
 the same console and shares nothing but the runtime.
 
 ## Requirements
@@ -172,7 +172,7 @@ to `shells/3ds/`; build outputs and pairing keys stay at the repository root.
 ## Quick start
 
 ```sh
-git clone --recursive https://github.com/pocket-stack/pocket-shell
+git clone --recursive https://github.com/pocket-nexus/pocket-shell
 cd pocket-shell
 bun run setup            # vendor install + runtime links
 
@@ -241,7 +241,7 @@ for their commands and shared setup.
 ## Built on PocketJS
 
 The guest is a [Solid](https://solidjs.com) application compiled to a native
-package by [PocketJS](https://github.com/pocket-stack/pocketjs), which supplies
+package by [PocketJS](https://github.com/pocket-nexus/pocketjs), which supplies
 the QuickJS runtime, the Rust core, the citro3d backend and the console
 toolchain. It arrives as the `vendor/pocketjs` submodule and is not edited
 here: a runtime change lands there first and this repository moves its pin.

@@ -69,8 +69,8 @@ function mockSvc(): MockSvc {
         focused: number,
       ) => void;
       ops.__surfaces = {
-        "dev.pocket-stack.hero": 1,
-        "dev.pocket-stack.settings": 2,
+        "dev.pocket-nexus.hero": 1,
+        "dev.pocket-nexus.settings": 2,
       };
       ops.setCompositorSurface = (
         node: number,

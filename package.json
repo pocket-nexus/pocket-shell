@@ -7,7 +7,7 @@
   "description": "Pocket Shell for Nintendo 3DS, iPod touch, touch navigation and desktop operating systems",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pocket-stack/pocket-shell.git"
+    "url": "git+https://github.com/pocket-nexus/pocket-shell.git"
   },
   "scripts": {
     "setup": "bun install --frozen-lockfile && git submodule update --init && bun install --cwd vendor/pocketjs --frozen-lockfile && bun scripts/setup.ts",

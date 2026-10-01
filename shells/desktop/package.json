@@ -6,7 +6,7 @@
   "license": "GPL-3.0-only",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pocket-stack/pocket-shell.git",
+    "url": "git+https://github.com/pocket-nexus/pocket-shell.git",
     "directory": "shells/desktop"
   },
   "scripts": {
