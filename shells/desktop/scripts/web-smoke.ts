@@ -225,7 +225,7 @@ try {
     const value = await evaluate<string>(
       "document.querySelector('#log')?.textContent ?? ''",
     );
-    return value.includes("composited AppInstance dev.pocket-stack.hero")
+    return value.includes("composited AppInstance dev.pocket-nexus.hero")
       ? value
       : null;
   }, 30_000);

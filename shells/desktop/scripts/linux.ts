@@ -73,7 +73,7 @@ if (packageArchive) {
   );
   chmodSync(launcher, 0o755);
   await Bun.write(
-    resolve(appsDir, "dev.pocket-stack.desktop.desktop"),
+    resolve(appsDir, "dev.pocket-nexus.desktop.desktop"),
     `[Desktop Entry]\nType=Application\nName=Pocket Shell Desktop\nComment=Run isolated Pocket applications in one native desktop process\nExec=pocket-desktop\nIcon=pocket-desktop\nTerminal=false\nCategories=Utility;\nStartupNotify=true\n`,
   );
   const arch = process.arch === "arm64" ? "aarch64" : process.arch === "x64" ? "x86_64" : process.arch;

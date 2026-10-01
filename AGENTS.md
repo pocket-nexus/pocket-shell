@@ -2,7 +2,7 @@
 
 Pocket Shell is a product built on PocketJS, which arrives as the
 `vendor/pocketjs` submodule. Nothing in `vendor/` is edited here: a runtime
-change lands in [pocket-stack/pocketjs](https://github.com/pocket-stack/pocketjs)
+change lands in [pocket-nexus/pocketjs](https://github.com/pocket-nexus/pocketjs)
 first, and this repository moves its pin.
 
 The repository holds **four shells**, and a change belongs

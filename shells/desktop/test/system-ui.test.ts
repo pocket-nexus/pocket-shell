@@ -104,10 +104,10 @@ describe("Pocket app desktop catalog", () => {
     expect(systemResolution.ok).toBe(true);
     if (!systemResolution.ok) return;
     expect(systemResolution.plan.roles.systemUI).toBe(
-      "dev.pocket-stack.desktop.system-ui",
+      "dev.pocket-nexus.desktop.system-ui",
     );
     expect(systemResolution.plan.systemUI.package).toBe(
-      "dev.pocket-stack.desktop.system-ui",
+      "dev.pocket-nexus.desktop.system-ui",
     );
     expect(systemResolution.plan.installation).toEqual({
       installedPackages: system.installation.installedPackages,
@@ -159,7 +159,7 @@ describe("Pocket app desktop catalog", () => {
     const available = structuredClone(system);
     available.installation.installedPackages =
       available.installation.installedPackages.filter(
-        (packageId) => packageId !== "dev.pocket-stack.hero",
+        (packageId) => packageId !== "dev.pocket-nexus.hero",
       );
     const packages = (await packageInputs()).filter(
       (entry) => entry.source !== "vendor/pocketjs/apps/hero/pocket.json",
@@ -171,21 +171,21 @@ describe("Pocket app desktop catalog", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(available.applications.catalog).toContainEqual(
-      expect.objectContaining({ package: "dev.pocket-stack.hero" }),
+      expect.objectContaining({ package: "dev.pocket-nexus.hero" }),
     );
     expect(result.plan.installation.installedPackages).not.toContain(
-      "dev.pocket-stack.hero",
+      "dev.pocket-nexus.hero",
     );
     expect(
       result.plan.applications.map((entry) => entry.package),
-    ).not.toContain("dev.pocket-stack.hero");
+    ).not.toContain("dev.pocket-nexus.hero");
   });
 
   test("rejects installation snapshots that omit required or name unknown packages", async () => {
     const missingSystemUI = structuredClone(system);
     missingSystemUI.installation.installedPackages =
       missingSystemUI.installation.installedPackages.filter(
-        (packageId) => packageId !== "dev.pocket-stack.desktop.system-ui",
+        (packageId) => packageId !== "dev.pocket-nexus.desktop.system-ui",
       );
     const missing = validateAndResolveSystemPlan(missingSystemUI, {
       target: "macos-app",
@@ -202,7 +202,7 @@ describe("Pocket app desktop catalog", () => {
 
     const unknownPackage = structuredClone(system);
     unknownPackage.installation.installedPackages.push(
-      "dev.pocket-stack.unknown",
+      "dev.pocket-nexus.unknown",
     );
     const unknown = validateAndResolveSystemPlan(unknownPackage, {
       target: "macos-app",
@@ -249,7 +249,7 @@ describe("Pocket app desktop catalog", () => {
     expect(accepted.ok).toBe(true);
     if (accepted.ok) {
       const hero = accepted.plan.applications.find(
-        (entry) => entry.package === "dev.pocket-stack.hero",
+        (entry) => entry.package === "dev.pocket-nexus.hero",
       );
       expect(hero?.plan.features["ui.compositor-surfaces"]).toBe(false);
     }

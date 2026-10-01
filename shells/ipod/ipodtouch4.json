@@ -2,7 +2,7 @@
   "id": "ipod",
   "projectRoot": ".",
   "manifest": "pocket.json",
-  "bundleId": "dev.pocket-stack.shell",
+  "bundleId": "dev.pocket-nexus.shell",
   "bundleName": "PocketShell.app",
   "executable": "PocketShell",
   "title": "Pocket Shell",

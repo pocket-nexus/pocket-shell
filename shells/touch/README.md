@@ -124,7 +124,7 @@ UIKit host and installer come from the pinned `vendor/pocketjs` submodule.
 `ipodtouch4.json` supplies the external-app descriptor to PocketJS. The native
 bundle is `PocketShellTouch.app`; `pocketjs-shell-touch://launch` opens it and
 `shell_touch_gesture` identifies completed actions. The installed package ID
-`dev.pocket-stack.fluid` remains stable so deployment updates the existing app
+`dev.pocket-nexus.fluid` remains stable so deployment updates the existing app
 and retains its User container. It is a compatibility identifier, not the
 shell's display name.
 

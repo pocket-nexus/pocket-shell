@@ -686,7 +686,7 @@ export function AboutView(props: {
       <UiText
         theme={props.theme}
         cls={props.theme.mutedText}
-        t="github.com/pocket-stack/pocket-shell"
+        t="github.com/pocket-nexus/pocket-shell"
       />
       <View class="flex-1" />
       <View class="flex-row justify-end">

@@ -1,7 +1,7 @@
 # Pocket Shell
 
 Pocket Shell provides shells for handheld devices and desktop operating
-systems, built on [PocketJS](https://github.com/pocket-stack/pocketjs).
+systems, built on [PocketJS](https://github.com/pocket-nexus/pocketjs).
 The applications live in one repository with one runtime submodule. Each
 shell owns its interface and input model.
 
@@ -51,7 +51,7 @@ Run commands from the repository root. Bun, Rust and the
 Native targets have additional requirements in their shell's README.
 
 ```sh
-git clone --recurse-submodules https://github.com/pocket-stack/pocket-shell.git
+git clone --recurse-submodules https://github.com/pocket-nexus/pocket-shell.git
 cd pocket-shell
 bun run setup
 rustup target add wasm32-unknown-unknown

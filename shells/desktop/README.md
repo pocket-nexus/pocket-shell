@@ -54,7 +54,7 @@ Choose a theme from **Start → Settings** (the logo menu on Aqua), or press
 
 ```text
 pocket.system.json
-  ├─ roles.systemUI → dev.pocket-stack.desktop.system-ui
+  ├─ roles.systemUI → dev.pocket-nexus.desktop.system-ui
   ├─ installation snapshot
   └─ installed Pocket app catalog
              ↓
@@ -72,8 +72,8 @@ The System UI is in `src/system-ui`. Demo applications are consumed from the
 pinned `vendor/pocketjs` submodule and are not copied into this product.
 
 The experimental framework implementation is pinned directly in
-`vendor/pocketjs` from [PocketJS PR #399](https://github.com/pocket-stack/pocketjs/pull/399),
-which adds GPU composition on top of [PR #390](https://github.com/pocket-stack/pocketjs/pull/390). A fresh `setup` uses
+`vendor/pocketjs` from [PocketJS PR #399](https://github.com/pocket-nexus/pocketjs/pull/399),
+which adds GPU composition on top of [PR #390](https://github.com/pocket-nexus/pocketjs/pull/390). A fresh `setup` uses
 that exact published commit; no checkout-local patches are applied.
 The desktop host no longer links gpui, CoreText or Fontconfig. Native window
 APIs handle the window, input and clipboard. The existing `pocket-ui-wgpu`
