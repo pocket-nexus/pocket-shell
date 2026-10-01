@@ -2,7 +2,7 @@
 // bun run push [--host <ip>] — rebuild the guest package and hot-push it to a
 // paired console over the Pocket Runtime dev wire, without touching the native
 // binary. This is the loop for app changes; a change under
-// vendor/pocketjs/hosts/3ds needs `bun run 3ds` and a reflash.
+// vendor/pocketjs/hosts/3ds is a native one, for `bun run deploy`.
 
 import { resolve } from "node:path";
 import { $ } from "bun";
