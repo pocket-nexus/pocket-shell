@@ -197,8 +197,8 @@ bun run shot --host 192.168.1.20    # a screenshot of both screens
 Everything in `src/` is a hot push, and an accepted push is what the shell
 boots next time. A change under `vendor/pocketjs/hosts/3ds` is native:
 `bun run deploy` builds the `.3dsx`, the running shell writes it to
-`/3ds/pocketshell-main.3dsx`, and the console restarts into it through the
-Homebrew Launcher's loader, running the guest the new file embeds. ftpd is
+`/3ds/pocketshell-main.3dsx`, and the console restarts into it through
+Luma3DS's `hb:ldr` loader, running the guest the new file embeds. ftpd is
 not part of either loop after pairing.
 
 ## Checks
