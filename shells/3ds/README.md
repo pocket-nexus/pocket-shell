@@ -188,13 +188,18 @@ To iterate without reflashing, pair once while the console is running ftpd,
 then hot-push the guest package — the app keeps running:
 
 ```sh
-bun run pair --host 192.168.1.20   # once, with ftpd open on the console
-bun run push --host 192.168.1.20   # rebuild + push, about 20 s
-bun run shot --host 192.168.1.20   # a screenshot of both screens
+bun run pair --host 192.168.1.20    # once, with ftpd open on the console
+bun run push --host 192.168.1.20    # rebuild + push, about 20 s
+bun run deploy --host 192.168.1.20  # new .3dsx over the wire, then restart into it
+bun run shot --host 192.168.1.20    # a screenshot of both screens
 ```
 
-A change under `vendor/pocketjs/hosts/3ds` is native and needs `bun run 3ds`
-and a reflash; everything in `src/` is a hot push.
+Everything in `src/` is a hot push, and an accepted push is what the shell
+boots next time. A change under `vendor/pocketjs/hosts/3ds` is native:
+`bun run deploy` builds the `.3dsx`, the running shell writes it to
+`/3ds/pocketshell-main.3dsx`, and the console restarts into it through the
+Homebrew Launcher's loader, running the guest the new file embeds. ftpd is
+not part of either loop after pairing.
 
 ## Checks
 

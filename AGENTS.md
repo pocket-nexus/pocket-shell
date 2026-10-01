@@ -58,8 +58,9 @@ documentation or tests. New validation runs stay in ignored artifact folders.
 ```sh
 bun run check                        # typecheck + all four shells' unit and sim tests
 bun run push --host <console-ip>     # rebuild the guest, hot-push it (~20 s)
+bun run deploy --host <console-ip>   # rebuild the .3dsx, install it over the wire, restart into it
 bun run shot --host <console-ip>     # a screenshot of both screens
-bun run 3ds                          # the full .3dsx — needed for a reflash
+bun run 3ds                          # the full .3dsx in dist/3ds
 bun run film                         # re-record media/ from the tapes
 bun run goldens                      # byte-compare the pinned frames
 ```
@@ -90,10 +91,13 @@ bun run check:desktop          # or check:3ds / check:ipod
 Run these commands from the repository root. Each shell also has its own
 package.json; desktop artifacts land in `shells/desktop/dist/`.
 
-`shells/3ds/src/` changes are hot pushes. A change under `vendor/pocketjs/hosts/3ds` is
-native: rebuild the `.3dsx`, copy it to the SD card, relaunch. **ftpd cannot
-run while Pocket Runtime does** — one homebrew at a time — so pairing happens
-with ftpd up and pushing happens with the shell up.
+`shells/3ds/src/` changes are hot pushes, and an accepted push persists on
+the card for this app. A change under `vendor/pocketjs/hosts/3ds` is native:
+`bun run deploy` writes the new `.3dsx` to `sdmc:/3ds/` through the running
+shell and restarts into it, and the restarted `.3dsx` boots the guest it
+embeds. **ftpd is needed once, to pair** (ftpd and Pocket Runtime are both
+homebrew, and one runs at a time); a Runtime that predates `deploy` takes one
+`bun run deploy --ftp --host <ip>` with ftpd open.
 
 ## What the tapes are for
 

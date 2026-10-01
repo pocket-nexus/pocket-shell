@@ -10,6 +10,7 @@
     "guest": "bun scripts/guest.ts",
     "pair": "bun scripts/pair.ts",
     "push": "bun scripts/push.ts",
+    "deploy": "bun scripts/deploy.ts",
     "probe": "bun scripts/probe.ts",
     "shot": "bun scripts/shot.ts",
     "film": "bun scripts/film.ts",

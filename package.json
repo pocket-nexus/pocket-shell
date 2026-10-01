@@ -17,6 +17,7 @@
     "guest": "bun run --cwd shells/3ds guest",
     "pair": "bun run --cwd shells/3ds pair",
     "push": "bun run --cwd shells/3ds push",
+    "deploy": "bun run --cwd shells/3ds deploy",
     "probe": "bun run --cwd shells/3ds probe",
     "shot": "bun run --cwd shells/3ds shot",
     "film": "bun run --cwd shells/3ds film",

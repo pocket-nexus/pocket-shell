@@ -77,6 +77,7 @@ to list its commands, including captures, benchmarks and the text companion.
 bun run guest                    # bundle the 3DS guest for the simulator
 bun run 3ds                      # full console binary in dist/3ds
 bun run push --host <console-ip>  # rebuild and hot-push the 3DS guest
+bun run deploy --host <console-ip> # install the .3dsx over the wire and restart into it
 bun run shot --host <console-ip>  # capture both console screens
 bun run film                     # regenerate shells/3ds/media from tapes
 bun run goldens                  # compare pinned 3DS frames
