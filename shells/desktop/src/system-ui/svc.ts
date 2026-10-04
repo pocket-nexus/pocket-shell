@@ -20,8 +20,15 @@
 //                              when its window is already open, restore it
 //                              from the task strip, raise it and focus it.
 //                              An id outside the installed catalog is ignored
+//   {t:"theme", id}            select the theme with that id ("classic",
+//                              "xp" or "aqua"). An id that names no theme
+//                              is ignored
 //
 // guest → host intents:
+//   {t:"theme", id}            the active theme: sent once after boot and
+//                              after every frame that ends in another theme,
+//                              whether the Settings menu, the cycle chord or
+//                              the host's theme line changed it
 //   {t:"quit"}                 Shut Down
 //   {t:"copy", text}           put text on the system clipboard
 //   {t:"paste-req"}            ask for the clipboard (host answers {t:"paste"})
@@ -30,6 +37,7 @@
 //                              grabbing|ew|ns|nwse|nesw
 
 import { getOps } from "@pocketjs/framework";
+import type { ThemeId } from "./theme.ts";
 
 export interface HostEvent {
   t:
@@ -41,7 +49,8 @@ export interface HostEvent {
     | "scroll"
     | "paste"
     | "ime"
-    | "open";
+    | "open"
+    | "theme";
   w?: number;
   h?: number;
   epoch?: number;
@@ -64,6 +73,8 @@ export interface HostEvent {
   c?: number | null;
   /** Package id of the installed app an "open" line names. */
   package?: string;
+  /** Theme id a "theme" line selects. */
+  id?: string;
 }
 
 export type CursorKind =
@@ -86,7 +97,8 @@ export interface Svc {
       | { t: "copy"; text: string }
       | { t: "paste-req" }
       | { t: "caret"; x: number; y: number; h: number }
-      | { t: "cursor"; k: CursorKind },
+      | { t: "cursor"; k: CursorKind }
+      | { t: "theme"; id: ThemeId },
   ): void;
 }
 

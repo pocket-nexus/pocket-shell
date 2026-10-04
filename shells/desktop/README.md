@@ -9,20 +9,20 @@ resolution, AppInstance isolation, scheduling and native composition.
 
 ## Themes
 
-Pocket Shell Desktop ships three System UI themes: Classic 98, Windows XP and Aqua.
+Pocket Shell Desktop ships three System UI themes: Classic 98, XP and Aqua.
 Each is a period desktop rebuilt from PocketJS-native drawing — no bitmaps of
 the originals, no theme-specific code paths outside the theme's own
 definition. **All three run on the same System manifest, AppInstances and
 native compositor.**
 
-| Classic 98 | Windows XP | Aqua |
+| Classic 98 | XP | Aqua |
 |---|---|---|
 | ![Pocket Shell Desktop classic theme](docs/classic-theme.png) | ![Pocket Shell Desktop XP theme](docs/xp-theme.png) | ![Pocket Shell Desktop Aqua theme](docs/aqua-theme.png) |
 
 - **Classic 98** — hard two-ring bevels, 18px captions, a 28px taskbar with
   the Start rail menu, the W95FA bitmap face, native 32px pixel-art desktop
   icons and Explorer's coolbar and "Folders" pane in the file manager.
-- **Windows XP** — Luna chrome: three-stop gel gradients under 1px
+- **XP** — Luna chrome: three-stop gel gradients under 1px
   highlight and seat strips, top-rounded window frames, the two-column Start
   panel (user header, pinned programs, places, Turn Off Computer), a baked
   green Start pill, softly shaded Luna-style vector icons, and the Explorer
@@ -46,6 +46,15 @@ Dock). The window manager hit-tests from the same metrics, so switching
 themes keeps every client rectangle, caret and compositor surface exact. The
 Pocket app icon is the PocketJS favicon mark, cut from Aqua silver-and-blue
 or Luna silver per theme.
+
+The same contract covers what a program draws inside its window: list boxes
+and their rows, a scroll mark, group frames, value wells, radio marks,
+progress bars and push buttons. The Shut Down dialog draws its radio marks
+from it. A Pocket app that imports `src/system-ui/theme.ts` draws its own
+window from the same parts, and bakes the five theme font slots and the icon
+set into its own pack the way the System UI does (`src/system-ui/pak.json`,
+`src/system-ui/icons/`). The host tells the app which theme is active; the
+`theme` lines below carry it.
 
 Choose a theme from **Start → Settings** (the logo menu on Aqua), or press
 **Cmd+Shift+T** to cycle while testing.
@@ -76,11 +85,35 @@ Aqua screen bar with no window focused, the About dialog and its menu entries,
 and the welcome note show it, so a product that installs this System UI under
 its own `pocket.system.json` gets its own name in each of them.
 
+The About dialog's text comes from `pocket.about.json` beside the System
+manifest, because the manifest schema has no field for product copy:
+
+```json
+{
+  "body": ["One line of text.", "Another line."],
+  "link": "example.org/product"
+}
+```
+
+`body` holds one text line per entry; the dialog does not wrap them and its
+fixed size holds four above the link. `link` is shown as text under the body.
+Both fields are optional. This repository's file describes the shell; a
+product that bundles the System UI replaces the file with its own.
+
 The host and the System UI exchange JSON lines over the `system-ui` companion
 service; `src/system-ui/svc.ts` lists every line. Besides input, the host can
-send `{t:"open", package}` to open an installed app by package id. When that
-app's window is already open, the line restores it if it is minimized, raises
-it and focuses it. A package id outside the installed catalog is ignored.
+send two lines:
+
+- `{t:"open", package}` opens an installed app by package id. When that app's
+  window is already open, the line restores it if it is minimized, raises it
+  and focuses it. A package id outside the installed catalog is ignored.
+- `{t:"theme", id}` selects the theme with that id: `classic`, `xp` or `aqua`.
+  An id that names no theme is ignored.
+
+The System UI sends `{t:"theme", id}` to the host once after boot and after
+every frame that ends in another theme, whether the Settings menu, the cycle
+chord or the host's line changed it. A host that keeps the user's choice or
+passes the theme on to its apps reads this line.
 
 The experimental framework implementation is pinned directly in
 `vendor/pocketjs` from [PocketJS PR #399](https://github.com/pocket-nexus/pocketjs/pull/399),

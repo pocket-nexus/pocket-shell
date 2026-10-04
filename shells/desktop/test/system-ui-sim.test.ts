@@ -7,7 +7,8 @@
 //      (bootWorld mutateOps), so the whole input dialect journey runs
 //      headless — typing, drag selection, ⌘ chords, the notepad context
 //      menu, paste-req — with guest intents (copy payloads!) asserted on
-//      the wire, and the host's open line launching apps by package id.
+//      the wire, the host's open line launching apps by package id, and the
+//      theme lines in both directions.
 //
 // The solid bundle must be prebuilt (the sim's fallback build cannot
 // resolve the framework-suffixed name):
@@ -23,12 +24,19 @@ import {
   treeHasText,
   type SimWorld,
 } from "../../../vendor/pocketjs/hosts/sim/sim.ts";
-import { DESKTOP_NAME } from "../src/system-ui/pocket-apps.ts";
+import { DESKTOP_ABOUT, DESKTOP_NAME } from "../src/system-ui/pocket-apps.ts";
 import {
   AQUA_THEME,
   CLASSIC_THEME,
+  THEMES,
   XP_THEME,
 } from "../src/system-ui/theme.ts";
+import {
+  cascadePos,
+  contentTop,
+  desktopIconPosition,
+  desktopIconRows,
+} from "../src/system-ui/wm.ts";
 
 const APP = "pocket-desktop-system-ui";
 
@@ -123,6 +131,15 @@ function treeTextCount(tree: unknown, text: string): number {
     : own;
 }
 
+/** The text of every text node, in tree order. */
+function treeTexts(tree: unknown, out: string[] = []): string[] {
+  if (tree == null) return out;
+  const node = tree as { x?: unknown; k?: unknown[] };
+  if (typeof node.x === "string") out.push(node.x);
+  if (Array.isArray(node.k)) for (const child of node.k) treeTexts(child, out);
+  return out;
+}
+
 function treeHasClass(tree: unknown, className: string): boolean {
   if (tree == null) return false;
   const node = tree as { c?: unknown; k?: unknown[] };
@@ -149,9 +166,12 @@ describe("system-ui System UI companion journey", () => {
     await step(world, 2);
     mouse(svc, 100, 445, false);
     await step(world, 2);
-    expect(treeHasText(world.getTree(), "Classic 98")).toBe(true);
-    expect(treeHasText(world.getTree(), "Windows XP")).toBe(true);
-    expect(treeHasText(world.getTree(), "Aqua")).toBe(true);
+    // The flyout's rows are the three theme labels, in picker order.
+    expect(
+      treeTexts(world.getTree()).filter((text) =>
+        THEMES.some((theme) => theme.label === text),
+      ),
+    ).toEqual(["Classic 98", "XP", "Aqua"]);
     mouse(svc, 220, 461, true);
     mouse(svc, 220, 461, false);
     await step(world, 2);
@@ -470,6 +490,174 @@ describe("system-ui System UI companion journey", () => {
     tree = world.getTree();
     expect(treeHasText(tree, "Shut Down...")).toBe(false);
     expect(treeHasText(tree, `About ${DESKTOP_NAME}`)).toBe(true);
-    expect(treeHasText(tree, "github.com/pocket-nexus/pocket-shell")).toBe(true);
+    // Under the heading the dialog shows pocket.about.json: one text node
+    // per body line, then the link.
+    expect(DESKTOP_ABOUT.body.length).toBeGreaterThan(0);
+    for (const line of DESKTOP_ABOUT.body)
+      expect(treeTextCount(tree, line)).toBe(1);
+    expect(treeTextCount(tree, DESKTOP_ABOUT.link)).toBe(1);
+    const texts = treeTexts(tree);
+    expect(texts.indexOf(DESKTOP_ABOUT.link)).toBe(
+      texts.indexOf(DESKTOP_ABOUT.body[0]) + DESKTOP_ABOUT.body.length,
+    );
+  }, 30000);
+
+  test("the shell reports its theme and takes the host's theme line", async () => {
+    const svc = mockSvc();
+    const provider = await testTextProvider();
+    const world = await bootWorld(APP, 60, {offload: provider.ops}, svc.mutateOps);
+    const guestFrame = world.frame;
+    world.frame = (...args) => { provider.betweenFrames(); guestFrame(...args); };
+    svc.push({ t: "hello", w: 800, h: 600, epoch: 1755650000000 });
+    await step(world, 3);
+
+    /** Ids of the theme lines the shell has sent, oldest first. */
+    const reported = () =>
+      svc.sent().filter((line) => line.t === "theme").map((line) => line.id);
+
+    // One report after boot, and none while the theme stands.
+    expect(reported()).toEqual(["classic"]);
+    await step(world, 6);
+    expect(reported()).toEqual(["classic"]);
+
+    // The cycle chord changes the theme; the shell reports the new one.
+    svc.push({ t: "key", k: "t", cmd: true, sh: true });
+    await step(world, 2);
+    expect(treeHasClass(world.getTree(), XP_THEME.desktop)).toBe(true);
+    expect(reported()).toEqual(["classic", "xp"]);
+
+    // The host's line selects a theme, and the shell reports that one too.
+    svc.push({ t: "theme", id: "aqua" });
+    await step(world, 2);
+    let tree = world.getTree();
+    expect(treeHasClass(tree, AQUA_THEME.desktop)).toBe(true);
+    expect(treeHasClass(tree, AQUA_THEME.screenBar)).toBe(true);
+    expect(treeHasClass(tree, XP_THEME.desktop)).toBe(false);
+    expect(reported()).toEqual(["classic", "xp", "aqua"]);
+
+    // The active theme again, an id that names no theme and a line without
+    // a usable id change nothing and report nothing.
+    const before = JSON.stringify(world.getTree());
+    svc.push({ t: "theme", id: "aqua" });
+    svc.push({ t: "theme", id: "luna" });
+    svc.push({ t: "theme", id: 7 });
+    svc.push({ t: "theme" });
+    await step(world, 2);
+    expect(JSON.stringify(world.getTree())).toBe(before);
+    expect(reported()).toEqual(["classic", "xp", "aqua"]);
+
+    // A pick in the Settings menu is reported like the chord. On Aqua the
+    // logo menu's Settings row spans y 119..138 and its flyout opens at
+    // x=207 with "Classic 98" on its first row.
+    svc.push({ t: "key", k: "escape", cmd: true });
+    await step(world, 2);
+    mouse(svc, 100, 129, false);
+    await step(world, 2);
+    mouse(svc, 250, 133, true);
+    mouse(svc, 250, 133, false);
+    await step(world, 2);
+    tree = world.getTree();
+    expect(treeHasClass(tree, CLASSIC_THEME.desktop)).toBe(true);
+    expect(reported()).toEqual(["classic", "xp", "aqua", "classic"]);
+
+    // The host's line closes an open launcher, as a pick in it would.
+    svc.push({ t: "key", k: "escape", cmd: true });
+    await step(world, 2);
+    expect(treeHasText(world.getTree(), "Shut Down...")).toBe(true);
+    svc.push({ t: "theme", id: "xp" });
+    await step(world, 2);
+    expect(treeHasText(world.getTree(), "Shut Down...")).toBe(false);
+    expect(reported()).toEqual(["classic", "xp", "aqua", "classic", "xp"]);
+
+    // Lines that arrive within one frame are applied in order, and the
+    // shell reports the theme the frame ends in once.
+    svc.push({ t: "theme", id: "classic" });
+    svc.push({ t: "theme", id: "aqua" });
+    await step(world, 2);
+    expect(treeHasClass(world.getTree(), AQUA_THEME.desktop)).toBe(true);
+    expect(reported()).toEqual(["classic", "xp", "aqua", "classic", "xp", "aqua"]);
+  }, 30000);
+
+  test("no text of the desktop names another product", async () => {
+    const svc = mockSvc();
+    const provider = await testTextProvider();
+    const world = await bootWorld(APP, 60, {offload: provider.ops}, svc.mutateOps);
+    const guestFrame = world.frame;
+    world.frame = (...args) => { provider.betweenFrames(); guestFrame(...args); };
+    svc.push({ t: "hello", w: 800, h: 600, epoch: 1755650000000 });
+    await step(world, 3);
+
+    /** Text nodes on screen that carry a product name the desktop must not show. */
+    const named = () =>
+      treeTexts(world.getTree()).filter((text) => /Windows|MS-DOS/.test(text));
+    const click = async (x: number, y: number) => {
+      mouse(svc, x, y, true);
+      mouse(svc, x, y, false);
+      await step(world, 2);
+    };
+
+    // The welcome note mentions windows in lower case only.
+    expect(named()).toEqual([]);
+    svc.push({ t: "key", k: "w", cmd: true });
+    await step(world, 2);
+
+    // The theme picker under Start > Settings (its row begins at y=433).
+    svc.push({ t: "key", k: "escape", cmd: true });
+    await step(world, 2);
+    mouse(svc, 100, 445, false);
+    await step(world, 2);
+    expect(treeHasText(world.getTree(), "Classic 98")).toBe(true);
+    expect(named()).toEqual([]);
+
+    // Start > Shut Down... (the last row, y 545..571) opens the dialog. Its
+    // caption is the verb alone: one text node, since the dialog has no
+    // task button.
+    const captions = () =>
+      treeTexts(world.getTree()).filter((text) => text === "Shut Down");
+    await click(100, 558);
+    let tree = world.getTree();
+    expect(captions()).toHaveLength(1);
+    expect(treeHasText(tree, "What do you want the computer to do?")).toBe(true);
+    expect(named()).toEqual([]);
+
+    // The dialog's two radio marks come from the theme: one chosen with its
+    // dot, one not. Aqua paints the two rings differently.
+    for (const theme of THEMES) {
+      svc.push({ t: "theme", id: theme.id });
+      await step(world, 2);
+      tree = world.getTree();
+      expect(treeHasClass(tree, theme.radioRing(true))).toBe(true);
+      expect(treeHasClass(tree, theme.radioRing(false))).toBe(true);
+      expect(treeHasClass(tree, theme.radioFace(true))).toBe(true);
+      expect(treeHasClass(tree, theme.radioFace(false))).toBe(true);
+      expect(treeHasClass(tree, theme.radioDot)).toBe(true);
+      expect(captions()).toHaveLength(1);
+    }
+    svc.push({ t: "theme", id: "classic" });
+    svc.push({ t: "key", k: "w", cmd: true });
+    await step(world, 2);
+    expect(captions()).toHaveLength(0);
+
+    // My Computer is the first desktop icon; with no other window open its
+    // window takes the first cascade slot. The second place of its sidebar
+    // is (C:), whose listing held the folder and file type that named
+    // other products.
+    const metrics = CLASSIC_THEME.metrics;
+    const icon = desktopIconPosition(0, desktopIconRows(600, metrics), metrics, 800);
+    await click(icon.x + 37, icon.y + 16);
+    await click(icon.x + 37, icon.y + 16);
+    expect(treeHasText(world.getTree(), "Control Panel")).toBe(true);
+    const geo = cascadePos(0, 800, 600, 560, 320, metrics);
+    await click(
+      geo.x + metrics.frame + 40,
+      geo.y + contentTop({ menuWidths: [] }, metrics) +
+        metrics.folderToolH + metrics.folderSideTop +
+        metrics.folderSideRowH + metrics.folderSideRowH / 2,
+    );
+    const listing = treeTexts(world.getTree());
+    expect(listing).toContain("Program Files");
+    expect(listing.filter((text) => text === "System")).toHaveLength(1);
+    expect(listing.filter((text) => text === "Batch File")).toHaveLength(1);
+    expect(named()).toEqual([]);
   }, 30000);
 });

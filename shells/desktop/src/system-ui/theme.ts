@@ -13,6 +13,14 @@
 // controls on the left, hoists the menu bar to the top of the screen and
 // turns the task strip into a centered Dock. None of that is special-cased
 // by theme id anywhere outside this file.
+//
+// The contract also covers what a program draws inside its window: list
+// boxes, group frames, value wells, radio marks, progress bars and push
+// buttons. The Shut Down dialog paints its radio marks from these content
+// parts, and a Pocket app that imports this file draws its whole window from
+// them in the active theme. The host tells such an app which theme is active
+// (svc.ts, the "theme" lines), so the app does not special-case a theme id
+// either.
 
 /** Baked font slots (src/system-ui/gen-assets.ts -> pak.json). 19-21 are the
  *  W95FA bitmap face, 22-23 the antialiased Inter face shared by every
@@ -175,6 +183,14 @@ export interface ChromeMetrics {
   iconsSide: "left" | "right";
   resizeBand: number;
   resizeCorner: number;
+  /** Content parts. Inset of a list box's rows from its outer edge (mirrors
+   *  listWell's ring and p-[…]), width of `scrollTrack` (what a list box that
+   *  overflows takes from its rows on the right), and horizontal padding of
+   *  a group frame (mirrors groupBox's px-[…]). A program that truncates or
+   *  wraps text to fit reads these. */
+  listPad: number;
+  scrollW: number;
+  groupPadX: number;
 }
 
 export interface DesktopTheme {
@@ -325,6 +341,47 @@ export interface DesktopTheme {
   statusWell: string;
   dialogButton: (pressed: boolean, primary: boolean) => string;
   dialogButtonText: (primary: boolean) => string;
+  // Content parts: what a program draws inside its window.
+  /** Box around a list of rows. */
+  listWell: string;
+  /** One list row: its fill. The program lays out the row's content and
+   *  sets its height through the style prop; `zebra` marks every second row
+   *  for a theme that stripes its lists. */
+  listRow: (selected: boolean, zebra: boolean) => string;
+  /** A row's first line, and the detail line under it. */
+  listText: (selected: boolean) => string;
+  listDetailText: (selected: boolean) => string;
+  /** Position mark of a list box that overflows: a track `metrics.scrollW`
+   *  wide on the box's right edge and the thumb inside it. The thumb's
+   *  height and offset ride the style prop. */
+  scrollTrack: string;
+  scrollThumb: string;
+  /** Titled frame around related controls. Its top margin reserves the room
+   *  for the label, an absolute plate the theme sets on the frame's top edge
+   *  or above it. */
+  groupBox: string;
+  groupLabel: string;
+  groupLabelText: string;
+  /** Box around a value shown for reading or copying. */
+  fieldWell: string;
+  /** Radio mark: the ring, the face inside it, and the dot of the chosen
+   *  option inside the face. */
+  radioRing: (checked: boolean) => string;
+  radioFace: (checked: boolean) => string;
+  radioDot: string;
+  /** Progress bar: the track and its filled part, whose width rides the
+   *  style prop. */
+  progressTrack: string;
+  progressFill: string;
+  /** The two controls a Pocket app presses: a row holding a radio mark and
+   *  its label, and a push button. An app's guest runs the framework focus
+   *  manager, and the core applies the `focus:` and `active:` variants of a
+   *  class to the focused and the pressed node. These literals carry both
+   *  variants. `dialogButton` takes the pressed state as an argument instead
+   *  because the System UI hit-tests its own dialogs. The button's label
+   *  takes `dialogButtonText`. */
+  optionRow: string;
+  contentButton: (primary: boolean) => string;
 }
 
 // ---------------------------------------------------------------------------
@@ -555,6 +612,9 @@ export const CLASSIC_THEME: DesktopTheme = {
     iconsSide: "left",
     resizeBand: 4,
     resizeCorner: 14,
+    listPad: 2,
+    scrollW: 16,
+    groupPadX: 8,
   },
   desktop: "absolute inset-0 bg-[#008080] overflow-hidden",
   desktopLayers: NO_LAYERS,
@@ -740,6 +800,40 @@ export const CLASSIC_THEME: DesktopTheme = {
       ? "w-[75] h-[23] flex-col justify-center items-center bg-[#c0c0c0] bevel-[#000000,#ffffff,#808080,#dfdfdf]"
       : "w-[75] h-[23] flex-col justify-center items-center bg-[#c0c0c0] bevel-[#ffffff,#000000,#dfdfdf,#808080]",
   dialogButtonText: () => "text-[#000000]",
+  // A list box is a sunken white well; the two bevel rings take its 2px pad.
+  listWell:
+    "flex-col bg-[#ffffff] bevel-[#808080,#ffffff,#000000,#dfdfdf] p-[2] overflow-hidden",
+  listRow: (selected) =>
+    selected ? "flex-row bg-[#000080]" : "flex-row",
+  listText: (selected) => (selected ? "text-[#ffffff]" : "text-[#000000]"),
+  listDetailText: (selected) =>
+    selected ? "text-[#ffffff]" : "text-[#808080]",
+  // The track's white and gray dither reads as this flat light gray; the
+  // thumb is a raised button face.
+  scrollTrack: "absolute right-0 top-0 bottom-0 w-[16] bg-[#dfdfdf]",
+  scrollThumb:
+    "absolute left-0 right-0 top-0 bg-[#c0c0c0] bevel-[#dfdfdf,#000000,#ffffff,#808080]",
+  // The etched frame is the raised bevel's rings swapped pairwise: a dark
+  // line with a light one inside it. The label plate cuts the top edge.
+  groupBox:
+    "flex-col mt-[8] pt-[12] pb-[8] px-[8] bevel-[#808080,#ffffff,#ffffff,#808080]",
+  groupLabel: "absolute left-[8] top-[-7] px-[3] bg-[#c0c0c0]",
+  groupLabelText: "text-[#000000]",
+  fieldWell:
+    "flex-col bg-[#ffffff] bevel-[#808080,#ffffff,#000000,#dfdfdf] px-[5] py-[4]",
+  radioRing: () =>
+    "w-[12] h-[12] rounded-full bg-[#808080] flex-col justify-center items-center",
+  radioFace: () =>
+    "w-[10] h-[10] rounded-full bg-[#ffffff] flex-col justify-center items-center",
+  radioDot: "w-[4] h-[4] rounded-full bg-[#000000]",
+  progressTrack: "h-[16] flex-row p-[2] bevel-[#808080,#ffffff]",
+  progressFill: "h-[12] bg-[#000080]",
+  // Focus draws the black rectangle of the focused control; a pressed button
+  // inverts its bevel like `dialogButton`.
+  optionRow:
+    "h-[20] flex-row items-center gap-[6] px-[3] border-[#c0c0c000] focus:border-[#000000]",
+  contentButton: () =>
+    "min-w-[75] h-[23] px-[10] flex-row justify-center items-center bg-[#c0c0c0] bevel-[#ffffff,#000000,#dfdfdf,#808080] focus:bevel-[#000000,#000000,#ffffff,#808080] active:bevel-[#000000,#ffffff,#808080,#dfdfdf]",
 };
 
 // ---------------------------------------------------------------------------
@@ -760,7 +854,7 @@ export const CLASSIC_THEME: DesktopTheme = {
 // the button meets the screen edge square and curves on the right.
 export const XP_THEME: DesktopTheme = {
   id: "xp",
-  label: "Windows XP",
+  label: "XP",
   fontSlot: (role) => (role === "ui" ? FONT_SMOOTH : FONT_SMOOTH_B),
   icon: xpIcon,
   startStyle: "panel",
@@ -819,6 +913,9 @@ export const XP_THEME: DesktopTheme = {
     iconsSide: "left",
     resizeBand: 4,
     resizeCorner: 16,
+    listPad: 1,
+    scrollW: 17,
+    groupPadX: 8,
   },
   // Sky gradient plus one grass band that fades in over it: three stops in a
   // single node can only cross blue to green through mud.
@@ -1091,6 +1188,40 @@ export const XP_THEME: DesktopTheme = {
       ? "w-[75] h-[23] flex-col justify-center items-center rounded-[3] border-[#003c74] bg-gradient-to-b from-[#c8c4b8] via-[#dedad0] to-[#f0eee8]"
       : "w-[75] h-[23] flex-col justify-center items-center rounded-[3] border-[#003c74] bg-gradient-to-b from-[#ffffff] via-[#f5f3ed] to-[#dcd6c8]",
   dialogButtonText: () => "text-[#000000]",
+  // Flat wells under the 1px blue-gray line Luna draws around every field.
+  listWell:
+    "flex-col bg-[#ffffff] border-[#7f9db9] p-[1] overflow-hidden",
+  listRow: (selected) =>
+    selected ? "flex-row bg-[#316ac5]" : "flex-row",
+  listText: (selected) => (selected ? "text-[#ffffff]" : "text-[#000000]"),
+  listDetailText: (selected) =>
+    selected ? "text-[#ffffff]" : "text-[#6f6e64]",
+  scrollTrack:
+    "absolute right-0 top-0 bottom-0 w-[17] bg-gradient-to-r from-[#f3f1ec] to-[#fefefb]",
+  scrollThumb:
+    "absolute left-[1] right-[1] top-0 rounded-[2] border-[#98b1e4] bg-[#c1d2f9]",
+  // A rounded border paints its whole box in the border color first, so the
+  // frame names the window body's beige as its fill.
+  groupBox:
+    "flex-col mt-[8] pt-[12] pb-[8] px-[8] rounded-[4] border-[#d0d0bf] bg-[#ece9d8]",
+  groupLabel: "absolute left-[8] top-[-8] px-[3] bg-[#ece9d8]",
+  groupLabelText: "text-[#0046d5]",
+  fieldWell: "flex-col bg-[#ffffff] border-[#7f9db9] px-[5] py-[4]",
+  radioRing: () =>
+    "w-[13] h-[13] rounded-full bg-[#1c5180] flex-col justify-center items-center",
+  radioFace: () =>
+    "w-[11] h-[11] rounded-full bg-[#f6f6f2] flex-col justify-center items-center",
+  radioDot: "w-[5] h-[5] rounded-full bg-[#21a121]",
+  progressTrack:
+    "h-[16] flex-row p-[2] rounded-[3] border-[#686868] bg-[#ffffff]",
+  progressFill:
+    "h-[10] bg-gradient-to-b from-[#c4f5bd] via-[#2ed12e] to-[#89e684]",
+  // Focus tints the button's top and bottom bands blue, the glow Luna draws
+  // inside its default button; a pressed button sinks like `dialogButton`.
+  optionRow:
+    "h-[20] flex-row items-center gap-[6] px-[3] border-[#ece9d800] focus:border-[#7f9db9]",
+  contentButton: () =>
+    "min-w-[75] h-[23] px-[12] flex-row justify-center items-center rounded-[3] border-[#003c74] bg-gradient-to-b from-[#ffffff] via-[#f5f3ed] to-[#dcd6c8] focus:bg-gradient-to-b focus:from-[#cfe0fd] focus:via-[#f5f3ed] focus:to-[#9db9f0] active:bg-gradient-to-b active:from-[#c8c4b8] active:via-[#dedad0] active:to-[#f0eee8]",
 };
 
 // ---------------------------------------------------------------------------
@@ -1176,6 +1307,9 @@ export const AQUA_THEME: DesktopTheme = {
     iconsSide: "right",
     resizeBand: 4,
     resizeCorner: 16,
+    listPad: 1,
+    scrollW: 15,
+    groupPadX: 10,
   },
   // "Aqua Blue": a mid-blue field with pale swirl bands. Two translucent
   // pills and one soft band stand in for the wallpaper's streaks.
@@ -1455,6 +1589,50 @@ export const AQUA_THEME: DesktopTheme = {
   },
   dialogButtonText: (primary) =>
     primary ? "text-[#ffffff]" : "text-[#000000]",
+  // A white list under a hairline, striped like the Finder's, with the blue
+  // gel on the chosen row.
+  listWell: "flex-col bg-[#ffffff] border-[#a3a3a3] p-[1] overflow-hidden",
+  listRow: (selected, zebra) => {
+    if (selected)
+      return "flex-row bg-gradient-to-b from-[#6c9ef0] to-[#3875d7]";
+    if (zebra) return "flex-row bg-[#edf3fe]";
+    return "flex-row";
+  },
+  listText: (selected) => (selected ? "text-[#ffffff]" : "text-[#000000]"),
+  listDetailText: (selected) =>
+    selected ? "text-[#ffffff]" : "text-[#7a7a7a]",
+  // The thumb is a flat blue pill: a gradient this narrow would band.
+  scrollTrack:
+    "absolute right-0 top-0 bottom-0 w-[15] bg-gradient-to-r from-[#d6d6d6] via-[#f2f2f2] to-[#ffffff]",
+  scrollThumb:
+    "absolute left-[2] right-[2] top-0 rounded-[5] border-[#3a70c8] bg-[#5a9aee]",
+  // A recessed plate a shade under the window gray; the label sits above it.
+  groupBox:
+    "flex-col mt-[20] pt-[10] pb-[10] px-[10] rounded-[6] border-[#c2c2c2] bg-[#dedede]",
+  groupLabel: "absolute left-[2] top-[-19]",
+  groupLabelText: "text-[#1e1e1e]",
+  fieldWell: "flex-col bg-[#ffffff] border-[#a3a3a3] px-[5] py-[4]",
+  // The chosen option fills with the blue gel around a dark dot.
+  radioRing: (checked) =>
+    checked
+      ? "w-[14] h-[14] rounded-full bg-[#2a5fbe] flex-col justify-center items-center"
+      : "w-[14] h-[14] rounded-full bg-[#7a7a7a] flex-col justify-center items-center",
+  radioFace: (checked) =>
+    checked
+      ? "w-[12] h-[12] rounded-full bg-[#6fa8f5] flex-col justify-center items-center"
+      : "w-[12] h-[12] rounded-full bg-[#f7f7f7] flex-col justify-center items-center",
+  radioDot: "w-[4] h-[4] rounded-full bg-[#10254f]",
+  progressTrack:
+    "h-[12] flex-row p-[1] rounded-[6] border-[#8a8a8a] bg-[#f4f4f4]",
+  progressFill: "h-[10] rounded-[5] bg-[#5a9aee]",
+  // Focus is the blue ring of keyboard access; pressed faces match
+  // `dialogButton`.
+  optionRow:
+    "h-[20] flex-row items-center gap-[6] px-[3] border-[#e8e8e800] focus:border-[#6c9ef0]",
+  contentButton: (primary) =>
+    primary
+      ? "min-w-[75] h-[23] px-[14] flex-row justify-center items-center rounded-[11] border-[#2a5fbe] bg-gradient-to-b from-[#b4d4f8] via-[#5a9bee] to-[#78b8f6] focus:border-[#10254f] active:bg-gradient-to-b active:from-[#5b8fdc] active:via-[#3670cf] active:to-[#4b8be0]"
+      : "min-w-[75] h-[23] px-[14] flex-row justify-center items-center rounded-[11] border-[#7a7a7a] bg-gradient-to-b from-[#ffffff] via-[#f1f1f1] to-[#dadada] focus:border-[#3875d7] active:bg-gradient-to-b active:from-[#d4d4d4] active:via-[#c6c6c6] active:to-[#cccccc]",
 };
 
 export const THEMES: readonly DesktopTheme[] = [
@@ -1467,6 +1645,11 @@ export function themeById(id: ThemeId): DesktopTheme {
   if (id === "xp") return XP_THEME;
   if (id === "aqua") return AQUA_THEME;
   return CLASSIC_THEME;
+}
+
+/** Whether a value read off the wire names a theme. */
+export function isThemeId(value: unknown): value is ThemeId {
+  return THEMES.some((theme) => theme.id === value);
 }
 
 /** The theme after `id` in picker order (⌘⇧T cycles through them). */
