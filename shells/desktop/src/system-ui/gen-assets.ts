@@ -30,6 +30,18 @@
 // fraction was already negligible (the snap really aligned) and that
 // edge-sharing strokes survived the fill ('h' keeps its ascender — the
 // nonzero-winding guarantee this font's outlines depend on).
+//
+// At rasterDensity 1 a device pixel is 80 units at 12.5px. The font's
+// vertical edges sit at 50 + 80k units, which the half-pixel snap leaves in
+// the middle of a device pixel, and a few glyphs (comma, semicolon, hyphen,
+// equals, quotes) are drawn a fraction of a pixel off in y. The threshold
+// then drops what covers half a pixel: the comma and the semicolon bake
+// empty, and the quotes, the hyphen and the equals sign lose pixels. The
+// 12.5px slots at density 1 therefore bake from a second snap, to the
+// 80-unit grid with the 50-unit phase, where every edge is a device pixel
+// edge again. The 25px slot keeps the 40-unit snap: 40 units are its device
+// pixel at density 1. Every density then asserts that the snap aligned and
+// that each mapped glyph but the space has ink.
 
 import { parse as parseFont, type Font } from "opentype.js";
 import { mkdirSync, rmSync } from "node:fs";
@@ -51,12 +63,16 @@ mkdirSync(OUT, { recursive: true });
 
 const PHASE = 10; // measured x offset of the outline grid, font units
 const STEP = 40; // half-pixel grid at 12.5px (80 units/px)
+/** The whole-pixel grid at 12.5px and the x offset of the font's pixel
+ *  columns on it (50 is 10 on the half-pixel grid). */
+const PIXEL_STEP = STEP * 2;
+const PIXEL_PHASE = PHASE + STEP;
 
-function snapCoord(v: number, phase: number): number {
-  return Math.round((v - phase) / STEP) * STEP;
-}
-
-async function loadSnapped(): Promise<Font> {
+/** W95FA with its outlines snapped to a `step`-unit grid whose x origin sits
+ *  at `phase`. */
+async function loadSnapped(step: number, phase: number): Promise<Font> {
+  const snapCoord = (v: number, offset: number): number =>
+    Math.round((v - offset) / step) * step;
   const font = parseFont(await Bun.file(join(ROOT, "assets/fonts/W95FA.otf")).arrayBuffer());
   // Snap only the glyphs the bake reads — .notdef and unmapped decorations
   // are off-grid and never rasterized (gid 0 is the drawn tofu box).
@@ -71,13 +87,13 @@ async function loadSnapped(): Promise<Font> {
     for (const cmd of path?.commands ?? []) {
       for (const key of ["x", "x1", "x2"]) {
         if (typeof cmd[key] === "number") {
-          const s = snapCoord(cmd[key] as number, PHASE);
-          const err = Math.abs((cmd[key] as number) - PHASE - s);
+          const s = snapCoord(cmd[key] as number, phase);
+          const err = Math.abs((cmd[key] as number) - phase - s);
           // Two conversion strays ('"' and 'y') sit up to 16 units off the
           // grid — snap them too (≤0.2px drift); anything worse is a new
           // font revision and needs a fresh look.
           if (err > 20) {
-            throw new Error(`gen-assets: gid ${gi} x=${cmd[key]} is off the ${STEP}-unit grid`);
+            throw new Error(`gen-assets: gid ${gi} x=${cmd[key]} is off the ${step}-unit grid`);
           }
           cmd[key] = s;
         }
@@ -92,7 +108,8 @@ async function loadSnapped(): Promise<Font> {
   // desktop's ⌘` shortcut copy needs one. Synthesize it: mirror the
   // apostrophe's ink around its own x bounds (the mark leans the other way;
   // bounds are snapped 40-multiples, so the mirror stays on the pixel grid)
-  // into a donor glyph outside the ASCII set, and remap cp 96 onto it.
+  // into a donor glyph outside the ASCII set, and remap cp 96 onto it. The
+  // same holds on the whole-pixel grid, whose bounds are 80-multiples.
   const apoGi = font.charToGlyphIndex("'");
   const apo = font.glyphs.get(apoGi);
   const apoCmds = (apo.path as { commands: Array<Record<string, number | string>> }).commands;
@@ -212,18 +229,30 @@ async function bakeLuna(density: number): Promise<[BakedAtlas, BakedAtlas]> {
   ];
 }
 
-const font = await loadSnapped();
+/** Codepoints of the bake whose coverage cell holds no ink. */
+function blankGlyphs(atlas: BakedAtlas): string[] {
+  return CHARS.filter((cp) => cp !== 32 && !cellFor(atlas, cp).some((b) => b > 0))
+    .map((cp) => String.fromCodePoint(cp));
+}
+
+const font = await loadSnapped(STEP, PHASE);
+const pixelFont = await loadSnapped(PIXEL_STEP, PIXEL_PHASE);
 
 for (const density of [1, 2]) {
   const suffix = density === 2 ? "@2x" : "";
-  const a19 = bakeSlot(font, 19, 12.5, false, CHARS, density);
+  const a19 = bakeSlot(density === 1 ? pixelFont : font, 19, 12.5, false, CHARS, density);
   const aa19 = threshold(a19);
   const a21 = bakeSlot(font, 21, 25, false, CHARS, density);
   const aa21 = threshold(a21);
-  // The snap guarantee: at density 2 every edge is a device pixel, so the
-  // rasterizer produced (near-)bi-level coverage BEFORE thresholding.
-  if (density === 2 && (aa19 > 0.02 || aa21 > 0.02)) {
-    throw new Error(`gen-assets: AA fraction too high (${aa19}, ${aa21}) — grid snap regressed?`);
+  // The snap guarantee: every edge is a device pixel, so the rasterizer
+  // produced (near-)bi-level coverage BEFORE thresholding.
+  if (aa19 > 0.02 || aa21 > 0.02) {
+    throw new Error(`gen-assets: AA fraction too high at density ${density} (${aa19}, ${aa21}) — grid snap regressed?`);
+  }
+  // A glyph the threshold erased would draw as a gap in every string.
+  const blank = [...blankGlyphs(a19), ...blankGlyphs(a21)];
+  if (blank.length > 0) {
+    throw new Error(`gen-assets: glyphs baked empty at density ${density}: ${blank.join(" ")}`);
   }
   // Fill-rule guarantee: W95FA strokes share edges; even-odd cancels them.
   const hCell = cellFor(a19, "h".codePointAt(0)!);
