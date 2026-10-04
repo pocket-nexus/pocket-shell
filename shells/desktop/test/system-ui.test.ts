@@ -70,7 +70,11 @@ import {
   wrapLine,
   type Doc,
 } from "../src/system-ui/notepad.ts";
-import { POCKET_APPS } from "../src/system-ui/pocket-apps.ts";
+import {
+  DESKTOP_NAME,
+  POCKET_APPS,
+  pocketAppByPackage,
+} from "../src/system-ui/pocket-apps.ts";
 import system from "../pocket.system.json";
 import {
   validateAndResolveBuildPlan,
@@ -136,6 +140,27 @@ describe("Pocket app desktop catalog", () => {
       );
       expect(resolved?.plan).toEqual(resolution.plan);
     }
+  });
+
+  test("the desktop takes its name from the System manifest's title", () => {
+    expect(DESKTOP_NAME).toBe(system.title);
+    expect(DESKTOP_NAME).toBe("Pocket Shell Desktop");
+  });
+
+  test("a host open line resolves installed apps only", () => {
+    expect(pocketAppByPackage("dev.pocket-nexus.hero")).toEqual({
+      package: "dev.pocket-nexus.hero",
+      title: "Hero",
+      viewport: [640, 360],
+    });
+    for (const app of POCKET_APPS)
+      expect(pocketAppByPackage(app.package)).toBe(app);
+    // The System UI is installed but has no presentation: it is not an app.
+    expect(pocketAppByPackage(system.roles.systemUI)).toBeUndefined();
+    expect(pocketAppByPackage("dev.pocket-nexus.missing")).toBeUndefined();
+    expect(pocketAppByPackage("")).toBeUndefined();
+    expect(pocketAppByPackage(undefined)).toBeUndefined();
+    expect(pocketAppByPackage(1)).toBeUndefined();
   });
 
   test("rejects duplicate artifact outputs before any package build", async () => {

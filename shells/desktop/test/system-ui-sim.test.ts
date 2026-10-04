@@ -7,7 +7,7 @@
 //      (bootWorld mutateOps), so the whole input dialect journey runs
 //      headless — typing, drag selection, ⌘ chords, the notepad context
 //      menu, paste-req — with guest intents (copy payloads!) asserted on
-//      the wire.
+//      the wire, and the host's open line launching apps by package id.
 //
 // The solid bundle must be prebuilt (the sim's fallback build cannot
 // resolve the framework-suffixed name):
@@ -23,6 +23,7 @@ import {
   treeHasText,
   type SimWorld,
 } from "../../../vendor/pocketjs/hosts/sim/sim.ts";
+import { DESKTOP_NAME } from "../src/system-ui/pocket-apps.ts";
 import {
   AQUA_THEME,
   CLASSIC_THEME,
@@ -110,6 +111,16 @@ function mouse(svc: MockSvc, x: number, y: number, d: boolean, b?: number) {
       ? { t: "mouse", x, y, d, b: 2, sh: false }
       : { t: "mouse", x, y, d, sh: false },
   );
+}
+
+/** How many text nodes of the tree contain `text`. */
+function treeTextCount(tree: unknown, text: string): number {
+  if (tree == null) return 0;
+  const node = tree as { x?: unknown; k?: unknown[] };
+  const own = typeof node.x === "string" && node.x.includes(text) ? 1 : 0;
+  return Array.isArray(node.k)
+    ? node.k.reduce<number>((sum, child) => sum + treeTextCount(child, text), own)
+    : own;
 }
 
 function treeHasClass(tree: unknown, className: string): boolean {
@@ -349,5 +360,116 @@ describe("system-ui System UI companion journey", () => {
     expect(treeHasText(tree, "PocketJS: Settings")).toBe(false);
     expect(treeHasText(tree, "PocketJS: Hero")).toBe(true);
     expect(svc.sent().some((line) => String(line.t).startsWith("pocket-"))).toBe(false);
+  }, 30000);
+
+  test("the host opens installed apps by package id", async () => {
+    const svc = mockSvc();
+    const provider = await testTextProvider();
+    const world = await bootWorld(APP, 60, {offload: provider.ops}, svc.mutateOps);
+    const guestFrame = world.frame;
+    world.frame = (...args) => { provider.betweenFrames(); guestFrame(...args); };
+    svc.push({ t: "hello", w: 800, h: 600, epoch: 1755650000000 });
+    await step(world, 3);
+
+    const HERO = "dev.pocket-nexus.hero";
+    const SETTINGS = "dev.pocket-nexus.settings";
+    /** The focused flag of the last binding the shell made for a surface. */
+    const focusedFlag = (surface: number) =>
+      svc.surfaces().filter(([, handle]) => handle === surface).at(-1)?.[2];
+    // A window's title is one text node in its caption and one in its task
+    // button, so two nodes mean exactly one window.
+    const titleNodes = (title: string) => treeTextCount(world.getTree(), title);
+
+    // An open line opens the window and gives it focus, as its icon would.
+    svc.push({ t: "open", package: HERO });
+    await step(world, 2);
+    expect(titleNodes("PocketJS: Hero")).toBe(2);
+    expect(focusedFlag(1)).toBe(1);
+
+    svc.push({ t: "open", package: SETTINGS });
+    await step(world, 2);
+    expect(titleNodes("PocketJS: Settings")).toBe(2);
+    expect(focusedFlag(1)).toBe(0);
+    expect(focusedFlag(2)).toBe(1);
+
+    // A second line for an open app raises and focuses its window; it does
+    // not open another.
+    svc.push({ t: "open", package: HERO });
+    await step(world, 2);
+    expect(titleNodes("PocketJS: Hero")).toBe(2);
+    expect(titleNodes("PocketJS: Settings")).toBe(2);
+    expect(focusedFlag(1)).toBe(1);
+    expect(focusedFlag(2)).toBe(0);
+
+    // Cmd+M minimizes Hero and focus falls to Settings; the open line
+    // restores Hero from the task strip and focuses it again.
+    svc.push({ t: "key", k: "m", cmd: true });
+    await step(world, 2);
+    expect(focusedFlag(1)).toBe(0);
+    expect(focusedFlag(2)).toBe(1);
+    svc.push({ t: "open", package: HERO });
+    await step(world, 2);
+    expect(titleNodes("PocketJS: Hero")).toBe(2);
+    expect(focusedFlag(1)).toBe(1);
+    expect(focusedFlag(2)).toBe(0);
+
+    // The line closes an open launcher before it changes focus.
+    svc.push({ t: "key", k: "escape", cmd: true });
+    await step(world, 2);
+    expect(treeHasText(world.getTree(), "Shut Down...")).toBe(true);
+    svc.push({ t: "open", package: SETTINGS });
+    await step(world, 2);
+    expect(treeHasText(world.getTree(), "Shut Down...")).toBe(false);
+    expect(focusedFlag(2)).toBe(1);
+
+    // Ids outside the installed catalog, the System UI's own id and a line
+    // without an id change nothing.
+    const before = JSON.stringify(world.getTree());
+    const bindings = svc.surfaces().length;
+    svc.push({ t: "open", package: "dev.pocket-nexus.missing" });
+    svc.push({ t: "open", package: "dev.pocket-nexus.desktop.system-ui" });
+    svc.push({ t: "open" });
+    svc.push({ t: "open", package: 7 });
+    await step(world, 2);
+    expect(JSON.stringify(world.getTree())).toBe(before);
+    expect(svc.surfaces().length).toBe(bindings);
+    expect(treeHasText(world.getTree(), "PocketJS: missing")).toBe(false);
+  }, 30000);
+
+  test("the screen bar and About name the desktop after the System manifest", async () => {
+    const svc = mockSvc();
+    const provider = await testTextProvider();
+    const world = await bootWorld(APP, 60, {offload: provider.ops}, svc.mutateOps);
+    const guestFrame = world.frame;
+    world.frame = (...args) => { provider.betweenFrames(); guestFrame(...args); };
+    svc.push({ t: "hello", w: 800, h: 600, epoch: 1755650000000 });
+    await step(world, 3);
+
+    // Classic boots with the welcome note focused: the name is in its text
+    // only. Closing the note and cycling to Aqua leaves no window focused,
+    // so the screen bar shows the desktop's own name.
+    expect(treeHasText(world.getTree(), `Welcome to ${DESKTOP_NAME}.`)).toBe(true);
+    svc.push({ t: "key", k: "w", cmd: true });
+    svc.push({ t: "key", k: "t", cmd: true, sh: true });
+    svc.push({ t: "key", k: "t", cmd: true, sh: true });
+    await step(world, 3);
+    let tree = world.getTree();
+    expect(treeHasClass(tree, AQUA_THEME.screenBar)).toBe(true);
+    expect(treeTextCount(tree, DESKTOP_NAME)).toBe(1);
+
+    // The logo menu's first row opens About: the menu row is gone and the
+    // name is in the screen bar (About is no program of its own), the
+    // window's caption, its Dock tile's hidden label and its heading.
+    svc.push({ t: "key", k: "escape", cmd: true });
+    await step(world, 2);
+    expect(treeHasText(world.getTree(), `About ${DESKTOP_NAME}`)).toBe(true);
+    const row = AQUA_THEME.metrics.screenBarH + 10;
+    mouse(svc, 30, row, true);
+    mouse(svc, 30, row, false);
+    await step(world, 2);
+    tree = world.getTree();
+    expect(treeHasText(tree, "Shut Down...")).toBe(false);
+    expect(treeHasText(tree, `About ${DESKTOP_NAME}`)).toBe(true);
+    expect(treeHasText(tree, "github.com/pocket-nexus/pocket-shell")).toBe(true);
   }, 30000);
 });
