@@ -71,6 +71,17 @@ pocket.system.json
 The System UI is in `src/system-ui`. Demo applications are consumed from the
 pinned `vendor/pocketjs` submodule and are not copied into this product.
 
+The System UI takes the desktop's name from the System manifest's `title`. The
+Aqua screen bar with no window focused, the About dialog and its menu entries,
+and the welcome note show it, so a product that installs this System UI under
+its own `pocket.system.json` gets its own name in each of them.
+
+The host and the System UI exchange JSON lines over the `system-ui` companion
+service; `src/system-ui/svc.ts` lists every line. Besides input, the host can
+send `{t:"open", package}` to open an installed app by package id. When that
+app's window is already open, the line restores it if it is minimized, raises
+it and focuses it. A package id outside the installed catalog is ignored.
+
 The experimental framework implementation is pinned directly in
 `vendor/pocketjs` from [PocketJS PR #399](https://github.com/pocket-nexus/pocketjs/pull/399),
 which adds GPU composition on top of [PR #390](https://github.com/pocket-nexus/pocketjs/pull/390). A fresh `setup` uses

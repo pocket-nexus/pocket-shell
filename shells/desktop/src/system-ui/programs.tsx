@@ -22,6 +22,7 @@ import {
   type VSeg,
 } from "./notepad.ts";
 import { MINES_W, type Cell } from "./mines.ts";
+import { DESKTOP_NAME } from "./pocket-apps.ts";
 import {
   PLACES,
   type AboutData,
@@ -673,7 +674,7 @@ export function AboutView(props: {
     <View class="flex-1 flex-col p-[10] gap-[8]">
       <View class="flex-row items-center gap-[10]">
         <Image class="w-[32] h-[32]" src={props.theme.icon("computer", 32)} />
-        <UiText theme={props.theme} xl t="Pocket Shell Desktop" />
+        <UiText theme={props.theme} xl t={DESKTOP_NAME} />
       </View>
       <View class="h-[2] flex-col">
         <View class={props.theme.popupSeparatorDark} />

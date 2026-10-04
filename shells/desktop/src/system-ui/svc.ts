@@ -16,6 +16,10 @@
 //   {t:"mouse", x, y, d, sh}   primary-button pointer stream
 //   {t:"mouse", x, y, d, b:2}  right-button press/release
 //   {t:"scroll", dy}           wheel delta in logical px
+//   {t:"open", package}        open the installed app with that package id;
+//                              when its window is already open, restore it
+//                              from the task strip, raise it and focus it.
+//                              An id outside the installed catalog is ignored
 //
 // guest → host intents:
 //   {t:"quit"}                 Shut Down
@@ -36,7 +40,8 @@ export interface HostEvent {
     | "mouse"
     | "scroll"
     | "paste"
-    | "ime";
+    | "ime"
+    | "open";
   w?: number;
   h?: number;
   epoch?: number;
@@ -57,6 +62,8 @@ export interface HostEvent {
   text?: string;
   /** IME preedit caret (char index into s), null when composition ends. */
   c?: number | null;
+  /** Package id of the installed app an "open" line names. */
+  package?: string;
 }
 
 export type CursorKind =

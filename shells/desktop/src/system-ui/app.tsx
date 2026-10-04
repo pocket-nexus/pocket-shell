@@ -16,7 +16,8 @@
 // lines (⌘Q quits and ⌘V pastes host-side) — ⌘W closes, ⌘M minimizes,
 // ⌘` cycles, ⌘N opens Notepad, ⌘Esc toggles Start, ⌘A/C/X edit the
 // focused Notepad. Pocket app input and scheduling are owned by the native
-// compositor using the focused surface fact emitted by this shell.
+// compositor using the focused surface fact emitted by this shell. The host
+// can also open an installed app by package id (the svc "open" line).
 //
 // Without the System UI companion (sim, goldens, consoles) the app boots a
 // static arrangement and just renders it — the unmodified-app base case.
@@ -116,7 +117,12 @@ import {
   type EditKind,
 } from "./notepad.ts";
 import { newMines, reveal, toggleFlag } from "./mines.ts";
-import { POCKET_APPS, type PocketAppSpec } from "./pocket-apps.ts";
+import {
+  DESKTOP_NAME,
+  POCKET_APPS,
+  pocketAppByPackage,
+  type PocketAppSpec,
+} from "./pocket-apps.ts";
 import {
   CLASSIC_THEME,
   nextThemeId,
@@ -138,8 +144,11 @@ import {
   Taskbar,
 } from "./chrome.tsx";
 
+/** Label of every About entry and the About window's title. */
+const ABOUT_LABEL = `About ${DESKTOP_NAME}`;
+
 const WELCOME = [
-  "Welcome to Pocket Shell Desktop.",
+  `Welcome to ${DESKTOP_NAME}.`,
   "",
   "The desktop shell is one PocketJS guest. Every Pocket app icon starts another isolated QuickJS guest in the same PocketJS host process; each guest keeps its own globals, UI tree and fixed clock.",
   "",
@@ -567,7 +576,7 @@ export default function App() {
         {
           label: "Help",
           width: menuW("Help"),
-          items: () => [{ label: "About Pocket Shell Desktop", act: openAbout }],
+          items: () => [{ label: ABOUT_LABEL, act: openAbout }],
         },
       ],
       data,
@@ -635,7 +644,7 @@ export default function App() {
         {
           label: "Help",
           width: menuW("Help"),
-          items: () => [{ label: "About Pocket Shell Desktop", act: openAbout }],
+          items: () => [{ label: ABOUT_LABEL, act: openAbout }],
         },
       ],
       data,
@@ -826,7 +835,7 @@ export default function App() {
     const data: AboutData = { kind: "about", armed: createState<string | null>(null) };
     const w = createWin({
       kind: "about",
-      title: "About Pocket Shell Desktop",
+      title: ABOUT_LABEL,
       icon: "computer",
       geo: centered(ABOUT_GEO.w, ABOUT_GEO.h),
       buttons: ["close"],
@@ -1074,7 +1083,7 @@ export default function App() {
   /** Aqua's logo menu: About first, the places and the theme picker, the
    *  session commands last — the shape of the menu under the mark. */
   const aquaStartItems = (): PopupItem[] => [
-    { label: "About Pocket Shell Desktop", act: openAbout },
+    { label: ABOUT_LABEL, act: openAbout },
     { sep: true, label: "" },
     { label: "Programs", icon: "folder", sub: programItems() },
     { label: "Documents", icon: "documents", sub: documentItems() },
@@ -1163,14 +1172,15 @@ export default function App() {
   // ---- menus ----------------------------------------------------------------------
 
   /** Program name the screen bar shows beside the logo — the focused
-   *  window's program, or the shell's own when nothing is focused. */
+   *  window's program, or the desktop's own (the System manifest's title)
+   *  when nothing is focused. */
   function appNameOf(w: WinCtl | undefined): string {
-    if (!w) return "Pocket Shell Desktop";
+    if (!w) return DESKTOP_NAME;
     if (w.kind === "notepad") return "Notepad";
     if (w.kind === "mines") return "Minesweeper";
     if (w.kind === "folder") return "Files";
     if (w.kind === "pocket") return pocketOf(w).app.title;
-    return "Pocket Shell Desktop";
+    return DESKTOP_NAME;
   }
 
   /** Left x of the first menu title in the screen bar: after the logo and
@@ -2137,6 +2147,18 @@ export default function App() {
             0,
             Math.min(maxY, d.scroll() + (ev.dy ?? 0)),
           ));
+        }
+        break;
+      }
+      case "open": {
+        // The host launches an app by package id, the way an icon does:
+        // openPocketApp opens the window, or restores, raises and focuses
+        // the one already open. An open launcher or dropdown belongs to the
+        // window that loses focus, so it closes first.
+        const app = pocketAppByPackage(ev.package);
+        if (app) {
+          closeMenus();
+          openPocketApp(app);
         }
         break;
       }
