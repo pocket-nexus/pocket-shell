@@ -33,8 +33,14 @@ import {
 import {
   AQUA_THEME,
   CLASSIC_THEME,
+  isThemeId,
+  nextThemeId,
+  themeById,
+  THEMES,
   XP_THEME,
+  type DesktopTheme,
 } from "../src/system-ui/theme.ts";
+import { parseClassLiteral } from "../../../vendor/pocketjs/framework/compiler/tailwind.ts";
 import {
   MINES_N,
   MINES_W,
@@ -71,10 +77,13 @@ import {
   type Doc,
 } from "../src/system-ui/notepad.ts";
 import {
+  DESKTOP_ABOUT,
   DESKTOP_NAME,
   POCKET_APPS,
   pocketAppByPackage,
+  readAbout,
 } from "../src/system-ui/pocket-apps.ts";
+import about from "../pocket.about.json";
 import system from "../pocket.system.json";
 import {
   validateAndResolveBuildPlan,
@@ -145,6 +154,44 @@ describe("Pocket app desktop catalog", () => {
   test("the desktop takes its name from the System manifest's title", () => {
     expect(DESKTOP_NAME).toBe(system.title);
     expect(DESKTOP_NAME).toBe("Pocket Shell Desktop");
+  });
+
+  test("the About dialog takes its text from pocket.about.json", () => {
+    expect(DESKTOP_ABOUT).toEqual(about);
+    // This repository's file describes the shell.
+    expect(DESKTOP_ABOUT).toEqual({
+      body: [
+        "A desktop compositor demo on the portable Rust backend.",
+        "SolidJS JSX over the same DrawList the",
+        "consoles boot; windows, menus and shortcuts",
+        "live in the guest.",
+      ],
+      link: "github.com/pocket-nexus/pocket-shell",
+    });
+  });
+
+  test("an About file may leave out its body, its link or both", () => {
+    expect(readAbout({ body: ["One line."], link: "example.org" })).toEqual({
+      body: ["One line."],
+      link: "example.org",
+    });
+    expect(readAbout({ body: ["One line."] })).toEqual({
+      body: ["One line."],
+      link: "",
+    });
+    expect(readAbout({ link: "example.org" })).toEqual({
+      body: [],
+      link: "example.org",
+    });
+    // Entries that are not strings are dropped; a body or link of another
+    // type reads as absent.
+    expect(readAbout({ body: ["a", 1, null, "b"], link: 2 })).toEqual({
+      body: ["a", "b"],
+      link: "",
+    });
+    expect(readAbout({ body: "One line." })).toEqual({ body: [], link: "" });
+    for (const value of [{}, [], null, undefined, "text", 3])
+      expect(readAbout(value)).toEqual({ body: [], link: "" });
   });
 
   test("a host open line resolves installed apps only", () => {
@@ -343,6 +390,115 @@ const OPTS: ChromeOpts = {
   maximized: false,
   menuWidths: [34, 34],
 };
+
+describe("themes", () => {
+  test("the picker labels name no other product", () => {
+    expect(THEMES.map((theme) => theme.id)).toEqual(["classic", "xp", "aqua"]);
+    expect(THEMES.map((theme) => theme.label)).toEqual([
+      "Classic 98",
+      "XP",
+      "Aqua",
+    ]);
+  });
+
+  test("a theme line's id is checked against the themes", () => {
+    for (const theme of THEMES) {
+      expect(isThemeId(theme.id)).toBe(true);
+      expect(themeById(theme.id)).toBe(theme);
+    }
+    for (const value of ["luna", "XP", "", 0, null, undefined, {}])
+      expect(isThemeId(value)).toBe(false);
+    expect(nextThemeId("classic")).toBe("xp");
+    expect(nextThemeId("aqua")).toBe("classic");
+  });
+});
+
+describe("content parts", () => {
+  /** Every class literal a theme can return for the content parts. */
+  function contentLiterals(theme: DesktopTheme): Record<string, string> {
+    const both = [false, true];
+    const out: Record<string, string> = {
+      listWell: theme.listWell,
+      scrollTrack: theme.scrollTrack,
+      scrollThumb: theme.scrollThumb,
+      groupBox: theme.groupBox,
+      groupLabel: theme.groupLabel,
+      groupLabelText: theme.groupLabelText,
+      fieldWell: theme.fieldWell,
+      radioDot: theme.radioDot,
+      progressTrack: theme.progressTrack,
+      progressFill: theme.progressFill,
+      optionRow: theme.optionRow,
+    };
+    for (const on of both) {
+      for (const zebra of both)
+        out[`listRow(${on},${zebra})`] = theme.listRow(on, zebra);
+      out[`listText(${on})`] = theme.listText(on);
+      out[`listDetailText(${on})`] = theme.listDetailText(on);
+      out[`radioRing(${on})`] = theme.radioRing(on);
+      out[`radioFace(${on})`] = theme.radioFace(on);
+      out[`contentButton(${on})`] = theme.contentButton(on);
+    }
+    return out;
+  }
+
+  test("every theme fills every content part with a class the compiler accepts", () => {
+    for (const theme of THEMES) {
+      for (const [part, literal] of Object.entries(contentLiterals(theme))) {
+        // A literal the compiler rejects compiles to no style at all, so a
+        // typo would paint nothing without failing the build.
+        expect(`${theme.id} ${part}: ${parseClassLiteral(literal) !== null}`)
+          .toBe(`${theme.id} ${part}: true`);
+      }
+    }
+  });
+
+  test("the metrics mirror the literals a program lays text out against", () => {
+    for (const theme of THEMES) {
+      const m = theme.metrics;
+      expect(theme.scrollTrack).toContain(`w-[${m.scrollW}]`);
+      expect(theme.groupBox).toContain(`px-[${m.groupPadX}]`);
+      expect(theme.listWell).toContain(`p-[${m.listPad}]`);
+    }
+  });
+
+  test("the controls a Pocket app presses carry the focus and pressed variants", () => {
+    for (const theme of THEMES) {
+      expect(theme.optionRow).toContain(" focus:");
+      for (const primary of [false, true]) {
+        expect(theme.contentButton(primary)).toContain(" focus:");
+        expect(theme.contentButton(primary)).toContain(" active:");
+        // The button sizes to its label above the dialog button's width.
+        expect(theme.contentButton(primary)).toContain("min-w-[75] h-[23]");
+        expect(theme.dialogButton(false, primary)).toContain("w-[75] h-[23]");
+      }
+    }
+  });
+
+  test("a selected list row and its text differ from an unselected one in every theme", () => {
+    for (const theme of THEMES) {
+      expect(theme.listRow(true, false)).not.toBe(theme.listRow(false, false));
+      expect(theme.listText(true)).not.toBe(theme.listText(false));
+      expect(theme.listDetailText(true)).not.toBe(theme.listDetailText(false));
+    }
+    // Only Aqua stripes its lists.
+    expect(AQUA_THEME.listRow(false, true)).not.toBe(AQUA_THEME.listRow(false, false));
+    expect(CLASSIC_THEME.listRow(false, true)).toBe(CLASSIC_THEME.listRow(false, false));
+    expect(XP_THEME.listRow(false, true)).toBe(XP_THEME.listRow(false, false));
+  });
+
+  test("Classic keeps the radio mark the Shut Down dialog drew before the part existed", () => {
+    for (const checked of [false, true]) {
+      expect(CLASSIC_THEME.radioRing(checked)).toBe(
+        "w-[12] h-[12] rounded-full bg-[#808080] flex-col justify-center items-center",
+      );
+      expect(CLASSIC_THEME.radioFace(checked)).toBe(
+        "w-[10] h-[10] rounded-full bg-[#ffffff] flex-col justify-center items-center",
+      );
+    }
+    expect(CLASSIC_THEME.radioDot).toBe("w-[4] h-[4] rounded-full bg-[#000000]");
+  });
+});
 
 describe("caption buttons", () => {
   test("all three buttons sit flush against each other, flush right", () => {

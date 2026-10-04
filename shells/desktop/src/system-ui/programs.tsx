@@ -22,7 +22,7 @@ import {
   type VSeg,
 } from "./notepad.ts";
 import { MINES_W, type Cell } from "./mines.ts";
-import { DESKTOP_NAME } from "./pocket-apps.ts";
+import { DESKTOP_ABOUT, DESKTOP_NAME } from "./pocket-apps.ts";
 import {
   PLACES,
   type AboutData,
@@ -680,15 +680,16 @@ export function AboutView(props: {
         <View class={props.theme.popupSeparatorDark} />
         <View class={props.theme.popupSeparatorLight} />
       </View>
-      <UiText theme={props.theme} t="A desktop compositor demo on the portable Rust backend." />
-      <UiText theme={props.theme} t="SolidJS JSX over the same DrawList the" />
-      <UiText theme={props.theme} t="consoles boot; windows, menus and shortcuts" />
-      <UiText theme={props.theme} t="live in the guest." />
-      <UiText
-        theme={props.theme}
-        cls={props.theme.mutedText}
-        t="github.com/pocket-nexus/pocket-shell"
-      />
+      {DESKTOP_ABOUT.body.map((line) => (
+        <UiText theme={props.theme} t={line} />
+      ))}
+      {DESKTOP_ABOUT.link !== "" ? (
+        <UiText
+          theme={props.theme}
+          cls={props.theme.mutedText}
+          t={DESKTOP_ABOUT.link}
+        />
+      ) : null}
       <View class="flex-1" />
       <View class="flex-row justify-end">
         <DialogButton
@@ -731,10 +732,10 @@ export function ShutdownView(props: {
 }) {
   const radio = (i: number, label: string) => (
     <View class="h-[20] flex-row items-center gap-[6]">
-      <View class="w-[12] h-[12] rounded-full bg-[#808080] flex-col justify-center items-center">
-        <View class="w-[10] h-[10] rounded-full bg-[#ffffff] flex-col justify-center items-center">
+      <View class={props.theme.radioRing(props.data.choice() === i)}>
+        <View class={props.theme.radioFace(props.data.choice() === i)}>
           {props.data.choice() === i ? (
-            <View class="w-[4] h-[4] rounded-full bg-[#000000]" />
+            <View class={props.theme.radioDot} />
           ) : null}
         </View>
       </View>

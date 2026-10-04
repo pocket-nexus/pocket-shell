@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // The desktop's name and its visible application catalog come from the System
-// manifest. The native host receives separately resolved complete package
-// plans; this module carries only System-owned presentation data.
+// manifest, and the About dialog's text from pocket.about.json beside it. The
+// native host receives separately resolved complete package plans; this
+// module carries only System-owned presentation data.
 
 import type { PocketSystemV1 } from "@pocketjs/framework/manifest";
+import aboutJson from "../../pocket.about.json";
 import systemJson from "../../pocket.system.json";
 
 const system = systemJson as unknown as PocketSystemV1;
@@ -14,6 +16,38 @@ const installedPackages = new Set(system.installation.installedPackages);
  *  menu entries, the welcome note. A product that installs this System UI
  *  under its own manifest gets its own name in all of them. */
 export const DESKTOP_NAME: string = system.title;
+
+/** What the About dialog shows under the desktop's name. */
+export interface DesktopAbout {
+  /** One text line each. The dialog does not wrap them, and its fixed size
+   *  holds four above the link. */
+  body: readonly string[];
+  /** Shown as text under the body; "" leaves the row out. */
+  link: string;
+}
+
+/** Read a pocket.about.json value. The System manifest schema has no field
+ *  for product copy, so the text lives in this file beside the manifest. Both
+ *  fields are optional: a missing `body` gives no lines and a missing `link`
+ *  no link row. Entries of `body` that are not strings are dropped. */
+export function readAbout(value: unknown): DesktopAbout {
+  const record =
+    value !== null && typeof value === "object"
+      ? (value as { body?: unknown; link?: unknown })
+      : {};
+  return {
+    body: Array.isArray(record.body)
+      ? record.body.filter((line): line is string => typeof line === "string")
+      : [],
+    link: typeof record.link === "string" ? record.link : "",
+  };
+}
+
+/** The About text of the product that installs this System UI. This
+ *  repository's file describes the shell; a product that bundles the System
+ *  UI under its own pocket.system.json puts its own pocket.about.json beside
+ *  that manifest. */
+export const DESKTOP_ABOUT: DesktopAbout = readAbout(aboutJson);
 
 export interface PocketAppSpec {
   /** Stable package id used by the native compositor surface registry. */

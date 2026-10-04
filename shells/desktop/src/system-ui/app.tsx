@@ -17,7 +17,9 @@
 // ⌘` cycles, ⌘N opens Notepad, ⌘Esc toggles Start, ⌘A/C/X edit the
 // focused Notepad. Pocket app input and scheduling are owned by the native
 // compositor using the focused surface fact emitted by this shell. The host
-// can also open an installed app by package id (the svc "open" line).
+// can also open an installed app by package id (the svc "open" line) and
+// select the theme (the svc "theme" line); the shell reports the active
+// theme to the host the same way.
 //
 // Without the System UI companion (sim, goldens, consoles) the app boots a
 // static arrangement and just renders it — the unmodified-app base case.
@@ -125,6 +127,7 @@ import {
 } from "./pocket-apps.ts";
 import {
   CLASSIC_THEME,
+  isThemeId,
   nextThemeId,
   THEMES,
   themeById,
@@ -325,6 +328,8 @@ export default function App() {
   let lastClick = { key: "", t: -1, x: 0, y: 0 };
   let lastCaret = { x: -1, y: -1, h: 0 };
   let minesStart = 0;
+  /** Theme the host was last told about; null until the first report. */
+  let reportedTheme: ThemeId | null = null;
 
   const byId = (id: number) => wins().find((w) => w.id === id);
   const focused = () => byId(focusId());
@@ -717,7 +722,7 @@ export default function App() {
       case "drivec":
         return [
           { icon: "folder", name: "Program Files", size: "", type: "File Folder" },
-          { icon: "folder", name: "Windows", size: "", type: "File Folder" },
+          { icon: "folder", name: "System", size: "", type: "File Folder" },
           {
             icon: "folder",
             name: "My Documents",
@@ -727,7 +732,7 @@ export default function App() {
               navigate(w, "documents");
             },
           },
-          { icon: "file", name: "AUTOEXEC.BAT", size: "1 KB", type: "MS-DOS Batch File" },
+          { icon: "file", name: "AUTOEXEC.BAT", size: "1 KB", type: "Batch File" },
           { icon: "file", name: "CONFIG.SYS", size: "1 KB", type: "System file" },
           {
             icon: "notepad",
@@ -855,7 +860,10 @@ export default function App() {
     };
     const w = createWin({
       kind: "shutdown",
-      title: "Shut Down Windows",
+      // No name after the verb: the dialog is 300px wide, and Aqua's
+      // centered caption has room for about twenty characters between its
+      // control cluster and the balancing spacer.
+      title: "Shut Down",
       icon: "shutdown",
       geo: centered(SHUTDOWN_GEO.w, SHUTDOWN_GEO.h),
       buttons: ["close"],
@@ -2162,6 +2170,12 @@ export default function App() {
         }
         break;
       }
+      case "theme": {
+        // The host selects a theme, as the Settings menu does. An id that
+        // names no theme is ignored.
+        if (isThemeId(ev.id)) setTheme(ev.id);
+        break;
+      }
     }
   }
 
@@ -2222,6 +2236,13 @@ export default function App() {
       }
     }
 
+    // Theme report: once after boot, then after every frame that ends in
+    // another theme than the one last reported, whatever changed it (the
+    // Settings menu, the cycle chord or the host's own theme line).
+    if (svc && reportedTheme !== themeId()) {
+      reportedTheme = themeId();
+      svc.send({ t: "theme", id: reportedTheme });
+    }
   });
 
   // ---- render -------------------------------------------------------------
