@@ -7,6 +7,7 @@
 // (cx, cy) from wm.ts hitRegion — origin at the frame's inner top-left,
 // below caption (and menu bar if present).
 
+import { appTitle, lang, lw, themeWord } from "./words.ts";
 import { createMemo } from "solid-js";
 import {
   CompositorSurface,
@@ -22,7 +23,7 @@ import {
   type VSeg,
 } from "./notepad.ts";
 import { MINES_W, type Cell } from "./mines.ts";
-import { DESKTOP_ABOUT, DESKTOP_NAME } from "./pocket-apps.ts";
+import { DESKTOP_ABOUT, DESKTOP_NAME, aboutBody } from "./pocket-apps.ts";
 import {
   PLACES,
   type AboutData,
@@ -119,8 +120,8 @@ export function NotepadView(props: {
   };
   return (
     <View class={props.theme.notepadWell}>
-      {d.layout().status === "companion-required" ? <UiText theme={props.theme} t="Pair a companion to enable text layout." /> : null}
-      {d.layout().status === "error" ? <UiText theme={props.theme} t={d.layout().error ?? "Text layout unavailable"} /> : null}
+      {d.layout().status === "companion-required" ? <UiText theme={props.theme} t={lw().layoutCompanion} /> : null}
+      {d.layout().status === "error" ? <UiText theme={props.theme} t={d.layout().error ?? lw().layoutUnavailable} /> : null}
       <View class="flex-1 relative overflow-hidden">
         <View
           class="absolute left-[3] top-[3] right-0 flex-col"
@@ -192,8 +193,8 @@ export function PocketAppView(props: {
     <View class="flex-1 relative overflow-hidden bg-[#000000]">
       <View class={props.theme.pocketLoading}>
         <Image class="w-[32] h-[32] mb-[8]" src={props.theme.icon("pocket", 32)} />
-        <UiText theme={props.theme} t={`Starting ${props.data.app.title}...`} />
-        <UiText theme={props.theme} cls={props.theme.mutedText} t="Arrow keys + Z/X/A/S + Q/W" />
+        <UiText theme={props.theme} t={lw().starting(appTitle(props.data.app))} />
+        <UiText theme={props.theme} cls={props.theme.mutedText} t={lw().controlsHint} />
       </View>
       <CompositorSurface
         class="absolute inset-0"
@@ -478,6 +479,14 @@ export function folderToolEnabled(d: FolderData, tool: FolderTool): boolean {
   return d.place() !== "computer";
 }
 
+/** A place's name in the active language. */
+function placeName(id: string, label: string): string {
+  if (id === "computer") return lw().myComputer;
+  if (id === "documents") return lw().myDocuments;
+  if (id === "recycle") return lw().recycleBin;
+  return label;
+}
+
 export function FolderView(props: {
   data: FolderData;
   resizable: boolean;
@@ -505,7 +514,7 @@ export function FolderView(props: {
         ))}
         {props.theme.folderAddressLabel !== "" ? (
           <View class="ml-[6] mr-[2]">
-            <UiText theme={props.theme} t={props.theme.folderAddressLabel} />
+            <UiText theme={props.theme} t={themeWord(props.theme.folderAddressLabel)} />
           </View>
         ) : null}
         <View class={props.theme.folderAddress}>
@@ -513,13 +522,13 @@ export function FolderView(props: {
           <UiText
             theme={props.theme}
             cls={props.theme.folderAddressText}
-            t={place().label}
+            t={placeName(place().id, place().label)}
           />
         </View>
         {props.theme.folderSearch !== "" ? (
           <View class={props.theme.folderSearch}>
             <Image class="w-[16] h-[16]" src={props.theme.icon("find", 16)} />
-            <UiText theme={props.theme} cls={props.theme.folderSearchText} t="Search" />
+            <UiText theme={props.theme} cls={props.theme.folderSearchText} t={lw().search} />
           </View>
         ) : null}
       </View>
@@ -534,7 +543,7 @@ export function FolderView(props: {
               theme={props.theme}
               bold
               cls={props.theme.folderSideHeadingText}
-              t={props.theme.folderSideHeadingLabel}
+              t={themeWord(props.theme.folderSideHeadingLabel)}
             />
           </View>
         ) : null}
@@ -546,7 +555,7 @@ export function FolderView(props: {
                 <UiText
                   theme={props.theme}
                   cls={props.theme.folderSideText(current(i), props.active)}
-                  t={place.label}
+                  t={placeName(place.id, place.label)}
                 />
               </View>
             </View>
@@ -556,13 +565,13 @@ export function FolderView(props: {
       <View class={props.theme.folderWell}>
         <View class="h-[17] flex-row shrink-0">
           <View class={props.theme.folderHeader("name")}>
-            <UiText theme={props.theme} t="Name" />
+            <UiText theme={props.theme} t={lw().name} />
           </View>
           <View class={props.theme.folderHeader("size")}>
-            <UiText theme={props.theme} t="Size" />
+            <UiText theme={props.theme} t={lw().size} />
           </View>
           <View class={props.theme.folderHeader("type")}>
-            <UiText theme={props.theme} t="Type" />
+            <UiText theme={props.theme} t={lw().type} />
           </View>
         </View>
         {d.rows().map((row, i) => (
@@ -607,7 +616,7 @@ export function FolderView(props: {
         ))}
         {d.rows().length === 0 ? (
           <View class="flex-1 flex-col justify-center items-center">
-            <UiText theme={props.theme} cls={props.theme.mutedText} t="(empty)" />
+            <UiText theme={props.theme} cls={props.theme.mutedText} t={lw().empty} />
           </View>
         ) : null}
       </View>
@@ -680,7 +689,7 @@ export function AboutView(props: {
         <View class={props.theme.popupSeparatorDark} />
         <View class={props.theme.popupSeparatorLight} />
       </View>
-      {DESKTOP_ABOUT.body.map((line) => (
+      {aboutBody(DESKTOP_ABOUT, lang()).map((line) => (
         <UiText theme={props.theme} t={line} />
       ))}
       {DESKTOP_ABOUT.link !== "" ? (
@@ -693,7 +702,7 @@ export function AboutView(props: {
       <View class="flex-1" />
       <View class="flex-row justify-end">
         <DialogButton
-          label="OK"
+          label={lw().ok}
           armed={props.data.armed() === "ok"}
           primary
           theme={props.theme}
@@ -747,24 +756,24 @@ export function ShutdownView(props: {
       <View class="flex-row items-start gap-[10]">
         <Image class="w-[32] h-[32]" src={props.theme.icon("shutdown", 32)} />
         <View class="flex-col gap-[2]">
-          <UiText theme={props.theme} t="What do you want the computer to do?" />
+          <UiText theme={props.theme} t={lw().shutDownAsk} />
         </View>
       </View>
       <View class="h-[10]" />
       <View class="flex-col pl-[46]">
-        {radio(0, "Shut down")}
-        {radio(1, "Restart")}
+        {radio(0, lw().shutDownChoice)}
+        {radio(1, lw().restart)}
       </View>
       <View class="flex-1" />
       <View class="flex-row justify-end gap-[6]">
         <DialogButton
-          label="OK"
+          label={lw().ok}
           armed={props.data.armed() === "ok"}
           primary
           theme={props.theme}
         />
         <DialogButton
-          label="Cancel"
+          label={lw().cancel}
           armed={props.data.armed() === "cancel"}
           theme={props.theme}
         />

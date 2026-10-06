@@ -82,11 +82,14 @@ import {
   DESKTOP_NAME,
   POCKET_APPS,
   WINDOW_TITLE_PREFIX,
+  aboutBody,
   appWindowTitle,
   pocketAppByPackage,
   readAbout,
   readWindowTitlePrefix,
 } from "../src/system-ui/pocket-apps.ts";
+import { appTitle, applyLang, lw, themeWord, wordsIn } from "../src/system-ui/words.ts";
+import { DESK_LABEL_MAX_W, desktopLabelShift, desktopLabelText } from "../src/system-ui/chrome.tsx";
 import about from "../pocket.about.json";
 import system from "../pocket.system.json";
 import {
@@ -161,7 +164,7 @@ describe("Pocket app desktop catalog", () => {
   });
 
   test("the About dialog takes its text from pocket.about.json", () => {
-    expect(DESKTOP_ABOUT).toEqual(about);
+    expect(DESKTOP_ABOUT).toEqual({ ...about, translations: {} });
     // This repository's file describes the shell.
     expect(DESKTOP_ABOUT).toEqual({
       body: [
@@ -171,6 +174,7 @@ describe("Pocket app desktop catalog", () => {
         "live in the guest.",
       ],
       link: "github.com/pocket-nexus/pocket-shell",
+      translations: {},
     });
   });
 
@@ -212,31 +216,88 @@ describe("Pocket app desktop catalog", () => {
         link: "example.org",
         windowTitlePrefix: "Desk",
       }),
-    ).toEqual({ body: ["One line."], link: "example.org" });
+    ).toEqual({ body: ["One line."], link: "example.org", translations: {} });
   });
 
   test("an About file may leave out its body, its link or both", () => {
     expect(readAbout({ body: ["One line."], link: "example.org" })).toEqual({
       body: ["One line."],
       link: "example.org",
+      translations: {},
     });
     expect(readAbout({ body: ["One line."] })).toEqual({
       body: ["One line."],
       link: "",
+      translations: {},
     });
     expect(readAbout({ link: "example.org" })).toEqual({
       body: [],
       link: "example.org",
+      translations: {},
     });
     // Entries that are not strings are dropped; a body or link of another
     // type reads as absent.
     expect(readAbout({ body: ["a", 1, null, "b"], link: 2 })).toEqual({
       body: ["a", "b"],
       link: "",
+      translations: {},
     });
-    expect(readAbout({ body: "One line." })).toEqual({ body: [], link: "" });
+    expect(readAbout({ body: "One line." })).toEqual({ body: [], link: "", translations: {} });
     for (const value of [{}, [], null, undefined, "text", 3])
-      expect(readAbout(value)).toEqual({ body: [], link: "" });
+      expect(readAbout(value)).toEqual({ body: [], link: "", translations: {} });
+  });
+
+  test("an About file may carry its body in other languages", () => {
+    const read = readAbout({
+      body: ["One line."],
+      translations: { ja: { body: ["一行。", 2] }, fr: "texte", de: { link: "x" } },
+    });
+    expect(read.translations).toEqual({ ja: ["一行。"] });
+    expect(aboutBody(read, "ja")).toEqual(["一行。"]);
+    // A language the file does not carry shows the body as written.
+    expect(aboutBody(read, "en")).toEqual(["One line."]);
+    expect(aboutBody(read, "fr")).toEqual(["One line."]);
+  });
+
+  test("the shell's words: one key set in each language, and the lang line", () => {
+    expect(Object.keys(wordsIn("ja")).sort()).toEqual(Object.keys(wordsIn("en")).sort());
+    for (const [key, value] of Object.entries(wordsIn("ja"))) {
+      if (typeof value === "string") expect([key, value.length > 0]).toEqual([key, true]);
+    }
+    expect(wordsIn("ja").notepadTitle("README.TXT")).toBe("README.TXT - メモ帳");
+    expect(wordsIn("ja").about("Pocket Nexus")).toBe("Pocket Nexus について");
+    expect(wordsIn("en").about("Pocket Nexus")).toBe("About Pocket Nexus");
+
+    expect(lw().start).toBe("Start");
+    expect(applyLang("de")).toBe(false);
+    expect(applyLang("ja", { "dev.pocket-nexus.hero": "ヒーロー", other: 3 })).toBe(true);
+    expect(lw().start).toBe("スタート");
+    expect(appTitle({ package: "dev.pocket-nexus.hero", title: "Hero" })).toBe("ヒーロー");
+    expect(appTitle({ package: "dev.pocket-nexus.other", title: "Other" })).toBe("Other");
+    expect(themeWord("Address")).toBe("アドレス");
+    expect(themeWord("Classic 98")).toBe("Classic 98");
+    // The same line again changes nothing; English gives the manifest titles back.
+    expect(applyLang("ja", { "dev.pocket-nexus.hero": "ヒーロー" })).toBe(false);
+    expect(applyLang("en")).toBe(true);
+    expect(appTitle({ package: "dev.pocket-nexus.hero", title: "Hero" })).toBe("Hero");
+  });
+
+  test("a desktop label wider than its column is cut until it is selected, and stays on the screen", () => {
+    const measure = (text: string) => [...text].length * 11;
+    expect(desktopLabelText("ごみ箱", false, measure)).toBe("ごみ箱");
+    const cut = desktopLabelText("インストールガイド", false, measure);
+    expect(cut.endsWith("...")).toBe(true);
+    expect(measure(cut)).toBeLessThanOrEqual(DESK_LABEL_MAX_W);
+    expect(desktopLabelText("インストールガイド", true, measure)).toBe("インストールガイド");
+    // With no icon beside it in the next column: the whole name, moved onto the screen.
+    expect(desktopLabelText("インストールガイド", false, measure, false)).toBe("インストールガイド");
+    // A label as wide as its cell or narrower stays centred.
+    expect(desktopLabelShift(8, 74, 800)).toBe(0);
+    // A wide label beside the left edge moves right until it starts 2px in.
+    expect(8 + (74 - 100) / 2 + desktopLabelShift(8, 100, 800)).toBe(2);
+    // Beside the right edge it moves left until it ends 2px in.
+    const x = 800 - 8 - 74;
+    expect(x + (74 - 100) / 2 + desktopLabelShift(x, 100, 800) + 100).toBe(798);
   });
 
   test("a host open line resolves installed apps only", () => {

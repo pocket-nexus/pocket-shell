@@ -25,23 +25,42 @@ export interface DesktopAbout {
   body: readonly string[];
   /** Shown as text under the body; "" leaves the row out. */
   link: string;
+  /** The body in other languages, by language id ("ja"); a language it
+   *  leaves out shows `body`. */
+  translations: Readonly<Record<string, readonly string[]>>;
 }
 
 /** Read a pocket.about.json value. The System manifest schema has no field
- *  for product copy, so the text lives in this file beside the manifest. Both
+ *  for product copy, so the text lives in this file beside the manifest. All
  *  fields are optional: a missing `body` gives no lines and a missing `link`
- *  no link row. Entries of `body` that are not strings are dropped. */
+ *  no link row. Entries of `body` that are not strings are dropped.
+ *  `translations` holds the body in other languages:
+ *  `{ "ja": { "body": [...] } }`. */
 export function readAbout(value: unknown): DesktopAbout {
   const record =
     value !== null && typeof value === "object"
-      ? (value as { body?: unknown; link?: unknown })
+      ? (value as { body?: unknown; link?: unknown; translations?: unknown })
       : {};
+  const lines = (body: unknown): string[] =>
+    Array.isArray(body) ? body.filter((line): line is string => typeof line === "string") : [];
+  const translations: Record<string, readonly string[]> = {};
+  if (record.translations !== null && typeof record.translations === "object") {
+    for (const [lang, entry] of Object.entries(record.translations as Record<string, unknown>)) {
+      if (entry !== null && typeof entry === "object" && Array.isArray((entry as { body?: unknown }).body)) {
+        translations[lang] = lines((entry as { body: unknown }).body);
+      }
+    }
+  }
   return {
-    body: Array.isArray(record.body)
-      ? record.body.filter((line): line is string => typeof line === "string")
-      : [],
+    body: lines(record.body),
     link: typeof record.link === "string" ? record.link : "",
+    translations,
   };
+}
+
+/** The About body in a language: its translation, else the body as written. */
+export function aboutBody(about: DesktopAbout, lang: string): readonly string[] {
+  return about.translations[lang] ?? about.body;
 }
 
 /** The About text of the product that installs this System UI. This
