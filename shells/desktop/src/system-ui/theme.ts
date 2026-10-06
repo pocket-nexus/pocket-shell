@@ -161,6 +161,12 @@ export interface ChromeMetrics {
   /** Panel padding around the launcher rows (mirrors startMenu's p-[…]). */
   startPadX: number;
   startPadY: number;
+  /** A launcher row's width less its label: the row's left and right
+   *  padding, and the icon slot with its gap when the theme draws icons
+   *  (mirrors startItem's pl-[…], pr-[…], gap-[…]). */
+  startRowInset: number;
+  /** What a submenu arrow adds to a row: the 8px arrow and its gap. */
+  startArrowW: number;
   /** Dropdown / context / flyout popup rows and panel padding. */
   popupRowH: number;
   popupSepH: number;
@@ -593,6 +599,9 @@ export const CLASSIC_THEME: DesktopTheme = {
     startLeftW: 0,
     startPadX: 1,
     startPadY: 1,
+    // pl 6 + icon 16 + gap 6 + pr 6; the arrow is gap 6 + 8.
+    startRowInset: 34,
+    startArrowW: 14,
     popupRowH: 18,
     popupSepH: 8,
     popupPadX: 1,
@@ -895,6 +904,9 @@ export const XP_THEME: DesktopTheme = {
     startLeftW: 172,
     startPadX: 1,
     startPadY: 1,
+    // pl 8 + icon 16 + gap 7 + pr 8; the arrow is gap 7 + 8.
+    startRowInset: 39,
+    startArrowW: 15,
     popupRowH: 19,
     popupSepH: 8,
     popupPadX: 2,
@@ -1289,6 +1301,9 @@ export const AQUA_THEME: DesktopTheme = {
     // a 4px breath above the first and below the last row.
     startPadX: 0,
     startPadY: 4,
+    // pl 21 + pr 16, no icons and no gap; the arrow is 8.
+    startRowInset: 37,
+    startArrowW: 8,
     popupRowH: 19,
     popupSepH: 9,
     popupPadX: 0,

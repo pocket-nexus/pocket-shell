@@ -508,6 +508,8 @@ export interface StartLayout {
   h: number;
   /** Column split (0 when the theme paints one column beside a rail). */
   leftW: number;
+  /** The places column's width (0 for one column). */
+  rightW: number;
   headerH: number;
   footerH: number;
   bodyY: number;
@@ -528,21 +530,51 @@ interface StartItem {
  *  programs column and lays `foot` items along the bottom strip, Aqua stacks
  *  one column under the screen bar. Paint (chrome.tsx) and hit testing
  *  (app.tsx) both read these rectangles, so a theme switch can never leave
- *  one of them behind. */
+ *  one of them behind.
+ *
+ *  The panel is as wide as its rows: `rowW(i)` is item i's natural width
+ *  (its label, icon slot, arrow and padding), and a column the theme draws
+ *  at `startLeftW` or `startW` grows to its widest row, up to `maxW` for the
+ *  whole panel. A row wider than what is left past `maxW` has its label cut
+ *  (`fitLabel` in chrome.tsx). Without `rowW` the panel keeps the theme's widths. */
 export function startLayout(
   items: readonly StartItem[],
   vpH: number,
   metrics: ChromeMetrics = DEFAULT_METRICS,
+  rowW: (index: number) => number = () => 0,
+  maxW = Number.POSITIVE_INFINITY,
 ): StartLayout {
   const {
     startRowH: row,
     startSepH: sep,
-    startLeftW: leftW,
     startPadX: padX,
     startPadY: padY,
   } = metrics;
   const twoColumn = metrics.startHeaderH > 0;
-  const rightW = metrics.startW - leftW - padX * 2;
+  const widest = (which: (it: StartItem) => boolean) =>
+    items.reduce((a, it, i) => (it.sep || it.foot || !which(it) ? a : Math.max(a, Math.ceil(rowW(i)))), 0);
+
+  let leftW = metrics.startLeftW;
+  let rightW = metrics.startW - metrics.startLeftW - padX * 2;
+  let panelW = metrics.startW;
+  if (twoColumn) {
+    const leftMin = leftW;
+    const rightMin = rightW;
+    leftW = Math.max(leftMin, widest((it) => it.col !== "right"));
+    rightW = Math.max(rightMin, widest((it) => it.col === "right"));
+    // Past the maximum the places column gives back its growth first.
+    let over = padX * 2 + leftW + rightW - Math.max(metrics.startW, maxW);
+    if (over > 0) {
+      const back = Math.min(over, rightW - rightMin);
+      rightW -= back;
+      over -= back;
+      leftW -= Math.min(over, leftW - leftMin);
+    }
+    panelW = padX * 2 + leftW + rightW;
+  } else {
+    const content = widest(() => true) + padX * 2 + metrics.startRailW;
+    panelW = Math.max(metrics.startW, Math.min(content, maxW));
+  }
 
   const height = (which: (it: StartItem) => boolean) =>
     items.filter(which).reduce((a, it) => a + (it.sep ? sep : row), 0);
@@ -571,7 +603,7 @@ export function startLayout(
     const bottomH = height((it) => !it.foot && !!it.bottom);
     const bottomY = bodyY + bodyH - bottomH;
     let by = bottomY;
-    let fx = x + metrics.startW - padX;
+    let fx = x + panelW - padX;
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
       const h = it.sep ? sep : row;
@@ -611,7 +643,7 @@ export function startLayout(
           index: i,
           x: x + padX + metrics.startRailW,
           y: oy,
-          w: metrics.startW - padX * 2 - metrics.startRailW,
+          w: panelW - padX * 2 - metrics.startRailW,
           h,
         });
       oy += h;
@@ -621,9 +653,10 @@ export function startLayout(
   return {
     x,
     y,
-    w: metrics.startW,
+    w: panelW,
     h,
     leftW: twoColumn ? leftW : 0,
+    rightW: twoColumn ? rightW : 0,
     headerH: metrics.startHeaderH,
     footerH: metrics.startFooterH,
     bodyY,

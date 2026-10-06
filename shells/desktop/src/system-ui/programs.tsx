@@ -640,6 +640,16 @@ export function FolderView(props: {
 // Classic outer sizes; other themes reframe them around the same client
 // rectangle. About leaves room for the taller antialiased faces' line boxes.
 export const ABOUT_GEO = { w: 340, h: 260 } as const;
+/** The body lines ABOUT_GEO's height holds, and what each further line adds:
+ *  the tallest theme's line box and the dialog's 8px gap. */
+export const ABOUT_BODY_LINES = 4;
+export const ABOUT_LINE_STEP = 24;
+
+/** The About dialog's outer size for a body of `lines` lines: a product's
+ *  About (pocket.about.json) can run longer in one language than another. */
+export function aboutGeo(lines: number): { w: number; h: number } {
+  return { w: ABOUT_GEO.w, h: ABOUT_GEO.h + Math.max(0, lines - ABOUT_BODY_LINES) * ABOUT_LINE_STEP };
+}
 export const SHUTDOWN_GEO = { w: 300, h: 176 } as const;
 
 /** Dialog push button; armed = pressed face + 1px content nudge. `primary`

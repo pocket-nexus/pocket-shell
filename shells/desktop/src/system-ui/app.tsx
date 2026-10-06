@@ -31,7 +31,7 @@ import { Image, View } from "@pocketjs/framework/components";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 import { virtualNow } from "@pocketjs/framework/clock";
 import { connectSvc, type CursorKind, type HostEvent } from "./svc.ts";
-import { applyLang, appTitle, lw } from "./words.ts";
+import { applyLang, appTitle, lang, lw } from "./words.ts";
 import {
   cascadePos,
   clampMove,
@@ -77,7 +77,7 @@ import {
   type WinCtl,
 } from "./state.ts";
 import {
-  ABOUT_GEO,
+  aboutGeo,
   AboutView,
   aboutHit,
   FolderView,
@@ -121,8 +121,10 @@ import {
 } from "./notepad.ts";
 import { newMines, reveal, toggleFlag } from "./mines.ts";
 import {
+  DESKTOP_ABOUT,
   DESKTOP_NAME,
   POCKET_APPS,
+  aboutBody,
   appWindowTitle,
   pocketAppByPackage,
   type PocketAppSpec,
@@ -860,7 +862,10 @@ export default function App() {
       kind: "about",
       title: aboutLabel(),
       icon: "computer",
-      geo: centered(ABOUT_GEO.w, ABOUT_GEO.h),
+      geo: (() => {
+        const size = aboutGeo(aboutBody(DESKTOP_ABOUT, lang()).length);
+        return centered(size.w, size.h);
+      })(),
       buttons: ["close"],
       resizable: false,
       data,
@@ -1128,8 +1133,27 @@ export default function App() {
     return classicStartItems();
   };
 
-  /** The panel rectangle both the render and hit testing read. */
-  const startGeo = () => startLayout(startItems(), vp().h, metrics());
+  /** A launcher row's natural width: its label in the face it is drawn in
+   *  (XP sets the pinned rows in bold), the icon slot, padding and arrow. */
+  const startRowW = (item: PopupItem) =>
+    item.sep
+      ? 0
+      : metrics().startRowInset +
+        measure(item.label, item.bottom ? theme().fontSlot("bold") : uiSlot()) +
+        (item.sub ? metrics().startArrowW : 0);
+
+  /** The panel rectangle both the render and hit testing read: as wide as
+   *  its rows, within the screen. */
+  const startGeo = () => {
+    const items = startItems();
+    return startLayout(
+      items,
+      vp().h,
+      metrics(),
+      (i) => startRowW(items[i]),
+      vp().w - metrics().startX - 2,
+    );
+  };
 
   function startItemAt(x: number, y: number): number {
     return startRowAt(startGeo(), x, y);
@@ -2310,6 +2334,8 @@ export default function App() {
           y={startGeo().y}
           w={startGeo().w}
           h={startGeo().h}
+          leftW={startGeo().leftW}
+          rightW={startGeo().rightW}
           items={startItems()}
           hover={startHover()}
           user="Pocket"
