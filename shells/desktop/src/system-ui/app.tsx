@@ -31,7 +31,7 @@ import { Image, View } from "@pocketjs/framework/components";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 import { virtualNow } from "@pocketjs/framework/clock";
 import { connectSvc, type CursorKind, type HostEvent } from "./svc.ts";
-import { applyLang, appTitle, lw } from "./words.ts";
+import { applyLang, appTitle, lang, lw } from "./words.ts";
 import {
   cascadePos,
   clampMove,
@@ -77,7 +77,7 @@ import {
   type WinCtl,
 } from "./state.ts";
 import {
-  ABOUT_GEO,
+  aboutGeo,
   AboutView,
   aboutHit,
   FolderView,
@@ -121,8 +121,10 @@ import {
 } from "./notepad.ts";
 import { newMines, reveal, toggleFlag } from "./mines.ts";
 import {
+  DESKTOP_ABOUT,
   DESKTOP_NAME,
   POCKET_APPS,
+  aboutBody,
   appWindowTitle,
   pocketAppByPackage,
   type PocketAppSpec,
@@ -860,7 +862,10 @@ export default function App() {
       kind: "about",
       title: aboutLabel(),
       icon: "computer",
-      geo: centered(ABOUT_GEO.w, ABOUT_GEO.h),
+      geo: (() => {
+        const size = aboutGeo(aboutBody(DESKTOP_ABOUT, lang()).length);
+        return centered(size.w, size.h);
+      })(),
       buttons: ["close"],
       resizable: false,
       data,

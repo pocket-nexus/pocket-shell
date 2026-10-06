@@ -90,6 +90,7 @@ import {
 } from "../src/system-ui/pocket-apps.ts";
 import { appTitle, applyLang, lw, themeWord, wordsIn } from "../src/system-ui/words.ts";
 import { DESK_LABEL_MAX_W, desktopLabelShift, desktopLabelText, fitLabel } from "../src/system-ui/chrome.tsx";
+import { ABOUT_GEO, ABOUT_LINE_STEP, aboutGeo } from "../src/system-ui/programs.tsx";
 import about from "../pocket.about.json";
 import system from "../pocket.system.json";
 import {
@@ -1390,6 +1391,12 @@ describe("aqua theme geometry", () => {
     expect(wide.rows[1].w).toBe(190);
     expect(startLayout(items, 600, classic, () => 900, 300).w).toBe(300);
     expect(startLayout(items, 600, aqua, (i) => (i === 0 ? 240 : 100)).w).toBe(240);
+  });
+
+  test("the About dialog grows a line step for each body line past four", () => {
+    expect(aboutGeo(3)).toEqual(ABOUT_GEO);
+    expect(aboutGeo(4)).toEqual(ABOUT_GEO);
+    expect(aboutGeo(5)).toEqual({ w: ABOUT_GEO.w, h: ABOUT_GEO.h + ABOUT_LINE_STEP });
   });
 
   test("a label is cut with ... only when it is wider than its room", () => {
