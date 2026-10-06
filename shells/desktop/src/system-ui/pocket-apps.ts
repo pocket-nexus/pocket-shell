@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // The desktop's name and its visible application catalog come from the System
-// manifest, and the About dialog's text from pocket.about.json beside it. The
-// native host receives separately resolved complete package plans; this
-// module carries only System-owned presentation data.
+// manifest. The About dialog's text and the prefix of an app window's title
+// come from pocket.about.json beside it. The native host receives separately
+// resolved complete package plans; this module carries only System-owned
+// presentation data.
 
 import type { PocketSystemV1 } from "@pocketjs/framework/manifest";
 import aboutJson from "../../pocket.about.json";
@@ -48,6 +49,39 @@ export function readAbout(value: unknown): DesktopAbout {
  *  UI under its own pocket.system.json puts its own pocket.about.json beside
  *  that manifest. */
 export const DESKTOP_ABOUT: DesktopAbout = readAbout(aboutJson);
+
+/** What stands before the colon in an app window's title when the product's
+ *  pocket.about.json names nothing else. */
+export const DEFAULT_WINDOW_TITLE_PREFIX = "PocketJS";
+
+/** Read `windowTitlePrefix` from a pocket.about.json value: the text before
+ *  the colon in the title of an installed app's window. Like the About text
+ *  it is product copy the System manifest schema has no field for. A missing
+ *  field, or one that is not a string, gives DEFAULT_WINDOW_TITLE_PREFIX. An
+ *  empty string, or one of spaces alone, gives "": the window is titled with
+ *  the app's title and nothing before it. */
+export function readWindowTitlePrefix(value: unknown): string {
+  const prefix =
+    value !== null && typeof value === "object"
+      ? (value as { windowTitlePrefix?: unknown }).windowTitlePrefix
+      : undefined;
+  return typeof prefix === "string"
+    ? prefix.trim()
+    : DEFAULT_WINDOW_TITLE_PREFIX;
+}
+
+/** The prefix of the product that installs this System UI. */
+export const WINDOW_TITLE_PREFIX: string = readWindowTitlePrefix(aboutJson);
+
+/** The title of an installed app's window, in its caption and its task
+ *  button: "<prefix>: <app title>", or the app's title alone when the prefix
+ *  is "". */
+export function appWindowTitle(
+  title: string,
+  prefix: string = WINDOW_TITLE_PREFIX,
+): string {
+  return prefix === "" ? title : `${prefix}: ${title}`;
+}
 
 export interface PocketAppSpec {
   /** Stable package id used by the native compositor surface registry. */
