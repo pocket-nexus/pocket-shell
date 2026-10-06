@@ -162,17 +162,6 @@ export function ScreenBar(props: {
 /** The task strip: the launcher button, one button per window, the clock
  *  tray. With a screen bar the launcher and the clock live up there and the
  *  strip is a Dock — a centered shelf of icon tiles with running marks. */
-/** A task button's title: whole when it fits the button, else cut with
- *  "..." the way a taskbar shortens a long window title. */
-function taskTitle(title: string, buttonW: number, active: boolean, theme: DesktopTheme): string {
-  const slot = theme.fontSlot(active ? "bold" : "ui");
-  const measure = (text: string) => {
-    const ops = getOps();
-    return ops.measureText ? ops.measureText(text, slot) : text.length * 7;
-  };
-  return fitLabel(title, buttonW - theme.metrics.taskButtonInset, measure);
-}
-
 export function Taskbar(props: {
   entries: TaskEntry[];
   activeId: number;
@@ -237,7 +226,7 @@ export function Taskbar(props: {
                     theme={props.theme}
                     bold={entry.id === props.activeId}
                     cls={props.theme.taskText(entry.id === props.activeId)}
-                    t={taskTitle(entry.title, props.buttonW, entry.id === props.activeId, props.theme)}
+                    t={entry.title}
                   />
                 </View>
               ) : null}
