@@ -100,6 +100,20 @@ fixed size holds four above the link. `link` is shown as text under the body.
 Both fields are optional. This repository's file describes the shell; a
 product that bundles the System UI replaces the file with its own.
 
+The same file sets the prefix of an installed app's window title, shown in the
+window's caption and its task button as `<prefix>: <app title>`:
+
+```json
+{
+  "windowTitlePrefix": "My Desktop"
+}
+```
+
+**A file without `windowTitlePrefix` gives `PocketJS`**, so the Hero window
+reads `PocketJS: Hero`. An empty string titles the window with the app's title
+alone. The System UI's own windows (Notepad, Minesweeper, the folders, About)
+take no prefix.
+
 The host and the System UI exchange JSON lines over the `system-ui` companion
 service; `src/system-ui/svc.ts` lists every line. Besides input, the host can
 send two lines:

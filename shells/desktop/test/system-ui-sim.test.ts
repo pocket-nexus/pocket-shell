@@ -24,7 +24,11 @@ import {
   treeHasText,
   type SimWorld,
 } from "../../../vendor/pocketjs/hosts/sim/sim.ts";
-import { DESKTOP_ABOUT, DESKTOP_NAME } from "../src/system-ui/pocket-apps.ts";
+import {
+  DESKTOP_ABOUT,
+  DESKTOP_NAME,
+  appWindowTitle,
+} from "../src/system-ui/pocket-apps.ts";
 import {
   AQUA_THEME,
   CLASSIC_THEME,
@@ -363,13 +367,13 @@ describe("system-ui System UI companion journey", () => {
     // Five system icons precede Hero and Settings. At 800x600 the grid has
     // nine rows, so both remain in the first column at y=298 and y=356.
     await doubleClick(45, 320);
-    expect(treeHasText(world.getTree(), "PocketJS: Hero")).toBe(true);
+    expect(treeHasText(world.getTree(), appWindowTitle("Hero"))).toBe(true);
     expect(svc.surfaces().filter(([, surface]) => surface === 1).at(-1)?.[2]).toBe(1);
 
     await doubleClick(45, 378);
     let tree = world.getTree();
-    expect(treeHasText(tree, "PocketJS: Hero")).toBe(true);
-    expect(treeHasText(tree, "PocketJS: Settings")).toBe(true);
+    expect(treeHasText(tree, appWindowTitle("Hero"))).toBe(true);
+    expect(treeHasText(tree, appWindowTitle("Settings"))).toBe(true);
     expect(svc.surfaces().filter(([, surface]) => surface === 1).at(-1)?.[2]).toBe(0);
     expect(svc.surfaces().filter(([, surface]) => surface === 2).at(-1)?.[2]).toBe(1);
     expect(svc.sent().some((line) => String(line.t).startsWith("pocket-"))).toBe(false);
@@ -377,8 +381,8 @@ describe("system-ui System UI companion journey", () => {
     svc.push({ t: "key", k: "w", cmd: true });
     await step(world, 2);
     tree = world.getTree();
-    expect(treeHasText(tree, "PocketJS: Settings")).toBe(false);
-    expect(treeHasText(tree, "PocketJS: Hero")).toBe(true);
+    expect(treeHasText(tree, appWindowTitle("Settings"))).toBe(false);
+    expect(treeHasText(tree, appWindowTitle("Hero"))).toBe(true);
     expect(svc.sent().some((line) => String(line.t).startsWith("pocket-"))).toBe(false);
   }, 30000);
 
@@ -403,12 +407,12 @@ describe("system-ui System UI companion journey", () => {
     // An open line opens the window and gives it focus, as its icon would.
     svc.push({ t: "open", package: HERO });
     await step(world, 2);
-    expect(titleNodes("PocketJS: Hero")).toBe(2);
+    expect(titleNodes(appWindowTitle("Hero"))).toBe(2);
     expect(focusedFlag(1)).toBe(1);
 
     svc.push({ t: "open", package: SETTINGS });
     await step(world, 2);
-    expect(titleNodes("PocketJS: Settings")).toBe(2);
+    expect(titleNodes(appWindowTitle("Settings"))).toBe(2);
     expect(focusedFlag(1)).toBe(0);
     expect(focusedFlag(2)).toBe(1);
 
@@ -416,8 +420,8 @@ describe("system-ui System UI companion journey", () => {
     // not open another.
     svc.push({ t: "open", package: HERO });
     await step(world, 2);
-    expect(titleNodes("PocketJS: Hero")).toBe(2);
-    expect(titleNodes("PocketJS: Settings")).toBe(2);
+    expect(titleNodes(appWindowTitle("Hero"))).toBe(2);
+    expect(titleNodes(appWindowTitle("Settings"))).toBe(2);
     expect(focusedFlag(1)).toBe(1);
     expect(focusedFlag(2)).toBe(0);
 
@@ -429,7 +433,7 @@ describe("system-ui System UI companion journey", () => {
     expect(focusedFlag(2)).toBe(1);
     svc.push({ t: "open", package: HERO });
     await step(world, 2);
-    expect(titleNodes("PocketJS: Hero")).toBe(2);
+    expect(titleNodes(appWindowTitle("Hero"))).toBe(2);
     expect(focusedFlag(1)).toBe(1);
     expect(focusedFlag(2)).toBe(0);
 
@@ -453,7 +457,7 @@ describe("system-ui System UI companion journey", () => {
     await step(world, 2);
     expect(JSON.stringify(world.getTree())).toBe(before);
     expect(svc.surfaces().length).toBe(bindings);
-    expect(treeHasText(world.getTree(), "PocketJS: missing")).toBe(false);
+    expect(treeHasText(world.getTree(), appWindowTitle("missing"))).toBe(false);
   }, 30000);
 
   test("the screen bar and About name the desktop after the System manifest", async () => {

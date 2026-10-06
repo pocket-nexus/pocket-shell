@@ -122,6 +122,7 @@ import { newMines, reveal, toggleFlag } from "./mines.ts";
 import {
   DESKTOP_NAME,
   POCKET_APPS,
+  appWindowTitle,
   pocketAppByPackage,
   type PocketAppSpec,
 } from "./pocket-apps.ts";
@@ -674,7 +675,7 @@ export default function App() {
       app.viewport[1] + contentTop({ menuWidths: [] }, m) + m.frame;
     const w = createWin({
       kind: "pocket",
-      title: `PocketJS: ${app.title}`,
+      title: appWindowTitle(app.title),
       icon: "pocket",
       geo: cascadePos(
         wins().length,

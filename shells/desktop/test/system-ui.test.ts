@@ -77,11 +77,15 @@ import {
   type Doc,
 } from "../src/system-ui/notepad.ts";
 import {
+  DEFAULT_WINDOW_TITLE_PREFIX,
   DESKTOP_ABOUT,
   DESKTOP_NAME,
   POCKET_APPS,
+  WINDOW_TITLE_PREFIX,
+  appWindowTitle,
   pocketAppByPackage,
   readAbout,
+  readWindowTitlePrefix,
 } from "../src/system-ui/pocket-apps.ts";
 import about from "../pocket.about.json";
 import system from "../pocket.system.json";
@@ -168,6 +172,47 @@ describe("Pocket app desktop catalog", () => {
       ],
       link: "github.com/pocket-nexus/pocket-shell",
     });
+  });
+
+  test("an app's window is titled with the product's prefix, PocketJS unless pocket.about.json names another", () => {
+    // This repository's file names none.
+    expect("windowTitlePrefix" in about).toBe(false);
+    expect(DEFAULT_WINDOW_TITLE_PREFIX).toBe("PocketJS");
+    expect(WINDOW_TITLE_PREFIX).toBe("PocketJS");
+    expect(appWindowTitle("Hero")).toBe("PocketJS: Hero");
+
+    expect(readWindowTitlePrefix({ windowTitlePrefix: "Pocket Desktop" })).toBe(
+      "Pocket Desktop",
+    );
+    expect(appWindowTitle("My Games", "Pocket Desktop")).toBe(
+      "Pocket Desktop: My Games",
+    );
+    // Spaces around the value are not part of it.
+    expect(readWindowTitlePrefix({ windowTitlePrefix: "  Desk " })).toBe("Desk");
+    // An empty prefix is a choice: the app's title stands alone.
+    expect(readWindowTitlePrefix({ windowTitlePrefix: "" })).toBe("");
+    expect(readWindowTitlePrefix({ windowTitlePrefix: "   " })).toBe("");
+    expect(appWindowTitle("My Games", "")).toBe("My Games");
+    // A field of another type, and a file that is no object, read as absent.
+    for (const value of [
+      { windowTitlePrefix: 3 },
+      { windowTitlePrefix: null },
+      { windowTitlePrefix: ["Desk"] },
+      {},
+      [],
+      null,
+      undefined,
+      "text",
+    ])
+      expect(readWindowTitlePrefix(value)).toBe("PocketJS");
+    // The About text reads the same with the field beside it.
+    expect(
+      readAbout({
+        body: ["One line."],
+        link: "example.org",
+        windowTitlePrefix: "Desk",
+      }),
+    ).toEqual({ body: ["One line."], link: "example.org" });
   });
 
   test("an About file may leave out its body, its link or both", () => {
