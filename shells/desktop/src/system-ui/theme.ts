@@ -142,6 +142,10 @@ export interface ChromeMetrics {
   /** Horizontal padding of the centered shelf (0 for a left-aligned strip). */
   taskPad: number;
   taskButtonMaxW: number;
+  /** A task button's width less its title: side padding, the 16px icon and
+   *  its gap (mirrors taskButton's px-[…] and gap-[…]; 0 where buttons show
+   *  no title). */
+  taskButtonInset: number;
   /** Width reserved on the right for the clock tray (0 when the clock lives
    *  in the screen bar). */
   taskTrayW: number;
@@ -588,6 +592,8 @@ export const CLASSIC_THEME: DesktopTheme = {
     taskAlign: "left",
     taskPad: 0,
     taskButtonMaxW: 160,
+    // px 4 + icon 16 + gap 4 + px 4
+    taskButtonInset: 28,
     taskTrayW: 72,
     startX: 2,
     startW: 182,
@@ -893,6 +899,8 @@ export const XP_THEME: DesktopTheme = {
     taskAlign: "left",
     taskPad: 0,
     taskButtonMaxW: 160,
+    // px 6 + icon 16 + gap 5 + px 6
+    taskButtonInset: 33,
     taskTrayW: 72,
     startX: 0,
     startW: 304,
@@ -1288,6 +1296,8 @@ export const AQUA_THEME: DesktopTheme = {
     taskAlign: "center",
     taskPad: 8,
     taskButtonMaxW: 44,
+    // the Dock shows icons alone
+    taskButtonInset: 0,
     taskTrayW: 0,
     startX: 0,
     startW: 208,

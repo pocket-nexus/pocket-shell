@@ -578,6 +578,11 @@ describe("content parts", () => {
       const icon = theme.launcherIcons || m.startHeaderH > 0 ? 16 + gap : 0;
       expect(m.startRowInset).toBe(px("pl") + px("pr") + icon);
       expect(m.startArrowW).toBe(8 + gap);
+      if (theme.taskShowLabel) {
+        const task = theme.taskButton(false);
+        const tpx = (name: string) => Number(task.match(new RegExp(`\\b${name}-\\[(\\d+)\\]`))?.[1] ?? 0);
+        expect(m.taskButtonInset).toBe(tpx("px") * 2 + 16 + tpx("gap"));
+      }
     }
   });
 
