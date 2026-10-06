@@ -16,10 +16,12 @@
 // build time and template-interpolated fragments are a compile error, so the
 // complete theme-selected classes stay visible to the compiler.
 
+import { lw } from "./words.ts";
+import { getOps } from "@pocketjs/framework";
 import { Image, Text, View } from "@pocketjs/framework/components";
 import { type CaptionState, type DesktopTheme } from "./theme.ts";
 import type { DeskIcon, MenuDef, Popup, TaskEntry, WinCtl } from "./state.ts";
-import { captionSlots, desktopIconPosition } from "./wm.ts";
+import { DESK_ICON_W, DESK_ICON_X_STRIDE, captionSlots, desktopIconPosition } from "./wm.ts";
 
 /** Desktop text. The baked slot rides the style prop — the class table never
  *  sees it (baked per-app via pak.json, docs in gen-assets.ts) — and the
@@ -197,7 +199,7 @@ export function Taskbar(props: {
             theme={props.theme}
             bold
             cls={props.theme.startText}
-            t="Start"
+            t={lw().start}
           />
         </View>
       ) : null}
@@ -552,6 +554,40 @@ export function StartMenu(props: {
   );
 }
 
+/** How far a desktop label wider than its cell moves from the cell's centre,
+ *  so that it stays on the screen: a label is centred under its icon, and one
+ *  wider than the cell (a long name, "マイ コンピュータ") would otherwise run
+ *  past the screen's edge beside the first column. `cellX` is the cell's
+ *  left edge, `width` the label's. */
+export function desktopLabelShift(cellX: number, width: number, viewportW: number): number {
+  if (width <= DESK_ICON_W) return 0;
+  const centred = (DESK_ICON_W - width) / 2;
+  const leftmost = 2 - cellX;
+  const rightmost = viewportW > 0 ? viewportW - 2 - cellX - width : centred;
+  return Math.round(Math.max(leftmost, Math.min(centred, rightmost)) - centred);
+}
+
+/** The widest label a column of icons has room for: a wider one would run
+ *  under the next column's. */
+export const DESK_LABEL_MAX_W = DESK_ICON_X_STRIDE - 2;
+
+/** A desktop label as it is drawn: whole when it fits the column, when it
+ *  is selected or when no icon stands beside it in the next column on
+ *  either side (no label to run under), else cut with "..." to fit, the way
+ *  a desktop shortens a long name until it is selected. */
+export function desktopLabelText(
+  label: string,
+  selected: boolean,
+  measure: (text: string) => number,
+  crowded = true,
+): string {
+  if (selected || !crowded || measure(label) <= DESK_LABEL_MAX_W) return label;
+  const chars = [...label];
+  let n = chars.length;
+  while (n > 1 && measure(`${chars.slice(0, n).join("").trimEnd()}...`) > DESK_LABEL_MAX_W) n--;
+  return `${chars.slice(0, n).join("").trimEnd()}...`;
+}
+
 /** Desktop icons: column-major 32px art + theme-selected labels, anchored
  *  to the theme's screen edge. */
 export function DesktopIcons(props: {
@@ -561,6 +597,18 @@ export function DesktopIcons(props: {
   viewportW: number;
   theme: DesktopTheme;
 }) {
+  const measure = (text: string) => {
+    const ops = getOps();
+    return ops.measureText ? ops.measureText(text, props.theme.fontSlot("ui")) : 0;
+  };
+  // Column-major: the icon beside index i in the next column is i + rows.
+  const crowded = (i: number) => {
+    const rows = Math.max(1, props.rows);
+    return i - rows >= 0 || i + rows < props.icons.length;
+  };
+  const shown = (i: number, label: string) => desktopLabelText(label, props.selected === i, measure, crowded(i));
+  // The label's box: its text and the selection's 2px on each side.
+  const labelW = (label: string) => Math.ceil(measure(label)) + 4;
   return (
     <View class="absolute inset-0">
       {props.icons.map((icon, i) => (
@@ -588,8 +636,15 @@ export function DesktopIcons(props: {
                 ? props.theme.desktopSelection
                 : props.theme.desktopLabelPlain
             }
+            style={{
+              translateX: desktopLabelShift(
+                desktopIconPosition(i, props.rows, props.theme.metrics, props.viewportW).x,
+                labelW(shown(i, icon.label)),
+                props.viewportW,
+              ),
+            }}
           >
-            <UiText theme={props.theme} cls={props.theme.desktopLabel} t={icon.label} />
+            <UiText theme={props.theme} cls={props.theme.desktopLabel} t={shown(i, icon.label)} />
           </View>
         </View>
       ))}

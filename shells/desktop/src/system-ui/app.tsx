@@ -31,6 +31,7 @@ import { Image, View } from "@pocketjs/framework/components";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 import { virtualNow } from "@pocketjs/framework/clock";
 import { connectSvc, type CursorKind, type HostEvent } from "./svc.ts";
+import { applyLang, appTitle, lw } from "./words.ts";
 import {
   cascadePos,
   clampMove,
@@ -149,7 +150,7 @@ import {
 } from "./chrome.tsx";
 
 /** Label of every About entry and the About window's title. */
-const ABOUT_LABEL = `About ${DESKTOP_NAME}`;
+const aboutLabel = () => lw().about(DESKTOP_NAME);
 
 const WELCOME = [
   `Welcome to ${DESKTOP_NAME}.`,
@@ -364,6 +365,7 @@ export default function App() {
 
   function closeWin(id: number) {
     layouts.get(id)?.dispose(); layouts.delete(id);
+    padNames.delete(id);
     wins.set(wins().filter((w) => w.id !== id));
     stack = stack.filter((x) => x !== id);
     applyZ();
@@ -464,7 +466,13 @@ export default function App() {
 
   // ---- programs ---------------------------------------------------------------
 
-  function openNotepad(title: string, content: string[]) {
+  /** Each Notepad window's document name; null for an untitled one. The
+   *  window's title is made from it, again when the language changes. */
+  const padNames = new Map<number, string | null>();
+  const padTitle = (name: string | null) => lw().notepadTitle(name ?? lw().untitled);
+
+  function openNotepad(name: string | null, content: string[]) {
+    const title = padTitle(name);
     const existing = wins().find(
       (w) => w.kind === "notepad" && w.title() === title,
     );
@@ -497,11 +505,11 @@ export default function App() {
       minH: 140,
       menus: [
         {
-          label: "File",
-          width: menuW("File"),
+          label: lw().file,
+          width: menuW(lw().file),
           items: () => [
             {
-              label: "New",
+              label: lw().new,
               act: () => {
                 applyEdit(w, "other", {
                   lines: [""],
@@ -511,7 +519,7 @@ export default function App() {
             },
             { sep: true, label: "" },
             {
-              label: "Exit",
+              label: lw().exit,
               shortcut: "Cmd+W",
               act: () => {
                 closeWin(w.id);
@@ -520,11 +528,11 @@ export default function App() {
           ],
         },
         {
-          label: "Edit",
-          width: menuW("Edit"),
+          label: lw().edit,
+          width: menuW(lw().edit),
           items: () => [
             {
-              label: "Undo",
+              label: lw().undo,
               shortcut: "Cmd+Z",
               disabled: data.hist.undo.length === 0,
               act: () => {
@@ -532,7 +540,7 @@ export default function App() {
               },
             },
             {
-              label: "Redo",
+              label: lw().redo,
               shortcut: "Cmd+Shift+Z",
               disabled: data.hist.redo.length === 0,
               act: () => {
@@ -541,20 +549,20 @@ export default function App() {
             },
             { sep: true, label: "" },
             {
-              label: "Cut",
+              label: lw().cut,
               shortcut: "Cmd+X",
               disabled: !hasSel(data.doc()),
               act: cutSel,
             },
             {
-              label: "Copy",
+              label: lw().copy,
               shortcut: "Cmd+C",
               disabled: !hasSel(data.doc()),
               act: copySel,
             },
-            { label: "Paste", shortcut: "Cmd+V", act: pasteReq },
+            { label: lw().paste, shortcut: "Cmd+V", act: pasteReq },
             {
-              label: "Select All",
+              label: lw().selectAll,
               shortcut: "Cmd+A",
               act: () => {
                 selectAllIn(w);
@@ -562,7 +570,7 @@ export default function App() {
             },
             { sep: true, label: "" },
             {
-              label: "Time/Date",
+              label: lw().timeDate,
               shortcut: "F5",
               act: () => {
                 insertTimeDate(w);
@@ -570,7 +578,7 @@ export default function App() {
             },
             { sep: true, label: "" },
             {
-              label: "Word Wrap",
+              label: lw().wordWrap,
               checked: data.wrap(),
               act: () => {
                 data.wrap.set(!data.wrap());
@@ -580,14 +588,15 @@ export default function App() {
           ],
         },
         {
-          label: "Help",
-          width: menuW("Help"),
-          items: () => [{ label: ABOUT_LABEL, act: openAbout }],
+          label: lw().help,
+          width: menuW(lw().help),
+          items: () => [{ label: aboutLabel(), act: openAbout }],
         },
       ],
       data,
     });
     layouts.set(w.id, createPadLayout(w));
+    padNames.set(w.id, name);
     addWin(w);
   }
 
@@ -604,14 +613,14 @@ export default function App() {
     const outer = reframeGeo(
       { x: 0, y: 0, w: MINES_GEO.w, h: MINES_GEO.h },
       {
-        menuWidths: [menuW("Game"), menuW("Help")],
+        menuWidths: [menuW(lw().game), menuW(lw().help)],
       },
       CLASSIC_THEME.metrics,
       metrics(),
     );
     const w = createWin({
       kind: "mines",
-      title: "Minesweeper",
+      title: lw().minesweeper,
       icon: "mines",
       geo: {
         ...cascadePos(
@@ -627,11 +636,11 @@ export default function App() {
       resizable: false,
       menus: [
         {
-          label: "Game",
-          width: menuW("Game"),
+          label: lw().game,
+          width: menuW(lw().game),
           items: () => [
             {
-              label: "New",
+              label: lw().new,
               shortcut: "F2",
               act: () => {
                 minesNew(w);
@@ -639,7 +648,7 @@ export default function App() {
             },
             { sep: true, label: "" },
             {
-              label: "Exit",
+              label: lw().exit,
               shortcut: "Cmd+W",
               act: () => {
                 closeWin(w.id);
@@ -648,9 +657,9 @@ export default function App() {
           ],
         },
         {
-          label: "Help",
-          width: menuW("Help"),
-          items: () => [{ label: ABOUT_LABEL, act: openAbout }],
+          label: lw().help,
+          width: menuW(lw().help),
+          items: () => [{ label: aboutLabel(), act: openAbout }],
         },
       ],
       data,
@@ -675,7 +684,7 @@ export default function App() {
       app.viewport[1] + contentTop({ menuWidths: [] }, m) + m.frame;
     const w = createWin({
       kind: "pocket",
-      title: appWindowTitle(app.title),
+      title: appWindowTitle(appTitle(app)),
       icon: "pocket",
       geo: cascadePos(
         wins().length,
@@ -711,37 +720,37 @@ export default function App() {
             icon: "drive",
             name: "(C:)",
             size: "",
-            type: "Local Disk",
+            type: lw().localDisk,
             open: () => {
               navigate(w, "drivec");
             },
           },
-          { icon: "cdrom", name: "(D:)", size: "", type: "CD-ROM Disc" },
-          { icon: "folder", name: "Control Panel", size: "", type: "System Folder" },
-          { icon: "folder", name: "Printers", size: "", type: "System Folder" },
+          { icon: "cdrom", name: "(D:)", size: "", type: lw().cdromDisc },
+          { icon: "folder", name: lw().controlPanel, size: "", type: lw().systemFolder },
+          { icon: "folder", name: lw().printers, size: "", type: lw().systemFolder },
         ];
       case "drivec":
         return [
-          { icon: "folder", name: "Program Files", size: "", type: "File Folder" },
-          { icon: "folder", name: "System", size: "", type: "File Folder" },
+          { icon: "folder", name: "Program Files", size: "", type: lw().fileFolder },
+          { icon: "folder", name: "System", size: "", type: lw().fileFolder },
           {
             icon: "folder",
-            name: "My Documents",
+            name: lw().myDocuments,
             size: "",
-            type: "File Folder",
+            type: lw().fileFolder,
             open: () => {
               navigate(w, "documents");
             },
           },
-          { icon: "file", name: "AUTOEXEC.BAT", size: "1 KB", type: "Batch File" },
-          { icon: "file", name: "CONFIG.SYS", size: "1 KB", type: "System file" },
+          { icon: "file", name: "AUTOEXEC.BAT", size: "1 KB", type: lw().batchFile },
+          { icon: "file", name: "CONFIG.SYS", size: "1 KB", type: lw().systemFile },
           {
             icon: "notepad",
             name: "README.TXT",
             size: "2 KB",
-            type: "Text Document",
+            type: lw().textDocument,
             open: () => {
-              openNotepad("README.TXT - Notepad", WELCOME);
+              openNotepad("README.TXT", WELCOME);
             },
           },
         ];
@@ -751,9 +760,9 @@ export default function App() {
             icon: "notepad",
             name: "welcome.txt",
             size: "1 KB",
-            type: "Text Document",
+            type: lw().textDocument,
             open: () => {
-              openNotepad("welcome.txt - Notepad", WELCOME);
+              openNotepad("welcome.txt", WELCOME);
             },
           },
         ];
@@ -764,6 +773,14 @@ export default function App() {
 
   function placeOf(id: PlaceId): Place {
     return PLACES.find((p) => p.id === id) ?? PLACES[0];
+  }
+
+  /** A place's name in the active language: its window's title and its sidebar entry. */
+  function placeLabel(id: PlaceId): string {
+    if (id === "computer") return lw().myComputer;
+    if (id === "documents") return lw().myDocuments;
+    if (id === "recycle") return lw().recycleBin;
+    return placeOf(id).label;
   }
 
   /** Point a folder window at another place: title, icon, rows, selection.
@@ -778,7 +795,7 @@ export default function App() {
     d.place.set(id);
     d.rows.set(placeRows(id, w));
     d.selected.set(-1);
-    w.title.set(place.label);
+    w.title.set(placeLabel(id));
     w.icon.set(place.icon);
   }
 
@@ -820,7 +837,7 @@ export default function App() {
     };
     const w = createWin({
       kind: "folder",
-      title: place.label,
+      title: placeLabel(id),
       icon: place.icon,
       geo: cascadePos(wins().length, vp().w, vp().h, 560, 320, metrics()),
       minW: 380,
@@ -841,7 +858,7 @@ export default function App() {
     const data: AboutData = { kind: "about", armed: createState<string | null>(null) };
     const w = createWin({
       kind: "about",
-      title: ABOUT_LABEL,
+      title: aboutLabel(),
       icon: "computer",
       geo: centered(ABOUT_GEO.w, ABOUT_GEO.h),
       buttons: ["close"],
@@ -864,7 +881,7 @@ export default function App() {
       // No name after the verb: the dialog is 300px wide, and Aqua's
       // centered caption has room for about twenty characters between its
       // control cluster and the balancing spacer.
-      title: "Shut Down",
+      title: lw().shutDown,
       icon: "shutdown",
       geo: centered(SHUTDOWN_GEO.w, SHUTDOWN_GEO.h),
       buttons: ["close"],
@@ -907,21 +924,22 @@ export default function App() {
 
   // ---- desktop icons + start menu ----------------------------------------------
 
-  const icons: DeskIcon[] = [
-    { icon: "computer", label: "My Computer", open: openMyComputer },
-    { icon: "documents", label: "My Documents", open: openDocuments },
-    { icon: "recycle", label: "Recycle Bin", open: openRecycle },
+  /** The desktop's icons, labelled in the active language. */
+  const icons = (): DeskIcon[] => [
+    { icon: "computer", label: lw().myComputer, open: openMyComputer },
+    { icon: "documents", label: lw().myDocuments, open: openDocuments },
+    { icon: "recycle", label: lw().recycleBin, open: openRecycle },
     {
       icon: "notepad",
-      label: "Notepad",
+      label: lw().notepad,
       open: () => {
-        openNotepad("Untitled - Notepad", [""]);
+        openNotepad(null, [""]);
       },
     },
-    { icon: "mines", label: "Minesweeper", open: openMines },
+    { icon: "mines", label: lw().minesweeper, open: openMines },
     ...POCKET_APPS.map((app): DeskIcon => ({
       icon: "pocket",
-      label: app.title,
+      label: appTitle(app),
       open: () => openPocketApp(app),
     })),
   ];
@@ -930,7 +948,7 @@ export default function App() {
     return desktopIconAt(
       x,
       y,
-      icons.length,
+      icons().length,
       desktopIconRows(vp().h, metrics()),
       metrics(),
       vp().w,
@@ -941,15 +959,15 @@ export default function App() {
    *  panel's "All Programs" share one list. */
   const programItems = (): PopupItem[] => [
     {
-      label: "Notepad",
+      label: lw().notepad,
       icon: "notepad",
       act: () => {
-        openNotepad("Untitled - Notepad", [""]);
+        openNotepad(null, [""]);
       },
     },
-    { label: "Minesweeper", icon: "mines", act: openMines },
+    { label: lw().minesweeper, icon: "mines", act: openMines },
     ...POCKET_APPS.map((app): PopupItem => ({
-      label: app.title,
+      label: appTitle(app),
       icon: "pocket",
       act: () => openPocketApp(app),
     })),
@@ -969,7 +987,7 @@ export default function App() {
       label: "welcome.txt",
       icon: "notepad",
       act: () => {
-        openNotepad("welcome.txt - Notepad", WELCOME);
+        openNotepad("welcome.txt", WELCOME);
       },
     },
   ];
@@ -978,60 +996,60 @@ export default function App() {
    *  system entries on the right, Turn Off Computer in the bottom strip. */
   const xpStartItems = (): PopupItem[] => [
     {
-      label: "Notepad",
+      label: lw().notepad,
       icon: "notepad",
       act: () => {
-        openNotepad("Untitled - Notepad", [""]);
+        openNotepad(null, [""]);
       },
     },
-    { label: "Minesweeper", icon: "mines", act: openMines },
+    { label: lw().minesweeper, icon: "mines", act: openMines },
     { sep: true, label: "" },
     ...POCKET_APPS.slice(0, 5).map((app): PopupItem => ({
-      label: app.title,
+      label: appTitle(app),
       icon: "pocket",
       act: () => openPocketApp(app),
     })),
     { sep: true, label: "", bottom: true },
     {
-      label: "All Programs",
+      label: lw().allPrograms,
       icon: "folder",
       bottom: true,
       sub: programItems(),
     },
     {
-      label: "My Documents",
+      label: lw().myDocuments,
       icon: "folder",
       col: "right",
       sub: documentItems(),
     },
     {
-      label: "My Computer",
+      label: lw().myComputer,
       icon: "computer",
       col: "right",
       act: openMyComputer,
     },
     { sep: true, label: "", col: "right" },
     {
-      label: "Settings",
+      label: lw().settings,
       icon: "settings",
       col: "right",
       sub: themeItems(),
     },
     {
-      label: "Help",
+      label: lw().help,
       icon: "help",
       col: "right",
       act: openAbout,
     },
     { sep: true, label: "", col: "right" },
     {
-      label: "Run...",
+      label: lw().run,
       icon: "run",
       col: "right",
       disabled: true,
     },
     {
-      label: "Turn Off Computer",
+      label: lw().turnOff,
       icon: "power",
       foot: true,
       act: openShutdown,
@@ -1040,39 +1058,39 @@ export default function App() {
 
   const classicStartItems = (): PopupItem[] => [
     {
-      label: "Programs",
+      label: lw().programs,
       icon: "folder",
       sub: [
         {
-          label: "Notepad",
+          label: lw().notepad,
           icon: "notepad",
           act: () => {
-            openNotepad("Untitled - Notepad", [""]);
+            openNotepad(null, [""]);
           },
         },
-        { label: "Minesweeper", icon: "mines", act: openMines },
+        { label: lw().minesweeper, icon: "mines", act: openMines },
         ...POCKET_APPS.map((app): PopupItem => ({
-          label: app.title,
+          label: appTitle(app),
           icon: "pocket",
           act: () => openPocketApp(app),
         })),
       ],
     },
     {
-      label: "Documents",
+      label: lw().documents,
       icon: "folder",
       sub: [
         {
           label: "welcome.txt",
           icon: "notepad",
           act: () => {
-            openNotepad("welcome.txt - Notepad", WELCOME);
+            openNotepad("welcome.txt", WELCOME);
           },
         },
       ],
     },
     {
-      label: "Settings",
+      label: lw().settings,
       icon: "settings",
       sub: THEMES.map((item) => ({
         label: item.label,
@@ -1082,25 +1100,25 @@ export default function App() {
         },
       })),
     },
-    { label: "Find", icon: "find", disabled: true },
-    { label: "Help", icon: "help", act: openAbout },
-    { label: "Run...", icon: "run", disabled: true },
+    { label: lw().find, icon: "find", disabled: true },
+    { label: lw().help, icon: "help", act: openAbout },
+    { label: lw().run, icon: "run", disabled: true },
     { sep: true, label: "" },
-    { label: "Shut Down...", icon: "shutdown", act: openShutdown },
+    { label: lw().shutDownMenu, icon: "shutdown", act: openShutdown },
   ];
 
   /** Aqua's logo menu: About first, the places and the theme picker, the
    *  session commands last — the shape of the menu under the mark. */
   const aquaStartItems = (): PopupItem[] => [
-    { label: ABOUT_LABEL, act: openAbout },
+    { label: aboutLabel(), act: openAbout },
     { sep: true, label: "" },
-    { label: "Programs", icon: "folder", sub: programItems() },
-    { label: "Documents", icon: "documents", sub: documentItems() },
-    { label: "My Computer", icon: "computer", act: openMyComputer },
+    { label: lw().programs, icon: "folder", sub: programItems() },
+    { label: lw().documents, icon: "documents", sub: documentItems() },
+    { label: lw().myComputer, icon: "computer", act: openMyComputer },
     { sep: true, label: "" },
-    { label: "Settings", icon: "settings", sub: themeItems() },
+    { label: lw().settings, icon: "settings", sub: themeItems() },
     { sep: true, label: "" },
-    { label: "Shut Down...", icon: "shutdown", act: openShutdown },
+    { label: lw().shutDownMenu, icon: "shutdown", act: openShutdown },
   ];
 
   const startItems = (): PopupItem[] => {
@@ -1185,10 +1203,10 @@ export default function App() {
    *  when nothing is focused. */
   function appNameOf(w: WinCtl | undefined): string {
     if (!w) return DESKTOP_NAME;
-    if (w.kind === "notepad") return "Notepad";
-    if (w.kind === "mines") return "Minesweeper";
-    if (w.kind === "folder") return "Files";
-    if (w.kind === "pocket") return pocketOf(w).app.title;
+    if (w.kind === "notepad") return lw().notepad;
+    if (w.kind === "mines") return lw().minesweeper;
+    if (w.kind === "folder") return lw().files;
+    if (w.kind === "pocket") return appTitle(pocketOf(w).app);
     return DESKTOP_NAME;
   }
 
@@ -1424,7 +1442,7 @@ export default function App() {
     const icon = iconAt(mx, my);
     iconSel.set(icon);
     focusId.set(-1);
-    if (icon >= 0 && isDblClick(`icon:${icon}`)) icons[icon].open();
+    if (icon >= 0 && isDblClick(`icon:${icon}`)) icons()[icon].open();
   }
 
   function routeContentDown(w: WinCtl, cx: number, cy: number, shift: boolean) {
@@ -1537,12 +1555,12 @@ export default function App() {
         const has = hasSel(d.doc());
         popup.set({
           popup: buildPopup(mx, my, [
-            { label: "Cut", shortcut: "Cmd+X", disabled: !has, act: cutSel },
-            { label: "Copy", shortcut: "Cmd+C", disabled: !has, act: copySel },
-            { label: "Paste", shortcut: "Cmd+V", act: pasteReq },
+            { label: lw().cut, shortcut: "Cmd+X", disabled: !has, act: cutSel },
+            { label: lw().copy, shortcut: "Cmd+C", disabled: !has, act: copySel },
+            { label: lw().paste, shortcut: "Cmd+V", act: pasteReq },
             { sep: true, label: "" },
             {
-              label: "Select All",
+              label: lw().selectAll,
               shortcut: "Cmd+A",
               act: () => {
                 selectAllIn(w);
@@ -1557,14 +1575,14 @@ export default function App() {
         popup.set({
           popup: buildPopup(mx, my, [
             {
-              label: "Minimize",
+              label: lw().minimize,
               shortcut: "Cmd+M",
               act: () => {
                 minimize(w.id);
               },
             },
             {
-              label: w.maximized() ? "Restore" : "Maximize",
+              label: w.maximized() ? lw().restore : lw().maximize,
               disabled: !w.resizable,
               act: () => {
                 toggleMax(w);
@@ -1572,7 +1590,7 @@ export default function App() {
             },
             { sep: true, label: "" },
             {
-              label: "Close",
+              label: lw().close,
               shortcut: "Cmd+W",
               act: () => {
                 closeWin(w.id);
@@ -1589,17 +1607,17 @@ export default function App() {
       iconSel.set(icon);
       popup.set({
         popup: buildPopup(mx, my, [
-          { label: "Arrange Icons", act: () => {} },
-          { label: "Refresh", act: () => {} },
+          { label: lw().arrangeIcons, act: () => {} },
+          { label: lw().refresh, act: () => {} },
           { sep: true, label: "" },
           {
-            label: "New Text Document",
+            label: lw().newTextDocument,
             act: () => {
-              openNotepad("Untitled - Notepad", [""]);
+              openNotepad(null, [""]);
             },
           },
           { sep: true, label: "" },
-          { label: "Properties", disabled: true },
+          { label: lw().properties, disabled: true },
         ]),
       });
     }
@@ -1900,7 +1918,7 @@ export default function App() {
         cycleWindows();
         return;
       case "n":
-        openNotepad("Untitled - Notepad", [""]);
+        openNotepad(null, [""]);
         return;
       case "w": {
         const w = focused();
@@ -2177,11 +2195,30 @@ export default function App() {
         if (isThemeId(ev.id)) setTheme(ev.id);
         break;
       }
+      case "lang": {
+        // The host names the language and its apps' titles in it. Labels
+        // read the catalog as they draw; window titles were set when each
+        // window opened, so they are made again here.
+        if (applyLang(ev.id, ev.titles)) retitleWindows();
+        break;
+      }
+    }
+  }
+
+  /** Give every open window its title in the active language. */
+  function retitleWindows() {
+    for (const win of wins()) {
+      if (win.kind === "pocket") win.title.set(appWindowTitle(appTitle(pocketOf(win).app)));
+      else if (win.kind === "notepad") win.title.set(padTitle(padNames.get(win.id) ?? null));
+      else if (win.kind === "mines") win.title.set(lw().minesweeper);
+      else if (win.kind === "folder") win.title.set(placeLabel(folderOf(win).place()));
+      else if (win.kind === "about") win.title.set(aboutLabel());
+      else if (win.kind === "shutdown") win.title.set(lw().shutDown);
     }
   }
 
   function boot() {
-    openNotepad("welcome.txt - Notepad", WELCOME);
+    openNotepad("welcome.txt", WELCOME);
     if (!svc) {
       // Standalone (sim, goldens): a lively static arrangement.
       openMines();
@@ -2254,7 +2291,7 @@ export default function App() {
         <View class={cls} />
       ))}
       <DesktopIcons
-        icons={icons}
+        icons={icons()}
         selected={iconSel()}
         rows={desktopIconRows(vp().h, metrics())}
         viewportW={vp().w}

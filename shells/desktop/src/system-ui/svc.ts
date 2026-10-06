@@ -23,6 +23,11 @@
 //   {t:"theme", id}            select the theme with that id ("classic",
 //                              "xp" or "aqua"). An id that names no theme
 //                              is ignored
+//   {t:"lang", id, titles}     the language the shell draws in ("en" or
+//                              "ja", words.ts), and the installed apps'
+//                              titles in it by package id (optional; an app
+//                              it leaves out keeps its manifest's title). An
+//                              id with no catalog is ignored
 //
 // guest → host intents:
 //   {t:"theme", id}            the active theme: sent once after boot and
@@ -50,7 +55,8 @@ export interface HostEvent {
     | "paste"
     | "ime"
     | "open"
-    | "theme";
+    | "theme"
+    | "lang";
   w?: number;
   h?: number;
   epoch?: number;
@@ -73,8 +79,10 @@ export interface HostEvent {
   c?: number | null;
   /** Package id of the installed app an "open" line names. */
   package?: string;
-  /** Theme id a "theme" line selects. */
+  /** Theme id a "theme" line selects, or the language a "lang" line names. */
   id?: string;
+  /** A "lang" line's app titles in that language, by package id. */
+  titles?: Record<string, string>;
 }
 
 export type CursorKind =
