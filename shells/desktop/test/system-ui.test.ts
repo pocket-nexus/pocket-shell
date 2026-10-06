@@ -89,7 +89,7 @@ import {
   readWindowTitlePrefix,
 } from "../src/system-ui/pocket-apps.ts";
 import { appTitle, applyLang, lw, themeWord, wordsIn } from "../src/system-ui/words.ts";
-import { DESK_LABEL_MAX_W, desktopLabelShift, desktopLabelText } from "../src/system-ui/chrome.tsx";
+import { DESK_LABEL_MAX_W, desktopLabelShift, desktopLabelText, fitLabel } from "../src/system-ui/chrome.tsx";
 import about from "../pocket.about.json";
 import system from "../pocket.system.json";
 import {
@@ -565,6 +565,19 @@ describe("content parts", () => {
       expect(theme.scrollTrack).toContain(`w-[${m.scrollW}]`);
       expect(theme.groupBox).toContain(`px-[${m.groupPadX}]`);
       expect(theme.listWell).toContain(`p-[${m.listPad}]`);
+    }
+
+  });
+
+  test("a launcher row's inset and arrow are the row's padding, icon slot and gaps", () => {
+    for (const theme of THEMES) {
+      const m = theme.metrics;
+      const cls = theme.startItem(false);
+      const px = (name: string) => Number(cls.match(new RegExp(`\\b${name}-\\[(\\d+)\\]`))?.[1] ?? 0);
+      const gap = px("gap");
+      const icon = theme.launcherIcons || m.startHeaderH > 0 ? 16 + gap : 0;
+      expect(m.startRowInset).toBe(px("pl") + px("pr") + icon);
+      expect(m.startArrowW).toBe(8 + gap);
     }
   });
 
@@ -1328,6 +1341,59 @@ describe("aqua theme geometry", () => {
     expect(launcherHit(10, 5, 600, aqua)).toBe(true);
     expect(launcherHit(10, 590, 600, aqua)).toBe(false);
     expect(launcherHit(aqua.taskStartW + 1, 5, 600, aqua)).toBe(false);
+  });
+
+  test("the XP panel grows to its widest row, and keeps its width when the rows fit", () => {
+    const xp = XP_THEME.metrics;
+    const items = [{}, { sep: true }, {}, { col: "right" as const }, { col: "right" as const }, { foot: true }];
+    // English rows fit the theme's 172 + 130.
+    const fits = startLayout(items, 600, xp, () => 120);
+    expect(fits.w).toBe(xp.startW);
+    expect(fits.leftW).toBe(xp.startLeftW);
+    // A places row 166 wide (「マイ ドキュメント」 with its arrow) widens the
+    // places column, and the frame, the header and the strip with it.
+    const wide = startLayout(items, 600, xp, (i) => (i === 3 ? 166 : 120));
+    expect(wide.leftW).toBe(xp.startLeftW);
+    expect(wide.rightW).toBe(166);
+    expect(wide.w).toBe(xp.startPadX * 2 + xp.startLeftW + 166);
+    const right = wide.rows.find((r) => r.index === 3)!;
+    expect(right.x + right.w).toBe(wide.x + wide.w - xp.startPadX);
+    const foot = wide.rows.find((r) => r.index === 5)!;
+    expect(foot.x + foot.w).toBe(wide.x + wide.w - xp.startPadX);
+    // A programs row wider than 172 widens the programs column.
+    const left = startLayout(items, 600, xp, (i) => (i === 0 ? 200 : 120));
+    expect(left.leftW).toBe(200);
+    expect(left.w).toBe(xp.startPadX * 2 + 200 + xp.startW - xp.startLeftW - xp.startPadX * 2);
+  });
+
+  test("past its maximum the panel gives back the places column's growth first", () => {
+    const xp = XP_THEME.metrics;
+    const items = [{}, { col: "right" as const }];
+    const capped = startLayout(items, 600, xp, (i) => (i === 0 ? 220 : 240), 400);
+    expect(capped.w).toBe(400);
+    expect(capped.leftW).toBe(220);
+    expect(capped.rightW).toBe(400 - 220 - xp.startPadX * 2);
+    // Never narrower than the theme's own panel.
+    expect(startLayout(items, 600, xp, () => 500, 100).w).toBe(xp.startW);
+  });
+
+  test("a one-column launcher grows to its widest row beside its rail", () => {
+    const items = [{}, { sep: true }, {}];
+    expect(startLayout(items, 600, classic, () => 100).w).toBe(classic.startW);
+    const wide = startLayout(items, 600, classic, (i) => (i === 2 ? 190 : 100));
+    expect(wide.w).toBe(190 + classic.startPadX * 2 + classic.startRailW);
+    expect(wide.rows[1].w).toBe(190);
+    expect(startLayout(items, 600, classic, () => 900, 300).w).toBe(300);
+    expect(startLayout(items, 600, aqua, (i) => (i === 0 ? 240 : 100)).w).toBe(240);
+  });
+
+  test("a label is cut with ... only when it is wider than its room", () => {
+    const measure = (text: string) => [...text].length * 10;
+    expect(fitLabel("マイ ドキュメント", 90, measure)).toBe("マイ ドキュメント");
+    expect(fitLabel("マイ ドキュメント", 70, measure)).toBe("マイ ド...");
+    // a cut never leaves a space before the dots
+    expect(fitLabel("マイ ドキュメント", 60, measure)).toBe("マイ...");
+    expect(measure(fitLabel("インストールガイド", 55, measure))).toBeLessThanOrEqual(55);
   });
 
   test("the launcher panel hangs from the screen bar", () => {

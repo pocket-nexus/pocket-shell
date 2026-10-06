@@ -333,10 +333,25 @@ export function PopupPanel(props: {
   );
 }
 
+/** The label a launcher row shows in a row `rowW` wide: whole when the
+ *  panel grew to fit it (wm.ts startLayout), cut with "..." past the panel's
+ *  maximum. */
+function startLabel(item: Popup["items"][number], rowW: number, theme: DesktopTheme, bold = false): string {
+  const m = theme.metrics;
+  const room = rowW - m.startRowInset - (item.sub ? m.startArrowW : 0);
+  const slot = theme.fontSlot(bold ? "bold" : "ui");
+  const measure = (text: string) => {
+    const ops = getOps();
+    return ops.measureText ? ops.measureText(text, slot) : text.length * 7;
+  };
+  return fitLabel(item.label, room, measure);
+}
+
 /** One Start row: icon slot, label, submenu arrow. Shared by both panels. */
 function StartRow(props: {
   item: Popup["items"][number];
   hover: boolean;
+  rowW: number;
   theme: DesktopTheme;
 }) {
   return (
@@ -357,7 +372,7 @@ function StartRow(props: {
                 ? "hover"
                 : "normal",
           )}
-          t={props.item.label}
+          t={startLabel(props.item, props.rowW, props.theme, props.item.bottom)}
         />
       </View>
       {props.item.sub ? (
@@ -383,6 +398,9 @@ export function StartPanel(props: {
   y: number;
   w: number;
   h: number;
+  /** The two columns' widths from wm.ts startLayout. */
+  leftW: number;
+  rightW: number;
   items: Popup["items"];
   hover: number;
   user: string;
@@ -421,7 +439,7 @@ export function StartPanel(props: {
         />
       </View>
       <View class="flex-1 flex-row">
-        <View class={props.theme.startColumn("left")}>
+        <View class={props.theme.startColumn("left")} style={{ width: props.leftW }}>
           {at((it) => !it.foot && it.col !== "right" && !it.bottom).map((e) =>
             e.item.sep ? (
               <StartSep theme={props.theme} />
@@ -429,6 +447,7 @@ export function StartPanel(props: {
               <StartRow
                 item={e.item}
                 hover={props.hover === e.i}
+                rowW={props.leftW}
                 theme={props.theme}
               />
             ),
@@ -441,6 +460,7 @@ export function StartPanel(props: {
               <StartRow
                 item={e.item}
                 hover={props.hover === e.i}
+                rowW={props.leftW}
                 theme={props.theme}
               />
             ),
@@ -455,6 +475,7 @@ export function StartPanel(props: {
               <StartRow
                 item={e.item}
                 hover={props.hover === e.i}
+                rowW={props.rightW}
                 theme={props.theme}
               />
             ),
@@ -540,7 +561,7 @@ export function StartMenu(props: {
                         ? "hover"
                         : "normal",
                   )}
-                  t={item.label}
+                  t={startLabel(item, props.w - props.theme.metrics.startPadX * 2 - props.theme.metrics.startRailW, props.theme)}
                 />
               </View>
               {item.sub ? (
@@ -581,10 +602,17 @@ export function desktopLabelText(
   measure: (text: string) => number,
   crowded = true,
 ): string {
-  if (selected || !crowded || measure(label) <= DESK_LABEL_MAX_W) return label;
+  if (selected || !crowded) return label;
+  return fitLabel(label, DESK_LABEL_MAX_W, measure);
+}
+
+/** A label whole when it is no wider than `maxW`, else cut with "..." until
+ *  it fits. */
+export function fitLabel(label: string, maxW: number, measure: (text: string) => number): string {
+  if (measure(label) <= maxW) return label;
   const chars = [...label];
   let n = chars.length;
-  while (n > 1 && measure(`${chars.slice(0, n).join("").trimEnd()}...`) > DESK_LABEL_MAX_W) n--;
+  while (n > 1 && measure(`${chars.slice(0, n).join("").trimEnd()}...`) > maxW) n--;
   return `${chars.slice(0, n).join("").trimEnd()}...`;
 }
 

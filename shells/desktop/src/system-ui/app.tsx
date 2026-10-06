@@ -1128,8 +1128,27 @@ export default function App() {
     return classicStartItems();
   };
 
-  /** The panel rectangle both the render and hit testing read. */
-  const startGeo = () => startLayout(startItems(), vp().h, metrics());
+  /** A launcher row's natural width: its label in the face it is drawn in
+   *  (XP sets the pinned rows in bold), the icon slot, padding and arrow. */
+  const startRowW = (item: PopupItem) =>
+    item.sep
+      ? 0
+      : metrics().startRowInset +
+        measure(item.label, item.bottom ? theme().fontSlot("bold") : uiSlot()) +
+        (item.sub ? metrics().startArrowW : 0);
+
+  /** The panel rectangle both the render and hit testing read: as wide as
+   *  its rows, within the screen. */
+  const startGeo = () => {
+    const items = startItems();
+    return startLayout(
+      items,
+      vp().h,
+      metrics(),
+      (i) => startRowW(items[i]),
+      vp().w - metrics().startX - 2,
+    );
+  };
 
   function startItemAt(x: number, y: number): number {
     return startRowAt(startGeo(), x, y);
@@ -2310,6 +2329,8 @@ export default function App() {
           y={startGeo().y}
           w={startGeo().w}
           h={startGeo().h}
+          leftW={startGeo().leftW}
+          rightW={startGeo().rightW}
           items={startItems()}
           hover={startHover()}
           user="Pocket"
