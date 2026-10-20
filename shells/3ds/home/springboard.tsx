@@ -498,7 +498,10 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
 
   // ---- drawing -----------------------------------------------------------------------
 
-  const iconProps = { env, focus, editing, wiggle, spots, titleFor, tileFor, appFor };
+  /** The key being carried: its icon in the grid or dock is the hole the
+   *  carried copy will fill, so it is drawn invisible meanwhile. */
+  const carried = createMemo(() => carry()?.key ?? "");
+  const iconProps = { env, focus, editing, wiggle, spots, titleFor, tileFor, appFor, carried };
 
   const view = () => (
     <View ref={(node) => (boardNode = node)} class="absolute left-0 top-0 w-[320] h-[240]">
@@ -551,6 +554,9 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
             style={{ scale: CARRY_SCALE, opacity: 0.9 }}
           >
             <Tile x={0} y={0} size={ICON} {...tileFor(held().key)} />
+            <Show when={appFor(held().key) !== null}>
+              <Image class="absolute left-[-9] top-[-9] w-[22] h-[22]" src="art/delete-badge.svg" />
+            </Show>
             <IconLabel title={titleFor(held().key)} x={(ICON - LABEL_W) / 2} y={49} />
           </View>
         )}
@@ -640,6 +646,7 @@ function HomeIcon(props: {
   titleFor(key: string): string;
   tileFor(key: string): Omit<TileProps, "x" | "y" | "size">;
   appFor(key: string): HomeApp | null;
+  carried: Accessor<string>;
 }) {
   const key = props.iconKey;
   const spot = createMemo(() => props.spots().get(key) ?? { x: -100, y: -100 }, undefined, {
@@ -660,7 +667,11 @@ function HomeIcon(props: {
     }),
   );
   return (
-    <View ref={(el) => (node = el)} class="absolute w-[46] h-[46]" style={{ insetL: spot().x, insetT: spot().y, rotate: angle() }}>
+    <View
+      ref={(el) => (node = el)}
+      class="absolute w-[46] h-[46]"
+      style={{ insetL: spot().x, insetT: spot().y, rotate: angle(), opacity: props.carried() === key ? 0 : 1 }}
+    >
       <Tile x={0} y={0} size={ICON} {...props.tileFor(key)} dim={() => props.env.press.is(key)} />
       <View class={props.env.keys() && props.focus() === key ? "absolute left-[-4] top-[-4] w-[54] h-[54] rounded-[13] border-[#ffffff] border-2" : "hidden"} />
       <Show when={deletable()}>
