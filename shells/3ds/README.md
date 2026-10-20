@@ -43,9 +43,10 @@ two-icon dock. Labels are bold 10 px (`text-2xs`), so "Hacker News" and
 - Page dots above the dock follow the drag.
 
 **Icons are rendered at 512 px and finished at their size.**
-`home/art/icons/icons.py` models Settings, Mac, Hacker News, Wi-Fi and Apps
-in Blender as lit objects on lacquer or metal plates, with few large shapes
-so they hold at 46 and 24 px. Pocket Nexus is the face "O" of the Pocket
+`home/art/icons/icons.py` models Settings, Hacker News, Wi-Fi and Apps in
+Blender as lit objects on lacquer or metal plates, and Mac as a two-tone
+lacquer face after the Finder (a raised profile line, enamel eyes and
+smile), with few large shapes so they hold at 46 and 24 px. Pocket Nexus is the face "O" of the Pocket
 Nexus wordmark, drawn by the wordmark's own code (PocketJS
 `apps/nexus/art/draw.js`, run in headless Chrome by `home/art/icons/nexus.ts`).
 `home/art/icons/bake.ts` gives all of them one finish (the rounded mask, the

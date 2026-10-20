@@ -317,16 +317,36 @@ def settings():
     prism("Axle", circle(0.10), 0.0, 0.10, principled("Axle", "24282d", 0.3, 0.9), 0.015)
 
 
+def profile_x(y):
+    """The face's dividing line at height y: a gentle S with a nose that
+    points into the light half just above the middle."""
+    nose = 0.16 * math.exp(-(((y - 0.06) / 0.13) ** 2))
+    return 0.04 + 0.07 * math.sin(y * 1.7) + nose
+
+
+def arc_band(cx, cy, r, thickness, start, end, steps=24):
+    """A band along a circular arc (degrees), as one closed outline."""
+    outer = [(cx + (r + thickness / 2) * math.cos(math.radians(start + (end - start) * k / steps)),
+              cy + (r + thickness / 2) * math.sin(math.radians(start + (end - start) * k / steps))) for k in range(steps + 1)]
+    inner = [(cx + (r - thickness / 2) * math.cos(math.radians(start + (end - start) * k / steps)),
+              cy + (r - thickness / 2) * math.sin(math.radians(start + (end - start) * k / steps))) for k in range(steps + 1)]
+    return outer + list(reversed(inner))
+
+
 def mac():
-    # A laptop at about three quarters of the tile: an aluminium lid whose
-    # own metal frames a bright display (no dark bezel), a slim hinge and
-    # the deck below seen at a steep angle. No keys or notch.
-    plate(gradient("Sky lacquer", "7cc8ff", "1653c4", 0.28, coat=0.6))
-    alu = principled("Aluminium", "dfe3e8", 0.28, 1.0)
-    prism("Lid", rounded_rect(1.24, 0.86, 0.07, 0, 0.14), 0.16, 0.05, alu, 0.018)
-    prism("Display", rounded_rect(1.08, 0.70, 0.02, 0, 0.15), 0.212, 0.004, emissive_gradient("Desktop", "4aa6f7", "1442a8", 0.75, -0.2, 0.5), 0)
-    prism("Hinge", rounded_rect(1.20, 0.035, 0.015, 0, -0.30), 0.15, 0.035, principled("Hinge", "8a9099", 0.35, 0.8), 0.008)
-    prism("Deck", [(-0.62, -0.32), (0.62, -0.32), (0.74, -0.50), (-0.74, -0.50)], 0.12, 0.06, alu, 0.02)
+    # The Mac as a friendly two-tone face, after the Finder: the tile is a
+    # light blue lacquer face, the left half a deeper blue raised a little
+    # above it so the profile line between them catches the light, and the
+    # eyes and smile are dark enamel. Shapes are wide enough to hold at 24 px.
+    plate(gradient("Light face", "c4ecff", "5fb6f2", 0.26, coat=0.7))
+    steps = 64
+    edge = [(profile_x(1.7 - 3.4 * k / steps), 1.7 - 3.4 * k / steps) for k in range(steps + 1)]
+    left = [(-1.7, 1.7), *edge, (-1.7, -1.7)]
+    prism("Dark face", left, 0.0, 0.035, gradient("Deep face", "3f8fe6", "1648b8", 0.24, coat=0.7), 0.03)
+    enamel = principled("Dark enamel", "0d1a33", 0.18, 0.0, 0.8)
+    for x in (-0.46, 0.5):
+        prism(f"Eye {x}", rounded_rect(0.16, 0.36, 0.07, x, 0.36), 0.035, 0.03, enamel, 0.012)
+    prism("Smile", arc_band(0.02, 0.05, 0.62, 0.11, 212, 328), 0.035, 0.03, enamel, 0.012)
 
 
 def hn():
