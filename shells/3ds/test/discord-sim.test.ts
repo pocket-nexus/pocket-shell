@@ -89,6 +89,18 @@ describe("discord", () => {
     shot(app, "channels");
   });
 
+  test("the bar's back button leaves a channel, then the channel list", async () => {
+    const fixture = discordFixture();
+    const app = await openGeneral(fixture);
+    expect(app.texts("auxiliary")).toContain("#general");
+    await app.tapText("Channels");
+    await app.run(40);
+    expect(app.texts("auxiliary")).toEqual(expect.arrayContaining(["TEXT CHANNELS", "general"]));
+    await app.tapText("Servers");
+    await app.run(40);
+    expect(app.texts("auxiliary")).toEqual(expect.arrayContaining(["Pocket Lab", "Retro Handhelds"]));
+  });
+
   test("a channel opens at its newest message, grouped by author, with replies", async () => {
     const fixture = discordFixture();
     const app = await openGeneral(fixture);

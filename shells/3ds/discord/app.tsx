@@ -97,10 +97,12 @@ export default function Discord() {
   });
   // The open keyboard blocks app gestures; the composer's bar is part of the
   // keyboard's session, so its two buttons take their own exempt gesture.
+  // The region exists only while composing: a tap single-fires on one
+  // recognizer, and this one would otherwise take the bar's back button.
   const composerButton = (x: number) => (x < 80 ? "compose.cancel" : x >= W - 80 ? "compose.send" : "");
   createGesture({
     surface: "auxiliary",
-    region: { rect: () => ({ x: 0, y: 0, w: W, h: COMPOSE_BAR }) },
+    region: { rect: () => (composing() ? { x: 0, y: 0, w: W, h: COMPOSE_BAR } : null) },
     allowWhenBlocked: true,
     onDown(contact) {
       if (!composing()) return;
