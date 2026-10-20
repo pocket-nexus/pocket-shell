@@ -23,6 +23,9 @@ which took **30.4k tokens**.
 | --- | --- | --- | --- |
 | Pocket Home | `home/` | `dev.pocket-nexus.home`, `home-main` | embedded in the `.3dsx`; the launcher |
 | Hacker News | `hn/` | `dev.pocket-nexus.hn`, `hn-main` | installed through Home from the linked Mac, or pushed |
+| YouTube | `youtube/` | `dev.pocket-nexus.youtube`, `youtube-main` | the same |
+| X | `x/` | `dev.pocket-nexus.x`, `x-main` | the same |
+| Discord | `discord/` | `dev.pocket-nexus.discord`, `discord-main` | the same |
 
 `ui/` is the iOS 6 kit both apps build on at the 3DS's 0.82 scale: the
 navigation stack and bar, grouped tables, alerts, text fitting, a slot pool
@@ -55,6 +58,27 @@ shadow), sharpens them after the downsample and writes 24, 46 and 64 px
 textures. The build reads the committed
 PNGs, so it needs no Blender. Cycles output differs a little between runs, so
 a re-render is a new set of pictures to review, not a check.
+
+**YouTube, X and Discord** reach their services through the linked Mac:
+each app fetches `https://companion.pocket/<service>/…`, which Pocket
+Companion answers itself (PocketJS `tools/companion/services/`). Accounts,
+tokens and tools stay on the Mac; the console never holds them.
+
+- **YouTube** lists topic feeds and search results from yt-dlp, with
+  thumbnails the companion renders into textures. The Mac needs yt-dlp and
+  ffmpeg (`brew install yt-dlp ffmpeg`). A New 3DS plays H.264
+  through its hardware decoder; an **Old 3DS plays 240×136 at about 12 fps**
+  in PAL8 (a fixed 252-colour cube, only changed pixels sent), with sound,
+  at 58 to 215 KB/s. Sound needs the console's DSP firmware once: Rosalina
+  menu (L + Down + SELECT) > Miscellaneous options > Dump DSP firmware.
+- **X** reads the Following and For You timelines and threads through the
+  session of an account signed in on the Mac: `bun tools/companion.ts
+  service x login` opens a sign-in window there. It uses x.com's web API,
+  which X changes without notice.
+- **Discord** reads and sends in the servers a bot is in: create a bot in
+  the Discord developer portal, turn on its Message Content intent, then
+  `bun tools/companion.ts service discord token <token>`, and `service
+  discord status` prints the invite link.
 
 **Hacker News** lists Top, New, Best, Ask and Show and opens a thread with
 the story and every comment in full. Its requests go through

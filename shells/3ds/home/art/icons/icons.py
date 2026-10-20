@@ -380,7 +380,43 @@ def apps():
 
 
 # Pocket Nexus's icon is the wordmark's own letter, drawn by nexus.ts.
-ICONS = {"settings": settings, "mac": mac, "hn": hn, "wifi": wifi, "apps": apps}
+def bar(cx, cy, length, width, angle):
+    """A rectangle `length` x `width` centred at (cx, cy), turned by `angle`."""
+    c, sn = math.cos(angle), math.sin(angle)
+    return [(cx + x * c - y * sn, cy + x * sn + y * c) for x, y in
+            [(-length / 2, -width / 2), (length / 2, -width / 2), (length / 2, width / 2), (-length / 2, width / 2)]]
+
+
+def youtube():
+    # A raised red play button with a white triangle, on white lacquer.
+    plate(gradient("White lacquer", "ffffff", "dcdfe3", 0.22, coat=0.8))
+    red = gradient("Red lacquer", "ff4a3d", "c8120b", 0.2, coat=0.9, lo=-0.45, hi=0.45)
+    prism("Button", rounded_rect(1.34, 0.94, 0.26), 0.0, 0.12, red, 0.04)
+    enamel = principled("White enamel", "fbfbf8", 0.2, 0.0, 0.6)
+    prism("Play", [(-0.17, 0.25), (-0.17, -0.25), (0.27, 0.0)], 0.12, 0.04, enamel, 0.015)
+
+
+def x():
+    # A white enamel X on gloss black: one long thick stroke and one thin
+    # one crossing it, the way the letter is set in its logotype.
+    plate(gradient("Gloss black", "3a3d42", "050506", 0.18, coat=0.9))
+    enamel = principled("White enamel", "f4f5f6", 0.2, 0.0, 0.6)
+    prism("Thick", bar(0, 0, 1.42, 0.24, math.radians(-52)), 0.0, 0.08, enamel, 0.02)
+    prism("Thin", bar(0, 0, 1.38, 0.09, math.radians(52)), 0.0, 0.07, enamel, 0.012)
+
+
+def discord():
+    # A white rounded controller of a face with two eyes, on blurple lacquer.
+    plate(gradient("Blurple lacquer", "8a93ff", "4450c8", 0.24, coat=0.8))
+    enamel = principled("White enamel", "fbfbff", 0.2, 0.0, 0.6)
+    face = rounded_rect(1.28, 0.84, 0.34, 0, -0.04)
+    eyes = [list(reversed(circle(0.13, -0.27, 0.02, 48))), list(reversed(circle(0.13, 0.27, 0.02, 48)))]
+    prism("Face", face, 0.0, 0.1, enamel, 0.035, holes=eyes)
+    prism("Ear L", rounded_rect(0.3, 0.3, 0.1, -0.42, 0.33, angle=math.radians(20)), 0.0, 0.1, enamel, 0.03)
+    prism("Ear R", rounded_rect(0.3, 0.3, 0.1, 0.42, 0.33, angle=math.radians(-20)), 0.0, 0.1, enamel, 0.03)
+
+
+ICONS = {"settings": settings, "mac": mac, "hn": hn, "wifi": wifi, "apps": apps, "youtube": youtube, "x": x, "discord": discord}
 
 only = [name for name in options.only.split(",") if name]
 for name, build in ICONS.items():

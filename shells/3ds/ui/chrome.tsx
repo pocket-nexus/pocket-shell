@@ -106,7 +106,7 @@ export function StatusBar(props: StatusBarProps) {
 /** Icons rendered in Blender (art/icons/icons.py) and finished by
  *  art/icons/bake.ts: the picture, the gloss, the rim and, at 46, the drop
  *  shadow are all in the texture. */
-export type IconArt = "settings" | "mac" | "wifi" | "apps" | "hn" | "nexus";
+export type IconArt = "settings" | "mac" | "wifi" | "apps" | "hn" | "nexus" | "youtube" | "x" | "discord";
 
 /** Corner radius as a fraction of the side (art/icons/bake.ts ICON_RADIUS). */
 const ICON_RADIUS = 0.2;
@@ -121,6 +121,9 @@ const ART: Record<IconArt | "plain", readonly Variant[]> = {
   apps: [[24, 32, "art/icons/apps-24.png"]],
   hn: [[24, 32, "art/icons/hn-24.png"], [46, 64, "art/icons/hn-46.png"], [64, 64, "art/icons/hn-64.png"]],
   nexus: [[24, 32, "art/icons/nexus-24.png"], [46, 64, "art/icons/nexus-46.png"], [64, 64, "art/icons/nexus-64.png"]],
+  youtube: [[24, 32, "art/icons/youtube-24.png"], [46, 64, "art/icons/youtube-46.png"], [64, 64, "art/icons/youtube-64.png"]],
+  x: [[24, 32, "art/icons/x-24.png"], [46, 64, "art/icons/x-46.png"], [64, 64, "art/icons/x-64.png"]],
+  discord: [[24, 32, "art/icons/discord-24.png"], [46, 64, "art/icons/discord-46.png"], [64, 64, "art/icons/discord-64.png"]],
   /** The finish alone, over the tint of an app that ships no icon. */
   plain: [[24, 32, "art/icons/plain-24.png"], [46, 64, "art/icons/plain-46.png"], [64, 64, "art/icons/plain-64.png"]],
 };
@@ -136,6 +139,9 @@ function variant(art: IconArt | "plain", size: number): Variant {
 const APP_ART: Record<string, IconArt> = {
   "dev.pocket-nexus.hn": "hn",
   "dev.pocket-nexus.nexus": "nexus",
+  "dev.pocket-nexus.youtube": "youtube",
+  "dev.pocket-nexus.x": "x",
+  "dev.pocket-nexus.discord": "discord",
 };
 
 export interface TileProps {

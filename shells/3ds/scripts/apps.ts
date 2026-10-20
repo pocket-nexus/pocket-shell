@@ -5,17 +5,21 @@
 // a package the launcher installs from the linked Mac. Each manifest's entry
 // is relative to this shell's directory, which is the build's project root.
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { resolve3dsBuildPlan } from "../../../vendor/pocketjs/tools/3ds-profile.ts";
 import { PLAN_DIR, PROJECT_ROOT } from "./paths.ts";
 
-export const APPS = ["home", "hn"] as const;
-export type ShellApp = (typeof APPS)[number];
+/** Every directory here with a pocket.json is an app, Home first. */
+export const APPS: readonly string[] = readdirSync(PROJECT_ROOT, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() && existsSync(resolve(PROJECT_ROOT, entry.name, "pocket.json")))
+  .map((entry) => entry.name)
+  .sort((a, b) => (a === "home" ? -1 : b === "home" ? 1 : a.localeCompare(b)));
+export type ShellApp = string;
 export const LAUNCHER: ShellApp = "home";
 
 export function isShellApp(name: string | undefined): name is ShellApp {
-  return (APPS as readonly string[]).includes(name ?? "");
+  return APPS.includes(name ?? "");
 }
 
 /** Resolve `app`'s manifest against the 3ds-dev profile and write the plan
