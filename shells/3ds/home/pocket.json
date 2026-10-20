@@ -19,7 +19,8 @@
         "camera.qr",
         "input.analog.left",
         "media.playback",
-        "system.agent"
+        "system.agent",
+        "data.fs"
       ]
     }
   },

@@ -396,13 +396,62 @@ def youtube():
     prism("Play", [(-0.17, 0.25), (-0.17, -0.25), (0.27, 0.0)], 0.12, 0.04, enamel, 0.015)
 
 
+def slanted(top_x, bottom_x, half_height, width):
+    """A stroke from (top_x, half_height) to (bottom_x, -half_height) whose
+    ends are cut flat by horizontal lines; `width` is measured across x."""
+    return [
+        (top_x - width / 2, half_height),
+        (top_x + width / 2, half_height),
+        (bottom_x + width / 2, -half_height),
+        (bottom_x - width / 2, -half_height),
+    ]
+
+
 def x():
-    # A white enamel X on gloss black: one long thick stroke and one thin
-    # one crossing it, the way the letter is set in its logotype.
+    # A white enamel X on gloss black: one thick stroke from top left to
+    # bottom right and one thin stroke across it, both cut flat at the same
+    # top and bottom lines, the way the letter is set in its logotype.
     plate(gradient("Gloss black", "3a3d42", "050506", 0.18, coat=0.9))
     enamel = principled("White enamel", "f4f5f6", 0.2, 0.0, 0.6)
-    prism("Thick", bar(0, 0, 1.42, 0.24, math.radians(-52)), 0.0, 0.08, enamel, 0.02)
-    prism("Thin", bar(0, 0, 1.38, 0.09, math.radians(52)), 0.0, 0.07, enamel, 0.012)
+    h = 0.6
+    run = h / math.tan(math.radians(54))
+    prism("Thick", slanted(-run, run, h, 0.3), 0.0, 0.08, enamel, 0.016)
+    prism("Thin", slanted(run, -run, h, 0.11), 0.0, 0.07, enamel, 0.01)
+
+
+def camera():
+    # The iOS 6 composition: a brushed-aluminium camera front filling the
+    # tile, a thin dark band across the top, and a large black lens barrel in
+    # the centre with blue-violet glass, a bright specular highlight and a
+    # softer glare below it.
+    plate(gradient("Brushed aluminium", "e9ecef", "a7aeb6", 0.32, 0.6, 0.4))
+    prism("Band", [(-1.7, 0.66), (1.7, 0.66), (1.7, 1.7), (-1.7, 1.7)], 0.0, 0.03, principled("Leatherette", "26282c", 0.55, 0.0, 0.2), 0.01)
+    prism("Bezel", circle(0.62, 0, -0.08), 0.0, 0.06, principled("Bezel", "c8cdd3", 0.22, 1.0), 0.02, holes=[list(reversed(circle(0.55, 0, -0.08)))])
+    prism("Barrel", circle(0.55, 0, -0.08), 0.0, 0.1, principled("Barrel", "121315", 0.35, 0.3, 0.6), 0.03, holes=[list(reversed(circle(0.36, 0, -0.08)))])
+    prism("Glass", circle(0.36, 0, -0.08), 0.0, 0.08, gradient("Lens glass", "6b5cf0", "0b1a5a", 0.04, coat=1.0, lo=-0.44, hi=0.28), 0.015)
+    prism("Glint", circle(0.1, -0.12, 0.06), 0.08, 0.004, principled("Glint", "ffffff", 0.05, 0.0, 1.0), 0.0)
+    prism("Glare", circle(0.05, 0.13, -0.24), 0.08, 0.004, principled("Glare", "b9c8ff", 0.1, 0.0, 1.0), 0.0)
+
+
+def rotate(px, py, angle, cx=0.0, cy=0.0):
+    c, sn = math.cos(angle), math.sin(angle)
+    return (cx + px * c - py * sn, cy + px * sn + py * c)
+
+
+def photos():
+    # A single bright flower on a sky-blue gradient, after iOS 6's Photos:
+    # twelve rounded petals, yellow and orange in turn, around a brown
+    # centre. (A stem reads as a stray dash at 46 px, so there is none.)
+    plate(gradient("Sky lacquer", "a6e0ff", "2c7fd8", 0.26, coat=0.7))
+    fx, fy = 0.0, 0.0
+    yellow = principled("Petal yellow", "ffd21f", 0.35, 0.0, 0.5)
+    orange = principled("Petal orange", "ffab1a", 0.35, 0.0, 0.5)
+    for index in range(12):
+        a = index * math.tau / 12
+        px, py = fx + 0.42 * math.cos(a), fy + 0.42 * math.sin(a)
+        prism(f"Petal {index}", rounded_rect(0.26, 0.44, 0.12, px, py, angle=a - math.pi / 2), 0.03 + (index % 2) * 0.01, 0.03, yellow if index % 2 == 0 else orange, 0.012)
+    prism("Centre", circle(0.27, fx, fy, 64), 0.06, 0.05, principled("Centre", "6e3a14", 0.6, 0.0, 0.2), 0.02)
+    prism("Seeds", circle(0.17, fx + 0.03, fy + 0.03, 48), 0.11, 0.006, principled("Seeds", "8d5221", 0.7, 0.0, 0.1), 0.0)
 
 
 def discord():
@@ -416,7 +465,7 @@ def discord():
     prism("Ear R", rounded_rect(0.3, 0.3, 0.1, 0.42, 0.33, angle=math.radians(-20)), 0.0, 0.1, enamel, 0.03)
 
 
-ICONS = {"settings": settings, "mac": mac, "hn": hn, "wifi": wifi, "apps": apps, "youtube": youtube, "x": x, "discord": discord}
+ICONS = {"settings": settings, "mac": mac, "hn": hn, "wifi": wifi, "apps": apps, "youtube": youtube, "x": x, "discord": discord, "camera": camera, "photos": photos}
 
 only = [name for name in options.only.split(",") if name]
 for name, build in ICONS.items():

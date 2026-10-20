@@ -106,5 +106,23 @@
   },
   "art/icons/discord-64.png": {
     "linear": true
+  },
+  "art/icons/camera-24.png": {
+    "linear": true
+  },
+  "art/icons/camera-46.png": {
+    "linear": true
+  },
+  "art/icons/camera-64.png": {
+    "linear": true
+  },
+  "art/icons/photos-24.png": {
+    "linear": true
+  },
+  "art/icons/photos-46.png": {
+    "linear": true
+  },
+  "art/icons/photos-64.png": {
+    "linear": true
   }
 }
