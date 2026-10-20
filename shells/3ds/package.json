@@ -7,15 +7,14 @@
   "scripts": {
     "typecheck": "bun ../../vendor/pocketjs/node_modules/typescript/bin/tsc --noEmit",
     "3ds": "bun scripts/3ds.ts",
-    "guest": "bun scripts/guest.ts",
     "pair": "bun scripts/pair.ts",
     "push": "bun scripts/push.ts",
     "deploy": "bun scripts/deploy.ts",
+    "offer": "bun scripts/offer.ts",
     "probe": "bun scripts/probe.ts",
     "shot": "bun scripts/shot.ts",
-    "film": "bun scripts/film.ts",
-    "goldens": "bun scripts/film.ts --check",
-    "test": "bun ../../vendor/pocketjs/tools/wasm.ts && bun run guest && bun test --conditions=browser test",
+    "icons": "bun scripts/icons.ts",
+    "test": "bun ../../vendor/pocketjs/tools/wasm.ts && bun test --conditions=browser test",
     "check": "bun run typecheck && bun run test"
   }
 }

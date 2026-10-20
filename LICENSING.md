@@ -5,17 +5,15 @@ text is in [LICENSE](LICENSE).
 
 | Scope | License |
 | --- | --- |
-| Root tooling and documentation, 3DS, iPod and touch code and original assets | GPL-3.0-or-later |
+| Root tooling and documentation, 3DS and touch code and original assets | GPL-3.0-or-later |
 | Imported desktop shell code, documentation and original assets | GPL-3.0-only |
 | PocketJS runtime submodule | MIT |
-| iPod virtual-pointer protocol XML | MIT notice embedded in the XML |
 | Third-party fonts and derived font atlases | Their accompanying font licenses |
 
 The desktop import retains the original GPL version grant. It is maintained
 here under GPLv3; this repository does not offer a commercial licensing option
 or require the former desktop contributor license agreement. See
-[desktop third-party notices](shells/desktop/THIRD_PARTY.md) and the
-[iPod font notice](shells/ipod/src/fonts/LICENSE-NerdFonts.txt).
+[desktop third-party notices](shells/desktop/THIRD_PARTY.md).
 
 Source history from pocket-desktop is preserved as the second parent of the
 integration merge, starting from commit

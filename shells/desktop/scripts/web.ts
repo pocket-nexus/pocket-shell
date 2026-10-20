@@ -32,6 +32,7 @@ for (const file of [
   "pocket_text.wasm",
   "app-instance.html",
   "app-instance.js",
+  "runtime-glyphs.js",
   "system-engine.js",
   "wasm-ops.js",
   "pocketjs.wasm",

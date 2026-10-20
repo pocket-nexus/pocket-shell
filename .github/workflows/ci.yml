@@ -18,6 +18,8 @@ jobs:
         with:
           submodules: recursive
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
@@ -41,6 +43,8 @@ jobs:
           libxkbcommon-dev libxkbcommon-x11-dev libudev-dev libdrm-dev libgbm-dev
           libxcb-shape0-dev libxcb-xfixes0-dev xvfb xauth libvulkan1 mesa-vulkan-drivers
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
