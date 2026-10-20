@@ -32,6 +32,9 @@ export const ROWS = 2;
 export const PER_PAGE = COLS * ROWS;
 const ICON = 46;
 const CELL_W = 80;
+/** Icon labels span the whole cell in bold 10 px (text-2xs), the size
+ *  SpringBoard's labels have at the 3DS's 0.82 scale. */
+const LABEL_W = CELL_W;
 const ROW_Y = [26, 100];
 const BANNER_H = 36;
 /** Seconds a banner stays before it slides away. */
@@ -328,8 +331,7 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
               class={env.keys() && focus() === item.key ? "absolute w-[54] h-[54] rounded-[13] border-[#ffffff] border-2" : "hidden"}
               style={{ insetL: DOCK_X[index()]! - 4, insetT: DOCK_Y - 4 }}
             />
-            <Text class="absolute text-xs text-[#00000099] font-bold text-center" style={{ insetL: DOCK_X[index()]! - 17, insetT: 223, width: ICON + 34 }}>{item.title}</Text>
-            <Text class="absolute text-xs text-white font-bold text-center" style={{ insetL: DOCK_X[index()]! - 17, insetT: 222, width: ICON + 34 }}>{item.title}</Text>
+            <IconLabel title={item.title} x={DOCK_X[index()]! + (ICON - LABEL_W) / 2} y={222} />
           </>
         )}
       </For>
@@ -433,8 +435,20 @@ function AppIcon(props: {
       <Show when={props.editing()}>
         <Image class="absolute left-[-9] top-[-9] w-[22] h-[22]" src="art/delete-badge.svg" />
       </Show>
-      <Text class="absolute left-[-16] top-[50] w-[78] text-xs text-[#00000099] font-bold text-center">{ellipsize(props.app.title, FONT.xsBold, 77)}</Text>
-      <Text class="absolute left-[-16] top-[49] w-[78] text-xs text-white font-bold text-center">{ellipsize(props.app.title, FONT.xsBold, 77)}</Text>
+      <IconLabel title={props.app.title} x={(ICON - LABEL_W) / 2} y={49} />
     </View>
+  );
+}
+
+/** An icon's title under it: white with a dark drop one pixel below, cut
+ *  with "..." when it does not fit the cell. */
+function IconLabel(props: { title: string; x: number; y: number }) {
+  const text = () => ellipsize(props.title, FONT.xxsBold, LABEL_W - 2);
+  const box = (y: number) => ({ insetL: props.x, insetT: y, width: LABEL_W });
+  return (
+    <>
+      <Text class="absolute text-2xs text-[#00000099] font-bold text-center" style={box(props.y + 1)}>{text()}</Text>
+      <Text class="absolute text-2xs text-white font-bold text-center" style={box(props.y)}>{text()}</Text>
+    </>
   );
 }

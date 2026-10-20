@@ -2,7 +2,7 @@
 // shells/3ds/home/art/icons/bake.ts — turn icons.py's 512 px Blender renders into
 // the textures Home draws, and write a contact sheet.
 //
-//   bun shells/3ds/home/art/icons/bake.ts .pocket-build/home-icons/render
+//   bun shells/3ds/home/art/icons/bake.ts .pocket-build/home-icons/render [sheet dir]
 //
 // Each icon is drawn at a few sizes (24 in table rows and the banner, 46 on
 // the springboard and the dock, 64 for the store's detail icon) and
@@ -10,7 +10,9 @@
 // for texel. A texture is the power of two above the icon with the icon
 // centred and room for the drop shadow.
 //
-// Every icon gets the same finish here, so the set reads as one family:
+// Each downsample gets a mild unsharp mask (SHARPEN), so edges stay one
+// texel wide at 46 and 24 px. Every icon gets the same finish here, so the
+// set reads as one family:
 // the rounded-square mask (corner radius ICON_RADIUS of the side, 4x4
 // supersampled), the iOS 6 gloss (a white wash over the top half whose lower
 // edge is a shallow arc), a rim lit along the top and shaded along the
@@ -76,6 +78,23 @@ function resample(src: Uint8Array, size: number, n: number): Rgba {
   }
   return out;
 }
+
+/** A mild unsharp mask after the downsample: the box filter averages an
+ *  edge across one texel, and at 46 or 24 px that reads as soft. `amount`
+ *  of the difference to a 3x3 binomial blur is added back. */
+function sharpen(src: Rgba, n: number, amount: number): Rgba {
+  const out = src.slice();
+  const at = (x: number, y: number, c: number) => src[(Math.min(n - 1, Math.max(0, y)) * n + Math.min(n - 1, Math.max(0, x))) * 4 + c]!;
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) for (let c = 0; c < 3; c++) {
+    const blur = (at(x - 1, y - 1, c) + 2 * at(x, y - 1, c) + at(x + 1, y - 1, c)
+      + 2 * at(x - 1, y, c) + 4 * at(x, y, c) + 2 * at(x + 1, y, c)
+      + at(x - 1, y + 1, c) + 2 * at(x, y + 1, c) + at(x + 1, y + 1, c)) / 16;
+    const v = at(x, y, c);
+    out[(y * n + x) * 4 + c] = Math.min(1, Math.max(0, v + amount * (v - blur)));
+  }
+  return out;
+}
+const SHARPEN: Record<number, number> = { 24: 0.45, 46: 0.6, 64: 0.5 };
 
 /** Signed distance to the rounded square of side n (negative inside). */
 function sdf(px: number, py: number, n: number): number {
@@ -188,7 +207,8 @@ for (const [name, sizes] of Object.entries(ICONS)) {
   if (render && (render.width !== 512 || render.height !== 512)) throw new Error(`${name}: expected a 512 px render`);
   for (const n of sizes) {
     const size = SIZES[n]!;
-    const rgba = compose(finish(render ? resample(render.rgba, 512, n) : null, n), size);
+    const picture = render ? sharpen(resample(render.rgba, 512, n), n, SHARPEN[n]!) : null;
+    const rgba = compose(finish(picture, n), size);
     writeFileSync(join(OUT, `${name}-${n}.png`), encodePNG(rgba, size.tex, size.tex));
     baked.push({ name, size: n, tex: size.tex, rgba });
     console.log(`${name}-${n}.png  ${size.tex}x${size.tex}`);
@@ -263,7 +283,7 @@ for (const entry of baked) {
   blit(entry.rgba, entry.tex, 10 + column * 140, top, 1);
   if (entry.size !== 64) blit(entry.rgba, entry.tex, 450 + column * 270, top, entry.size === 24 ? 4 : 2);
 }
-const sheetDir = resolve(".pocket-build/validation/home-icons");
+const sheetDir = resolve(process.argv[3] ?? ".pocket-build/validation/home-icons");
 mkdirSync(sheetDir, { recursive: true });
 writeFileSync(join(sheetDir, "contact-sheet.png"), encodePNG(sheet, W, sheetH));
 console.log(`contact sheet -> ${join(sheetDir, "contact-sheet.png")}`);

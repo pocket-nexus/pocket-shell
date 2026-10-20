@@ -4,7 +4,8 @@
   /Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup \
     --python shells/3ds/home/art/icons/icons.py -- --out .pocket-build/home-icons/render [--only hn,mac]
 
-(`bun run icons` in shells/3ds runs this and the bake.)
+(`bun run icons` in shells/3ds runs this, nexus.ts for Pocket Nexus's
+letter and the bake.)
 
 Every icon is an iOS 6 tile: a lacquered or metal plate with a raised,
 beveled object on it, lit from above so top edges catch the light and the
@@ -189,29 +190,10 @@ def brushed_radial(name, light, dark):
     return m
 
 
-def fabric(name, color):
-    """Woven cloth: a fine noise bump and a matte sheen."""
-    m = principled(name, color, 0.75)
-    nodes = m.node_tree.nodes
-    links = m.node_tree.links
-    p = nodes["Principled BSDF"]
-    p.inputs["Sheen Weight"].default_value = 0.15
-    coord = nodes.new("ShaderNodeTexCoord")
-    wave = nodes.new("ShaderNodeTexWave")
-    wave.wave_type = "BANDS"
-    wave.bands_direction = "DIAGONAL"
-    wave.inputs["Scale"].default_value = 60.0
-    wave.inputs["Distortion"].default_value = 2.0
-    bump = nodes.new("ShaderNodeBump")
-    bump.inputs["Strength"].default_value = 0.25
-    links.new(coord.outputs["Object"], wave.inputs["Vector"])
-    links.new(wave.outputs["Fac"], bump.inputs["Height"])
-    links.new(bump.outputs["Normal"], p.inputs["Normal"])
-    return m
-
-
 def emissive_gradient(name, top, bottom, strength=1.4, lo=-1.0, hi=1.0):
-    m = gradient(name, top, bottom, 0.08, 0.0, 1.0, lo=lo, hi=hi)
+    # A matte coat: a glossy one reflects the studio dome and washes the
+    # picture out to white.
+    m = gradient(name, top, bottom, 0.4, 0.0, 0.1, lo=lo, hi=hi)
     nodes = m.node_tree.nodes
     p = nodes["Principled BSDF"]
     ramp = [n for n in nodes if n.type == "VALTORGB"][0]
@@ -299,22 +281,6 @@ def text(body, font, size, x, y, z, depth, mat, bevel=0.012):
     return obj
 
 
-def tube(name, points, z, radius, mat, closed=False):
-    curve = bpy.data.curves.new(name, "CURVE")
-    curve.dimensions = "3D"
-    curve.bevel_depth = radius
-    curve.bevel_resolution = 6
-    curve.use_fill_caps = True
-    spline = curve.splines.new("POLY")
-    spline.points.add(len(points) - 1)
-    for point, (x, y) in zip(spline.points, points):
-        point.co = (x, y, z, 1)
-    spline.use_cyclic_u = closed
-    obj = link(bpy.data.objects.new(name, curve))
-    obj.data.materials.append(mat)
-    return obj
-
-
 def gear_outline(teeth, tip, root, steps=12, land=0.42):
     """A spur gear's outline: each tooth a trapezoid with eased flanks."""
     points = []
@@ -340,35 +306,28 @@ def gear_outline(teeth, tip, root, steps=12, land=0.42):
 
 
 def settings():
-    plate(brushed_radial("Brushed steel", "dde1e6", "a3aab3"))
-    # A dark ring the gear sits in, like the recess of iOS 6's Settings.
-    prism("Recess", circle(0.86), 0.0, 0.02, principled("Recess", "3a3f47", 0.4, 0.7), 0.012)
-    gun = principled("Gunmetal", "6a727e", 0.28, 0.85)
-    steel = principled("Polished steel", "d8dde4", 0.16, 1.0)
-    # Six windows through the gear's web, between hub and rim.
-    windows = [
-        list(reversed(rounded_rect(0.13, 0.17, 0.055, 0.47 * math.cos(a), 0.47 * math.sin(a), angle=a + math.pi / 2)))
-        for a in [k * math.tau / 6 + math.pi / 6 for k in range(6)]
-    ]
-    prism("Gear", gear_outline(12, 0.80, 0.63), 0.02, 0.14, gun, 0.025, holes=[list(reversed(circle(0.30))), *windows])
-    prism("Hub ring", circle(0.30), 0.02, 0.17, steel, 0.03, holes=[list(reversed(circle(0.17)))])
-    prism("Axle", circle(0.17), 0.02, 0.10, principled("Axle", "2b2f35", 0.3, 0.9), 0.02)
+    # One bold gear on brushed steel: eight wide teeth, a bright hub and a
+    # dark axle. At 46 and 24 px every part is a few pixels wide, so there
+    # are no windows in the web and no recess around it.
+    plate(brushed_radial("Brushed steel", "e2e5e9", "a4abb4"))
+    gun = principled("Gunmetal", "565e69", 0.32, 0.85)
+    steel = principled("Polished steel", "eef1f4", 0.14, 1.0)
+    prism("Gear", gear_outline(8, 0.84, 0.62, land=0.46), 0.0, 0.16, gun, 0.03, holes=[list(reversed(circle(0.30)))])
+    prism("Hub ring", circle(0.30), 0.0, 0.20, steel, 0.035, holes=[list(reversed(circle(0.14)))])
+    prism("Axle", circle(0.14), 0.0, 0.12, principled("Axle", "24282d", 0.3, 0.9), 0.02)
 
 
 def mac():
+    # A laptop that fills the tile: an aluminium lid, a black bezel, a bright
+    # display, and the deck below seen at a steep angle. No keys or notch.
     plate(gradient("Sky lacquer", "7cc8ff", "1653c4", 0.28, coat=0.6))
-    alu = principled("Aluminium", "c9ced5", 0.3, 1.0)
-    dark = principled("Bezel glass", "0d0f12", 0.06, 0.0, 1.0, 0.02)
-    # The lid faces the viewer; the deck below it is seen at a steep angle.
-    prism("Lid", rounded_rect(1.44, 0.98, 0.07, 0, 0.17), 0.18, 0.05, alu, 0.02)
-    prism("Bezel", rounded_rect(1.38, 0.92, 0.05, 0, 0.17), 0.23, 0.012, dark, 0.006)
-    prism("Display", rounded_rect(1.20, 0.74, 0.01, 0, 0.18), 0.243, 0.004, emissive_gradient("Desktop", "4fb8f5", "1a3fa8", 0.9, -0.2, 0.55), 0)
-    # A sheen across the display glass, from the softbox.
-    prism("Hinge", rounded_rect(1.40, 0.05, 0.02, 0, -0.335), 0.17, 0.04, principled("Hinge", "2f3338", 0.35, 0.8), 0.01)
-    deck = [(-0.74, -0.36), (0.74, -0.36), (0.86, -0.54), (-0.86, -0.54)]
-    prism("Deck", deck, 0.14, 0.06, alu, 0.02)
-    prism("Keys", [(-0.6, -0.38), (0.6, -0.38), (0.66, -0.47), (-0.66, -0.47)], 0.20, 0.006, principled("Keys", "202326", 0.5, 0.2), 0.003)
-    prism("Thumb notch", rounded_rect(0.22, 0.03, 0.012, 0, -0.53), 0.20, 0.004, principled("Notch", "7d838b", 0.3, 1.0), 0.002)
+    alu = principled("Aluminium", "d3d8de", 0.28, 1.0)
+    dark = principled("Bezel glass", "0b0d10", 0.06, 0.0, 1.0, 0.02)
+    prism("Lid", rounded_rect(1.62, 1.12, 0.08, 0, 0.15), 0.16, 0.05, alu, 0.02)
+    prism("Bezel", rounded_rect(1.54, 1.04, 0.06, 0, 0.15), 0.21, 0.012, dark, 0.006)
+    prism("Display", rounded_rect(1.32, 0.84, 0.012, 0, 0.16), 0.223, 0.004, emissive_gradient("Desktop", "3f9cf5", "0b2f8f", 0.7, -0.26, 0.58), 0)
+    prism("Hinge", rounded_rect(1.58, 0.05, 0.02, 0, -0.43), 0.15, 0.04, principled("Hinge", "2a2e33", 0.35, 0.8), 0.01)
+    prism("Deck", [(-0.80, -0.45), (0.80, -0.45), (0.95, -0.68), (-0.95, -0.68)], 0.12, 0.07, alu, 0.025)
 
 
 def hn():
@@ -378,39 +337,6 @@ def hn():
     inner = list(reversed(rounded_rect(1.12, 1.12, 0.03)))
     prism("Frame", outer, 0.0, 0.07, enamel, 0.02, holes=[inner])
     text("Y", VERDANA_BOLD, 1.18, 0.0, -0.03, 0.0, 0.07, enamel, 0.014)
-
-
-def nexus():
-    plate(gradient("Plum lacquer", "4a2a72", "160a26", 0.4, coat=0.5))
-    confetti = [
-        ("ff5fa2", -0.70, 0.68, 0.5), ("4fd6ff", 0.62, 0.74, -0.4), ("ffd23f", 0.78, 0.18, 1.1),
-        ("9b7bff", -0.78, -0.12, 1.3), ("ffd23f", -0.62, -0.78, -0.9), ("4fd6ff", 0.70, -0.72, 0.7),
-        ("ff5fa2", 0.12, 0.84, 1.4), ("9b7bff", 0.36, -0.86, -0.2),
-    ]
-    for color, x, y, a in confetti:
-        prism("Confetti", rounded_rect(0.16, 0.055, 0.024, x, y, 6, a), 0.0, 0.03, principled("Confetti " + color, color, 0.3, 0.0, 0.5), 0.012)
-    # The pocket: a straight top, straight sides, a round bottom.
-    top, side, bottom, half = 0.46, -0.02, -0.66, 0.66
-    rx, ry = half, side - bottom
-    outline = [(-half, top), (half, top)]
-    outline += [(rx * math.cos(-k * math.pi / 40), side + ry * math.sin(-k * math.pi / 40)) for k in range(41)]
-    navy = fabric("Denim", "161a4a")
-    prism("Pocket", outline, 0.02, 0.08, navy, 0.03)
-    gold = principled("Gold piping", "f6c445", 0.28, 0.7, 0.3)
-    tube("Piping", outline, 0.11, 0.045, gold, closed=True)
-    # Stitching: a straight seam under the hem, a wave across the middle.
-    cream = principled("Thread", "f3e6c4", 0.6)
-    for k in range(9):
-        x = -0.52 + k * 0.13
-        prism("Hem stitch", rounded_rect(0.075, 0.025, 0.011, x, 0.31), 0.10, 0.012, cream, 0.006)
-    colors = ["ff5fa2", "4fd6ff", "ffd23f"]
-    for k in range(8):
-        x = -0.48 + k * 0.137
-        y = -0.08 + 0.07 * math.sin(k * 1.25)
-        slope = 0.07 * 1.25 * math.cos(k * 1.25) / 0.137
-        prism("Wave stitch", rounded_rect(0.09, 0.034, 0.015, x, y, 6, math.atan(slope)), 0.104, 0.014, principled("Stitch " + str(k), colors[k % 3], 0.4), 0.007)
-    for x in (-0.53, 0.53):
-        prism("Rivet", circle(0.055, x, 0.36, 32), 0.10, 0.04, gold, 0.02)
 
 
 def wifi():
@@ -434,7 +360,8 @@ def apps():
             prism("Cell", rounded_rect(0.52, 0.52, 0.12, x, y), 0.0, 0.09, enamel, 0.03)
 
 
-ICONS = {"settings": settings, "mac": mac, "hn": hn, "nexus": nexus, "wifi": wifi, "apps": apps}
+# Pocket Nexus's icon is the wordmark's own letter, drawn by nexus.ts.
+ICONS = {"settings": settings, "mac": mac, "hn": hn, "wifi": wifi, "apps": apps}
 
 only = [name for name in options.only.split(",") if name]
 for name, build in ICONS.items():

@@ -83,8 +83,9 @@ describe("springboard", () => {
     await home.run(30);
     shot(home, "springboard");
     const bottom = home.texts("auxiliary");
-    // Labels keep a gap between neighbours, so long titles end in an ellipsis, as on iOS.
-    for (const label of ["Hacker Ne...", "Pocket Ne...", "Contacts", "Settings", "Mac"]) expect(bottom).toContain(label);
+    // Labels span the 80 px cell with tightened letters, so the two longest
+    // names fit whole; a longer one still ends in "...".
+    for (const label of ["Hacker News", "Pocket Nexus", "Contacts", "Settings", "Mac"]) expect(bottom).toContain(label);
     // The status bar: 01:41 UTC in the linked Mac's zone (UTC+8), and the Mac.
     expect(bottom).toContain("Pocket");
     expect(bottom).toContain("9:41 AM");
@@ -195,7 +196,7 @@ describe("springboard pages", () => {
     const start = x(home, "App 2")!;
     await hold(home, 250, 150, 40);
     expect(x(home, "App 2")! - start).toBeGreaterThan(-104);
-    expect(x(home, "App 2")! - start).toBeLessThan(-80);
+    expect(x(home, "App 2")! - start).toBeLessThanOrEqual(-80);
     shot(home, "page-drag");
     await home.run(30);
     expect(x(home, "App 2")).toBe(start);

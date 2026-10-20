@@ -12,8 +12,11 @@
 import { getOps } from "@pocketjs/framework/host";
 
 /** Baked font slots (framework/compiler/tailwind.ts fontSlotFor): FONT_PX
- *  index, bold +7. Literals: compiler source stays out of the app graph. */
+ *  index, bold +7; the 10 px pair (text-2xs) at 19 and 20. Literals:
+ *  compiler source stays out of the app graph. */
 export const FONT = {
+  xxs: 19,
+  xxsBold: 20,
   xs: 0,
   sm: 1,
   base: 2,
@@ -86,14 +89,16 @@ export function measure(text: string, slot: number): number {
 const ELLIPSIS = "...";
 
 /** The longest prefix that fits maxW, with "..." when it was cut. */
-export function ellipsize(text: string, slot: number, maxW: number): string {
-  if (measure(text, slot) <= maxW) return text;
-  const room = maxW - measure(ELLIPSIS, slot);
+export function ellipsize(text: string, slot: number, maxW: number, tracking = 0): string {
+  // `tracking` (the style prop) adds that many px after every glyph but the last.
+  const width = (t: string) => measure(t, slot) + tracking * Math.max(0, t.length - 1);
+  if (width(text) <= maxW) return text;
+  const room = maxW - measure(ELLIPSIS, slot) - tracking * ELLIPSIS.length;
   let low = 0;
   let high = text.length;
   while (low < high) {
     const mid = (low + high + 1) >> 1;
-    if (measure(text.slice(0, mid), slot) <= room) low = mid;
+    if (width(text.slice(0, mid)) <= room) low = mid;
     else high = mid - 1;
   }
   return text.slice(0, low).trimEnd() + ELLIPSIS;

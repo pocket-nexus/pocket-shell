@@ -11,7 +11,7 @@ submodule.
 
 | Home | L+R | The agent at work | The reply |
 | --- | --- | --- | --- |
-| ![Home on the touch screen, Claude's room on the top screen](media/hw/home.png) | ![The choice between Talk and Type](media/hw/ask.png) | ![The agent opens a Hacker News thread under a banner](media/hw/acting.png) | ![The reply card with Talk and Type for the next request](media/hw/reply.png) |
+| ![Home on the touch screen, Claude's room with the Pocket3D screensaver on the top screen](media/hw/home.png) | ![The choice between Talk and Type](media/hw/ask.png) | ![The agent opens a Hacker News thread under a banner](media/hw/acting.png) | ![The reply card with Talk and Type for the next request](media/hw/reply.png) |
 
 These are screenshots from an Old 3DS. The third and fourth come from one
 typed request ("Open Hacker News and tell me what the top story is about"),
@@ -31,7 +31,8 @@ for long lists and one stylus router per screen.
 **Home** is the springboard, Settings (Wi-Fi, Mac pairing by QR code, the
 Mac's app catalog) and the clock, which reads the Mac's time over the Pocket
 Link. The springboard holds **four columns by two rows a page** above a
-two-icon dock:
+two-icon dock. Labels are bold 10 px (`text-2xs`), so "Hacker News" and
+"Pocket Nexus" fit their 80 px cells; a longer name ends in "...".
 
 - A drag moves the row of pages with the stylus. A flick faster than
   **250 px/s** turns the page; a slower release settles on the nearest page.
@@ -41,11 +42,16 @@ two-icon dock:
   host waits that long for the L+R chord.
 - Page dots above the dock follow the drag.
 
-**Icons are rendered in Blender.** `home/art/icons/icons.py` models each icon
-as a lit object on a lacquer or metal plate and renders it at 512 px;
-`home/art/icons/bake.ts` adds one finish to all of them (the rounded mask,
-the iOS 6 gloss, a lit top rim, a shaded bottom rim and, at 46 px, a drop
-shadow) and writes 24, 46 and 64 px textures. The build reads the committed
+**Icons are rendered at 512 px and finished at their size.**
+`home/art/icons/icons.py` models Settings, Mac, Hacker News, Wi-Fi and Apps
+in Blender as lit objects on lacquer or metal plates, with few large shapes
+so they hold at 46 and 24 px. Pocket Nexus is the face "O" of the Pocket
+Nexus wordmark, drawn by the wordmark's own code (PocketJS
+`apps/nexus/art/draw.js`, run in headless Chrome by `home/art/icons/nexus.ts`).
+`home/art/icons/bake.ts` gives all of them one finish (the rounded mask, the
+iOS 6 gloss, a lit top rim, a shaded bottom rim and, at 46 px, a drop
+shadow), sharpens them after the downsample and writes 24, 46 and 64 px
+textures. The build reads the committed
 PNGs, so it needs no Blender. Cycles output differs a little between runs, so
 a re-render is a new set of pictures to review, not a check.
 
@@ -59,7 +65,8 @@ L+R opens a card over the paused app with two choices: **Talk (A)** records
 until A or Send, and **Type (X)** opens the keyboard; START sends. While the
 agent operates the app the card shrinks to a banner and B stops it. On the
 top screen the mascot listens, thinks and types at its own monitor, which
-shows the touch screen or the agent's own copy of an app. A pill in the
+shows the touch screen or the agent's own copy of an app, and the Pocket3D
+mark as a screensaver while it rests. A pill in the
 bottom-right corner reads "L+R Ask Claude" while the mascot is idle.
 
 The agent needs **Pocket Companion** on the Mac, signed in to Codex: run
