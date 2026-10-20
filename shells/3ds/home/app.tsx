@@ -8,9 +8,11 @@
 // Input: the stylus goes through one router that asks the visible layer for
 // its targets; the buttons go to the alert, then the open stack, then the
 // Home screen. SELECT returns to the Home screen, or from it to the app the
-// host interrupted.
+// host interrupted; while Settings or the Mac is open the top screen shows the
+// SELECT Home hint, as it does in an applet.
 
-import { createSignal, onMount, Show, type JSX } from "solid-js";
+import { createEffect, createSignal, onMount, Show, type JSX } from "solid-js";
+import { setHomeHint } from "@pocketjs/framework/agent";
 import { AuxiliarySurface, View, type NodeMirror } from "@pocketjs/framework/components";
 import { animate, jump } from "@pocketjs/framework/animation";
 import { after } from "@pocketjs/framework/clock";
@@ -88,6 +90,8 @@ export default function Home() {
     setZooming(true);
     after(ZOOM_MS / 1000, () => setZooming(false));
   };
+
+  createEffect(() => setHomeHint(app() !== null));
 
   const board = createSpringboard({
     sys,

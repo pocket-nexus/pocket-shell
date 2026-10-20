@@ -395,6 +395,18 @@ describe("settings", () => {
     shot(home, "settings");
   });
 
+  test("Settings asks the top screen for the SELECT Home hint; SELECT closes it and the hint goes", async () => {
+    const home = await boot({ agent: { available: true } });
+    await home.run(10);
+    expect(home.agent!.homeHint).toBe(false);
+    await openSettings(home);
+    expect(home.agent!.homeHint).toBe(true);
+    await home.press(BTN.SELECT);
+    await home.run(30);
+    expect(home.agent!.homeHint).toBe(false);
+    expect(home.texts("auxiliary")).toContain("Settings");
+  });
+
   test("Dual Screen switches the console between two screens and one", async () => {
     const home = await boot({ agent: { available: true } });
     const modes: string[] = [];
