@@ -2,7 +2,6 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, extname, relative, resolve } from "node:path";
-import { TAPES } from "../shells/3ds/film/tape.ts";
 import { ROOT } from "./paths.ts";
 
 const gitFiles = (...args: string[]): string[] =>
@@ -27,29 +26,24 @@ for (const path of tracked.filter((path) => path.endsWith(".md"))) {
   }
 }
 
-const goldens = new Set(TAPES.flatMap((tape) => tape.capture.flatMap((frame) =>
-  ["", ".auxiliary"].map((surface) =>
-    `shells/3ds/test/goldens/3ds/${tape.name}.${frame}${surface}.png`),
-)));
 const sourceInputs = new Set([
   "shells/desktop/assets/fonts/W95FA.otf",
-  "shells/ipod/src/fonts/SymbolsNerdFont-subset.otf",
 ]);
-const images3ds = JSON.parse(readFileSync(resolve(ROOT, "shells/3ds/src/images.json"), "utf8"));
-// src/icons/ is gen-icons.ts output: ignored and regenerated, never an input.
-for (const key of Object.keys(images3ds)) if (!key.startsWith("icons/")) sourceInputs.add(`shells/3ds/src/${key}`);
+// Home's pictures, including the Blender-baked icons the build reads.
+const homeImages = JSON.parse(readFileSync(resolve(ROOT, "shells/3ds/home/images.json"), "utf8"));
+for (const key of Object.keys(homeImages)) sourceInputs.add(`shells/3ds/home/${key}`);
 const touchImages = JSON.parse(readFileSync(resolve(ROOT, "shells/touch/src/images.json"), "utf8"));
 for (const key of Object.keys(touchImages)) sourceInputs.add(`shells/touch/src/${key}`);
 
-for (const path of [...goldens, ...sourceInputs]) {
-  if (!tracked.includes(path)) failures.push(`missing committed input or golden: ${path}`);
+for (const path of sourceInputs) {
+  if (!tracked.includes(path)) failures.push(`missing committed input: ${path}`);
 }
 const mediaExtensions = new Set([".svg", ".png", ".gif", ".bin", ".otf", ".ttf", ".jpg", ".jpeg", ".webp", ".wasm", ".pak", ".pocket"]);
 for (const path of tracked.filter((path) => mediaExtensions.has(extname(path)))) {
-  if (!referenced.has(path) && !goldens.has(path) && !sourceInputs.has(path)) {
+  if (!referenced.has(path) && !sourceInputs.has(path)) {
     failures.push(`asset has no document, test or declared source consumer: ${path}`);
   }
 }
 
 if (failures.length) throw new Error(`Asset review failed:\n${failures.join("\n")}`);
-console.log(`Asset review: ${tracked.length} tracked files, ${goldens.size} pinned frames, source inputs and document links checked; no ignored outputs tracked`);
+console.log(`Asset review: ${tracked.length} tracked files, source inputs and document links checked; no ignored outputs tracked`);

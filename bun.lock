@@ -16,10 +16,6 @@
       "name": "@pocket-shell/desktop",
       "version": "0.1.0",
     },
-    "shells/ipod": {
-      "name": "@pocket-shell/ipod",
-      "version": "0.1.0",
-    },
     "shells/touch": {
       "name": "@pocket-shell/touch",
       "version": "0.1.0",
@@ -159,8 +155,6 @@
     "@pocket-shell/3ds": ["@pocket-shell/3ds@workspace:shells/3ds"],
 
     "@pocket-shell/desktop": ["@pocket-shell/desktop@workspace:shells/desktop"],
-
-    "@pocket-shell/ipod": ["@pocket-shell/ipod@workspace:shells/ipod"],
 
     "@pocket-shell/touch": ["@pocket-shell/touch@workspace:shells/touch"],
 

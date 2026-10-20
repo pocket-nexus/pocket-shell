@@ -78,8 +78,7 @@ jobs:
           Nintendo 3DS build. Release dates use Asia/Shanghai.
 
           - `.3dsx`: copy to the SD card's `/3ds/` directory and launch with Homebrew Launcher.
-          - `.cia`: install with your homebrew CIA installer.
-          - `SHA256SUMS`: checksums for both binaries.
+          - `SHA256SUMS`: the binary's checksum.
           - `build-info.json`: source and PocketJS commits, application version and workflow run.
 
           CI verifies compilation, package headers and checksums. It does not verify a physical console boot or interaction.
@@ -87,8 +86,8 @@ jobs:
           printf '\nSource: %s\nBuild: %s/%s/actions/runs/%s\n' \
             "$GITHUB_SHA" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >> "$RUNNER_TEMP/release-notes.md"
           tag="v$RELEASE_VERSION"
-          gh release create "$tag" ./*.3dsx ./*.cia SHA256SUMS build-info.json \
-            --target "$GITHUB_SHA" --title "Pocket Shell $tag" \
+          gh release create "$tag" ./*.3dsx SHA256SUMS build-info.json \
+            --target "$GITHUB_SHA" --title "Pocket Home $tag" \
             --notes-file "$RUNNER_TEMP/release-notes.md" --draft
           gh release edit "$tag" --draft=false --latest
           gh release view "$tag" --json url --jq .url >> "$GITHUB_STEP_SUMMARY"

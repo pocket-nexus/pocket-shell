@@ -4,7 +4,8 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { ROOT, VENDOR } from './paths.ts';
 import { symbianPackageIdentity } from '../../../vendor/pocketjs/tools/symbian-package.ts';
 import { resolveSymbianE7BuildPlan } from '../../../vendor/pocketjs/tools/symbian-profile.ts';
-import { pocketNexusCacheRoot, withArtifactLock } from '../../../vendor/pocketjs/tools/psp-toolchain.ts';
+import { pocketNexusCacheRoot } from '../../../vendor/pocketjs/tools/targets/cache.ts';
+import { withArtifactLock } from '../../../vendor/pocketjs/tools/targets/lock.ts';
 
 const manifest = resolve(ROOT, 'pocket.json');
 const plan = resolveSymbianE7BuildPlan(await Bun.file(manifest).json());

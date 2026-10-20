@@ -5,9 +5,10 @@ import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const root = resolve(import.meta.dir, "..");
-const manifestPath = "shells/3ds/pocket.json";
-const binaryName = "pocketshell-main";
-const product = "pocket-shell";
+// The release is the console binary, which embeds Home, the launcher.
+const manifestPath = "shells/3ds/home/pocket.json";
+const binaryName = "home-main";
+const product = "pocket-home";
 
 export function releaseVersion(timestamp: string): string {
   const date = new Date(timestamp);
@@ -30,16 +31,10 @@ export function manifestVersion(version: string): string {
 }
 
 export function validateBinary(extension: string, bytes: Buffer): void {
-  if (extension === "3dsx") {
-    if (bytes.length < 32 || bytes.toString("ascii", 0, 4) !== "3DSX") {
-      throw new Error("Invalid 3DSX header");
-    }
-  } else if (extension === "cia") {
-    // The CIA header includes its 0x2000-byte content index bitmap.
-    if (bytes.length <= 0x2020 || bytes.readUInt32LE(0) !== 0x2020) {
-      throw new Error("Invalid CIA header");
-    }
-  } else throw new Error("Unsupported release binary");
+  if (extension !== "3dsx") throw new Error("Unsupported release binary: the console takes .3dsx files only");
+  if (bytes.length < 32 || bytes.toString("ascii", 0, 4) !== "3DSX") {
+    throw new Error("Invalid 3DSX header");
+  }
 }
 
 function git(...args: string[]): string {
@@ -64,8 +59,7 @@ if (import.meta.main) {
     const source = git("rev-parse", "HEAD");
     const runtime = git("-C", "vendor/pocketjs", "rev-parse", "HEAD");
     const output = resolve(root, "dist/release");
-    // Validate both outputs before staging either one.
-    const files = ["3dsx", "cia"].map((extension) => {
+    const files = ["3dsx"].map((extension) => {
       const path = resolve(root, `dist/3ds/${binaryName}.${extension}`);
       const bytes = readFileSync(path);
       validateBinary(extension, bytes);

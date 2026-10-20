@@ -1,6 +1,6 @@
 # Contributing
 
-Make changes in the shell that owns the behavior: `shells/3ds`, `shells/ipod`
+Make changes in the shell that owns the behavior: `shells/3ds`, `shells/touch`
 or `shells/desktop`. Runtime changes land in PocketJS first, followed by a
 submodule pin update here.
 

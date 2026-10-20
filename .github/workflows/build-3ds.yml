@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   build:
-    name: Build 3DSX and CIA
+    name: Build the 3DSX
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
@@ -49,8 +49,8 @@ jobs:
         run: |
           image=$(bun -e 'import { THREE_DS_CONTAINER_IMAGE } from "./vendor/pocketjs/tools/3ds-toolchain.ts"; console.log(THREE_DS_CONTAINER_IMAGE)')
           docker pull "$image"
-      - name: Build both release binaries
-        run: bun run 3ds --cia --locked
+      - name: Build the release binary
+        run: bun run 3ds --locked
       - name: Verify and stage release files
         env:
           RELEASE_VERSION: ${{ steps.version.outputs.version }}

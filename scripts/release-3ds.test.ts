@@ -17,16 +17,13 @@ test("manifest uses calendar SemVer and rejects invalid dates or tag injection",
   }
 });
 
-test("release staging rejects empty, truncated and wrong-format binaries", () => {
-  for (const extension of ["3dsx", "cia"]) {
-    expect(() => validateBinary(extension, Buffer.alloc(0))).toThrow();
-    expect(() => validateBinary(extension, Buffer.from("error page"))).toThrow();
-  }
+test("release staging rejects empty, truncated, wrong-format and CIA binaries", () => {
+  expect(() => validateBinary("3dsx", Buffer.alloc(0))).toThrow();
+  expect(() => validateBinary("3dsx", Buffer.from("error page"))).toThrow();
   const threeDsx = Buffer.alloc(32);
   threeDsx.write("3DSX");
   expect(() => validateBinary("3dsx", threeDsx)).not.toThrow();
   const cia = Buffer.alloc(0x2021);
   cia.writeUInt32LE(0x2020);
-  expect(() => validateBinary("cia", cia)).not.toThrow();
-  expect(() => validateBinary("cia", cia.subarray(0, 0x2020))).toThrow();
+  expect(() => validateBinary("cia", cia)).toThrow();
 });
