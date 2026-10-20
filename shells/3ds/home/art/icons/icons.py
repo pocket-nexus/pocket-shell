@@ -307,27 +307,26 @@ def gear_outline(teeth, tip, root, steps=12, land=0.42):
 
 def settings():
     # One bold gear on brushed steel: eight wide teeth, a bright hub and a
-    # dark axle. At 46 and 24 px every part is a few pixels wide, so there
-    # are no windows in the web and no recess around it.
+    # dark axle, at about three quarters of the tile so the plate frames it.
+    # At 46 and 24 px every part is a few pixels wide.
     plate(brushed_radial("Brushed steel", "e2e5e9", "a4abb4"))
     gun = principled("Gunmetal", "565e69", 0.32, 0.85)
     steel = principled("Polished steel", "eef1f4", 0.14, 1.0)
-    prism("Gear", gear_outline(8, 0.84, 0.62, land=0.46), 0.0, 0.16, gun, 0.03, holes=[list(reversed(circle(0.30)))])
-    prism("Hub ring", circle(0.30), 0.0, 0.20, steel, 0.035, holes=[list(reversed(circle(0.14)))])
-    prism("Axle", circle(0.14), 0.0, 0.12, principled("Axle", "24282d", 0.3, 0.9), 0.02)
+    prism("Gear", gear_outline(8, 0.62, 0.46, land=0.46), 0.0, 0.14, gun, 0.025, holes=[list(reversed(circle(0.22)))])
+    prism("Hub ring", circle(0.22), 0.0, 0.18, steel, 0.03, holes=[list(reversed(circle(0.10)))])
+    prism("Axle", circle(0.10), 0.0, 0.10, principled("Axle", "24282d", 0.3, 0.9), 0.015)
 
 
 def mac():
-    # A laptop that fills the tile: an aluminium lid, a black bezel, a bright
-    # display, and the deck below seen at a steep angle. No keys or notch.
+    # A laptop at about three quarters of the tile: an aluminium lid whose
+    # own metal frames a bright display (no dark bezel), a slim hinge and
+    # the deck below seen at a steep angle. No keys or notch.
     plate(gradient("Sky lacquer", "7cc8ff", "1653c4", 0.28, coat=0.6))
-    alu = principled("Aluminium", "d3d8de", 0.28, 1.0)
-    dark = principled("Bezel glass", "0b0d10", 0.06, 0.0, 1.0, 0.02)
-    prism("Lid", rounded_rect(1.62, 1.12, 0.08, 0, 0.15), 0.16, 0.05, alu, 0.02)
-    prism("Bezel", rounded_rect(1.54, 1.04, 0.06, 0, 0.15), 0.21, 0.012, dark, 0.006)
-    prism("Display", rounded_rect(1.32, 0.84, 0.012, 0, 0.16), 0.223, 0.004, emissive_gradient("Desktop", "3f9cf5", "0b2f8f", 0.7, -0.26, 0.58), 0)
-    prism("Hinge", rounded_rect(1.58, 0.05, 0.02, 0, -0.43), 0.15, 0.04, principled("Hinge", "2a2e33", 0.35, 0.8), 0.01)
-    prism("Deck", [(-0.80, -0.45), (0.80, -0.45), (0.95, -0.68), (-0.95, -0.68)], 0.12, 0.07, alu, 0.025)
+    alu = principled("Aluminium", "dfe3e8", 0.28, 1.0)
+    prism("Lid", rounded_rect(1.24, 0.86, 0.07, 0, 0.14), 0.16, 0.05, alu, 0.018)
+    prism("Display", rounded_rect(1.08, 0.70, 0.02, 0, 0.15), 0.212, 0.004, emissive_gradient("Desktop", "4aa6f7", "1442a8", 0.75, -0.2, 0.5), 0)
+    prism("Hinge", rounded_rect(1.20, 0.035, 0.015, 0, -0.30), 0.15, 0.035, principled("Hinge", "8a9099", 0.35, 0.8), 0.008)
+    prism("Deck", [(-0.62, -0.32), (0.62, -0.32), (0.74, -0.50), (-0.74, -0.50)], 0.12, 0.06, alu, 0.02)
 
 
 def hn():
