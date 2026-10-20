@@ -1,0 +1,50 @@
+{
+  "$schema": "https://pocketjs.dev/schema/pocket-2.json",
+  "pocket": 2,
+  "id": "dev.pocket-nexus.camera",
+  "name": "pocket-camera",
+  "title": "Camera",
+  "version": "0.1.0",
+  "applet": {
+    "version": 1
+  },
+  "engine": {
+    "capabilities": {
+      "requires": [
+        "text.glyphs.baked",
+        "input.buttons",
+        "display.auxiliary",
+        "input.touch.auxiliary",
+        "camera.photo"
+      ],
+      "enhances": [
+        "system.agent"
+      ]
+    }
+  },
+  "app": {
+    "entry": "camera/main.tsx",
+    "output": "camera-main",
+    "framework": "solid",
+    "surfaces": {
+      "auxiliary": {
+        "fixed": {
+          "logical": [
+            320,
+            240
+          ],
+          "presentation": "native"
+        }
+      }
+    },
+    "viewport": {
+      "fixed": {
+        "logical": [
+          400,
+          240
+        ],
+        "presentation": "native"
+      }
+    }
+  }
+}
