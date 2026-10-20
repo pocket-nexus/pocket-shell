@@ -113,6 +113,24 @@ describe("discord", () => {
     shot(app, "chat");
   });
 
+  test("Chinese server, channel, author names and messages draw from the Mac's atlases", async () => {
+    const fixture = discordFixture();
+    const app = await boot(fixture);
+    await app.run(40);
+    expect(app.texts("auxiliary")).toContain("中文 日本");
+    await app.tapText("Pocket Lab");
+    await app.run(40);
+    expect(app.texts("auxiliary")).toContain("中文");
+    await app.tapText("general");
+    await app.run(60);
+    const texts = app.texts("auxiliary");
+    expect(texts).toContain("中文 日本");
+    expect(texts.some((text) => text.startsWith("你好世界"))).toBe(true);
+    expect(fixture.glyphs.some((call) => call.slot === 21 && call.text.includes("你"))).toBe(true);
+    expect(fixture.glyphs.some((call) => call.slot === 22 && call.text.includes("中"))).toBe(true);
+    shot(app, "cjk");
+  });
+
   test("the live poll appends a new message and follows it to the bottom", async () => {
     const fixture = discordFixture();
     const app = await openGeneral(fixture);

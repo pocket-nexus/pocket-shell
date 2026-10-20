@@ -11,6 +11,7 @@
 
 import { fetch, NetError } from "@pocketjs/framework/net";
 import { companionService } from "@pocketjs/framework/link";
+import { GLYPH_ATLAS_URL } from "../ui/glyphs.ts";
 
 export const MAX_INFLIGHT = 2;
 /** How long the companion holds a poll open waiting for a new message. */
@@ -72,6 +73,8 @@ export interface DiscordClient {
   send(channel: string, content: string): Promise<Message>;
   /** An avatar or server icon as an IMG entry. */
   picture(kind: "avatar" | "icon", owner: string, hash: string): Promise<Uint8Array>;
+  /** A glyph atlas from the companion's glyphs service, in this queue. */
+  atlas(body: string): Promise<Uint8Array>;
   /** Requests in flight (tests: never above MAX_INFLIGHT). */
   inflight(): number;
   peak(): number;
@@ -120,14 +123,14 @@ export function createDiscordClient(): DiscordClient {
     }
   };
 
-  const request = <T,>(path: string, options: { method?: "GET" | "POST"; body?: unknown; urgent?: boolean; timeoutMs?: number; binary?: boolean } = {}): Promise<T> =>
+  const request = <T,>(path: string, options: { method?: "GET" | "POST"; body?: unknown; urgent?: boolean; timeoutMs?: number; binary?: boolean; url?: string; maxBytes?: number } = {}): Promise<T> =>
     new Promise<T>((resolve, reject) => {
       const task: Task = {
-        url: companionService("discord", path),
+        url: options.url ?? companionService("discord", path),
         method: options.method ?? "GET",
         body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
         timeoutMs: options.timeoutMs ?? 20_000,
-        maxBytes: 192 * 1024,
+        maxBytes: options.maxBytes ?? 192 * 1024,
         binary: options.binary ?? false,
         resolve: resolve as (value: unknown) => void,
         reject,
@@ -152,6 +155,7 @@ export function createDiscordClient(): DiscordClient {
     send: (channel, content) =>
       request<{ message: Message }>(`/channels/${channel}/messages`, { method: "POST", body: { content }, urgent: true }).then((answer) => answer.message),
     picture: (kind, owner, hash) => request<Uint8Array>(`/${kind}/${owner}/${hash}`, { binary: true }),
+    atlas: (body) => request<Uint8Array>("", { url: GLYPH_ATLAS_URL, method: "POST", body: JSON.parse(body) as unknown, binary: true, maxBytes: 256 * 1024 }),
     inflight: () => running,
     peak: () => peak,
   };

@@ -15,6 +15,7 @@ import { AuxiliarySurface, Text, View } from "@pocketjs/framework/components";
 import { createGesture } from "@pocketjs/framework/gesture";
 import { onButtonPress } from "@pocketjs/framework/lifecycle";
 import { createOsk, Osk, oskHeight } from "@pocketjs/framework/osk";
+import { createGlyphs, GLYPH_BOLD, GLYPH_TEXT } from "../ui/glyphs.ts";
 import { createNavStack } from "../ui/nav.tsx";
 import { createPress, createTouchRouter } from "../ui/touch.ts";
 import { ellipsize, FONT, toAscii, wrap } from "../ui/text.ts";
@@ -64,7 +65,7 @@ export default function Discord() {
     osk.open();
   };
 
-  const env: DiscordEnv = { model, press, keys, compose };
+  const env: DiscordEnv = { model, press, keys, compose, text: createGlyphs(GLYPH_TEXT, model.client.atlas), bold: createGlyphs(GLYPH_BOLD, model.client.atlas) };
   const stack = createNavStack({
     press,
     keys,

@@ -5,6 +5,11 @@
 // with the newest at the bottom. Rows have measured heights and are placed
 // by offset; a fixed pool of slots draws the ones near the visible band
 // (ui/slots.ts), as in Hacker News.
+//
+// Server, channel and author names and message text in any script draw from
+// font atlases the Mac renders (ui/glyphs.ts); a row whose glyphs are not in
+// yet draws folded to ASCII and is laid out again when they arrive. Page
+// titles stay in the bar's baked face.
 
 import { batch, createEffect, createMemo, createSignal, For, onMount, Show, untrack, type Accessor } from "solid-js";
 import { jump } from "@pocketjs/framework/animation";
@@ -16,6 +21,7 @@ import type { NodeMirror } from "@pocketjs/framework/renderer";
 import { BTN } from "@pocketjs/framework/input";
 import type { LayerContext, NavStack, PageContent, PageSpec } from "../ui/nav.tsx";
 import { ellipsize, FONT, measure, toAscii, wrap } from "../ui/text.ts";
+import { richText, type Glyphs } from "../ui/glyphs.ts";
 import { createSlotPool, paintText, type SlotPool } from "../ui/slots.ts";
 import type { Press, Target } from "../ui/touch.ts";
 import type { Channel, Guild, Message } from "./api.ts";
@@ -47,6 +53,25 @@ export interface DiscordEnv {
   keys: Accessor<boolean>;
   /** Open the composer for the open channel. */
   compose(): void;
+  /** Runtime text in any script: regular and bold atlases from the Mac. */
+  text: Glyphs;
+  bold: Glyphs;
+}
+
+/** fontSlot (contracts/spec/spec.ts PROP.fontSlot), and the glyph slots. */
+const PROP_FONT_SLOT = 97;
+const RICH = 21;
+const RICH_BOLD = 22;
+
+function setSlot(node: NodeMirror, slot: number) {
+  getOps().setProp(node.id, PROP_FONT_SLOT, slot);
+}
+
+/** `text` fitted to maxW: from `glyphs` when it covers the text, else folded
+ *  to ASCII in the baked slot. */
+function fitName(text: string, glyphs: Glyphs, baked: number, maxW: number): { text: string; rich: boolean } {
+  if (glyphs.covers(text)) return { text: glyphs.ellipsize(richText(text), maxW), rich: true };
+  return { text: ellipsize(toAscii(text), baked, maxW), rich: false };
 }
 
 function initialColor(id: string): string {
@@ -55,7 +80,15 @@ function initialColor(id: string): string {
   return INITIAL_COLORS[sum % INITIAL_COLORS.length]!;
 }
 
-const initialOf = (name: string) => (toAscii(name).replace(/[^A-Za-z0-9]/g, "")[0] ?? "?").toUpperCase();
+/** A name's first Latin letter or digit; else, when the bold atlas holds it,
+ *  its first character. */
+function initialOf(name: string, bold: Glyphs | null): { text: string; rich: boolean } {
+  const latin = toAscii(name).replace(/[^A-Za-z0-9]/g, "")[0];
+  if (latin) return { text: latin.toUpperCase(), rich: false };
+  const first = [...richText(name).trim()][0];
+  if (first && bold?.covers(first)) return { text: first, rich: true };
+  return { text: "?", rich: false };
+}
 
 /** Whether row `id` is lit: pressed, or focused by the d-pad. */
 function highlight(env: DiscordEnv, layer: LayerContext, prefix: string): (id: string) => boolean {
@@ -90,9 +123,10 @@ interface Avatar {
   kind: "avatar" | "icon";
 }
 
-function createPicturePainter(model: DiscordModel, image: () => NodeMirror, disc: () => NodeMirror, letter: () => NodeMirror) {
+function createPicturePainter(model: DiscordModel, image: () => NodeMirror, disc: () => NodeMirror, letter: () => NodeMirror, bold: Glyphs | null = null) {
   let current: Avatar | null = null;
   let shown = -2;
+  let letterRich = false;
   const repaint = () => {
     const handle = current ? model.picture(current.kind, current.owner, current.hash) : -1;
     if (handle === shown) return;
@@ -116,7 +150,9 @@ function createPicturePainter(model: DiscordModel, image: () => NodeMirror, disc
     shown = -2;
     if (avatar) {
       jump(disc(), "bgColor", initialColor(avatar.owner));
-      paintText(letter(), initialOf(avatar.name));
+      const initial = initialOf(avatar.name, bold);
+      if (initial.rich !== letterRich) setSlot(letter(), (letterRich = initial.rich) ? RICH_BOLD : FONT.smBold);
+      paintText(letter(), initial.text);
     } else paintText(letter(), "");
     repaint();
   };
@@ -188,6 +224,7 @@ interface GuildRow {
   key: string;
   guild: Guild;
   name: string;
+  rich: boolean;
   y: number;
   h: number;
 }
@@ -200,8 +237,9 @@ function GuildSlot(props: { env: DiscordEnv; pool: SlotPool<GuildRow>; slot: num
   const [id, setId] = createSignal("");
   const lit = createMemo(() => props.lit(id()));
   let y = -1;
+  let rich = false;
   onMount(() => {
-    const picture = createPicturePainter(props.env.model, () => refs.image!, () => refs.disc!, () => refs.letter!);
+    const picture = createPicturePainter(props.env.model, () => refs.image!, () => refs.disc!, () => refs.letter!, props.env.bold);
     createEffect(() => jump(wash, "opacity", lit() ? 1 : 0));
     props.pool.attach(props.slot, (row) => batch(() => {
       if (!row) {
@@ -214,6 +252,7 @@ function GuildSlot(props: { env: DiscordEnv; pool: SlotPool<GuildRow>; slot: num
       }
       if (y < 0) jump(box, "opacity", 1);
       if (row.y !== y) jump(box, "translateY", (y = row.y));
+      if (row.rich !== rich) setSlot(name, (rich = row.rich) ? RICH_BOLD : FONT.smBold);
       paintText(name, row.name);
       picture({ kind: "icon", owner: row.guild.id, hash: row.guild.icon, name: row.guild.name });
       setId(row.key);
@@ -231,15 +270,14 @@ function GuildSlot(props: { env: DiscordEnv; pool: SlotPool<GuildRow>; slot: num
 
 export function serversPage(env: DiscordEnv, stack: NavStack, layer: LayerContext): PageSpec {
   const { model, press } = env;
-  const rows = createMemo((): GuildRow[] =>
-    model.guilds().items.map((guild, index) => ({
-      key: `guild.${guild.id}`,
-      guild,
-      name: ellipsize(toAscii(guild.name), FONT.smBold, W - 52 - 12),
-      y: index * GUILD_H,
-      h: GUILD_H,
-    })),
-  );
+  createEffect(() => env.bold.want(model.guilds().items.map((guild) => guild.name)));
+  const rows = createMemo((): GuildRow[] => {
+    env.bold.revision();
+    return model.guilds().items.map((guild, index) => {
+      const name = fitName(guild.name, env.bold, FONT.smBold, W - 52 - 12);
+      return { key: `guild.${guild.id}`, guild, name: name.text, rich: name.rich, y: index * GUILD_H, h: GUILD_H };
+    });
+  });
   const listed = () => model.guilds().status === "ready" && rows().length > 0;
   const pool = createSlotPool(() => (listed() ? rows() : NO_ROWS), layer.offset, { view: VIEW_H, overscan: OVERSCAN, minRowH: GUILD_H });
   const lit = highlight(env, layer, "");
@@ -306,6 +344,7 @@ interface ChannelRow {
   key: string;
   channel: Channel | null;
   label: string;
+  rich: boolean;
   y: number;
   h: number;
 }
@@ -320,6 +359,7 @@ function ChannelSlot(props: { pool: SlotPool<ChannelRow>; slot: number; lit: (id
   const lit = createMemo(() => props.lit(id()));
   let y = -1;
   let h = -1;
+  let rich = false;
   onMount(() => {
     createEffect(() => {
       jump(wash, "opacity", lit() ? 1 : 0);
@@ -337,6 +377,11 @@ function ChannelSlot(props: { pool: SlotPool<ChannelRow>; slot: number; lit: (id
       if (row.y !== y) jump(box, "translateY", (y = row.y));
       if (row.h !== h) jump(box, "height", (h = row.h));
       const channel = row.channel !== null;
+      if (row.rich !== rich) {
+        rich = row.rich;
+        setSlot(name, rich ? RICH : FONT.sm);
+        setSlot(header, rich ? RICH_BOLD : FONT.xxsBold);
+      }
       paintText(header, channel ? "" : row.label);
       paintText(hash, channel ? "#" : "");
       paintText(name, channel ? row.label : "");
@@ -355,7 +400,14 @@ function ChannelSlot(props: { pool: SlotPool<ChannelRow>; slot: number; lit: (id
 
 export function channelsPage(env: DiscordEnv, stack: NavStack, layer: LayerContext): PageSpec {
   const { model, press } = env;
+  createEffect(() => {
+    const items = model.channels().items;
+    env.text.want(items.map((channel) => channel.name));
+    env.bold.want(items.map((channel) => channel.category ?? ""));
+  });
   const rows = createMemo((): ChannelRow[] => {
+    env.text.revision();
+    env.bold.revision();
     const out: ChannelRow[] = [];
     let y = 4;
     let category: string | null | undefined;
@@ -363,11 +415,13 @@ export function channelsPage(env: DiscordEnv, stack: NavStack, layer: LayerConte
       if (channel.category !== category) {
         category = channel.category;
         if (category !== null) {
-          out.push({ key: "", channel: null, label: ellipsize(toAscii(category).toUpperCase(), FONT.xxsBold, W - 20), y, h: CATEGORY_H });
+          const label = fitName(category.toUpperCase(), env.bold, FONT.xxsBold, W - 20);
+          out.push({ key: "", channel: null, label: label.text, rich: label.rich, y, h: CATEGORY_H });
           y += CATEGORY_H;
         }
       }
-      out.push({ key: `channel.${channel.id}`, channel, label: ellipsize(toAscii(channel.name), FONT.sm, W - 32 - 12), y, h: CHANNEL_H });
+      const label = fitName(channel.name, env.text, FONT.sm, W - 32 - 12);
+      out.push({ key: `channel.${channel.id}`, channel, label: label.text, rich: label.rich, y, h: CHANNEL_H });
       y += CHANNEL_H;
     }
     return out;
@@ -446,6 +500,7 @@ const EARLIER_H = 34;
 /** Messages by one author within this many ms share one header. */
 const GROUP_MS = 7 * 60_000;
 const MESSAGE_MIN_H = BODY_LINE + 4;
+const GLYPH_STEP = 120;
 
 export interface MessageRow {
   key: string;
@@ -462,21 +517,33 @@ export interface MessageRow {
   body: string;
   bodyY: number;
   avatar: Avatar;
+  /** Name, reply and body draw from the glyph atlases. */
+  rich: boolean;
 }
 
-const bodyCache = new Map<string, { content: string; lines: string[] }>();
+const bodyCache = new Map<string, { content: string; stamp: number; lines: string[] }>();
 
-function bodyLines(message: Message): string[] {
+function bodyLines(message: Message, glyphs: Glyphs | null): string[] {
+  // A rich layout is valid for the atlas revision it measured with.
+  const stamp = glyphs ? glyphs.revision() : -1;
   const cached = bodyCache.get(message.id);
-  if (cached && cached.content === message.content) return cached.lines;
-  const text = toAscii(message.content) + (message.edited ? " (edited)" : "");
-  const lines = wrap(text || " ", FONT.sm, BODY_W);
+  if (cached && cached.content === message.content && cached.stamp === stamp) return cached.lines;
+  const edited = message.edited ? " (edited)" : "";
+  const lines = glyphs ? glyphs.wrap(richText(message.content) + edited || " ", BODY_W) : wrap(toAscii(message.content) + edited || " ", FONT.sm, BODY_W);
   if (bodyCache.size > 1000) bodyCache.clear();
-  bodyCache.set(message.id, { content: message.content, lines });
+  bodyCache.set(message.id, { content: message.content, stamp, lines });
   return lines;
 }
 
-export function messageRows(chat: ChatState): { rows: MessageRow[]; height: number; top: number } {
+/** The texts of a message that may hold any script, by face. */
+export function messageTexts(message: Message): { text: string[]; bold: string[] } {
+  return {
+    text: message.replyTo ? [message.content, message.replyTo.author, message.replyTo.content] : [message.content],
+    bold: [message.author.name],
+  };
+}
+
+export function messageRows(chat: ChatState, glyphs: { text: Glyphs; bold: Glyphs } | null = null): { rows: MessageRow[]; height: number; top: number } {
   const top = chat.more || chat.loadingOlder ? EARLIER_H : 6;
   let y = top;
   let previous: Message | null = null;
@@ -484,9 +551,15 @@ export function messageRows(chat: ChatState): { rows: MessageRow[]; height: numb
     const head = message.system || !previous || previous.system || previous.author.id !== message.author.id ||
       message.time - previous.time > GROUP_MS || message.replyTo !== null;
     previous = message;
-    const lines = bodyLines(message);
-    const reply = message.replyTo ? ellipsize(`@${toAscii(message.replyTo.author)} ${toAscii(message.replyTo.content)}`, FONT.xxs, BODY_W) : "";
-    const name = message.system ? "" : ellipsize(toAscii(message.author.name), FONT.xsBold, 150);
+    const texts = messageTexts(message);
+    const rich = !!glyphs && glyphs.text.ready() && texts.text.every((text) => glyphs.text.covers(text)) && texts.bold.every((text) => glyphs.bold.covers(text));
+    const lines = bodyLines(message, rich ? glyphs!.text : null);
+    const reply = !message.replyTo
+      ? ""
+      : rich
+        ? glyphs!.text.ellipsize(richText(`@${message.replyTo.author} ${message.replyTo.content}`), BODY_W)
+        : ellipsize(`@${toAscii(message.replyTo.author)} ${toAscii(message.replyTo.content)}`, FONT.xxs, BODY_W);
+    const name = message.system ? "" : rich ? glyphs!.bold.ellipsize(richText(message.author.name), 150) : ellipsize(toAscii(message.author.name), FONT.xsBold, 150);
     const offset = (head ? 6 : 1) + (reply ? REPLY_H : 0);
     const bodyY = offset + (head && !message.system ? HEADER_H : 0);
     const h = bodyY + lines.length * BODY_LINE + 3;
@@ -498,12 +571,13 @@ export function messageRows(chat: ChatState): { rows: MessageRow[]; height: numb
       head,
       system: message.system,
       name,
-      nameW: name ? measure(name, FONT.xsBold) : 0,
+      nameW: name ? (rich ? glyphs!.bold.measure(name) : measure(name, FONT.xsBold)) : 0,
       when: message.when,
       reply,
       body: lines.join("\n"),
       bodyY,
       avatar: { kind: "avatar", owner: message.author.id, hash: message.author.avatar, name: message.author.name },
+      rich,
     };
     y += h;
     return row;
@@ -526,8 +600,9 @@ function MessageSlot(props: { env: DiscordEnv; pool: SlotPool<MessageRow>; slot:
   let whenX = -1;
   let bodyY = -1;
   let tone = "";
+  let rich = false;
   onMount(() => {
-    const picture = createPicturePainter(props.env.model, () => refs.image!, () => refs.disc!, () => refs.letter!);
+    const picture = createPicturePainter(props.env.model, () => refs.image!, () => refs.disc!, () => refs.letter!, props.env.bold);
     createEffect(() => jump(wash, "opacity", lit() ? 1 : 0));
     props.pool.attach(props.slot, (row) => batch(() => {
       if (!row) {
@@ -542,6 +617,12 @@ function MessageSlot(props: { env: DiscordEnv; pool: SlotPool<MessageRow>; slot:
       if (row.y !== y) jump(box, "translateY", (y = row.y));
       if (row.h !== h) jump(box, "height", (h = row.h));
       const header = row.head && !row.system;
+      if (row.rich !== rich) {
+        rich = row.rich;
+        setSlot(name, rich ? RICH_BOLD : FONT.xsBold);
+        setSlot(reply, rich ? RICH : FONT.xxs);
+        setSlot(body, rich ? RICH : FONT.sm);
+      }
       paintText(name, header ? row.name : "");
       paintText(when, header ? row.when : "");
       paintText(reply, row.reply);
@@ -576,7 +657,23 @@ export function chatPage(env: DiscordEnv, _stack: NavStack, layer: LayerContext)
   const { model, press } = env;
   const layout = createMemo(() => {
     const chat = model.chat();
-    return chat ? messageRows(chat) : { rows: [] as MessageRow[], height: 0, top: 0 };
+    env.text.revision();
+    env.bold.revision();
+    return chat ? messageRows(chat, env) : { rows: [] as MessageRow[], height: 0, top: 0 };
+  });
+  // Glyphs for the messages around the visible band (two screens above and
+  // below), again when the list changes or the band moves by GLYPH_STEP: an
+  // atlas holds what one response carries, so it follows the reader.
+  const band = createMemo(() => Math.floor(layer.offset() / GLYPH_STEP));
+  createEffect(() => {
+    const messages = model.chat()?.messages ?? [];
+    const top = band() * GLYPH_STEP - 2 * VIEW_H;
+    const bottom = band() * GLYPH_STEP + 3 * VIEW_H;
+    const ids = new Set(layout().rows.filter((row) => row.y + row.h > top && row.y < bottom).map((row) => row.id));
+    const texts = messages.filter((message) => ids.has(message.id)).map(messageTexts);
+    if (texts.length === 0) return;
+    env.text.want(texts.flatMap((item) => item.text));
+    env.bold.want(texts.flatMap((item) => item.bold));
   });
   const ready = () => model.chat()?.status === "ready";
   const pool = createSlotPool(() => (ready() ? layout().rows : NO_ROWS), layer.offset, { view: VIEW_H, overscan: OVERSCAN, minRowH: MESSAGE_MIN_H });

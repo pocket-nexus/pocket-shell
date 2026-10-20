@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, extname, relative, resolve } from "node:path";
 import { ROOT } from "./paths.ts";
 
@@ -29,9 +29,13 @@ for (const path of tracked.filter((path) => path.endsWith(".md"))) {
 const sourceInputs = new Set([
   "shells/desktop/assets/fonts/W95FA.otf",
 ]);
-// Home's pictures, including the Blender-baked icons the build reads.
-const homeImages = JSON.parse(readFileSync(resolve(ROOT, "shells/3ds/home/images.json"), "utf8"));
-for (const key of Object.keys(homeImages)) sourceInputs.add(`shells/3ds/home/${key}`);
+// Each 3DS app's pictures (Home's Blender-baked icons, X's action icons):
+// the images.json beside an app's manifest names what its build reads.
+for (const app of readdirSync(resolve(ROOT, "shells/3ds"), { withFileTypes: true })) {
+  const manifest = resolve(ROOT, "shells/3ds", app.name, "images.json");
+  if (!app.isDirectory() || !existsSync(manifest)) continue;
+  for (const key of Object.keys(JSON.parse(readFileSync(manifest, "utf8")))) sourceInputs.add(`shells/3ds/${app.name}/${key}`);
+}
 const touchImages = JSON.parse(readFileSync(resolve(ROOT, "shells/touch/src/images.json"), "utf8"));
 for (const key of Object.keys(touchImages)) sourceInputs.add(`shells/touch/src/${key}`);
 

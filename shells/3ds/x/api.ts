@@ -4,11 +4,13 @@
 //
 // The Mac holds the X session; the console asks for a page of the timeline,
 // a thread or an avatar and gets compact JSON (an avatar: a 32x32 IMG entry
-// the console uploads as a texture). Requests share one queue of at most
+// the console uploads as a texture), and likes, reposts and replies through
+// it. Requests share one queue of at most
 // MAX_INFLIGHT, the NET module's limit; avatars wait behind pages.
 
 import { fetch, NetError } from "@pocketjs/framework/net";
 import { companionService } from "@pocketjs/framework/link";
+import { GLYPH_ATLAS_URL } from "../ui/glyphs.ts";
 
 export const MAX_INFLIGHT = 2;
 /** A first request can wait while the Mac reads x.com's client. */
@@ -29,6 +31,9 @@ export interface Post {
   replies: number;
   reposts: number;
   likes: number;
+  /** The signed-in account liked or reposted it. */
+  liked?: boolean;
+  reposted?: boolean;
   views?: number;
   replyTo?: string;
   repostedBy?: string;
@@ -59,8 +64,14 @@ export class XError extends Error {
   }
 }
 
+export type Action = "like" | "unlike" | "repost" | "unrepost";
+
 interface Task {
   path: string;
+  /** A full URL instead of an x service path (the glyphs service). */
+  url?: string;
+  method?: "POST";
+  body?: string;
   timeoutMs: number;
   maxBytes: number;
   binary: boolean;
@@ -73,6 +84,11 @@ export interface XClient {
   thread(id: string, cursor?: string | null): Promise<Thread>;
   /** The avatar's IMG entry bytes. */
   avatar(url: string): Promise<Uint8Array>;
+  act(action: Action, id: string): Promise<void>;
+  /** A glyph atlas from the companion's glyphs service, in this queue. */
+  atlas(body: string): Promise<Uint8Array>;
+  /** Reply to post `id`; the new post when X returned it. */
+  reply(id: string, text: string): Promise<Post | null>;
   inflight(): number;
   peak(): number;
 }
@@ -87,7 +103,11 @@ export function createXClient(): XClient {
       const task = queue.shift()!;
       running++;
       peak = Math.max(peak, running);
-      fetch(companionService("x", task.path), { timeoutMs: task.timeoutMs, maxBytes: task.maxBytes }).then(
+      fetch(task.url ?? companionService("x", task.path), {
+        timeoutMs: task.timeoutMs,
+        maxBytes: task.maxBytes,
+        ...(task.method ? { method: task.method, headers: { "content-type": "application/json" }, body: task.body ?? "" } : {}),
+      }).then(
         async (response) => {
           running--;
           pump();
@@ -116,10 +136,12 @@ export function createXClient(): XClient {
     }
   };
 
-  const request = <T,>(path: string, options: { urgent?: boolean; binary?: boolean; timeoutMs?: number; maxBytes?: number } = {}): Promise<T> =>
+  const request = <T,>(path: string, options: { urgent?: boolean; binary?: boolean; timeoutMs?: number; maxBytes?: number; body?: string; url?: string } = {}): Promise<T> =>
     new Promise<T>((resolve, reject) => {
       const task: Task = {
         path,
+        ...(options.url ? { url: options.url } : {}),
+        ...(options.body !== undefined ? { method: "POST" as const, body: options.body } : {}),
         timeoutMs: options.timeoutMs ?? PAGE_TIMEOUT_MS,
         maxBytes: options.maxBytes ?? 256 * 1024,
         binary: options.binary ?? false,
@@ -137,6 +159,10 @@ export function createXClient(): XClient {
     timeline: (kind, cursor) => request<Page>(withCursor(`/timeline?kind=${kind}`, cursor), { urgent: true }),
     thread: (id, cursor) => request<Thread>(withCursor(`/post/${id}`, cursor), { urgent: true }),
     avatar: (url) => request<Uint8Array>(`/avatar?u=${encodeURIComponent(url)}`, { binary: true, timeoutMs: 20_000, maxBytes: 8 * 1024 }),
+    atlas: (body) => request<Uint8Array>("", { url: GLYPH_ATLAS_URL, body, binary: true, timeoutMs: 20_000, maxBytes: 256 * 1024 }),
+    act: (action, id) => request<unknown>(`/${action}?id=${id}`, { urgent: true, body: "", timeoutMs: 30_000 }).then(() => undefined),
+    reply: (id, text) =>
+      request<{ post?: Post }>("/reply", { urgent: true, body: JSON.stringify({ id, text }), timeoutMs: 30_000 }).then((answer) => answer.post ?? null),
     inflight: () => running,
     peak: () => peak,
   };

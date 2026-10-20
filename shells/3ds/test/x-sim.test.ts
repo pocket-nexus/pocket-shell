@@ -15,7 +15,7 @@ import { BTN } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
 import { bootConsole3ds, type Console3ds, type Console3dsOptions } from "../../../vendor/pocketjs/hosts/sim/console-3ds.ts";
 import { encodePNG } from "../../../vendor/pocketjs/tools/png.ts";
 import { buildGuest } from "./build.ts";
-import { X_SERVICE, xRoutes } from "./x-fixture.ts";
+import { CJK_NAME, X_SERVICE, xRoutes, type XCalls } from "./x-fixture.ts";
 
 const OUT = mkdtempSync(join(tmpdir(), "pocket-x-"));
 let GUEST = join(OUT, "guest", "x-main");
@@ -33,10 +33,12 @@ afterAll(() => {
   rmSync(OUT, { recursive: true, force: true });
 });
 
-function boot(options: Partial<Console3dsOptions> & { signedOut?: boolean } = {}): Promise<Console3ds> {
-  const { signedOut, ...rest } = options;
-  return bootConsole3ds({ js: `${GUEST}.js`, pak: `${GUEST}.pak`, current: "x-main", link: null, wifi: null, camera: false, net: xRoutes({ signedOut }), ...rest });
+function boot(options: Partial<Console3dsOptions> & { signedOut?: boolean; calls?: XCalls } = {}): Promise<Console3ds> {
+  const { signedOut, calls, ...rest } = options;
+  return bootConsole3ds({ js: `${GUEST}.js`, pak: `${GUEST}.pak`, current: "x-main", link: null, wifi: null, camera: false, net: xRoutes({ signedOut, calls }), ...rest });
 }
+
+const newCalls = (): XCalls => ({ actions: [], replies: [], glyphs: [] });
 
 function shot(x: Console3ds, name: string): void {
   if (!SHOTS) return;
@@ -76,7 +78,9 @@ describe("the timeline", () => {
     const all = bottom.join(" | ");
     for (const text of ["Following", "For You", "Ruth Kim", "@ruthk  25m", "Kestrel reposted", "Pocket Dev"]) expect(all).toContain(text);
     expect(bottom).toContain("Shipped a dual-screen reader for the");
-    expect(all).toContain("0 replies   0 reposts   1.2K likes");
+    // The action bar: counts beside the reply, repost and like buttons.
+    expect(bottom).toContain("1.2K");
+    expect(bottom).toContain("3");
     expect(x.texts("primary")).toEqual([]);
     expect(peakInflight(x)).toBeLessThanOrEqual(2);
     shot(x, "timeline");
@@ -119,6 +123,82 @@ describe("the timeline", () => {
     await x.tapText("Following");
     await x.run(20);
     expect(x.texts("auxiliary").join(" ")).toContain("Ruth Kim");
+  });
+});
+
+describe("text in any script", () => {
+  test("Chinese names and posts draw from atlases the Mac renders, not as ?", async () => {
+    const calls = newCalls();
+    const x = await boot({ calls });
+    await x.run(80);
+    const regular = calls.glyphs.find((call) => call.slot === 21);
+    const bold = calls.glyphs.find((call) => call.slot === 22);
+    expect(regular).toMatchObject({ px: 13, bold: false });
+    expect(regular!.text).toContain("你");
+    expect(bold).toMatchObject({ px: 13, bold: true });
+    expect(bold!.text).toContain("中");
+    // The atlases ride the app's queue: never more than two requests at once.
+    expect(peakInflight(x)).toBeLessThanOrEqual(2);
+    await scrollTo(x, CJK_NAME);
+    const all = x.texts("auxiliary").join(" | ");
+    expect(all).toContain(CJK_NAME);
+    expect(all).toContain("你好世界");
+    shot(x, "cjk");
+  });
+});
+
+describe("actions", () => {
+  test("like shows at once and asks the Mac; tapping again unlikes", async () => {
+    const calls = newCalls();
+    const x = await boot({ calls });
+    await x.run(80);
+    await scrollTo(x, CJK_NAME);
+    // This post is liked, with 12 likes.
+    const like = await scrollTo(x, "12");
+    await x.tap(like[0] - 10, like[1] + 4);
+    await x.run(4);
+    expect(x.texts("auxiliary")).toContain("11");
+    await x.run(10);
+    expect(calls.actions).toEqual(["unlike 1004"]);
+    const again = await scrollTo(x, "11");
+    await x.tap(again[0] - 10, again[1] + 4);
+    await x.run(14);
+    expect(x.texts("auxiliary")).toContain("12");
+    expect(calls.actions).toEqual(["unlike 1004", "like 1004"]);
+    shot(x, "liked");
+  });
+
+  test("a like X refuses goes back, with a notice", async () => {
+    const calls = newCalls();
+    const x = await boot({ calls });
+    await x.run(80);
+    const like = await scrollTo(x, "77");
+    await x.tap(like[0] - 10, like[1] + 4);
+    await x.run(20);
+    expect(calls.actions).toEqual(["like 1005"]);
+    expect(x.texts("auxiliary")).toContain("77");
+    expect(x.texts("auxiliary").join(" ")).toContain("Could not like");
+    shot(x, "refused");
+  });
+
+  test("reply opens the composer; START sends the text to the Mac", async () => {
+    const calls = newCalls();
+    const x = await boot({ calls });
+    await x.run(80);
+    await scrollTo(x, CJK_NAME);
+    const like = await scrollTo(x, "12");
+    // The reply button is two buttons left of like.
+    await x.tap(like[0] - 10 - 128, like[1] + 4);
+    await x.run(20);
+    expect(x.texts("auxiliary").join(" ")).toContain("Reply to @dpadfan");
+    shot(x, "compose");
+    for (const key of ["h", "i"]) await x.tapText(key);
+    await x.press(BTN.START, 20);
+    expect(calls.replies).toEqual([{ id: "1004", text: "hi" }]);
+    expect(x.texts("auxiliary").join(" ")).not.toContain("Reply to @");
+    // The post counts the reply.
+    expect(x.texts("auxiliary")).toContain("3");
+    expect(x.texts("auxiliary").join(" ")).toContain("Reply sent");
   });
 });
 

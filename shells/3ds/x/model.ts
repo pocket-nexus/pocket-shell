@@ -1,17 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/x/model.ts — the X timelines, the threads the reader opened and
-// the avatars on screen, as signals over the API client.
+// the avatars on screen, as signals over the API client, and the reader's
+// likes, reposts and replies.
 //
 // A timeline loads PAGE posts at a time from the Mac, each page after the
 // cursor of the last. A thread is the post, the posts it answers and its
 // replies. An avatar is a texture registered under its own key once its IMG
 // entry arrives; at most AVATARS stay uploaded, the least recently shown
 // freed first, and a row draws its initials until its face is in.
+//
+// A like or a repost shows at once: the model keeps the post's new state and
+// count as an override over what X sent, asks the Mac, and takes it back if
+// X refuses (with a notice).
 
 import { createSignal, type Accessor } from "solid-js";
+import { after } from "@pocketjs/framework/clock";
 import { getOps } from "@pocketjs/framework/host";
 import { registerTexture } from "@pocketjs/framework/renderer";
-import { createXClient, errorText, type Kind, type Post, type XClient } from "./api.ts";
+import { createXClient, errorText, type Action, type Kind, type Post, type XClient } from "./api.ts";
 
 const AVATARS = 64;
 
@@ -52,6 +58,23 @@ export interface XModel {
   avatar(url: string | undefined): string;
   /** Bumped when an avatar arrives. */
   avatars: Accessor<number>;
+  /** `post` with the reader's likes, reposts and replies applied. */
+  view(post: Post): Post;
+  /** Bumped when an override changes. */
+  marks: Accessor<number>;
+  toggle(post: Post, what: "like" | "repost"): void;
+  /** Reply to `post`; resolves to an error message, or "" when sent. */
+  reply(post: Post, text: string): Promise<string>;
+  /** A short message for the reader (an action X refused), "" when none. */
+  notice: Accessor<string>;
+}
+
+interface Mark {
+  liked: boolean;
+  likes: number;
+  reposted: boolean;
+  reposts: number;
+  replies: number;
 }
 
 const EMPTY: TimelineState = { status: "loading", posts: [], cursor: null, more: false, error: null };
@@ -169,6 +192,59 @@ export function createXModel(client: XClient = createXClient()): XModel {
     return "";
   };
 
+  // -- the reader's actions --------------------------------------------------------
+  const [marks, setMarks] = createSignal(0);
+  const [notice, setNotice] = createSignal("");
+  const overrides = new Map<string, Mark>();
+  const views = new Map<string, { post: Post; mark: Mark; view: Post }>();
+  const markOf = (post: Post): Mark =>
+    overrides.get(post.id) ?? { liked: !!post.liked, likes: post.likes, reposted: !!post.reposted, reposts: post.reposts, replies: post.replies };
+  const setMark = (id: string, mark: Mark) => {
+    overrides.set(id, mark);
+    setMarks(marks() + 1);
+  };
+  let noticeRun = 0;
+  const say = (text: string) => {
+    const run = ++noticeRun;
+    setNotice(text);
+    after(3, () => run === noticeRun && setNotice(""));
+  };
+  const view = (post: Post): Post => {
+    const mark = overrides.get(post.id);
+    if (!mark) return post;
+    const cached = views.get(post.id);
+    if (cached && cached.post === post && cached.mark === mark) return cached.view;
+    const next = { ...post, ...mark };
+    if (views.size > 400) views.clear();
+    views.set(post.id, { post, mark, view: next });
+    return next;
+  };
+  const toggle = (post: Post, what: "like" | "repost") => {
+    const before = markOf(post);
+    const on = what === "like" ? !before.liked : !before.reposted;
+    const after: Mark =
+      what === "like"
+        ? { ...before, liked: on, likes: Math.max(0, before.likes + (on ? 1 : -1)) }
+        : { ...before, reposted: on, reposts: Math.max(0, before.reposts + (on ? 1 : -1)) };
+    setMark(post.id, after);
+    const action: Action = what === "like" ? (on ? "like" : "unlike") : on ? "repost" : "unrepost";
+    client.act(action, post.id).catch((error: unknown) => {
+      // Put back what the post showed, unless the reader changed it again.
+      if (overrides.get(post.id) === after) setMark(post.id, before);
+      say(`Could not ${action}: ${errorText(error).detail}`);
+    });
+  };
+  const reply = (post: Post, text: string): Promise<string> =>
+    client.reply(post.id, text).then(
+      () => {
+        const mark = markOf(post);
+        setMark(post.id, { ...mark, replies: mark.replies + 1 });
+        say("Reply sent");
+        return "";
+      },
+      (error: unknown) => errorText(error).detail,
+    );
+
   return {
     client,
     kind,
@@ -186,5 +262,10 @@ export function createXModel(client: XClient = createXClient()): XModel {
     moreReplies,
     avatar,
     avatars,
+    view,
+    marks,
+    toggle,
+    reply,
+    notice,
   };
 }
