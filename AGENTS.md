@@ -8,12 +8,13 @@ first, and this repository moves its pin.
 The repository holds **three shells**, and a change belongs
 to one of them:
 
-- `shells/3ds/` — Pocket Home, the 3DS launcher, and the apps it ships with
-  (Hacker News), over one iOS 6 kit in `ui/`. **Its only platform is the
-  Nintendo 3DS**: two screens of fixed size, a resistive panel with one
-  contact, a d-pad and shoulder buttons. Every app draws on the touch screen
-  only and declares `system.agent`; the top screen and the L+R agent overlay
-  belong to the PocketJS host and framework, not to this repository.
+- `shells/3ds/` — Pocket Home, the 3DS launcher, and the **Pocket Applets** it
+  ships with (Hacker News, YouTube, X, Discord), over one iOS 6 kit in `ui/`.
+  **Its only platform is the Nintendo 3DS**: two screens of fixed size, a
+  resistive panel with one contact, a d-pad and shoulder buttons. Every
+  applet draws on the touch screen and declares `system.agent`; the top
+  screen and the L+R agent overlay belong to the PocketJS host and
+  framework, not to this repository.
 - `shells/touch/` — Pocket Shell Touch, a full-screen gesture shell with
   retained mock apps on iPod touch 4 and Nokia E7. It owns navigation, window
   recency and its device tests.
@@ -43,10 +44,16 @@ fonts retain their own licenses. See `LICENSING.md`.
   Themes must not determine package identity or native host behavior.
 - Prose states the mechanism and the reason. No slogans, no imported
   architecture jargon, no empty intensifiers.
-- A 3DS app's manifest entry is relative to `shells/3ds/`, the build's
-  project root; `shells/3ds/scripts/apps.ts` lists the apps and resolves
-  their plans.
-- Lone L and R presses reach a 3DS app six frames late (the host waits for
+- Every program Home runs is a **Pocket Applet**: its manifest declares
+  `applet` (services, hosts, store) and meets the applet rules in PocketJS
+  `docs/APPLETS.md` — one 320×240 touch surface, a capability allowlist,
+  declared network destinations, no native code, no `eval`, size budgets. The
+  PocketJS build refuses a broken applet; `test/applets.test.ts` checks every
+  one. Home is the launcher and declares no `applet`.
+- A manifest entry is relative to `shells/3ds/`, the build's project root;
+  `shells/3ds/scripts/apps.ts` lists Home and the applets and resolves their
+  plans.
+- Lone L and R presses reach an applet six frames late (the host waits for
   the L+R chord), so do not bind frequent actions to them.
 
 ## Assets
@@ -64,7 +71,7 @@ bun run push --host <console-ip>     # rebuild Home's package and hot-push it
 bun run push hn --host <console-ip>  # rebuild Hacker News, install it into its slot and start it
 bun run deploy --host <console-ip>   # rebuild the .3dsx, install it over the wire, restart into it
 bun run shot --host <console-ip>     # a screenshot of both screens
-bun run offer                        # offer the 3DS apps through the running Pocket Companion
+bun run offer                        # offer the 3DS applets through the running Pocket Companion
 bun run 3ds                          # the full .3dsx in dist/3ds
 ```
 

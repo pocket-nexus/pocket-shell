@@ -5,6 +5,12 @@
   "name": "pocket-youtube",
   "title": "YouTube",
   "version": "0.1.0",
+  "applet": {
+    "version": 1,
+    "services": [
+      "youtube"
+    ]
+  },
   "engine": {
     "capabilities": {
       "requires": [
@@ -28,14 +34,20 @@
     "surfaces": {
       "auxiliary": {
         "fixed": {
-          "logical": [320, 240],
+          "logical": [
+            320,
+            240
+          ],
           "presentation": "native"
         }
       }
     },
     "viewport": {
       "fixed": {
-        "logical": [400, 240],
+        "logical": [
+          400,
+          240
+        ],
         "presentation": "native"
       }
     }

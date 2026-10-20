@@ -5,6 +5,13 @@
   "name": "pocket-x",
   "title": "X",
   "version": "0.1.0",
+  "applet": {
+    "version": 1,
+    "services": [
+      "x",
+      "glyphs"
+    ]
+  },
   "engine": {
     "capabilities": {
       "requires": [

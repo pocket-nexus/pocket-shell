@@ -5,6 +5,13 @@
   "name": "pocket-discord",
   "title": "Discord",
   "version": "0.1.0",
+  "applet": {
+    "version": 1,
+    "services": [
+      "discord",
+      "glyphs"
+    ]
+  },
   "engine": {
     "capabilities": {
       "requires": [

@@ -7,7 +7,7 @@ shell owns its interface and input model.
 
 | Shell | Role | Source and documentation |
 | --- | --- | --- |
-| Nintendo 3DS | Pocket Home and its apps on the touch screen; Claude's room on the top screen, and L+R asks Claude over any app | [shells/3ds](shells/3ds/README.md) |
+| Nintendo 3DS | Pocket Home and its Pocket Applets on the touch screen; Claude's room on the top screen, and L+R asks Claude over any applet | [shells/3ds](shells/3ds/README.md) |
 | Touch navigation | Full-screen gesture navigation with sixteen mock apps on iPod touch 4 and Nokia E7 | [shells/touch](shells/touch/README.md) |
 | Desktop OS | Windows, application launching and Classic 98, XP and Aqua themes on macOS and Linux, with a browser preview; the shell Pocket Studio uses | [shells/desktop](shells/desktop/README.md) |
 
@@ -91,7 +91,7 @@ to list its commands, including captures, benchmarks and the text companion.
 ```sh
 bun run deploy --host <console-ip> # build Home's .3dsx, install it over the wire and restart into it
 bun run push [hn] --host <console-ip>  # rebuild and hot-push Home (or install Hacker News)
-bun run offer                    # offer the 3DS apps through the running Pocket Companion
+bun run offer                    # offer the 3DS applets through the running Pocket Companion
 bun run shot --host <console-ip>  # capture both console screens
 bun run 3ds                      # full console binary in dist/3ds
 bun run touch guest
