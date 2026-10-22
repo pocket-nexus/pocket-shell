@@ -72,7 +72,10 @@ a re-render is a new set of pictures to review, not a check.
 **YouTube, X and Discord** reach their services through the linked Mac:
 each applet fetches `https://companion.pocket/<service>/…`, which Pocket
 Companion answers itself (PocketJS `tools/companion/services/`). Accounts,
-tokens and tools stay on the Mac; the console never holds them.
+tokens and tools stay on the Mac; the console never holds them. The
+companion answers a service only for an app in its catalog whose manifest
+lists that service in `applet.services`, so `bun run offer` comes before
+a pushed applet can reach its service; any other request gets 403.
 
 - **YouTube** lists topic feeds and search results from yt-dlp, with
   thumbnails the companion renders into textures. The Mac needs yt-dlp and
