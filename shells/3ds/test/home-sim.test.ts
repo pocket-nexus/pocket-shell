@@ -47,8 +47,9 @@ afterAll(() => {
   rmSync(OUT, { recursive: true, force: true });
 });
 
-function boot(options: Partial<Console3dsOptions> = {}): Promise<Console3ds> {
-  return bootConsole3ds({
+/** Home booted, with its board's 300 ms arrival zoom run out. */
+async function boot(options: Partial<Console3dsOptions> = {}): Promise<Console3ds> {
+  const home = await bootConsole3ds({
     js: `${GUEST}.js`,
     pak: `${GUEST}.pak`,
     apps: APPS,
@@ -56,6 +57,8 @@ function boot(options: Partial<Console3dsOptions> = {}): Promise<Console3ds> {
     wifi: { saved: ["PocketNet", "Studio 5G", ""], connected: 0 },
     ...options,
   });
+  await home.run(20);
+  return home;
 }
 
 function shot(console3ds: Console3ds, name: string): void {
