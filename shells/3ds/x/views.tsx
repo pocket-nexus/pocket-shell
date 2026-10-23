@@ -63,6 +63,10 @@ export interface XEnv {
   bold: Glyphs;
   /** Open the reply composer for a post. */
   reply(post: Post): void;
+  /** A list scrolled this frame. */
+  moved(): void;
+  /** No list has scrolled for a few frames. */
+  resting(): boolean;
 }
 
 export function ageText(time: number, now: number): string {
@@ -141,8 +145,6 @@ export interface PostRow {
   color: string;
 }
 
-const textCache = new Map<string, { post: Post; focal: boolean; rich: number; lines: string[]; quote: string[] }>();
-
 /** The texts of a post that may hold any script. */
 export function postTexts(post: Post): string[] {
   const out = [post.name, post.text];
@@ -151,23 +153,104 @@ export function postTexts(post: Post): string[] {
   return out;
 }
 
-/** A row draws rich when both atlases hold every glyph its texts use. */
-function richRow(post: Post, glyphs: GlyphPair | null): boolean {
-  if (!glyphs || !glyphs.text.ready()) return false;
-  const texts = postTexts(post);
-  return texts.every((text) => glyphs.text.covers(text)) && glyphs.bold.covers(post.name) && (!post.repostedBy || glyphs.bold.covers(post.repostedBy));
-}
-
 interface GlyphPair {
   text: Glyphs;
   bold: Glyphs;
 }
 
-function postLines(post: Post, focal: boolean, glyphs: GlyphPair | null, rich: boolean): { lines: string[]; quote: string[] } {
-  // A rich layout is valid for the atlas revision it measured with.
-  const stamp = rich && glyphs ? glyphs.text.revision() : -1;
-  const cached = textCache.get(post.id);
-  if (cached && cached.post === post && cached.focal === focal && cached.rich === stamp) return cached;
+/** Posts whose texts went to the atlases (wantGlyphs), by id: the atlases
+ *  follow the reader, so a post never asked for is not looked at. */
+const wantedPosts = new Set<string>();
+
+/** Whether a post draws rich, by post object. A covered post stays covered
+ *  until an atlas starts over (epoch); an uncovered one stays uncovered
+ *  while its atlas still lacks the codepoint that was missing. */
+const coverage = new WeakMap<Post, { textEpoch: number; boldEpoch: number; face: Glyphs | null; cp: number }>();
+
+/** A row draws rich when both atlases hold every glyph its texts use. */
+function richRow(post: Post, glyphs: GlyphPair | null): boolean {
+  if (!glyphs || !glyphs.text.ready() || !glyphs.bold.ready() || !wantedPosts.has(post.id)) return false;
+  const known = coverage.get(post);
+  if (known) {
+    if (!known.face) {
+      if (known.textEpoch === glyphs.text.epoch() && known.boldEpoch === glyphs.bold.epoch()) return true;
+    } else if (!known.face.holds(known.cp)) {
+      return false;
+    }
+  }
+  let face: Glyphs | null = glyphs.text;
+  let cp = -1;
+  for (const text of postTexts(post)) if ((cp = glyphs.text.missing(text)) >= 0) break;
+  if (cp < 0) {
+    face = glyphs.bold;
+    cp = glyphs.bold.missing(post.name);
+    if (cp < 0 && post.repostedBy) cp = glyphs.bold.missing(post.repostedBy);
+  }
+  if (cp < 0) face = null;
+  coverage.set(post, { textEpoch: glyphs.text.epoch(), boldEpoch: glyphs.bold.epoch(), face, cp });
+  return face === null;
+}
+
+/** Tell the app when the list scrolls: glyph atlases wait for it to rest
+ *  (ui/glyphs.ts when). A post that changes face changes height and
+ *  moves every row below it, which under a moving list reads as a jump. */
+function reportMotion(env: XEnv, offset: () => number) {
+  let last = Number.NaN;
+  onFrame(() => {
+    const at = offset();
+    if (at !== last) env.moved();
+    last = at;
+  });
+}
+
+/** A post's row apart from its place in the list: wrapped texts, heights,
+ *  counts. It depends on the post object, focus and face alone: a glyph's
+ *  advance is the same in every atlas, so an atlas that loads leaves a rich
+ *  shape as it is. The meta line is kept for the clock it was made at, and
+ *  the shape keeps the row it last made. */
+interface RowShape {
+  rich: boolean;
+  h: number;
+  footY: number;
+  repost: string;
+  head: string;
+  nameW: number;
+  body: string;
+  bodyLines: number;
+  quote: string;
+  quoteLines: number;
+  replies: string;
+  reposts: string;
+  likes: string;
+  extra: string;
+  initials: string;
+  color: string;
+  ageAt: number;
+  age: string;
+  meta: string;
+  row: PostRow | null;
+}
+
+/** A post's shapes in each face, by post object: model.view keeps a post's
+ *  object while its marks stay, so these lookups hash no strings. */
+interface Faces {
+  baked?: RowShape;
+  rich?: RowShape;
+}
+const shapes = new WeakMap<Post, Faces>();
+const focalShapes = new WeakMap<Post, Faces>();
+
+function facesOf(post: Post, focal: boolean): Faces {
+  const cache = focal ? focalShapes : shapes;
+  let faces = cache.get(post);
+  if (!faces) cache.set(post, (faces = {}));
+  return faces;
+}
+
+function rowShape(post: Post, focal: boolean, glyphs: GlyphPair | null, rich: boolean): RowShape {
+  const faces = facesOf(post, focal);
+  const known = rich ? faces.rich : faces.baked;
+  if (known) return known;
   let lines: string[];
   let quote: string[];
   if (rich && glyphs) {
@@ -179,68 +262,150 @@ function postLines(post: Post, focal: boolean, glyphs: GlyphPair | null, rich: b
     lines = wrap(reply + toAscii(post.text || " "), FONT.sm, TEXT_W, focal ? Infinity : ROW_LINES);
     quote = post.quote ? wrap(`${toAscii(post.quote.name)} @${toAscii(post.quote.handle)}: ${toAscii(post.quote.text)}`, FONT.xs, TEXT_W - 14, focal ? 6 : 2) : [];
   }
-  const entry = { post, focal, rich: stamp, lines, quote };
-  if (textCache.size > 600) textCache.clear();
-  textCache.set(post.id, entry);
-  return entry;
+  const repost = post.repostedBy ? `${rich ? richText(post.repostedBy) : toAscii(post.repostedBy)} reposted` : "";
+  const quoteH = quote.length ? 4 + 12 + quote.length * QUOTE_LINE : 0;
+  const footY = PAD + (repost ? REPOST_H : 0) + HEAD_H + lines.length * BODY_LINE + quoteH + 4;
+  const head = rich && glyphs ? glyphs.bold.ellipsize(richText(post.name || post.handle), 150) : ellipsize(toAscii(post.name || post.handle), FONT.smBold, 150);
+  const shape: RowShape = {
+    rich,
+    h: footY + FOOT_H + PAD,
+    footY,
+    repost,
+    head,
+    nameW: rich && glyphs ? glyphs.bold.measure(head) : measure(head, FONT.smBold),
+    body: lines.join("\n"),
+    bodyLines: lines.length,
+    quote: quote.join("\n"),
+    quoteLines: quote.length,
+    replies: countText(post.replies),
+    reposts: countText(post.reposts),
+    likes: countText(post.likes),
+    extra: extras(post, focal),
+    initials: initials(post, rich),
+    color: faceColor(post.handle),
+    ageAt: Number.NaN,
+    age: "",
+    meta: "",
+    row: null,
+  };
+  if (rich) faces.rich = shape;
+  else faces.baked = shape;
+  return shape;
 }
 
-const previousRows = new Map<string, PostRow>();
-
-function sameRow(a: PostRow, b: PostRow): boolean {
-  return a.post === b.post && a.focal === b.focal && a.y === b.y && a.h === b.h && a.meta === b.meta && a.rich === b.rich && a.body === b.body && a.likes === b.likes && a.liked === b.liked && a.reposts === b.reposts && a.reposted === b.reposted && a.replies === b.replies;
+/** Posts a layout left to be shaped later: shaping one costs QuickJS 6-30 ms
+ *  on an Old 3DS, and a timeline brings a hundred at once. */
+export interface ShapeQueue {
+  waiting: Map<Post, { focal: boolean; rich: boolean }>;
 }
 
-/** Lay out `posts` from `top`: every row measured once per post and minute.
- *  With `glyphs`, rows their atlases cover draw rich. */
-export function layoutPosts(posts: readonly { post: Post; focal: boolean }[], now: number, top = 0, scope = "", glyphs: GlyphPair | null = null): { rows: PostRow[]; height: number } {
+const SHAPE_BUDGET_MS = 6;
+const SHAPED_EVERY = 6;
+
+/** Shape queued posts for about SHAPE_BUDGET_MS, in the order they were
+ *  queued; true when any were. */
+function shapeQueued(queue: ShapeQueue, glyphs: GlyphPair): boolean {
+  if (queue.waiting.size === 0) return false;
+  const deadline = Date.now() + SHAPE_BUDGET_MS;
+  for (const [post, want] of queue.waiting) {
+    queue.waiting.delete(post);
+    rowShape(post, want.focal, glyphs, want.rich);
+    if (Date.now() >= deadline) break;
+  }
+  return true;
+}
+
+/** Lay out `posts` from `top`. Each post's shape is made once (rowShape);
+ *  a layout places the shapes and renews the meta lines whose age changed.
+ *  A row stays the same object while its shape, key, place and meta line
+ *  do, so the slot pool repaints nothing for it. With `glyphs`, rows their
+ *  atlases cover draw rich.
+ *
+ *  With a `queue`, only rows that start above `top + shapeAbove` px are
+ *  shaped on the spot. Below, a post whose shape for its face is missing
+ *  goes to the queue: it keeps its other face's shape meanwhile, and a post
+ *  with neither ends the list there (`complete` false). */
+export function layoutPosts(
+  posts: readonly { post: Post; focal: boolean }[],
+  now: number,
+  top = 0,
+  scope = "",
+  glyphs: GlyphPair | null = null,
+  queue: ShapeQueue | null = null,
+  shapeAbove = Infinity,
+): { rows: PostRow[]; height: number; complete: boolean } {
   let y = top;
   const seen = new Map<string, number>();
-  const rows = posts.map(({ post, focal }) => {
+  const rows: PostRow[] = [];
+  let complete = true;
+  for (const { post, focal } of posts) {
+    const rich = richRow(post, glyphs);
+    const faces = facesOf(post, focal);
+    let shape = rich ? faces.rich : faces.baked;
+    if (!complete) {
+      // Past the end of the list: queue what still needs shaping.
+      if (!shape && queue) queue.waiting.set(post, { focal, rich });
+      continue;
+    }
+    if (!shape) {
+      const other = rich ? faces.baked : faces.rich;
+      if (queue && (other || y >= top + shapeAbove)) {
+        queue.waiting.set(post, { focal, rich });
+        if (!other) {
+          complete = false;
+          continue;
+        }
+        shape = other;
+      } else {
+        shape = rowShape(post, focal, glyphs, rich);
+      }
+    }
     const n = seen.get(post.id) ?? 0;
     seen.set(post.id, n + 1);
-    const key = `${scope}${post.id}${n ? `.${n}` : ""}`;
-    const rich = richRow(post, glyphs);
-    const { lines, quote } = postLines(post, focal, glyphs, rich);
-    const repost = post.repostedBy ? `${rich ? richText(post.repostedBy) : toAscii(post.repostedBy)} reposted` : "";
-    const quoteH = quote.length ? 4 + 12 + quote.length * QUOTE_LINE : 0;
-    const footY = PAD + (repost ? REPOST_H : 0) + HEAD_H + lines.length * BODY_LINE + quoteH + 4;
-    const h = footY + FOOT_H + PAD;
-    const name = rich && glyphs ? glyphs.bold.ellipsize(richText(post.name || post.handle), 150) : ellipsize(toAscii(post.name || post.handle), FONT.smBold, 150);
-    const nameW = rich && glyphs ? glyphs.bold.measure(name) : measure(name, FONT.smBold);
-    const meta = ellipsize(`@${toAscii(post.handle)}  ${post.time ? ageText(post.time, now) : ""}`, FONT.xs, TEXT_W - nameW - 6);
-    const next: PostRow = {
+    if (shape.ageAt !== now) {
+      shape.ageAt = now;
+      const age = post.time ? ageText(post.time, now) : "";
+      if (shape.age !== age || shape.meta === "") {
+        shape.age = age;
+        shape.meta = ellipsize(`@${toAscii(post.handle)}  ${age}`, FONT.xs, TEXT_W - shape.nameW - 6);
+      }
+    }
+    const rowY = y;
+    y += shape.h;
+    const key = n ? `${scope}${post.id}.${n}` : scope + post.id;
+    const before = shape.row;
+    if (before && before.y === rowY && before.meta === shape.meta && before.key === key && before.post === post) {
+      rows.push(before);
+      continue;
+    }
+    const row: PostRow = {
       key,
       post,
       focal,
-      y,
-      h,
-      repost,
-      head: name,
-      meta,
-      body: lines.join("\n"),
-      bodyLines: lines.length,
-      quote: quote.join("\n"),
-      quoteLines: quote.length,
-      footY,
-      replies: countText(post.replies),
-      reposts: countText(post.reposts),
-      likes: countText(post.likes),
+      y: rowY,
+      h: shape.h,
+      repost: shape.repost,
+      head: shape.head,
+      meta: shape.meta,
+      body: shape.body,
+      bodyLines: shape.bodyLines,
+      quote: shape.quote,
+      quoteLines: shape.quoteLines,
+      footY: shape.footY,
+      replies: shape.replies,
+      reposts: shape.reposts,
+      likes: shape.likes,
       liked: !!post.liked,
       reposted: !!post.reposted,
-      extra: extras(post, focal),
-      rich,
-      initials: initials(post, rich),
-      color: faceColor(post.handle),
+      extra: shape.extra,
+      rich: shape.rich,
+      initials: shape.initials,
+      color: shape.color,
     };
-    const before = previousRows.get(key);
-    const row = before && sameRow(before, next) ? before : next;
-    previousRows.set(key, row);
-    y += h;
-    return row;
-  });
-  if (previousRows.size > 800) previousRows.clear();
-  return { rows, height: y };
+    shape.row = row;
+    rows.push(row);
+  }
+  return { rows, height: y, complete };
 }
 
 /** The font slots a row's texts draw from: the baked faces, or the glyph
@@ -458,13 +623,24 @@ const GLYPH_STEP = 120;
 
 function wantGlyphs(env: XEnv, rows: () => readonly PostRow[], offset: () => number) {
   const band = createMemo(() => Math.floor(offset() / GLYPH_STEP));
+  // Posts already asked for, by both faces' wants() at the time: a band
+  // move asks only for the posts that came near.
+  const asked = new WeakMap<Post, number>();
+  const wants = () => env.text.wants() * 65536 + env.bold.wants();
   createEffect(() => {
     const top = band() * GLYPH_STEP - 2 * VIEW_H;
     const bottom = band() * GLYPH_STEP + 3 * VIEW_H;
-    const near = rows().filter((row) => row.y + row.h > top && row.y < bottom).map((row) => row.post);
-    if (near.length === 0) return;
-    env.text.want(near.flatMap(postTexts));
-    env.bold.want(near.flatMap((post) => (post.repostedBy ? [post.name, post.repostedBy] : [post.name])));
+    const now = wants();
+    const fresh: Post[] = [];
+    for (const row of rows()) if (row.y + row.h > top && row.y < bottom && asked.get(row.post) !== now) fresh.push(row.post);
+    if (fresh.length === 0) return;
+    env.text.want(fresh.flatMap(postTexts));
+    env.bold.want(fresh.flatMap((post) => (post.repostedBy ? [post.name, post.repostedBy] : [post.name])));
+    const after = wants();
+    for (const post of fresh) {
+      asked.set(post, after);
+      wantedPosts.add(post.id);
+    }
   });
 }
 
@@ -527,14 +703,32 @@ const NO_ROWS: never[] = [];
 
 export function timelinePage(env: XEnv, stack: NavStack, layer: LayerContext): PageSpec {
   const { model, press } = env;
+  reportMotion(env, layer.offset);
+  // A page of posts is shaped a few at a time: the first screen at once,
+  // the rest in frames where the list rests or its end comes near, and the
+  // list grows by what was shaped every SHAPED_EVERY frames (a layout and
+  // the glyph wants follow each growth), or at once when the end is near.
+  const queue: ShapeQueue = { waiting: new Map() };
+  const [shaped, setShaped] = createSignal(0);
+  let unlisted = 0;
+  onFrame(() => {
+    const endNear = layer.offset() + 3 * VIEW_H > layout().height;
+    if (!endNear && !env.resting()) return;
+    if (shapeQueued(queue, env)) unlisted += 1;
+    if (unlisted > 0 && (endNear || unlisted >= SHAPED_EVERY || queue.waiting.size === 0)) {
+      unlisted = 0;
+      setShaped(shaped() + 1);
+    }
+  });
   const layout = createMemo(() => {
     const state = model.state();
     model.marks();
     env.text.revision();
     env.bold.revision();
+    shaped();
     const posts = state.posts.map((post) => ({ post: model.view(post), focal: false }));
-    const { rows, height } = layoutPosts(posts, env.now(), 0, `${model.kind()}:`, env);
-    return { rows, height: height + (state.cursor ? MORE_H : 8) };
+    const { rows, height, complete } = layoutPosts(posts, env.now(), 0, `${model.kind()}:`, env, queue, VIEW_H + OVERSCAN);
+    return { rows, height: height + (state.cursor || !complete ? MORE_H : 8), complete };
   });
   wantGlyphs(env, () => layout().rows, layer.offset);
   const listed = () => model.state().status === "ready" && model.state().posts.length > 0;
@@ -550,10 +744,10 @@ export function timelinePage(env: XEnv, stack: NavStack, layer: LayerContext): P
     const focused = layer.focus();
     const rows = layout().rows;
     const row = keys().byKey.get(focused);
-    if (row && rows.indexOf(row) >= rows.length - 3) model.more();
+    if (row && layout().complete && rows.indexOf(row) >= rows.length - 3) model.more();
   });
   onFrame(() => {
-    if (listed() && layer.offset() + VIEW_H > layout().height - MORE_H - 60) model.more();
+    if (listed() && layout().complete && layer.offset() + VIEW_H > layout().height - MORE_H - 60) model.more();
   });
   const content: PageContent = {
     view: () => (
@@ -566,7 +760,7 @@ export function timelinePage(env: XEnv, stack: NavStack, layer: LayerContext): P
               ? <Centered title="Nothing here yet" detail="Posts from the accounts you follow show up here." press={press} />
               : <Centered title="Loading" detail="Reading your timeline through your Mac." spinner press={press} />}
         </Show>
-        <Show when={listed() && model.state().cursor}>
+        <Show when={listed() && (model.state().cursor || !layout().complete)}>
           <View class="absolute left-[118]" style={{ insetT: layout().height - MORE_H + 13 }}>
             <ClassicSpinner size={18} color={"#536471"} />
           </View>
@@ -624,6 +818,7 @@ export function postPage(env: XEnv, stack: NavStack, layer: LayerContext): PageS
   const { model, press } = env;
   const id = env.opening.id;
   const state = () => model.thread(id);
+  reportMotion(env, layer.offset);
   const layout = createMemo(() => {
     const thread = state();
     model.marks();
