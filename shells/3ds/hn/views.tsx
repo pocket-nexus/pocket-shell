@@ -15,11 +15,12 @@ import type { NodeMirror } from "@pocketjs/framework/renderer";
 import { BTN } from "@pocketjs/framework/input";
 import type { LayerContext, NavStack, PageContent, PageSpec } from "../ui/nav.tsx";
 import { ellipsize, FONT, toAscii, wrap } from "../ui/text.ts";
-import { createSlotPool, paintText, type SlotPool } from "../ui/slots.ts";
+import { createMeasuredList, createSlotPool, paintText, type MeasuredRow, type SlotPool } from "../ui/slots.ts";
+import { showSkeleton, Skeleton } from "../ui/skeleton.tsx";
 import type { Press, Target } from "../ui/touch.ts";
 import { FEEDS, type Item } from "./api.ts";
 import { ageText, domainOf, htmlToText } from "./html.ts";
-import { flattenThread, MAX_COMMENTS, type HnModel } from "./model.ts";
+import { flattenThread, MAX_COMMENTS, type FlatComment, type HnModel } from "./model.ts";
 
 const W = 320;
 const VIEW_H = 204;
@@ -95,6 +96,8 @@ export interface StoryRow {
   meta: string;
   y: number;
   h: number;
+  /** Kept while everything but the place stays (framework slot-list). */
+  content: object;
 }
 
 const titleCache = new Map<number, string[]>();
@@ -147,9 +150,8 @@ function storyRows(env: HnEnv): { rows: StoryRow[]; height: number } {
     const h = 8 + title.length * TITLE_LINE + META_H + 6;
     const meta = item ? storyMetaLine(item, now) : "";
     const before = previousRows.get(id);
-    const row: StoryRow = before && before.item === item && before.y === y && before.h === h && before.rank === index + 1 && before.meta === meta
-      ? before
-      : { id, rank: index + 1, item, title, meta, y, h };
+    const same = !!before && before.item === item && before.h === h && before.rank === index + 1 && before.meta === meta;
+    const row: StoryRow = same && before!.y === y ? before! : { id, rank: index + 1, item, title, meta, y, h, content: same ? before!.content : {} };
     previousRows.set(id, row);
     y += h;
     return row;
@@ -200,6 +202,9 @@ function StorySlot(props: { pool: SlotPool<StoryRow>; slot: number; lit: (id: nu
   let meta!: NodeMirror;
   let bubble!: NodeMirror;
   let count!: NodeMirror;
+  let content!: NodeMirror;
+  let skeletonNode!: NodeMirror;
+  let skeletonShown = false;
   const [id, setId] = createSignal(0);
   const [loaded, setLoaded] = createSignal(false);
   const [counted, setCounted] = createSignal(false);
@@ -218,7 +223,7 @@ function StorySlot(props: { pool: SlotPool<StoryRow>; slot: number; lit: (id: nu
   };
   onMount(() => {
     createEffect(recolor);
-    props.pool.attach(props.slot, (row) => batch(() => {
+    props.pool.attach(props.slot, (row, skeleton, moved) => batch(() => {
       if (!row) {
         // An empty slot keeps no stale text, drawn or read.
         if (y >= 0) jump(box, "opacity", 0);
@@ -230,6 +235,10 @@ function StorySlot(props: { pool: SlotPool<StoryRow>; slot: number; lit: (id: nu
       if (y < 0) jump(box, "opacity", 1);
       if (row.y !== y) jump(box, "translateY", (y = row.y));
       if (row.h !== h) jump(box, "height", (h = row.h));
+      if (moved) return;
+      setId(row.id);
+      if (skeleton !== skeletonShown) showSkeleton(skeletonNode, content, (skeletonShown = skeleton));
+      if (skeleton) return;
       paintText(rank, String(row.rank));
       paintText(title, row.title.join("\n"));
       paintText(meta, row.meta);
@@ -242,23 +251,25 @@ function StorySlot(props: { pool: SlotPool<StoryRow>; slot: number; lit: (id: nu
         hot = total > 0;
         if (!lit()) jump(bubble, "bgColor", hot ? "#ff7a1a" : "#b8bec6");
       }
-      setId(row.id);
     }));
   });
   return (
     <View ref={box} class="absolute left-0 top-0 w-[320] h-[46] opacity-0 contain-strict">
       <View ref={wash} class="absolute inset-0 opacity-0 bg-gradient-to-b from-[#058cf5] to-[#015ee6]" />
       <View class="absolute left-[32] right-0 bottom-0 h-[1] bg-[#e0e0e0]" />
-      <Text ref={rank} class="absolute left-0 top-[8] w-[26] text-xs text-[#a0a6ae] font-bold text-right">{" "}</Text>
-      <View class={loaded() ? "hidden" : "absolute left-[32] top-[11] w-[208] h-[9] rounded-[4] bg-[#e4e7eb]"} />
-      <View class={loaded() ? "hidden" : "absolute left-[32] top-[28] w-[120] h-[7] rounded-[3] bg-[#eef0f2]"} />
-      <View class="absolute left-[32] top-[6] flex-col">
-        <Text ref={title} class="text-sm text-[#111111] font-bold leading-[17]">{" "}</Text>
-        <Text ref={meta} class="mt-[2] text-xs text-[#8a9099]">{" "}</Text>
-      </View>
-      <View class={counted() ? "absolute right-[10] top-0 bottom-0 flex-col justify-center" : "hidden"}>
-        <View ref={bubble} class="h-[18] min-w-[24] px-[6] rounded-[9] bg-[#b8bec6] flex-col justify-center items-center">
-          <Text ref={count} class="text-xs text-white font-bold">{" "}</Text>
+      <Skeleton ref={(node) => (skeletonNode = node)} x={32} width={208} lines={1} />
+      <View ref={content} class="absolute inset-0">
+        <Text ref={rank} class="absolute left-0 top-[8] w-[26] text-xs text-[#a0a6ae] font-bold text-right">{" "}</Text>
+        <View class={loaded() ? "hidden" : "absolute left-[32] top-[11] w-[208] h-[9] rounded-[4] bg-[#e4e7eb]"} />
+        <View class={loaded() ? "hidden" : "absolute left-[32] top-[28] w-[120] h-[7] rounded-[3] bg-[#eef0f2]"} />
+        <View class="absolute left-[32] top-[6] flex-col">
+          <Text ref={title} class="text-sm text-[#111111] font-bold leading-[17]">{" "}</Text>
+          <Text ref={meta} class="mt-[2] text-xs text-[#8a9099]">{" "}</Text>
+        </View>
+        <View class={counted() ? "absolute right-[10] top-0 bottom-0 flex-col justify-center" : "hidden"}>
+          <View ref={bubble} class="h-[18] min-w-[24] px-[6] rounded-[9] bg-[#b8bec6] flex-col justify-center items-center">
+            <Text ref={count} class="text-xs text-white font-bold">{" "}</Text>
+          </View>
         </View>
       </View>
     </View>
@@ -418,6 +429,10 @@ export interface CommentRow {
   age: string;
   body: string;
   op: boolean;
+  /** Not measured yet: the slot shows its skeleton at the estimated height. */
+  pending: boolean;
+  /** Kept while everything but the place stays (framework slot-list). */
+  content: object | undefined;
 }
 
 const bodyCache = new Map<number, { item: Item; width: number; lines: string[] }>();
@@ -483,62 +498,71 @@ export function storyHeader(story: Item, now: number): StoryHeader {
   return header;
 }
 
-const previousComments = new Map<number, CommentRow>();
-
+/** The same comment drawn the same way, wherever it is placed. */
 function sameComment(a: CommentRow, b: CommentRow): boolean {
-  return a.depth === b.depth && a.dim === b.dim && a.folds === b.folds && a.x === b.x && a.y === b.y && a.h === b.h &&
-    a.author === b.author && a.age === b.age && a.op === b.op && a.body === b.body;
+  return a.depth === b.depth && a.dim === b.dim && a.folds === b.folds && a.x === b.x && a.h === b.h &&
+    a.author === b.author && a.age === b.age && a.op === b.op && a.body === b.body && a.pending === b.pending;
 }
 
-function threadRows(env: HnEnv): { header: StoryHeader | null; rows: CommentRow[]; height: number; footer: string } {
-  env.model.version();
-  const thread = env.model.thread();
-  if (!thread) return { header: null, rows: [], height: 0, footer: "" };
-  const story = env.model.client.cached(thread.story);
-  const now = env.now();
-  const header = story ? storyHeader(story, now) : null;
-  let y = header ? header.h : 0;
-  const rows: CommentRow[] = flattenThread(story, thread).map((comment) => {
-    const depth = Math.min(comment.depth, 5);
-    const x = 10 + depth * INDENT;
-    const collapsed = comment.hidden > 0 || thread.collapsed.has(comment.id);
-    const lines = collapsed
-      ? [`${comment.hidden} ${comment.hidden === 1 ? "reply" : "replies"} hidden`]
-      : commentLines(comment.item, W - x - 10);
-    const h = ROW_PAD + AUTHOR_H + lines.length * BODY_LINE + ROW_PAD;
-    const next: CommentRow = {
-      id: comment.id,
-      depth,
-      dim: comment.hidden > 0,
-      folds: collapsed || (comment.item.kids?.length ?? 0) > 0,
-      x,
-      y,
-      h,
-      author: toAscii(comment.item.by ?? "[deleted]"),
-      age: comment.item.time ? ageText(comment.item.time, now) : "",
-      body: collapsed ? lines[0]! : lines.join("\n"),
-      op: !!story?.by && comment.item.by === story.by,
-    };
-    // An unchanged row keeps its object, so the slot showing it keeps its nodes as they are.
+/** A comment's row apart from its place and age: its wrapped body, its
+ *  height and how it draws. */
+interface CommentShape {
+  depth: number;
+  dim: boolean;
+  folds: boolean;
+  x: number;
+  h: number;
+  author: string;
+  body: string;
+  op: boolean;
+}
+
+function commentShape(comment: FlatComment, collapsed: boolean, story: Item | undefined): CommentShape {
+  const depth = Math.min(comment.depth, 5);
+  const x = 10 + depth * INDENT;
+  const lines = collapsed
+    ? [`${comment.hidden} ${comment.hidden === 1 ? "reply" : "replies"} hidden`]
+    : commentLines(comment.item, W - x - 10);
+  return {
+    depth,
+    dim: comment.hidden > 0,
+    folds: collapsed || (comment.item.kids?.length ?? 0) > 0,
+    x,
+    h: ROW_PAD + AUTHOR_H + lines.length * BODY_LINE + ROW_PAD,
+    author: toAscii(comment.item.by ?? "[deleted]"),
+    body: collapsed ? lines[0]! : lines.join("\n"),
+    op: !!story?.by && comment.item.by === story.by,
+  };
+}
+
+/** A comment's height before it is wrapped: its HTML's length at about 6 px
+ *  a character over its line width. */
+function estimateComment(comment: FlatComment): number {
+  const width = W - (10 + Math.min(comment.depth, 5) * INDENT) - 10;
+  const lines = Math.max(1, Math.ceil(((comment.item.text?.length ?? 0) * 5.5) / width));
+  return ROW_PAD + AUTHOR_H + lines * BODY_LINE + ROW_PAD;
+}
+
+/** Comment rows by id: an unchanged row keeps its object, so the slot
+ *  showing it keeps its nodes as they are. */
+const previousComments = new Map<number, CommentRow>();
+
+function placeComments(rows: readonly MeasuredRow<FlatComment, CommentShape>[], now: number): CommentRow[] {
+  const placed = rows.map(({ item: comment, y, h, value: shape }) => {
+    const age = shape && comment.item.time ? ageText(comment.item.time, now) : "";
+    const next: CommentRow = shape
+      ? { id: comment.id, depth: shape.depth, dim: shape.dim, folds: shape.folds, x: shape.x, y, h, author: shape.author, age, body: shape.body, op: shape.op, pending: false, content: {} }
+      : { id: comment.id, depth: Math.min(comment.depth, 5), dim: false, folds: false, x: 10 + Math.min(comment.depth, 5) * INDENT, y, h, author: "", age: "", body: "", op: false, pending: true, content: undefined };
     const before = previousComments.get(comment.id);
-    const row = before && sameComment(before, next) ? before : next;
+    const same = !!before && sameComment(before, next);
+    if (same && before!.y === y) return before!;
+    if (same && shape) next.content = before!.content;
+    const row = next;
     previousComments.set(comment.id, row);
-    y += h;
     return row;
   });
   if (previousComments.size > 600) previousComments.clear();
-  const total = story?.descendants ?? 0;
-  const loading = thread.pending > 0;
-  const footer = thread.error
-    ? `${thread.error.title}. Press X to retry.`
-    : loading
-      ? "Loading comments..."
-      : total === 0
-        ? "No comments yet."
-        : thread.requested >= MAX_COMMENTS && rows.length < total
-          ? `Showing ${rows.length} of ${total} comments.`
-          : "";
-  return { header, rows, height: y + (footer ? 44 : 8), footer };
+  return placed;
 }
 
 const DEPTH_COLORS = ["#ff9a52", "#7fb0e8", "#8fd18f", "#d59be0", "#c9b37a"];
@@ -552,6 +576,9 @@ function CommentSlot(props: { pool: SlotPool<CommentRow>; slot: number; lit: (id
   let author!: NodeMirror;
   let age!: NodeMirror;
   let body!: NodeMirror;
+  let content!: NodeMirror;
+  let skeletonNode!: NodeMirror;
+  let skeletonShown = false;
   const [id, setId] = createSignal(0);
   const lit = createMemo(() => id() !== 0 && props.lit(id()));
   let op = false;
@@ -569,7 +596,7 @@ function CommentSlot(props: { pool: SlotPool<CommentRow>; slot: number; lit: (id
   };
   onMount(() => {
     createEffect(recolor);
-    props.pool.attach(props.slot, (row) => batch(() => {
+    props.pool.attach(props.slot, (row, skeleton, moved) => batch(() => {
       if (!row) {
         if (y >= 0) jump(box, "opacity", 0);
         y = -1;
@@ -580,19 +607,22 @@ function CommentSlot(props: { pool: SlotPool<CommentRow>; slot: number; lit: (id
       if (y < 0) jump(box, "opacity", 1);
       if (row.y !== y) jump(box, "translateY", (y = row.y));
       if (row.h !== h) jump(box, "height", (h = row.h));
+      if (moved) return;
       if (row.x !== x) jump(frame, "insetL", (x = row.x));
       if (row.depth !== depth) {
         depth = row.depth;
         jump(rule, "opacity", depth === 0 ? 0 : 1);
         if (depth > 0) jump(rule, "bgColor", DEPTH_COLORS[depth - 1]!);
       }
+      setId(row.id);
+      if (skeleton !== skeletonShown) showSkeleton(skeletonNode, content, (skeletonShown = skeleton));
+      if (skeleton) return;
       paintText(author, row.author);
       paintText(age, row.age);
       paintText(body, row.body);
       const recolorNow = row.op !== op || row.dim !== dim;
       op = row.op;
       dim = row.dim;
-      setId(row.id);
       // A highlight change recolors through the effect; a new tone does here.
       if (recolorNow) recolor();
     }));
@@ -603,11 +633,14 @@ function CommentSlot(props: { pool: SlotPool<CommentRow>; slot: number; lit: (id
       <View ref={frame} class="absolute left-[10] top-0 right-0 bottom-0">
         <View class="absolute left-0 right-0 bottom-0 h-[1] bg-[#e6e6e6]" />
         <View ref={rule} class="absolute left-[-6] top-[4] bottom-[4] w-[2] opacity-0 bg-[#ff9a52]" />
-        <View class="absolute left-0 top-[6] flex-row">
-          <Text ref={author} class="text-xs text-[#3b4a60] font-bold">{" "}</Text>
-          <Text ref={age} class="ml-[6] text-xs text-[#a0a6ae]">{" "}</Text>
+        <Skeleton ref={(node) => (skeletonNode = node)} x={0} width={220} lines={2} />
+        <View ref={content} class="absolute inset-0">
+          <View class="absolute left-0 top-[6] flex-row">
+            <Text ref={author} class="text-xs text-[#3b4a60] font-bold">{" "}</Text>
+            <Text ref={age} class="ml-[6] text-xs text-[#a0a6ae]">{" "}</Text>
+          </View>
+          <Text ref={body} class="absolute left-0 top-[22] text-sm text-[#222222] leading-[16]">{" "}</Text>
         </View>
-        <Text ref={body} class="absolute left-0 top-[22] text-sm text-[#222222] leading-[16]">{" "}</Text>
       </View>
     </View>
   );
@@ -633,15 +666,56 @@ function Header(props: { header: Accessor<StoryHeader> }) {
 
 export function commentsPage(env: HnEnv, _stack: NavStack, layer: LayerContext): PageSpec {
   const { model } = env;
-  const layout = createMemo(() => threadRows(env));
-  const header = createMemo(() => layout().header);
-  const pool = createSlotPool(() => layout().rows, layer.offset, { view: VIEW_H, overscan: OVERSCAN, minRowH: COMMENT_MIN_H });
-  const lit = highlight(env, layer, "comment.");
-  const keys = keyIndex(() => layout().rows, "comment.");
   const story = () => {
     const thread = model.thread();
     return thread ? model.client.cached(thread.story) : undefined;
   };
+  const header = createMemo(() => {
+    model.version();
+    const item = story();
+    return item ? storyHeader(item, env.now()) : null;
+  });
+  const comments = createMemo((): readonly FlatComment[] => {
+    model.version();
+    const thread = model.thread();
+    return thread ? flattenThread(story(), thread) : [];
+  });
+  const collapsed = (comment: FlatComment) => comment.hidden > 0 || !!model.thread()?.collapsed.has(comment.id);
+  // Comments are wrapped when they come near the view or while the thread
+  // stands still (framework slot-list); a comment not wrapped yet shows its
+  // skeleton at an estimated height.
+  const list = createMeasuredList<FlatComment, CommentShape>({
+    items: comments,
+    key: (comment) => comment.id,
+    version: (comment) => (collapsed(comment) ? `hidden ${comment.hidden}` : comment.item),
+    measure: (comment) => commentShape(comment, collapsed(comment), story()),
+    estimate: estimateComment,
+    offset: layer.offset,
+    view: VIEW_H,
+    overscan: OVERSCAN,
+    top: () => header()?.h ?? 0,
+    rebase: layer.rebase,
+  });
+  const layout = createMemo(() => {
+    const rows = placeComments(list.rows(), env.now());
+    const thread = model.thread();
+    const total = story()?.descendants ?? 0;
+    const footer = !thread
+      ? ""
+      : thread.error
+        ? `${thread.error.title}. Press X to retry.`
+        : thread.pending > 0
+          ? "Loading comments..."
+          : total === 0
+            ? "No comments yet."
+            : thread.requested >= MAX_COMMENTS && rows.length < total
+              ? `Showing ${rows.length} of ${total} comments.`
+              : "";
+    return { rows, height: list.height() + (footer ? 44 : 8), footer };
+  });
+  const pool = createSlotPool(() => layout().rows, layer.offset, { view: VIEW_H, overscan: OVERSCAN, minRowH: COMMENT_MIN_H });
+  const lit = highlight(env, layer, "comment.");
+  const keys = keyIndex(() => layout().rows, "comment.");
   const fold = (row: CommentRow) => {
     if (row.folds) model.toggle(row.id);
   };

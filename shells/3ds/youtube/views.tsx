@@ -22,6 +22,7 @@ import { createMediaScrubber, mediaPlayer } from "@pocketjs/framework/media";
 import type { NodeMirror } from "@pocketjs/framework/renderer";
 import type { LayerContext, NavStack, PageContent, PageSpec } from "../ui/nav.tsx";
 import { createSlotPool, paintText, type SlotPool } from "../ui/slots.ts";
+import { showSkeleton, Skeleton } from "../ui/skeleton.tsx";
 import { ellipsize, FONT, toAscii, wrap } from "../ui/text.ts";
 import type { Press, Target } from "../ui/touch.ts";
 import { durationText, TOPICS, viewsText, type Codec, type PlayInfo, type Video, type YtClient } from "./api.ts";
@@ -129,6 +130,9 @@ function VideoSlot(props: { env: YtEnv; pool: SlotPool<VideoRow>; slot: number; 
   let title!: NodeMirror;
   let meta!: NodeMirror;
   let badge!: NodeMirror;
+  let content!: NodeMirror;
+  let skeletonNode!: NodeMirror;
+  let skeletonShown = false;
   const [key, setKey] = createSignal("");
   const [id, setId] = createSignal("");
   const lit = createMemo(() => key() !== "" && props.lit(key()));
@@ -146,7 +150,7 @@ function VideoSlot(props: { env: YtEnv; pool: SlotPool<VideoRow>; slot: number; 
     getOps().setImage(image.id, video ? props.env.client.thumb(video) : -1);
   });
   onMount(() => {
-    props.pool.attach(props.slot, (row) => batch(() => {
+    props.pool.attach(props.slot, (row, skeleton) => batch(() => {
       if (!row) {
         if (y >= 0) jump(box, "opacity", 0);
         y = -1;
@@ -157,11 +161,13 @@ function VideoSlot(props: { env: YtEnv; pool: SlotPool<VideoRow>; slot: number; 
       }
       if (y < 0) jump(box, "opacity", 1);
       if (row.y !== y) jump(box, "translateY", (y = row.y));
+      setKey(row.key);
+      if (skeleton !== skeletonShown) showSkeleton(skeletonNode, content, (skeletonShown = skeleton));
+      if (skeleton) return;
       paintText(title, row.title);
       paintText(meta, row.meta);
       paintText(badge, row.duration);
       props.env.client.want(row.video.id);
-      setKey(row.key);
       setId(row.video.id);
     }));
   });
@@ -170,13 +176,16 @@ function VideoSlot(props: { env: YtEnv; pool: SlotPool<VideoRow>; slot: number; 
       <View ref={wash} class="absolute inset-0 opacity-0 bg-gradient-to-b from-[#e52d27] to-[#b31217]" />
       <View class="absolute left-[124] right-0 bottom-0 h-[1] bg-[#e0e0e0]" />
       <View class="absolute left-[6] top-[4] w-[112] h-[56] bg-[#202020]" />
-      <Image ref={image} class="absolute left-[6] top-[4] w-[112] h-[56]" />
-      <View class="absolute left-[80] top-[44] w-[36] h-[14] rounded-[3] bg-[#000000c0] flex-col justify-center items-center">
-        <Text ref={badge} class="text-xs text-white font-bold">{" "}</Text>
-      </View>
-      <View class="absolute left-[126] top-[6] flex-col">
-        <Text ref={title} class="text-sm text-[#111111] font-bold leading-[16]">{" "}</Text>
-        <Text ref={meta} class="mt-[2] text-xs text-[#8a9099]">{" "}</Text>
+      <Skeleton ref={(node) => (skeletonNode = node)} x={126} width={180} lines={1} />
+      <View ref={content} class="absolute inset-0">
+        <Image ref={image} class="absolute left-[6] top-[4] w-[112] h-[56]" />
+        <View class="absolute left-[80] top-[44] w-[36] h-[14] rounded-[3] bg-[#000000c0] flex-col justify-center items-center">
+          <Text ref={badge} class="text-xs text-white font-bold">{" "}</Text>
+        </View>
+        <View class="absolute left-[126] top-[6] flex-col">
+          <Text ref={title} class="text-sm text-[#111111] font-bold leading-[16]">{" "}</Text>
+          <Text ref={meta} class="mt-[2] text-xs text-[#8a9099]">{" "}</Text>
+        </View>
       </View>
     </View>
   );

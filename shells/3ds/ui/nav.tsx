@@ -87,6 +87,10 @@ export interface LayerContext {
   reveal(top: number, bottom: number): void;
   /** Scroll by `delta` px from where the scroll is heading, within the content. */
   scrollBy(delta: number): void;
+  /** Move the offset and any scroll in flight by `delta` px, and the content
+   *  with them, so nothing moves on screen: rows above the reader changed
+   *  height (framework slot-list `rebase`). */
+  rebase(delta: number): void;
 }
 
 interface Layer {
@@ -216,19 +220,29 @@ function LayerView(props: {
     else if (bottom + 8 > offset + VIEW_H) scroller.chaseTo(Math.min(bottom + 8 - VIEW_H, maxOffset()));
   };
   const scrollBy = (delta: number) => scroller.chaseTo(Math.max(0, Math.min(maxOffset(), scroller.intent() + delta)));
-  const spec = props.options.page(props.entry.page, props.stack, { focus, setFocus, offset: scroller.offset, reveal, scrollBy });
-  contentRef = spec.content;
-  const content = spec.content;
-  const [hidden, setHidden] = createSignal(false);
-  const isTop = () => props.stack.top()?.key === props.entry.key;
   // The canvas follows the scroller by a direct write: a style binding on the
   // offset reran a Solid effect on every scrolled frame.
   let canvas: NodeMirror | undefined;
   let canvasY = 0;
-  onFrame(() => {
-    scroller.step();
+  const follow = () => {
     const y = -scroller.offset();
     if (canvas && y !== canvasY) jump(canvas, "translateY", (canvasY = y));
+  };
+  const rebase = (delta: number) => {
+    scroller.rebase(delta);
+    follow();
+  };
+  const spec = props.options.page(props.entry.page, props.stack, { focus, setFocus, offset: scroller.offset, reveal, scrollBy, rebase });
+  contentRef = spec.content;
+  const content = spec.content;
+  const [hidden, setHidden] = createSignal(false);
+  const isTop = () => props.stack.top()?.key === props.entry.key;
+  onFrame(() => {
+    // Content that got shorter (rows measured below their estimates) can
+    // leave a list at rest past its new end: it comes back to the end.
+    if (scroller.state() === "idle" && scroller.offset() > maxOffset()) scroller.scrollTo(maxOffset(), { immediate: true });
+    scroller.step();
+    follow();
     if (!isTop() || !content) return;
     const nub = analogY();
     if (nub !== 0) scroller.nudge(nub * 8);

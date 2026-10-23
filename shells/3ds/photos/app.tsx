@@ -218,7 +218,7 @@ function GridSlot(props: { pool: SlotPool<GridRow>; slot: number; env: PhotosEnv
     }
   };
   onMount(() => {
-    props.pool.attach(props.slot, (next) => {
+    props.pool.attach(props.slot, (next, skeleton) => {
       row = next;
       if (!next) {
         if (y >= 0) jump(box, "opacity", 0);
@@ -233,6 +233,15 @@ function GridSlot(props: { pool: SlotPool<GridRow>; slot: number; env: PhotosEnv
         for (let column = 0; column < COLUMNS; column += 1) jump(cellBoxes[column]!, "opacity", column < used ? 1 : 0);
       }
       setRowIndex(next.index);
+      // A skeleton is the grey cells: the thumbnails bind in a later frame.
+      if (skeleton) {
+        for (let column = 0; column < COLUMNS; column += 1) {
+          if (shown[column] === -2) continue;
+          shown[column] = -2;
+          jump(images[column]!, "opacity", 0);
+        }
+        return;
+      }
       paintImages();
     });
     // A thumbnail arrived or left.

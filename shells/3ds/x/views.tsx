@@ -22,7 +22,8 @@ import { BTN } from "@pocketjs/framework/input";
 import type { LayerContext, NavStack, PageContent, PageSpec } from "../ui/nav.tsx";
 import { ellipsize, FONT, measure, toAscii, wrap } from "../ui/text.ts";
 import { richText, type Glyphs } from "../ui/glyphs.ts";
-import { createSlotPool, paintText, type SlotPool } from "../ui/slots.ts";
+import { createMeasuredList, createSlotPool, paintText, type MeasuredRow, type SlotPool } from "../ui/slots.ts";
+import { showSkeleton, Skeleton } from "../ui/skeleton.tsx";
 import type { Press, Target } from "../ui/touch.ts";
 import { KINDS, type Post } from "./api.ts";
 import type { XModel } from "./model.ts";
@@ -126,7 +127,9 @@ export interface PostRow {
   h: number;
   repost: string;
   head: string;
-  meta: string;
+  /** The shape the row was placed from (null while pending): its meta line
+   *  follows the clock (metaLine), painted by the slot. */
+  shape: RowShape | null;
   body: string;
   bodyLines: number;
   quote: string;
@@ -143,6 +146,10 @@ export interface PostRow {
   rich: boolean;
   initials: string;
   color: string;
+  /** Not measured yet: the slot shows its skeleton at the estimated height. */
+  pending: boolean;
+  /** Kept while everything but the place stays (framework slot-list). */
+  content: object | undefined;
 }
 
 /** The texts of a post that may hold any script. */
@@ -293,100 +300,45 @@ function rowShape(post: Post, focal: boolean, glyphs: GlyphPair | null, rich: bo
   return shape;
 }
 
-/** Posts a layout left to be shaped later: shaping one costs QuickJS 6-30 ms
- *  on an Old 3DS, and a timeline brings a hundred at once. */
-export interface ShapeQueue {
-  waiting: Map<Post, { focal: boolean; rich: boolean }>;
+/** A post's height before it is shaped: its text's width at a glance (wide
+ *  characters 13 px, the rest 6 px) over the line width. */
+function estimateHeight(post: Post, focal: boolean): number {
+  const text = post.text || " ";
+  const width = text.length * (WIDE_TEXT.test(text) ? 13 : 6);
+  const lines = Math.max(1, Math.min(focal ? 40 : ROW_LINES, Math.ceil(width / TEXT_W)));
+  const quoteH = post.quote ? 4 + 12 + 2 * QUOTE_LINE : 0;
+  return PAD + (post.repostedBy ? REPOST_H : 0) + HEAD_H + lines * BODY_LINE + quoteH + 4 + FOOT_H + PAD;
 }
+const WIDE_TEXT = /[\u2e80-\uffff]/;
 
-const SHAPE_BUDGET_MS = 6;
-const SHAPED_EVERY = 6;
-
-/** Shape queued posts for about SHAPE_BUDGET_MS, in the order they were
- *  queued; true when any were. */
-function shapeQueued(queue: ShapeQueue, glyphs: GlyphPair): boolean {
-  if (queue.waiting.size === 0) return false;
-  const deadline = Date.now() + SHAPE_BUDGET_MS;
-  for (const [post, want] of queue.waiting) {
-    queue.waiting.delete(post);
-    rowShape(post, want.focal, glyphs, want.rich);
-    if (Date.now() >= deadline) break;
-  }
-  return true;
-}
-
-/** Lay out `posts` from `top`. Each post's shape is made once (rowShape);
- *  a layout places the shapes and renews the meta lines whose age changed.
- *  A row stays the same object while its shape, key, place and meta line
- *  do, so the slot pool repaints nothing for it. With `glyphs`, rows their
- *  atlases cover draw rich.
- *
- *  With a `queue`, only rows that start above `top + shapeAbove` px are
- *  shaped on the spot. Below, a post whose shape for its face is missing
- *  goes to the queue: it keeps its other face's shape meanwhile, and a post
- *  with neither ends the list there (`complete` false). */
-export function layoutPosts(
-  posts: readonly { post: Post; focal: boolean }[],
-  now: number,
-  top = 0,
-  scope = "",
-  glyphs: GlyphPair | null = null,
-  queue: ShapeQueue | null = null,
-  shapeAbove = Infinity,
-): { rows: PostRow[]; height: number; complete: boolean } {
-  let y = top;
+/** The list's measured rows as PostRows: a shaped post takes its shape's
+ *  texts, a pending one only its place. A row stays the same object while
+ *  its shape, key and place do, so the slot pool repaints nothing for it. */
+function placeRows(rows: readonly MeasuredRow<Post, RowShape>[], scope: string, focal: (post: Post) => boolean): PostRow[] {
   const seen = new Map<string, number>();
-  const rows: PostRow[] = [];
-  let complete = true;
-  for (const { post, focal } of posts) {
-    const rich = richRow(post, glyphs);
-    const faces = facesOf(post, focal);
-    let shape = rich ? faces.rich : faces.baked;
-    if (!complete) {
-      // Past the end of the list: queue what still needs shaping.
-      if (!shape && queue) queue.waiting.set(post, { focal, rich });
-      continue;
-    }
-    if (!shape) {
-      const other = rich ? faces.baked : faces.rich;
-      if (queue && (other || y >= top + shapeAbove)) {
-        queue.waiting.set(post, { focal, rich });
-        if (!other) {
-          complete = false;
-          continue;
-        }
-        shape = other;
-      } else {
-        shape = rowShape(post, focal, glyphs, rich);
-      }
-    }
+  return rows.map(({ item: post, y, h, value: shape }) => {
     const n = seen.get(post.id) ?? 0;
     seen.set(post.id, n + 1);
-    if (shape.ageAt !== now) {
-      shape.ageAt = now;
-      const age = post.time ? ageText(post.time, now) : "";
-      if (shape.age !== age || shape.meta === "") {
-        shape.age = age;
-        shape.meta = ellipsize(`@${toAscii(post.handle)}  ${age}`, FONT.xs, TEXT_W - shape.nameW - 6);
-      }
-    }
-    const rowY = y;
-    y += shape.h;
     const key = n ? `${scope}${post.id}.${n}` : scope + post.id;
-    const before = shape.row;
-    if (before && before.y === rowY && before.meta === shape.meta && before.key === key && before.post === post) {
-      rows.push(before);
-      continue;
+    if (!shape) {
+      const before = pendingRows.get(post);
+      if (before && before.y === y && before.h === h && before.key === key) return before;
+      const row: PostRow = { ...PENDING_ROW, key, post, focal: focal(post), y, h, liked: !!post.liked, reposted: !!post.reposted, content: undefined };
+      pendingRows.set(post, row);
+      return row;
     }
+    const before = shape.row;
+    if (before && before.y === y && before.key === key && before.post === post) return before;
+    const isFocal = focal(post);
     const row: PostRow = {
       key,
       post,
-      focal,
-      y: rowY,
+      focal: isFocal,
+      y,
       h: shape.h,
       repost: shape.repost,
       head: shape.head,
-      meta: shape.meta,
+      shape,
       body: shape.body,
       bodyLines: shape.bodyLines,
       quote: shape.quote,
@@ -401,11 +353,68 @@ export function layoutPosts(
       rich: shape.rich,
       initials: shape.initials,
       color: shape.color,
+      pending: false,
+      content: before && before.key === key && before.post === post && before.focal === isFocal ? before.content : {},
     };
     shape.row = row;
-    rows.push(row);
+    return row;
+  });
+}
+
+/** "@handle  5m", fitted beside the name, for the clock at `now`: kept in
+ *  the shape and made again only when the age reads differently. */
+function metaLine(post: Post, shape: RowShape, now: number): string {
+  if (shape.ageAt === now) return shape.meta;
+  shape.ageAt = now;
+  const age = post.time ? ageText(post.time, now) : "";
+  if (shape.age !== age || shape.meta === "") {
+    shape.age = age;
+    shape.meta = ellipsize(`@${toAscii(post.handle)}  ${age}`, FONT.xs, TEXT_W - shape.nameW - 6);
   }
-  return { rows, height: y, complete };
+  return shape.meta;
+}
+
+const pendingRows = new WeakMap<Post, PostRow>();
+const PENDING_ROW: Omit<PostRow, "key" | "post" | "focal" | "y" | "h" | "liked" | "reposted" | "content"> = {
+  repost: "",
+  head: "",
+  shape: null,
+  body: "",
+  bodyLines: 0,
+  quote: "",
+  quoteLines: 0,
+  footY: 0,
+  replies: "",
+  reposts: "",
+  likes: "",
+  extra: "",
+  rich: false,
+  initials: "",
+  color: "#e1e6ea",
+  pending: true,
+};
+
+/** A list of posts measured on demand (framework slot-list): a post is
+ *  shaped when it comes near the view, or while the list stands still, and
+ *  shaped again in its new face when the glyph atlases come to cover it. */
+function postList(env: XEnv, layer: LayerContext, posts: () => readonly Post[], focal: (post: Post) => boolean) {
+  const list = createMeasuredList<Post, RowShape>({
+    items: posts,
+    measure: (post) => rowShape(post, focal(post), env, richRow(post, env)),
+    estimate: (post) => estimateHeight(post, focal(post)),
+    version: (post) => richRow(post, env),
+    offset: layer.offset,
+    view: VIEW_H,
+    overscan: OVERSCAN,
+    rebase: layer.rebase,
+  });
+  // An atlas that loads can bring any post into the rich face.
+  createEffect(() => {
+    env.text.revision();
+    env.bold.revision();
+    list.recheck();
+  });
+  return list;
 }
 
 /** The font slots a row's texts draw from: the baked faces, or the glyph
@@ -415,7 +424,7 @@ const RICH_SLOTS = { head: 22, body: 21, quote: 21, repost: 22, letters: 22 };
 
 /** One slot of a post list's pool (ui/slots.ts): its nodes mount once, and
  *  the painter moves them and rewrites their texts for each new row. */
-function PostSlot(props: { pool: SlotPool<PostRow>; slot: number; lit: (key: string) => boolean; model: XModel; press: Press }) {
+function PostSlot(props: { pool: SlotPool<PostRow>; slot: number; lit: (key: string) => boolean; model: XModel; press: Press; now: Accessor<number> }) {
   let box!: NodeMirror;
   let wash!: NodeMirror;
   let face!: NodeMirror;
@@ -431,6 +440,11 @@ function PostSlot(props: { pool: SlotPool<PostRow>; slot: number; lit: (key: str
   let bar!: NodeMirror;
   const counts: Record<Act, NodeMirror | undefined> = { reply: undefined, repost: undefined, like: undefined };
   let extra!: NodeMirror;
+  let content!: NodeMirror;
+  let skeletonNode!: NodeMirror;
+  let skeletonShown = false;
+  /** The row painted in full, whose meta line follows the clock. */
+  let shown: PostRow | null = null;
   const [key, setKey] = createSignal("");
   const [avatarUrl, setAvatarUrl] = createSignal<string | undefined>(undefined);
   const [liked, setLiked] = createSignal(false);
@@ -454,19 +468,29 @@ function PostSlot(props: { pool: SlotPool<PostRow>; slot: number; lit: (key: str
   };
   onMount(() => {
     createEffect(() => jump(wash, "opacity", lit() ? 1 : focal ? 0.5 : 0));
-    props.pool.attach(props.slot, (row) => batch(() => {
+    // A new minute rewrites the meta line of the row on show, not the list.
+    createEffect(() => {
+      const now = props.now();
+      if (shown?.shape && !skeletonShown) paintText(meta, metaLine(shown.post, shown.shape, now));
+    });
+    props.pool.attach(props.slot, (row, skeleton, moved) => batch(() => {
       if (!row) {
         if (y >= 0) jump(box, "opacity", 0);
         y = -1;
         for (const text of [letters, repost, head, meta, body, quote, extra, counts.reply!, counts.repost!, counts.like!]) paintText(text, "");
         setKey("");
         setAvatarUrl(undefined);
+        shown = null;
         return;
       }
       if (y < 0) jump(box, "opacity", 1);
       if (row.y !== y) jump(box, "translateY", (y = row.y));
       if (row.h !== h) jump(box, "height", (h = row.h));
+      if (moved) return;
       focal = row.focal;
+      setKey(row.key);
+      if (skeleton !== skeletonShown) showSkeleton(skeletonNode, content, (skeletonShown = skeleton));
+      if (skeleton) return;
       if (row.rich !== rich) setSlots((rich = row.rich) ? RICH_SLOTS : BAKED_SLOTS);
       const top = PAD + (row.repost ? REPOST_H : 0);
       jump(face, "insetT", top);
@@ -481,7 +505,8 @@ function PostSlot(props: { pool: SlotPool<PostRow>; slot: number; lit: (key: str
       paintText(letters, row.initials);
       paintText(repost, row.repost);
       paintText(head, row.head);
-      paintText(meta, row.meta);
+      shown = row;
+      paintText(meta, row.shape ? metaLine(row.post, row.shape, props.now()) : "");
       paintText(body, row.body);
       paintText(quote, row.quote);
       paintText(counts.reply!, row.replies);
@@ -491,7 +516,6 @@ function PostSlot(props: { pool: SlotPool<PostRow>; slot: number; lit: (key: str
       setLiked(row.liked);
       setReposted(row.reposted);
       setAvatarUrl(row.post.avatar);
-      setKey(row.key);
       jump(wash, "opacity", lit() ? 1 : focal ? 0.5 : 0);
     }));
   });
@@ -510,35 +534,38 @@ function PostSlot(props: { pool: SlotPool<PostRow>; slot: number; lit: (key: str
     <View ref={box} class="absolute left-0 top-0 w-[320] h-[60] opacity-0 contain-strict">
       <View ref={wash} class="absolute inset-0 opacity-0 bg-[#e8f3fd]" />
       <View class="absolute left-0 right-0 bottom-0 h-[1] bg-[#e6ecf0]" />
-      <Text ref={repost} class="absolute left-[50] top-[6] text-xs text-[#536471] font-bold">{" "}</Text>
-      <View ref={face} class="absolute left-[10] top-[7] w-[32] h-[32]">
-        <View ref={disc} class="absolute left-0 top-0 w-[32] h-[32] rounded-[16] bg-[#1d9bf0] flex-col justify-center items-center">
-          <Text ref={letters} class="text-xs text-white font-bold">{" "}</Text>
+      <Skeleton ref={(node) => (skeletonNode = node)} x={TEXT_X} width={TEXT_W - 20} face lines={2} />
+      <View ref={content} class="absolute inset-0">
+        <Text ref={repost} class="absolute left-[50] top-[6] text-xs text-[#536471] font-bold">{" "}</Text>
+        <View ref={face} class="absolute left-[10] top-[7] w-[32] h-[32]">
+          <View ref={disc} class="absolute left-0 top-0 w-[32] h-[32] rounded-[16] bg-[#1d9bf0] flex-col justify-center items-center">
+            <Text ref={letters} class="text-xs text-white font-bold">{" "}</Text>
+          </View>
+          <Show when={faceKey()}>{(src) => <Image class="absolute left-0 top-0 w-[32] h-[32]" src={src()} />}</Show>
         </View>
-        <Show when={faceKey()}>{(src) => <Image class="absolute left-0 top-0 w-[32] h-[32]" src={src()} />}</Show>
-      </View>
-      <View ref={headRow} class="absolute left-[50] top-[7] flex-row items-center">
-        <Text ref={head} class="text-sm text-[#0f1419] font-bold">{" "}</Text>
-        <Text ref={meta} class="ml-[6] text-xs text-[#536471]">{" "}</Text>
-      </View>
-      <Text ref={body} class="absolute left-[50] top-[23] text-sm text-[#0f1419] leading-[17]">{" "}</Text>
-      <View ref={quoteBox} class="absolute left-[50] w-[260] h-0 opacity-0 rounded-[8] border border-[#cfd9de] bg-white">
-        <Text ref={quote} class="absolute left-[7] top-[5] text-xs text-[#0f1419] leading-[15]">{" "}</Text>
-      </View>
-      <View ref={bar} class="absolute left-0 top-0 w-[320] h-[18]">
-        <For each={ACTS}>
-          {(act, index) => (
-            <View class="absolute top-0 w-[64] h-[18]" style={{ insetL: ACT_X + index() * ACT_W }}>
-              <View
-                class={props.press.is(`act.${act}.${key()}`) ? "absolute left-[-1] top-[-4] w-[26] h-[26] rounded-[13]" : "hidden"}
-                style={{ bgColor: TINTS[act] }}
-              />
-              <Image class="absolute left-[4] top-[1] w-[16] h-[16]" src={ICONS[act]()} />
-              <Text ref={(node: NodeMirror) => (counts[act] = node)} class={COUNT_CLASS[act]()}>{" "}</Text>
-            </View>
-          )}
-        </For>
-        <Text ref={extra} class="absolute left-[238] top-[2] text-xs text-[#536471]">{" "}</Text>
+        <View ref={headRow} class="absolute left-[50] top-[7] flex-row items-center">
+          <Text ref={head} class="text-sm text-[#0f1419] font-bold">{" "}</Text>
+          <Text ref={meta} class="ml-[6] text-xs text-[#536471]">{" "}</Text>
+        </View>
+        <Text ref={body} class="absolute left-[50] top-[23] text-sm text-[#0f1419] leading-[17]">{" "}</Text>
+        <View ref={quoteBox} class="absolute left-[50] w-[260] h-0 opacity-0 rounded-[8] border border-[#cfd9de] bg-white">
+          <Text ref={quote} class="absolute left-[7] top-[5] text-xs text-[#0f1419] leading-[15]">{" "}</Text>
+        </View>
+        <View ref={bar} class="absolute left-0 top-0 w-[320] h-[18]">
+          <For each={ACTS}>
+            {(act, index) => (
+              <View class="absolute top-0 w-[64] h-[18]" style={{ insetL: ACT_X + index() * ACT_W }}>
+                <View
+                  class={props.press.is(`act.${act}.${key()}`) ? "absolute left-[-1] top-[-4] w-[26] h-[26] rounded-[13]" : "hidden"}
+                  style={{ bgColor: TINTS[act] }}
+                />
+                <Image class="absolute left-[4] top-[1] w-[16] h-[16]" src={ICONS[act]()} />
+                <Text ref={(node: NodeMirror) => (counts[act] = node)} class={COUNT_CLASS[act]()}>{" "}</Text>
+              </View>
+            )}
+          </For>
+          <Text ref={extra} class="absolute left-[238] top-[2] text-xs text-[#536471]">{" "}</Text>
+        </View>
       </View>
     </View>
   );
@@ -622,23 +649,35 @@ function actionTargets(env: XEnv, row: PostRow, rowY: number, out: Target[]) {
 const GLYPH_STEP = 120;
 
 function wantGlyphs(env: XEnv, rows: () => readonly PostRow[], offset: () => number) {
-  const band = createMemo(() => Math.floor(offset() / GLYPH_STEP));
   // Posts already asked for, by both faces' wants() at the time: a band
   // move asks only for the posts that came near.
   const asked = new WeakMap<Post, number>();
   const wants = () => env.text.wants() * 65536 + env.bold.wants();
-  createEffect(() => {
-    const top = band() * GLYPH_STEP - 2 * VIEW_H;
-    const bottom = band() * GLYPH_STEP + 3 * VIEW_H;
+  let doneRows: readonly PostRow[] | null = null;
+  let doneBand = Number.NaN;
+  let doneWants = -1;
+  // Asked for while the lists rest, when the requests go out too (ui/glyphs.ts
+  // when): in motion the band moves every few frames, and the scan and the
+  // codepoints of new posts cost a frame.
+  onFrame(() => {
+    if (!env.resting()) return;
+    const band = Math.floor(offset() / GLYPH_STEP);
+    const list = rows();
     const now = wants();
+    if (list === doneRows && band === doneBand && now === doneWants) return;
+    doneRows = list;
+    doneBand = band;
+    const top = band * GLYPH_STEP - 2 * VIEW_H;
+    const bottom = band * GLYPH_STEP + 3 * VIEW_H;
     const fresh: Post[] = [];
-    for (const row of rows()) if (row.y + row.h > top && row.y < bottom && asked.get(row.post) !== now) fresh.push(row.post);
-    if (fresh.length === 0) return;
-    env.text.want(fresh.flatMap(postTexts));
-    env.bold.want(fresh.flatMap((post) => (post.repostedBy ? [post.name, post.repostedBy] : [post.name])));
-    const after = wants();
+    for (const row of list) if (row.y + row.h > top && row.y < bottom && asked.get(row.post) !== now) fresh.push(row.post);
+    if (fresh.length > 0) {
+      env.text.want(fresh.flatMap(postTexts));
+      env.bold.want(fresh.flatMap((post) => (post.repostedBy ? [post.name, post.repostedBy] : [post.name])));
+    }
+    doneWants = wants();
     for (const post of fresh) {
-      asked.set(post, after);
+      asked.set(post, doneWants);
       wantedPosts.add(post.id);
     }
   });
@@ -704,31 +743,14 @@ const NO_ROWS: never[] = [];
 export function timelinePage(env: XEnv, stack: NavStack, layer: LayerContext): PageSpec {
   const { model, press } = env;
   reportMotion(env, layer.offset);
-  // A page of posts is shaped a few at a time: the first screen at once,
-  // the rest in frames where the list rests or its end comes near, and the
-  // list grows by what was shaped every SHAPED_EVERY frames (a layout and
-  // the glyph wants follow each growth), or at once when the end is near.
-  const queue: ShapeQueue = { waiting: new Map() };
-  const [shaped, setShaped] = createSignal(0);
-  let unlisted = 0;
-  onFrame(() => {
-    const endNear = layer.offset() + 3 * VIEW_H > layout().height;
-    if (!endNear && !env.resting()) return;
-    if (shapeQueued(queue, env)) unlisted += 1;
-    if (unlisted > 0 && (endNear || unlisted >= SHAPED_EVERY || queue.waiting.size === 0)) {
-      unlisted = 0;
-      setShaped(shaped() + 1);
-    }
-  });
-  const layout = createMemo(() => {
-    const state = model.state();
+  const posts = createMemo(() => {
     model.marks();
-    env.text.revision();
-    env.bold.revision();
-    shaped();
-    const posts = state.posts.map((post) => ({ post: model.view(post), focal: false }));
-    const { rows, height, complete } = layoutPosts(posts, env.now(), 0, `${model.kind()}:`, env, queue, VIEW_H + OVERSCAN);
-    return { rows, height: height + (state.cursor || !complete ? MORE_H : 8), complete };
+    return model.state().posts.map((post) => model.view(post));
+  });
+  const list = postList(env, layer, posts, () => false);
+  const layout = createMemo(() => {
+    const rows = placeRows(list.rows(), `${model.kind()}:`, () => false);
+    return { rows, height: list.height() + (model.state().cursor ? MORE_H : 8) };
   });
   wantGlyphs(env, () => layout().rows, layer.offset);
   const listed = () => model.state().status === "ready" && model.state().posts.length > 0;
@@ -744,15 +766,15 @@ export function timelinePage(env: XEnv, stack: NavStack, layer: LayerContext): P
     const focused = layer.focus();
     const rows = layout().rows;
     const row = keys().byKey.get(focused);
-    if (row && layout().complete && rows.indexOf(row) >= rows.length - 3) model.more();
+    if (row && rows.indexOf(row) >= rows.length - 3) model.more();
   });
   onFrame(() => {
-    if (listed() && layout().complete && layer.offset() + VIEW_H > layout().height - MORE_H - 60) model.more();
+    if (listed() && layer.offset() + VIEW_H > layout().height - MORE_H - 60) model.more();
   });
   const content: PageContent = {
     view: () => (
       <>
-        <For each={pool.slots}>{(slot) => <PostSlot pool={pool} slot={slot} lit={lit} model={model} press={press} />}</For>
+        <For each={pool.slots}>{(slot) => <PostSlot pool={pool} slot={slot} lit={lit} model={model} press={press} now={env.now} />}</For>
         <Show when={!listed()}>
           {model.state().status === "error"
             ? <Centered title={model.state().error!.title} detail={model.state().error!.detail} button={{ id: "x.retry", label: "Try Again" }} press={press} />
@@ -760,7 +782,7 @@ export function timelinePage(env: XEnv, stack: NavStack, layer: LayerContext): P
               ? <Centered title="Nothing here yet" detail="Posts from the accounts you follow show up here." press={press} />
               : <Centered title="Loading" detail="Reading your timeline through your Mac." spinner press={press} />}
         </Show>
-        <Show when={listed() && (model.state().cursor || !layout().complete)}>
+        <Show when={listed() && model.state().cursor}>
           <View class="absolute left-[118]" style={{ insetT: layout().height - MORE_H + 13 }}>
             <ClassicSpinner size={18} color={"#536471"} />
           </View>
@@ -819,20 +841,25 @@ export function postPage(env: XEnv, stack: NavStack, layer: LayerContext): PageS
   const id = env.opening.id;
   const state = () => model.thread(id);
   reportMotion(env, layer.offset);
+  const focalPost = createMemo(() => {
+    model.marks();
+    const thread = state();
+    return thread?.post ? model.view(thread.post) : null;
+  });
+  const posts = createMemo((): readonly Post[] => {
+    model.marks();
+    const thread = state();
+    if (!thread || thread.status !== "ready" || !thread.post) return [];
+    return [...thread.before.map((post) => model.view(post)), focalPost()!, ...thread.replies.map((post) => model.view(post))];
+  });
+  const isFocal = (post: Post) => post === focalPost();
+  const list = postList(env, layer, posts, isFocal);
   const layout = createMemo(() => {
     const thread = state();
-    model.marks();
-    env.text.revision();
-    env.bold.revision();
     if (!thread || thread.status !== "ready" || !thread.post) return { rows: [] as PostRow[], height: VIEW_H, footer: "" };
-    const posts = [
-      ...thread.before.map((post) => ({ post: model.view(post), focal: false })),
-      { post: model.view(thread.post), focal: true },
-      ...thread.replies.map((post) => ({ post: model.view(post), focal: false })),
-    ];
-    const { rows, height } = layoutPosts(posts, env.now(), 0, `${id}:`, env);
+    const rows = placeRows(list.rows(), `${id}:`, isFocal);
     const footer = thread.cursor ? "Loading more replies..." : thread.replies.length === 0 ? "No replies yet." : "";
-    return { rows, height: height + (footer ? MORE_H : 8), footer };
+    return { rows, height: list.height() + (footer ? MORE_H : 8), footer };
   });
   const ready = () => state()?.status === "ready" && !!state()?.post;
   wantGlyphs(env, () => layout().rows, layer.offset);
@@ -843,9 +870,11 @@ export function postPage(env: XEnv, stack: NavStack, layer: LayerContext): PageS
   let placed = false;
   createEffect(() => {
     if (placed || !ready()) return;
-    placed = true;
+    // The list lays its rows out on the frame after the thread arrives.
     const focal = layout().rows.find((row) => row.focal);
-    if (focal && focal.y > 0) layer.reveal(focal.y, focal.y + Math.min(focal.h, VIEW_H));
+    if (!focal) return;
+    placed = true;
+    if (focal.y > 0) layer.reveal(focal.y, focal.y + Math.min(focal.h, VIEW_H));
   });
   onFrame(() => {
     if (ready() && state()?.cursor && layer.offset() + VIEW_H > layout().height - MORE_H - 60) model.moreReplies(id);
@@ -859,7 +888,7 @@ export function postPage(env: XEnv, stack: NavStack, layer: LayerContext): PageS
   const content: PageContent = {
     view: () => (
       <>
-        <For each={pool.slots}>{(slot) => <PostSlot pool={pool} slot={slot} lit={lit} model={model} press={press} />}</For>
+        <For each={pool.slots}>{(slot) => <PostSlot pool={pool} slot={slot} lit={lit} model={model} press={press} now={env.now} />}</For>
         <Show when={!ready()}>
           {state()?.status === "error"
             ? <Centered title={state()!.error!.title} detail={state()!.error!.detail} button={{ id: "post.retry", label: "Try Again" }} press={press} />

@@ -22,7 +22,8 @@ import { BTN } from "@pocketjs/framework/input";
 import type { LayerContext, NavStack, PageContent, PageSpec } from "../ui/nav.tsx";
 import { ellipsize, FONT, measure, toAscii, wrap } from "../ui/text.ts";
 import { richText, type Glyphs } from "../ui/glyphs.ts";
-import { createSlotPool, paintText, type SlotPool } from "../ui/slots.ts";
+import { createMeasuredList, createSlotPool, paintText, type MeasuredRow, type SlotPool } from "../ui/slots.ts";
+import { showSkeleton, Skeleton } from "../ui/skeleton.tsx";
 import type { Press, Target } from "../ui/touch.ts";
 import type { Channel, Guild, Message } from "./api.ts";
 import type { ChatState, DiscordModel, ListState } from "./model.ts";
@@ -233,6 +234,9 @@ function GuildSlot(props: { env: DiscordEnv; pool: SlotPool<GuildRow>; slot: num
   let box!: NodeMirror;
   let wash!: NodeMirror;
   let name!: NodeMirror;
+  let content!: NodeMirror;
+  let skeletonNode!: NodeMirror;
+  let skeletonShown = false;
   const refs: PictureRefs = {};
   const [id, setId] = createSignal("");
   const lit = createMemo(() => props.lit(id()));
@@ -241,7 +245,7 @@ function GuildSlot(props: { env: DiscordEnv; pool: SlotPool<GuildRow>; slot: num
   onMount(() => {
     const picture = createPicturePainter(props.env.model, () => refs.image!, () => refs.disc!, () => refs.letter!, props.env.bold);
     createEffect(() => jump(wash, "opacity", lit() ? 1 : 0));
-    props.pool.attach(props.slot, (row) => batch(() => {
+    props.pool.attach(props.slot, (row, skeleton) => batch(() => {
       if (!row) {
         if (y >= 0) jump(box, "opacity", 0);
         y = -1;
@@ -252,18 +256,23 @@ function GuildSlot(props: { env: DiscordEnv; pool: SlotPool<GuildRow>; slot: num
       }
       if (y < 0) jump(box, "opacity", 1);
       if (row.y !== y) jump(box, "translateY", (y = row.y));
+      setId(row.key);
+      if (skeleton !== skeletonShown) showSkeleton(skeletonNode, content, (skeletonShown = skeleton));
+      if (skeleton) return;
       if (row.rich !== rich) setSlot(name, (rich = row.rich) ? RICH_BOLD : FONT.smBold);
       paintText(name, row.name);
       picture({ kind: "icon", owner: row.guild.id, hash: row.guild.icon, name: row.guild.name });
-      setId(row.key);
     }));
   });
   return (
     <View ref={box} class="absolute left-0 top-0 w-[320] h-[44] opacity-0 contain-strict">
       <View ref={wash} class="absolute inset-0 opacity-0 bg-[#4f545c]" />
       <View class="absolute left-[52] right-0 bottom-0 h-[1] bg-[#3f4248]" />
-      <Picture x={10} y={6} refs={refs} />
-      <Text ref={name} class="absolute left-[52] top-[14] text-sm text-[#dcddde] font-bold">{" "}</Text>
+      <Skeleton ref={(node) => (skeletonNode = node)} x={52} width={180} face lines={0} dark />
+      <View ref={content} class="absolute inset-0">
+        <Picture x={10} y={6} refs={refs} />
+        <Text ref={name} class="absolute left-[52] top-[14] text-sm text-[#dcddde] font-bold">{" "}</Text>
+      </View>
     </View>
   );
 }
@@ -355,6 +364,9 @@ function ChannelSlot(props: { pool: SlotPool<ChannelRow>; slot: number; lit: (id
   let hash!: NodeMirror;
   let name!: NodeMirror;
   let header!: NodeMirror;
+  let content!: NodeMirror;
+  let skeletonNode!: NodeMirror;
+  let skeletonShown = false;
   const [id, setId] = createSignal("");
   const lit = createMemo(() => props.lit(id()));
   let y = -1;
@@ -365,7 +377,7 @@ function ChannelSlot(props: { pool: SlotPool<ChannelRow>; slot: number; lit: (id
       jump(wash, "opacity", lit() ? 1 : 0);
       jump(name, "textColor", lit() ? "#ffffff" : THEME.text);
     });
-    props.pool.attach(props.slot, (row) => batch(() => {
+    props.pool.attach(props.slot, (row, skeleton) => batch(() => {
       if (!row) {
         if (y >= 0) jump(box, "opacity", 0);
         y = -1;
@@ -376,6 +388,9 @@ function ChannelSlot(props: { pool: SlotPool<ChannelRow>; slot: number; lit: (id
       if (y < 0) jump(box, "opacity", 1);
       if (row.y !== y) jump(box, "translateY", (y = row.y));
       if (row.h !== h) jump(box, "height", (h = row.h));
+      setId(row.key);
+      if (skeleton !== skeletonShown) showSkeleton(skeletonNode, content, (skeletonShown = skeleton));
+      if (skeleton) return;
       const channel = row.channel !== null;
       if (row.rich !== rich) {
         rich = row.rich;
@@ -385,15 +400,17 @@ function ChannelSlot(props: { pool: SlotPool<ChannelRow>; slot: number; lit: (id
       paintText(header, channel ? "" : row.label);
       paintText(hash, channel ? "#" : "");
       paintText(name, channel ? row.label : "");
-      setId(row.key);
     }));
   });
   return (
     <View ref={box} class="absolute left-0 top-0 w-[320] h-[34] opacity-0 contain-strict">
       <View ref={wash} class="absolute left-[6] right-[6] top-[2] bottom-[2] rounded-[4] opacity-0 bg-[#4f545c]" />
-      <Text ref={header} class="absolute left-[10] top-[11] text-2xs text-[#8e9297] font-bold">{" "}</Text>
-      <Text ref={hash} class="absolute left-[14] top-[7] text-base text-[#8e9297]">{" "}</Text>
-      <Text ref={name} class="absolute left-[32] top-[9] text-sm text-[#dcddde]">{" "}</Text>
+      <Skeleton ref={(node) => (skeletonNode = node)} x={32} width={160} lines={0} dark />
+      <View ref={content} class="absolute inset-0">
+        <Text ref={header} class="absolute left-[10] top-[11] text-2xs text-[#8e9297] font-bold">{" "}</Text>
+        <Text ref={hash} class="absolute left-[14] top-[7] text-base text-[#8e9297]">{" "}</Text>
+        <Text ref={name} class="absolute left-[32] top-[9] text-sm text-[#dcddde]">{" "}</Text>
+      </View>
     </View>
   );
 }
@@ -519,13 +536,18 @@ export interface MessageRow {
   avatar: Avatar;
   /** Name, reply and body draw from the glyph atlases. */
   rich: boolean;
+  /** Not measured yet: the slot shows its skeleton at the estimated height. */
+  pending: boolean;
+  /** Kept while everything but the place stays (framework slot-list). */
+  content: object | undefined;
 }
 
 const bodyCache = new Map<string, { content: string; stamp: number; lines: string[] }>();
 
 function bodyLines(message: Message, glyphs: Glyphs | null): string[] {
-  // A rich layout is valid for the atlas revision it measured with.
-  const stamp = glyphs ? glyphs.revision() : -1;
+  // A glyph's advance is the same in every atlas of a face, so a rich wrap
+  // holds while later atlases grow.
+  const stamp = glyphs ? 1 : -1;
   const cached = bodyCache.get(message.id);
   if (cached && cached.content === message.content && cached.stamp === stamp) return cached.lines;
   const edited = message.edited ? " (edited)" : "";
@@ -543,46 +565,98 @@ export function messageTexts(message: Message): { text: string[]; bold: string[]
   };
 }
 
-export function messageRows(chat: ChatState, glyphs: { text: Glyphs; bold: Glyphs } | null = null): { rows: MessageRow[]; height: number; top: number } {
-  const top = chat.more || chat.loadingOlder ? EARLIER_H : 6;
-  let y = top;
-  let previous: Message | null = null;
-  const rows = chat.messages.map((message): MessageRow => {
-    const head = message.system || !previous || previous.system || previous.author.id !== message.author.id ||
-      message.time - previous.time > GROUP_MS || message.replyTo !== null;
-    previous = message;
-    const texts = messageTexts(message);
-    const rich = !!glyphs && glyphs.text.ready() && texts.text.every((text) => glyphs.text.covers(text)) && texts.bold.every((text) => glyphs.bold.covers(text));
-    const lines = bodyLines(message, rich ? glyphs!.text : null);
-    const reply = !message.replyTo
-      ? ""
-      : rich
-        ? glyphs!.text.ellipsize(richText(`@${message.replyTo.author} ${message.replyTo.content}`), BODY_W)
-        : ellipsize(`@${toAscii(message.replyTo.author)} ${toAscii(message.replyTo.content)}`, FONT.xxs, BODY_W);
-    const name = message.system ? "" : rich ? glyphs!.bold.ellipsize(richText(message.author.name), 150) : ellipsize(toAscii(message.author.name), FONT.xsBold, 150);
-    const offset = (head ? 6 : 1) + (reply ? REPLY_H : 0);
-    const bodyY = offset + (head && !message.system ? HEADER_H : 0);
-    const h = bodyY + lines.length * BODY_LINE + 3;
+/** A message opens a run (avatar, name, time) unless it follows its
+ *  author's last within GROUP_MS. */
+function opensRun(messages: readonly Message[], index: number): boolean {
+  const message = messages[index]!;
+  const previous = messages[index - 1];
+  return message.system || !previous || previous.system || previous.author.id !== message.author.id ||
+    message.time - previous.time > GROUP_MS || message.replyTo !== null;
+}
+
+/** Both atlases hold every glyph of the message's texts. */
+function richMessage(message: Message, glyphs: { text: Glyphs; bold: Glyphs }): boolean {
+  if (!glyphs.text.ready() || !glyphs.bold.ready()) return false;
+  const texts = messageTexts(message);
+  return texts.text.every((text) => glyphs.text.covers(text)) && texts.bold.every((text) => glyphs.bold.covers(text));
+}
+
+/** A message's row apart from its place. */
+interface MessageShape {
+  h: number;
+  head: boolean;
+  name: string;
+  nameW: number;
+  reply: string;
+  body: string;
+  bodyY: number;
+  rich: boolean;
+}
+
+function messageShape(message: Message, head: boolean, rich: boolean, glyphs: { text: Glyphs; bold: Glyphs }): MessageShape {
+  const lines = bodyLines(message, rich ? glyphs.text : null);
+  const reply = !message.replyTo
+    ? ""
+    : rich
+      ? glyphs.text.ellipsize(richText(`@${message.replyTo.author} ${message.replyTo.content}`), BODY_W)
+      : ellipsize(`@${toAscii(message.replyTo.author)} ${toAscii(message.replyTo.content)}`, FONT.xxs, BODY_W);
+  const name = message.system ? "" : rich ? glyphs.bold.ellipsize(richText(message.author.name), 150) : ellipsize(toAscii(message.author.name), FONT.xsBold, 150);
+  const bodyY = messageBodyY(message, head);
+  return {
+    h: bodyY + lines.length * BODY_LINE + 3,
+    head,
+    name,
+    nameW: name ? (rich ? glyphs.bold.measure(name) : measure(name, FONT.xsBold)) : 0,
+    reply,
+    body: lines.join("\n"),
+    bodyY,
+    rich,
+  };
+}
+
+function messageBodyY(message: Message, head: boolean): number {
+  return (head ? 6 : 1) + (message.replyTo ? REPLY_H : 0) + (head && !message.system ? HEADER_H : 0);
+}
+
+/** A message's height before it is wrapped: its text at about 7 px a
+ *  character over the body width. */
+function estimateMessage(message: Message, head: boolean): number {
+  const lines = Math.max(1, Math.ceil((message.content.length * 7) / BODY_W));
+  return messageBodyY(message, head) + lines * BODY_LINE + 3;
+}
+
+/** Message rows by id: an unchanged row keeps its object, so the slot
+ *  showing it keeps its nodes as they are. */
+const previousMessages = new Map<string, MessageRow>();
+
+function placeMessages(rows: readonly MeasuredRow<Message, MessageShape>[]): MessageRow[] {
+  const placed = rows.map(({ item: message, y, h, value: shape }) => {
+    const before = previousMessages.get(message.id);
+    const same = !!before && before.h === h && before.pending === !shape && (!shape || (before.body === shape.body && before.head === shape.head && before.rich === shape.rich && before.name === shape.name && before.reply === shape.reply));
+    if (same && before!.y === y) return before!;
     const row: MessageRow = {
       key: `message.${message.id}`,
       id: message.id,
       y,
       h,
-      head,
+      head: shape?.head ?? false,
       system: message.system,
-      name,
-      nameW: name ? (rich ? glyphs!.bold.measure(name) : measure(name, FONT.xsBold)) : 0,
+      name: shape?.name ?? "",
+      nameW: shape?.nameW ?? 0,
       when: message.when,
-      reply,
-      body: lines.join("\n"),
-      bodyY,
+      reply: shape?.reply ?? "",
+      body: shape?.body ?? "",
+      bodyY: shape?.bodyY ?? 0,
       avatar: { kind: "avatar", owner: message.author.id, hash: message.author.avatar, name: message.author.name },
-      rich,
+      rich: shape?.rich ?? false,
+      pending: !shape,
+      content: !shape ? undefined : same ? before!.content : {},
     };
-    y += h;
+    previousMessages.set(message.id, row);
     return row;
   });
-  return { rows, height: y + 8, top };
+  if (previousMessages.size > 1000) previousMessages.clear();
+  return placed;
 }
 
 function MessageSlot(props: { env: DiscordEnv; pool: SlotPool<MessageRow>; slot: number; lit: (id: string) => boolean }) {
@@ -592,6 +666,9 @@ function MessageSlot(props: { env: DiscordEnv; pool: SlotPool<MessageRow>; slot:
   let when!: NodeMirror;
   let reply!: NodeMirror;
   let body!: NodeMirror;
+  let content!: NodeMirror;
+  let skeletonNode!: NodeMirror;
+  let skeletonShown = false;
   const refs: PictureRefs = {};
   const [id, setId] = createSignal("");
   const lit = createMemo(() => props.lit(id()));
@@ -604,7 +681,7 @@ function MessageSlot(props: { env: DiscordEnv; pool: SlotPool<MessageRow>; slot:
   onMount(() => {
     const picture = createPicturePainter(props.env.model, () => refs.image!, () => refs.disc!, () => refs.letter!, props.env.bold);
     createEffect(() => jump(wash, "opacity", lit() ? 1 : 0));
-    props.pool.attach(props.slot, (row) => batch(() => {
+    props.pool.attach(props.slot, (row, skeleton, moved) => batch(() => {
       if (!row) {
         if (y >= 0) jump(box, "opacity", 0);
         y = -1;
@@ -616,6 +693,10 @@ function MessageSlot(props: { env: DiscordEnv; pool: SlotPool<MessageRow>; slot:
       if (y < 0) jump(box, "opacity", 1);
       if (row.y !== y) jump(box, "translateY", (y = row.y));
       if (row.h !== h) jump(box, "height", (h = row.h));
+      if (moved) return;
+      setId(row.key);
+      if (skeleton !== skeletonShown) showSkeleton(skeletonNode, content, (skeletonShown = skeleton));
+      if (skeleton) return;
       const header = row.head && !row.system;
       if (row.rich !== rich) {
         rich = row.rich;
@@ -638,39 +719,91 @@ function MessageSlot(props: { env: DiscordEnv; pool: SlotPool<MessageRow>; slot:
       const nextTone = row.system ? THEME.muted : THEME.text;
       if (nextTone !== tone) jump(body, "textColor", (tone = nextTone));
       picture(header ? row.avatar : null);
-      setId(row.key);
     }));
   });
   return (
     <View ref={box} class="absolute left-0 top-0 w-[320] h-[40] opacity-0 contain-strict">
       <View ref={wash} class="absolute inset-0 opacity-0 bg-[#32353b]" />
-      <Picture x={8} y={5} refs={refs} />
-      <Text ref={reply} class="absolute left-[46] top-[4] text-2xs text-[#b9bbbe]">{" "}</Text>
-      <Text ref={name} class="absolute left-[46] top-[5] text-xs text-white font-bold">{" "}</Text>
-      <Text ref={when} class="absolute left-[96] top-[6] text-2xs text-[#a3a6aa]">{" "}</Text>
-      <Text ref={body} class="absolute left-[46] top-[25] text-sm text-[#dcddde] leading-[16]">{" "}</Text>
+      <Skeleton ref={(node) => (skeletonNode = node)} x={BODY_X} width={BODY_W - 20} lines={1} dark />
+      <View ref={content} class="absolute inset-0">
+        <Picture x={8} y={5} refs={refs} />
+        <Text ref={reply} class="absolute left-[46] top-[4] text-2xs text-[#b9bbbe]">{" "}</Text>
+        <Text ref={name} class="absolute left-[46] top-[5] text-xs text-white font-bold">{" "}</Text>
+        <Text ref={when} class="absolute left-[96] top-[6] text-2xs text-[#a3a6aa]">{" "}</Text>
+        <Text ref={body} class="absolute left-[46] top-[25] text-sm text-[#dcddde] leading-[16]">{" "}</Text>
+      </View>
     </View>
   );
 }
 
 export function chatPage(env: DiscordEnv, _stack: NavStack, layer: LayerContext): PageSpec {
   const { model, press } = env;
-  const layout = createMemo(() => {
+  const messages = createMemo((): readonly Message[] => model.chat()?.messages ?? []);
+  const top = () => {
     const chat = model.chat();
+    return chat && (chat.more || chat.loadingOlder) ? EARLIER_H : 6;
+  };
+  // A message's version: whether it opens a run and draws rich, kept as one
+  // object per message while both hold.
+  const versions = new WeakMap<Message, { head: boolean; rich: boolean }>();
+  const versionOf = (message: Message, index: number) => {
+    const head = opensRun(messages(), index);
+    const rich = richMessage(message, env);
+    const known = versions.get(message);
+    if (known && known.head === head && known.rich === rich) return known;
+    const next = { head, rich };
+    versions.set(message, next);
+    return next;
+  };
+  // Messages are wrapped when they come near the view or while the chat
+  // stands still (framework slot-list); one not wrapped yet shows its
+  // skeleton at an estimated height. Older pages arriving at the top keep
+  // the reader's place through the list's rebase.
+  const list = createMeasuredList<Message, MessageShape>({
+    items: messages,
+    key: (message) => message.id,
+    version: versionOf,
+    measure: (message, index) => {
+      const version = versionOf(message, index);
+      return messageShape(message, version.head, version.rich, env);
+    },
+    estimate: (message, index) => estimateMessage(message, opensRun(messages(), index)),
+    offset: layer.offset,
+    view: VIEW_H,
+    overscan: OVERSCAN,
+    top,
+    rebase: layer.rebase,
+  });
+  // An atlas that loads can bring any message into the rich face.
+  createEffect(() => {
     env.text.revision();
     env.bold.revision();
-    return chat ? messageRows(chat, env) : { rows: [] as MessageRow[], height: 0, top: 0 };
+    list.recheck();
   });
+  const layout = createMemo(() => ({ rows: placeMessages(list.rows()), height: list.height() + 8, top: top() }));
   // Glyphs for the messages around the visible band (two screens above and
   // below), again when the list changes or the band moves by GLYPH_STEP: an
-  // atlas holds what one response carries, so it follows the reader.
-  const band = createMemo(() => Math.floor(layer.offset() / GLYPH_STEP));
-  createEffect(() => {
-    const messages = model.chat()?.messages ?? [];
-    const top = band() * GLYPH_STEP - 2 * VIEW_H;
-    const bottom = band() * GLYPH_STEP + 3 * VIEW_H;
-    const ids = new Set(layout().rows.filter((row) => row.y + row.h > top && row.y < bottom).map((row) => row.id));
-    const texts = messages.filter((message) => ids.has(message.id)).map(messageTexts);
+  // atlas holds what one response carries, so it follows the reader. Asked
+  // for once the list has stood still a few frames: in motion the band moves
+  // every few frames, and the scan costs a frame.
+  let lastOffset = Number.NaN;
+  let still = 0;
+  let doneRows: readonly MessageRow[] | null = null;
+  let doneBand = Number.NaN;
+  onFrame(() => {
+    const offset = layer.offset();
+    still = offset === lastOffset ? still + 1 : 0;
+    lastOffset = offset;
+    if (still < 6) return;
+    const band = Math.floor(offset / GLYPH_STEP);
+    const rows = layout().rows;
+    if (rows === doneRows && band === doneBand) return;
+    doneRows = rows;
+    doneBand = band;
+    const top = band * GLYPH_STEP - 2 * VIEW_H;
+    const bottom = band * GLYPH_STEP + 3 * VIEW_H;
+    const ids = new Set(rows.filter((row) => row.y + row.h > top && row.y < bottom).map((row) => row.id));
+    const texts = messages().filter((message) => ids.has(message.id)).map(messageTexts);
     if (texts.length === 0) return;
     env.text.want(texts.flatMap((item) => item.text));
     env.bold.want(texts.flatMap((item) => item.bold));
@@ -680,13 +813,10 @@ export function chatPage(env: DiscordEnv, _stack: NavStack, layer: LayerContext)
   const lit = highlight(env, layer, "");
   const keys = keyIndex(() => layout().rows);
 
-  // Arrivals at the end follow the reader to the bottom when they were
-  // there already; a first page opens at the bottom. Older pages coming in
-  // at the top keep the reader's place by moving the scroll by what was
-  // added above.
+  // A first page opens at the bottom. While the reader is at the bottom,
+  // arrivals and rows measured to a new height keep it there. Older pages
+  // coming in at the top keep the reader's place through the list's rebase.
   let arrivals = -1;
-  let firstId = "";
-  let firstY = 0;
   let lastHeight = 0;
   createEffect(() => {
     const chat = model.chat();
@@ -694,16 +824,10 @@ export function chatPage(env: DiscordEnv, _stack: NavStack, layer: LayerContext)
     if (!chat || chat.status !== "ready") return;
     // The offset is read untracked: this runs when messages change, not as the list scrolls.
     const atBottom = untrack(layer.offset) + VIEW_H >= lastHeight - 48;
-    const first = current.rows[0];
-    if (arrivals < 0 || (chat.arrivals !== arrivals && atBottom)) {
+    if (arrivals < 0 || (atBottom && (chat.arrivals !== arrivals || current.height !== lastHeight))) {
       layer.reveal(Math.max(0, current.height - 1), current.height);
-    } else if (first && firstId && first.id !== firstId) {
-      const moved = current.rows.find((row) => row.id === firstId);
-      if (moved) layer.scrollBy(moved.y - firstY);
     }
     arrivals = chat.arrivals;
-    firstId = first?.id ?? "";
-    firstY = first?.y ?? 0;
     lastHeight = current.height;
   });
 
