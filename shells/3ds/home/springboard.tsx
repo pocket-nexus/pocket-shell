@@ -17,9 +17,10 @@
 // than four icons. START, B, Done or a tap on the wallpaper ends edit mode.
 //
 // Installed applets come from the launcher's app table. Tapping one zooms
-// the screen and asks the host to switch to it. An applet the host
-// interrupted, or one that stopped with an error, is announced by an iOS 6
-// banner that slides over the status bar.
+// the screen and asks the host to switch to it; Home boots again after every
+// switch, and its board zooms back from where the launch zoom ended. An
+// applet the host interrupted, or one that stopped with an error, is
+// announced by an iOS 6 banner that slides over the status bar.
 
 import { createEffect, createMemo, createSignal, For, on, Show, type Accessor } from "solid-js";
 import { Image, Text, View, type NodeMirror } from "@pocketjs/framework/components";
@@ -122,6 +123,12 @@ function bannerFor(sys: HomeSystem): Banner | null {
   if (resume) return { app: resume, title: resume.title, line: "Tap here or press SELECT to go back to it.", resume: true };
   return null;
 }
+
+/** The board's scale at the end of the launch zoom and the start of Home's
+ *  own arrival. */
+const LAUNCH_SCALE = 1.6;
+const LAUNCH_MS = 260;
+const ARRIVE_MS = 300;
 
 const iconX = (slot: number) => (slot % COLS) * CELL_W + (CELL_W - ICON) / 2;
 const iconY = (slot: number) => ROW_Y[Math.floor(slot / COLS)]!;
@@ -378,8 +385,8 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
     if (launching()) return;
     setLaunching(app.output);
     if (boardNode) {
-      animate(boardNode, "scale", 1.6, { dur: 260, easing: "in" });
-      animate(boardNode, "opacity", 0, { dur: 260, easing: "in" });
+      animate(boardNode, "scale", LAUNCH_SCALE, { dur: LAUNCH_MS, easing: "in" });
+      animate(boardNode, "opacity", 0, { dur: LAUNCH_MS, easing: "in" });
     }
     after(0.28, () => {
       if (sys.launch(app.output)) return;
@@ -503,8 +510,18 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
   const carried = createMemo(() => carry()?.key ?? "");
   const iconProps = { env, focus, editing, wiggle, spots, titleFor, tileFor, appFor, carried };
 
+  /** The board as Home boots: back from the launch zoom, while the host's
+   *  switch transition fades its scrim away. */
+  const arrive = (node: NodeMirror) => {
+    boardNode = node;
+    jump(node, "scale", LAUNCH_SCALE);
+    jump(node, "opacity", 0);
+    animate(node, "scale", 1, { dur: ARRIVE_MS, easing: "out" });
+    animate(node, "opacity", 1, { dur: ARRIVE_MS, easing: "out" });
+  };
+
   const view = () => (
-    <View ref={(node) => (boardNode = node)} class="absolute left-0 top-0 w-[320] h-[240]">
+    <View ref={arrive} class="absolute left-0 top-0 w-[320] h-[240]">
       <Wallpaper screen="bottom" />
       <View ref={(node) => (gridNode = node)} class="absolute left-0 top-0 w-[320] h-[164]">
         <For each={gridKeys()}>{(key, index) => <HomeIcon iconKey={key} index={index} {...iconProps} />}</For>
