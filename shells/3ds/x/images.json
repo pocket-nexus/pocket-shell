@@ -1,0 +1,17 @@
+{
+  "art/reply.svg": {
+    "linear": false
+  },
+  "art/repost.svg": {
+    "linear": false
+  },
+  "art/repost-on.svg": {
+    "linear": false
+  },
+  "art/like.svg": {
+    "linear": false
+  },
+  "art/like-on.svg": {
+    "linear": false
+  }
+}

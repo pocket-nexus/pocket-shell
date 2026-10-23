@@ -15,6 +15,11 @@
 // delay sets it at the release. A scroll that starts on a row never lights
 // it (UITableView's delayed highlight), which on an Old 3DS also saves the
 // two restyles of a row that lit and unlit within a few frames.
+//
+// A target with a `drag` is picked up instead of panned: by a pan that
+// starts on it, or, after a hold fired, by the same contact moving on (the
+// springboard's hold-to-jiggle-then-drag). The drag gets surface
+// coordinates every move and ends at the release.
 
 import { createSignal, type Accessor } from "solid-js";
 import { createGesture } from "@pocketjs/framework/gesture";
@@ -34,6 +39,15 @@ export interface Target {
   run?: () => void;
   /** Fired by a stationary hold. */
   hold?: () => void;
+  /** Picked up and moved with the stylus (see the header). */
+  drag?: TargetDrag;
+}
+
+export interface TargetDrag {
+  start(x: number, y: number): void;
+  move(x: number, y: number): void;
+  end(x: number, y: number): void;
+  cancel(): void;
 }
 
 export interface TouchPage {
@@ -101,13 +115,15 @@ export interface TouchRouterOptions {
 
 export function createTouchRouter(options: TouchRouterOptions): void {
   let downTarget: Target | null = null;
-  let mode: "" | "x" | "y" = "";
+  let mode: "" | "x" | "y" | "drag" = "";
+  let dragging: TargetDrag | null = null;
   let scrolled: Scroller | null = null;
   let highlightIn = 0;
   const active = () => options.active?.() ?? true;
   const finish = () => {
     downTarget = null;
     mode = "";
+    dragging = null;
     scrolled = null;
     highlightIn = 0;
   };
@@ -128,13 +144,20 @@ export function createTouchRouter(options: TouchRouterOptions): void {
       if (downTarget) highlightIn = PRESS_DELAY;
     },
     onPanStart(contact) {
+      const picked = downTarget?.drag ?? null;
       options.press.clear();
       downTarget = null;
       highlightIn = 0;
       if (!active()) return;
+      if (mode === "drag") return;
       const page = options.page();
       if (!page) return;
-      if (page.panX && Math.abs(contact.dx) > Math.abs(contact.dy)) {
+      if (picked) {
+        mode = "drag";
+        dragging = picked;
+        picked.start(contact.startX, contact.startY);
+        picked.move(contact.x, contact.y);
+      } else if (page.panX && Math.abs(contact.dx) > Math.abs(contact.dy)) {
         mode = "x";
         page.panX.start();
         page.panX.move(contact.dx);
@@ -145,11 +168,15 @@ export function createTouchRouter(options: TouchRouterOptions): void {
         scrolled.drag(-contact.dy);
       }
     },
+    onMove(contact) {
+      if (mode === "drag") dragging?.move(contact.x, contact.y);
+    },
     onPanMove(contact) {
       if (mode === "y") scrolled?.drag(-contact.fdy);
       else if (mode === "x") options.page()?.panX?.move(contact.dx);
     },
     onPanEnd(contact) {
+      if (mode === "drag") dragging?.end(contact.x, contact.y);
       if (mode === "y") scrolled?.endDrag(-contact.vy);
       else if (mode === "x") options.page()?.panX?.end(contact.dx, contact.vx);
       finish();
@@ -166,17 +193,33 @@ export function createTouchRouter(options: TouchRouterOptions): void {
       if (pressed && hit && hit.id === pressed.id) pressed.run?.();
       else if (!pressed && !hit) page.background?.();
     },
-    onLongPress() {
+    onLongPress(contact) {
       const pressed = downTarget;
       options.press.clear();
       downTarget = null;
-      if (active() && pressed?.hold) pressed.hold();
+      if (!active() || !pressed?.hold) return;
+      pressed.hold();
+      // The hold may have made the target draggable (edit mode): the same
+      // contact picks it up.
+      const page = options.page();
+      const again = page ? hitAt(page, contact.x, contact.y) : null;
+      if (again?.drag) {
+        mode = "drag";
+        dragging = again.drag;
+        again.drag.start(contact.x, contact.y);
+      }
     },
-    onUp() {
+    onUp(contact) {
+      if (mode === "drag") {
+        dragging?.end(contact.x, contact.y);
+        finish();
+        return;
+      }
       // A release that was neither a tap nor a pan (a hold) clears here.
       if (mode === "") options.press.release();
     },
     onCancel() {
+      if (mode === "drag") dragging?.cancel();
       options.press.clear();
       if (mode === "y" && scrolled?.state() === "tracking") scrolled.endDrag(0);
       finish();

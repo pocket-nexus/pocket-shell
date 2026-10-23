@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/home/pages.tsx — the Settings pages: the root list, Wi-Fi, Mac,
-// Apps, General, About and Time Zone. Each page is section data over the
+// shells/3ds/home/pages.tsx — the Settings pages: the root list (with the
+// Dual Screen switch), Wi-Fi, Mac, Applets, General, About and Time Zone. Each page is section data over the
 // live system state; the grouped table draws it and the navigation stack
 // scrolls, focuses and pushes it.
 
-import { onMount, type Accessor } from "solid-js";
+import { createSignal, onMount, type Accessor } from "solid-js";
 import { getOps } from "@pocketjs/framework/host";
 import { offsetText, TIME_ZONES } from "./clock.ts";
+import { displayApi } from "./display.ts";
 import { LINK_PAIRING, LINK_STATE, sizeText, type HomeApp, type HomeSystem } from "./system.ts";
 import { appTint } from "../ui/chrome.tsx";
 import type { LayerContext, NavStack, PageSpec } from "../ui/nav.tsx";
@@ -54,8 +55,19 @@ function table(env: PageEnv, layer: LayerContext, sections: Accessor<Section[]>)
   return tableContent({ sections, width: 320, press: env.press, focus: layer.focus, keys: env.keys });
 }
 
+const DUAL_SCREEN_FOOTER =
+  "On, Claude lives on the top screen. Off, the console uses one screen and Claude waits behind the notch at the top.";
+
 function rootPage(env: PageEnv, stack: NavStack, layer: LayerContext): PageSpec {
   const { sys } = env;
+  const display = displayApi();
+  const [mode, setMode] = createSignal(display?.displayMode() ?? "dual");
+  const toggleDisplay = () => {
+    if (!display) return;
+    const next = mode() === "dual" ? "single" : "dual";
+    display.setDisplayMode(next);
+    setMode(display.displayMode());
+  };
   return {
     title: () => "Settings",
     content: table(env, layer, () => [
@@ -67,9 +79,17 @@ function rootPage(env: PageEnv, stack: NavStack, layer: LayerContext): PageSpec 
       },
       {
         cells: [
-          { id: "settings.apps", label: "Apps", value: String(sys.table().apps.length), icon: ICONS.apps, accessory: "chevron", run: () => stack.push("apps") },
+          { id: "settings.apps", label: "Applets", value: String(sys.table().apps.length), icon: ICONS.apps, accessory: "chevron", run: () => stack.push("apps") },
         ],
       },
+      ...(display
+        ? [
+            {
+              cells: [{ id: "settings.dual", label: "Dual Screen", accessory: "switch" as const, on: mode() === "dual", run: toggleDisplay }],
+              footer: DUAL_SCREEN_FOOTER,
+            },
+          ]
+        : []),
       {
         cells: [
           { id: "settings.general", label: "General", icon: ICONS.general, accessory: "chevron", run: () => stack.push("general") },
@@ -89,13 +109,13 @@ function wifiPage(env: PageEnv, _stack: NavStack, layer: LayerContext): PageSpec
     content: table(env, layer, () => {
       const wifi = sys.wifi();
       if (!wifi) {
-        return [{ cells: [{ id: "wifi.none", label: "Wi-Fi", value: "Unavailable", tone: "muted" }], footer: "This console does not let apps read its wireless settings." }];
+        return [{ cells: [{ id: "wifi.none", label: "Wi-Fi", value: "Unavailable", tone: "muted" }], footer: "This console does not let applets read its wireless settings." }];
       }
       const on = wifi.state !== "off";
       const sections: Section[] = [
         {
           cells: [{ id: "wifi.toggle", label: "Wi-Fi", accessory: "switch", on, run: () => sys.setWifi(sys.wifi()?.state === "off") }],
-          footer: on ? undefined : "Pocket Link, app downloads and the web need Wi-Fi.",
+          footer: on ? undefined : "Pocket Link, applet downloads and the web need Wi-Fi.",
         },
       ];
       if (!on) return sections;
@@ -147,10 +167,10 @@ function macPage(env: PageEnv, stack: NavStack, layer: LayerContext): PageSpec {
         : "Not Paired";
       const footer =
         link.state === LINK_STATE.linked && companion
-          ? `Linked to ${companion.name}${companion.address ? ` at ${companion.address}` : ""}. Apps and web requests come through this Mac.`
+          ? `Linked to ${companion.name}${companion.address ? ` at ${companion.address}` : ""}. Applets and web requests come through this Mac.`
           : link.state === LINK_STATE.searching
             ? "Looking for a paired Mac on this network. Open Pocket Companion on the Mac."
-            : "Pair a Mac to install apps from it and to reach the web through it.";
+            : "Pair a Mac to install applets from it and to reach the web through it.";
       const sections: Section[] = [
         {
           cells: [{
@@ -192,13 +212,13 @@ function macPage(env: PageEnv, stack: NavStack, layer: LayerContext): PageSpec {
 function appsPage(env: PageEnv, _stack: NavStack, layer: LayerContext): PageSpec {
   const { sys } = env;
   const remove = (app: HomeApp) =>
-    env.confirm(`Delete "${app.title}"?`, "Deleting this app also deletes its data.", "Delete", () => sys.remove(app));
+    env.confirm(`Delete "${app.title}"?`, "Deleting this applet also deletes its data.", "Delete", () => sys.remove(app));
   return {
-    title: () => "Apps",
+    title: () => "Applets",
     content: table(env, layer, () => {
       const apps = sys.table().apps;
       if (apps.length === 0) {
-        return [{ cells: [{ id: "apps.none", label: "No Apps Installed", tone: "muted" }], footer: "Install apps from a paired Mac with the Mac icon on the Home screen." }];
+        return [{ cells: [{ id: "apps.none", label: "No Applets Installed", tone: "muted" }], footer: "Install applets from a paired Mac with the Mac icon on the Home screen." }];
       }
       const total = apps.reduce((sum, app) => sum + app.bytes, 0);
       return [
@@ -212,7 +232,7 @@ function appsPage(env: PageEnv, _stack: NavStack, layer: LayerContext): PageSpec
             button: { id: `apps.delete.${app.id}`, label: "Delete", tone: "red" as const, run: () => remove(app) },
             run: () => remove(app),
           })),
-          footer: `${apps.length} ${apps.length === 1 ? "app uses" : "apps use"} ${sizeText(total)} on the SD card.`,
+          footer: `${apps.length} ${apps.length === 1 ? "applet uses" : "applets use"} ${sizeText(total)} on the SD card.`,
         },
       ];
     }),
@@ -268,7 +288,7 @@ function aboutPage(env: PageEnv, _stack: NavStack, layer: LayerContext): PageSpe
         },
         {
           cells: [
-            { id: "about.apps", label: "Apps", value: String(sys.table().apps.length) },
+            { id: "about.apps", label: "Applets", value: String(sys.table().apps.length) },
             { id: "about.home", label: "Home", value: HOME_VERSION },
             { id: "about.runtime", label: "Runtime", value: runtimeText() },
           ],

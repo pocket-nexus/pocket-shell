@@ -48,6 +48,11 @@ const ICONS: Record<string, number[]> = {
   hn: [24, 46, 64],
   nexus: [24, 46, 64],
   plain: [24, 46, 64],
+  youtube: [24, 46, 64],
+  x: [24, 46, 64],
+  discord: [24, 46, 64],
+  camera: [24, 46, 64],
+  photos: [24, 46, 64],
 };
 
 const RENDERS = resolve(process.argv[2] ?? ".pocket-build/home-icons/render");

@@ -181,7 +181,7 @@ export function storePage(env: StoreEnv, stack: NavStack, layer: LayerContext): 
   };
   const offered = () => {
     const count = apps().length;
-    return `${count} ${count === 1 ? "app" : "apps"} offered by ${sys.link().companion?.name ?? "this Mac"}`;
+    return `${count} ${count === 1 ? "applet" : "applets"} offered by ${sys.link().companion?.name ?? "this Mac"}`;
   };
   const reload: NavButton = { id: "store.reload", label: "Reload", kind: "plain", run: () => sys.loadCatalog() };
 
@@ -202,17 +202,17 @@ export function storePage(env: StoreEnv, stack: NavStack, layer: LayerContext): 
                 unpaired: "No Mac Paired",
                 searching: "Looking for Your Mac",
                 loading: "Loading",
-                error: "Could Not Load Apps",
-                empty: "No Apps Offered",
+                error: "Could Not Load Applets",
+                empty: "No Applets Offered",
                 list: "",
               }[mode()]}
               message={{
                 unavailable: "This console's runtime has no Pocket Link.",
-                unpaired: "Pair a Mac in Settings > Mac to install\nthe apps it offers this console.",
+                unpaired: "Pair a Mac in Settings > Mac to install\nthe applets it offers this console.",
                 searching: `Open Pocket Companion on ${sys.link().companion?.name ?? "your Mac"}.\nThe console links when it hears the Mac.`,
-                loading: "Asking the Mac for its apps...",
+                loading: "Asking the Mac for its applets...",
                 error: sys.catalogError() || "The Mac did not answer.",
-                empty: "Add a Pocket app to Pocket Companion\non the Mac and it appears here.",
+                empty: "Add a Pocket applet to Pocket Companion\non the Mac and it appears here.",
                 list: "",
               }[mode()]}
               button={emptyButton()}
@@ -319,7 +319,7 @@ export function storeAppPage(env: StoreEnv, appId: string, _stack: NavStack, lay
   };
 
   return {
-    title: () => app()?.title ?? "App",
+    title: () => app()?.title ?? "Applet",
     content: {
       view: () => (
         <Show

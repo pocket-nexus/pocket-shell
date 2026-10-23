@@ -79,5 +79,50 @@
   },
   "art/stripes.svg": {
     "linear": true
+  },
+  "art/icons/youtube-24.png": {
+    "linear": true
+  },
+  "art/icons/youtube-46.png": {
+    "linear": true
+  },
+  "art/icons/youtube-64.png": {
+    "linear": true
+  },
+  "art/icons/x-24.png": {
+    "linear": true
+  },
+  "art/icons/x-46.png": {
+    "linear": true
+  },
+  "art/icons/x-64.png": {
+    "linear": true
+  },
+  "art/icons/discord-24.png": {
+    "linear": true
+  },
+  "art/icons/discord-46.png": {
+    "linear": true
+  },
+  "art/icons/discord-64.png": {
+    "linear": true
+  },
+  "art/icons/camera-24.png": {
+    "linear": true
+  },
+  "art/icons/camera-46.png": {
+    "linear": true
+  },
+  "art/icons/camera-64.png": {
+    "linear": true
+  },
+  "art/icons/photos-24.png": {
+    "linear": true
+  },
+  "art/icons/photos-46.png": {
+    "linear": true
+  },
+  "art/icons/photos-64.png": {
+    "linear": true
   }
 }

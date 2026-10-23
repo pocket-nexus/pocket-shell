@@ -67,14 +67,13 @@ export interface StatusBarProps {
   /** 0..3 Wi-Fi bars; -1 hides the fan (radio off). */
   bars: Accessor<number>;
   time: Accessor<string>;
-  /** Right-hand label (link state). */
-  right: Accessor<string>;
   /** Opaque iOS 6 grey (Settings) instead of black translucent (lock screen). */
   opaque?: boolean;
 }
 
-/** The 16 px status bar: carrier and Wi-Fi bars, the time centered, the
- *  link state on the right. */
+/** The 16 px status bar: carrier and Wi-Fi bars on the left, the time on
+ *  the right. The centre stays empty: in single-screen mode the system draws
+ *  its notch there (x 124..196). */
 export function StatusBar(props: StatusBarProps) {
   const bar = (index: number, x: number, h: number) => (
     <View
@@ -95,8 +94,7 @@ export function StatusBar(props: StatusBarProps) {
         {bar(1, 4, 7)}
         {bar(2, 8, 10)}
       </View>
-      <Text class="absolute top-[1] text-xs text-white font-bold text-center" style={{ insetL: 0, width: props.width }}>{props.time()}</Text>
-      <Text class="absolute top-[1] text-xs text-white font-bold text-right" style={{ insetL: props.width - 186, width: 180 }}>{props.right()}</Text>
+      <Text class="absolute top-[1] text-xs text-white font-bold text-right" style={{ insetL: props.width - 106, width: 100 }}>{props.time()}</Text>
     </View>
   );
 }
@@ -106,7 +104,7 @@ export function StatusBar(props: StatusBarProps) {
 /** Icons rendered in Blender (art/icons/icons.py) and finished by
  *  art/icons/bake.ts: the picture, the gloss, the rim and, at 46, the drop
  *  shadow are all in the texture. */
-export type IconArt = "settings" | "mac" | "wifi" | "apps" | "hn" | "nexus";
+export type IconArt = "settings" | "mac" | "wifi" | "apps" | "hn" | "nexus" | "youtube" | "x" | "discord" | "camera" | "photos";
 
 /** Corner radius as a fraction of the side (art/icons/bake.ts ICON_RADIUS). */
 const ICON_RADIUS = 0.2;
@@ -121,6 +119,11 @@ const ART: Record<IconArt | "plain", readonly Variant[]> = {
   apps: [[24, 32, "art/icons/apps-24.png"]],
   hn: [[24, 32, "art/icons/hn-24.png"], [46, 64, "art/icons/hn-46.png"], [64, 64, "art/icons/hn-64.png"]],
   nexus: [[24, 32, "art/icons/nexus-24.png"], [46, 64, "art/icons/nexus-46.png"], [64, 64, "art/icons/nexus-64.png"]],
+  youtube: [[24, 32, "art/icons/youtube-24.png"], [46, 64, "art/icons/youtube-46.png"], [64, 64, "art/icons/youtube-64.png"]],
+  x: [[24, 32, "art/icons/x-24.png"], [46, 64, "art/icons/x-46.png"], [64, 64, "art/icons/x-64.png"]],
+  discord: [[24, 32, "art/icons/discord-24.png"], [46, 64, "art/icons/discord-46.png"], [64, 64, "art/icons/discord-64.png"]],
+  camera: [[24, 32, "art/icons/camera-24.png"], [46, 64, "art/icons/camera-46.png"], [64, 64, "art/icons/camera-64.png"]],
+  photos: [[24, 32, "art/icons/photos-24.png"], [46, 64, "art/icons/photos-46.png"], [64, 64, "art/icons/photos-64.png"]],
   /** The finish alone, over the tint of an app that ships no icon. */
   plain: [[24, 32, "art/icons/plain-24.png"], [46, 64, "art/icons/plain-46.png"], [64, 64, "art/icons/plain-64.png"]],
 };
@@ -136,6 +139,11 @@ function variant(art: IconArt | "plain", size: number): Variant {
 const APP_ART: Record<string, IconArt> = {
   "dev.pocket-nexus.hn": "hn",
   "dev.pocket-nexus.nexus": "nexus",
+  "dev.pocket-nexus.youtube": "youtube",
+  "dev.pocket-nexus.x": "x",
+  "dev.pocket-nexus.discord": "discord",
+  "dev.pocket-nexus.camera": "camera",
+  "dev.pocket-nexus.photos": "photos",
 };
 
 export interface TileProps {
