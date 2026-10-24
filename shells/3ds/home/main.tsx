@@ -2,5 +2,9 @@
 // @title Pocket
 import Home from "./app.tsx";
 import { mount } from "@pocketjs/framework/solid";
+import { readScreen } from "../ui/screen.ts";
 
-mount(() => <Home />);
+mount(() => {
+  readScreen();
+  return <Home />;
+});

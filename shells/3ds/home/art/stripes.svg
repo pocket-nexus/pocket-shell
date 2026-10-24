@@ -1,5 +1,5 @@
-<svg width="512" height="8" viewBox="0 0 512 8">
-  <rect x="0" y="0" width="512" height="8" fill="#cdd3da" />
+<svg width="256" height="8" viewBox="0 0 256 8">
+  <rect x="0" y="0" width="256" height="8" fill="#cdd3da" />
   <rect x="3" y="0" width="3" height="8" fill="#c6cdd5" />
   <rect x="9" y="0" width="3" height="8" fill="#c6cdd5" />
   <rect x="15" y="0" width="3" height="8" fill="#c6cdd5" />
@@ -42,48 +42,5 @@
   <rect x="237" y="0" width="3" height="8" fill="#c6cdd5" />
   <rect x="243" y="0" width="3" height="8" fill="#c6cdd5" />
   <rect x="249" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="255" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="261" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="267" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="273" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="279" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="285" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="291" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="297" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="303" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="309" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="315" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="321" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="327" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="333" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="339" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="345" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="351" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="357" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="363" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="369" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="375" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="381" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="387" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="393" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="399" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="405" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="411" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="417" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="423" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="429" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="435" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="441" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="447" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="453" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="459" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="465" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="471" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="477" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="483" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="489" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="495" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="501" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="507" y="0" width="3" height="8" fill="#c6cdd5" />
-  <rect x="513" y="0" width="3" height="8" fill="#c6cdd5" />
+  <rect x="255" y="0" width="1" height="8" fill="#c6cdd5" />
 </svg>

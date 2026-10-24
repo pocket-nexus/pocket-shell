@@ -16,6 +16,7 @@ import { bootConsole3ds, type Console3ds, type Console3dsOptions } from "../../.
 import { encodePNG } from "../../../vendor/pocketjs/tools/png.ts";
 import { buildGuest } from "./build.ts";
 import { HN_API, hnRoutes } from "./hn-fixture.ts";
+import { TALL, tallShot } from "./tall.ts";
 
 const OUT = mkdtempSync(join(tmpdir(), "pocket-hn-"));
 let GUEST = join(OUT, "guest", "hn-main");
@@ -232,5 +233,14 @@ describe("errors", () => {
     const hn = await boot({ net: undefined });
     await hn.run(10);
     expect(hn.texts("auxiliary")).toContain("Not linked to a Mac");
+  });
+});
+
+describe("on a 360x592 portrait surface", () => {
+  test("the list fills the surface", async () => {
+    const hn = await boot({ auxiliary: TALL });
+    await hn.run(80);
+    tallShot(hn, "hn-list");
+    expect(hn.texts("auxiliary")).toContain("Top");
   });
 });

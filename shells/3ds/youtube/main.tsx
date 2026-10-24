@@ -2,5 +2,9 @@
 // @title YouTube
 import YouTube from "./app.tsx";
 import { mount } from "@pocketjs/framework/solid";
+import { readScreen } from "../ui/screen.ts";
 
-mount(() => <YouTube />);
+mount(() => {
+  readScreen();
+  return <YouTube />;
+});

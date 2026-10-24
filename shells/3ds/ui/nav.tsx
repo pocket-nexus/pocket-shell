@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/ui/nav.tsx — a UINavigationController for one 320x240 screen:
-// a stack of pages that push in from the right and pop back, each with its
-// own navigation bar, scroll position and d-pad focus.
+// shells/3ds/ui/nav.tsx — a UINavigationController for the touch surface
+// (screen.ts): a stack of pages that push in from the right and pop back,
+// each with its own navigation bar, scroll position and d-pad focus.
 //
 // A page hands the stack a PageContent: the view drawn at content offset 0,
 // its height, the ids the d-pad walks, and the hit targets for an offset. The
@@ -16,12 +16,16 @@ import { BTN } from "@pocketjs/framework/input";
 import { analogY, onFrame } from "@pocketjs/framework/lifecycle";
 import { createScroller } from "@pocketjs/framework/kinetics";
 import { NAV_H, NavBar, navTargets, type NavButton } from "./bar.tsx";
+import { SCREEN_H, SCREEN_W } from "./screen.ts";
 import type { Press, Target, TouchPage } from "./touch.ts";
 
-export const SCREEN_W = 320;
-export const SCREEN_H = 240;
-const VIEW_H = SCREEN_H - NAV_H;
 const PUSH_MS = 300;
+
+/** Height of a page's scrolling content view: the surface under the bar,
+ *  less `inset` px of fixed content (a toolbar) along the bottom. */
+export function viewHeight(inset = 0): number {
+  return SCREEN_H - NAV_H - inset;
+}
 
 export interface PageContent {
   view: () => JSX.Element;
@@ -53,6 +57,9 @@ export interface PageSpec {
   /** No page background (options.background): fixed content paints its own,
    *  or "white" for a plain list. */
   bare?: boolean | "white";
+  /** Px of fixed content along the bottom (a toolbar) that the scrolling
+   *  content stops above. */
+  inset?: number;
 }
 
 export interface StackEntry {
@@ -205,6 +212,7 @@ function LayerView(props: {
 }) {
   const [focus, setFocus] = createSignal("");
   let contentRef: PageContent | undefined;
+  let VIEW_H = viewHeight();
   const scroller = createScroller({
     max: () => Math.max(0, (contentRef?.height() ?? 0) - VIEW_H),
     extent: () => VIEW_H,
@@ -218,6 +226,7 @@ function LayerView(props: {
   const scrollBy = (delta: number) => scroller.chaseTo(Math.max(0, Math.min(maxOffset(), scroller.intent() + delta)));
   const spec = props.options.page(props.entry.page, props.stack, { focus, setFocus, offset: scroller.offset, reveal, scrollBy });
   contentRef = spec.content;
+  VIEW_H = viewHeight(spec.inset);
   const content = spec.content;
   const [hidden, setHidden] = createSignal(false);
   const isTop = () => props.stack.top()?.key === props.entry.key;
@@ -272,11 +281,11 @@ function LayerView(props: {
     spec,
     touch: () => ({
       targets: () => [
-        ...(content ? content.targets(NAV_H, scroller.offset(), SCREEN_H) : []),
+        ...(content ? content.targets(NAV_H, scroller.offset(), NAV_H + VIEW_H) : []),
         ...(spec.fixedTargets?.() ?? []),
         ...navTargets(SCREEN_W, backButton(), spec.right?.() ?? null),
       ],
-      scroll: content ? { scroller, top: NAV_H, bottom: SCREEN_H } : undefined,
+      scroll: content ? { scroller, top: NAV_H, bottom: NAV_H + VIEW_H } : undefined,
     }),
     key(pressed) {
       if (spec.key?.(pressed)) return true;
@@ -316,17 +325,18 @@ function LayerView(props: {
   return (
     <View
       ref={(el) => (node = el)}
-      class={hidden() ? "hidden" : "absolute left-0 top-0 w-[320] h-[240] overflow-hidden bg-[#c9d0d8]"}
+      class={hidden() ? "hidden" : "absolute left-0 top-0 overflow-hidden bg-[#c9d0d8]"}
+      style={{ width: SCREEN_W, height: SCREEN_H }}
     >
       <Show when={!spec.bare && props.options.background}>{(background) => background()()}</Show>
       <Show when={spec.bare === "white"}>
-        <View class="absolute left-0 top-0 w-[320] h-[240] bg-white" />
+        <View class="absolute left-0 top-0 bg-white" style={{ width: SCREEN_W, height: SCREEN_H }} />
       </Show>
       <Show when={spec.fixed}>{(fixed) => fixed()()}</Show>
       <Show when={content}>
         {(body) => (
-          <View class="absolute left-0 top-[36] w-[320] h-[204] overflow-hidden">
-            <View ref={(el) => ((canvas = el), (canvasY = 0))} class="absolute left-0 top-0 w-[320]" style={{ height: Math.max(VIEW_H, body().height()) }}>
+          <View class="absolute left-0 top-[36] overflow-hidden" style={{ width: SCREEN_W, height: VIEW_H }}>
+            <View ref={(el) => ((canvas = el), (canvasY = 0))} class="absolute left-0 top-0" style={{ width: SCREEN_W, height: Math.max(VIEW_H, body().height()) }}>
               {body().view()}
             </View>
           </View>

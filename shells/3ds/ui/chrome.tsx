@@ -14,11 +14,19 @@ import { Image, Text, View } from "@pocketjs/framework/components";
 
 // ---- backgrounds -----------------------------------------------------------------
 
-/** The grouped-table pinstripes: one 512x8 texture stretched down the box. */
+/** The step between copies of the 256 px stripe texture: 42 of its 6 px
+ *  periods, so each copy continues the one before. */
+const STRIPE_STEP = 252;
+
+/** The grouped-table pinstripes: a 256x8 texture stretched down the box,
+ *  repeated across it. */
 export function Pinstripes(props: { width: number; height: number }) {
+  const copies = Array.from({ length: Math.ceil(props.width / STRIPE_STEP) }, (_, index) => index * STRIPE_STEP);
   return (
     <View class="absolute left-0 top-0 overflow-hidden" style={{ width: props.width, height: props.height }}>
-      <Image class="absolute left-0 top-0 w-[512]" src="art/stripes.svg" style={{ height: props.height }} />
+      {copies.map((x) => (
+        <Image class="absolute top-0 w-[256]" src="art/stripes.svg" style={{ insetL: x, height: props.height }} />
+      ))}
     </View>
   );
 }
