@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/camera/app.tsx — Camera: the console's camera filling the touch
-// screen, an iOS 6 camera bar under it, and the photo it took last.
+// screen, an iOS 6 camera bar under it, and the photo it took last. On a
+// larger landscape surface the preview is as tall as the surface and the bar
+// runs down its right side, as on an iPhone held sideways; in portrait the
+// preview spans the width over the bar.
 //
 // The preview is the camera module's texture (camera.photo,
 // @pocketjs/framework/camera). The shutter (A, R or the bar's button) asks
@@ -29,18 +32,66 @@ import { BTN } from "@pocketjs/framework/input";
 import { onButtonPress, onFrame } from "@pocketjs/framework/lifecycle";
 import { registerTexture, type NodeMirror } from "@pocketjs/framework/renderer";
 import { createAlerts } from "../ui/alert.tsx";
+import { COMPACT, SCREEN_H, SCREEN_W, TALL } from "../ui/screen.ts";
 import { createPress, createTouchRouter, type Target } from "../ui/touch.ts";
 
-const W = 320;
-const H = 240;
 const BAR_H = 46;
-const BAR_Y = H - BAR_H;
-const SHUTTER = { x: 116, y: BAR_Y + 7, w: 88, h: 32 };
-const THUMB = { x: 10, y: BAR_Y + 6, w: 34, h: 34 };
-const SWITCH = { x: W - 54, y: 8, w: 46, h: 30 };
-const TRASH = { x: W - 50, y: BAR_Y + 7, w: 42, h: 32 };
-const DONE = { x: 10, y: BAR_Y + 9, w: 60, h: 28 };
+/** The camera image's size in its 512x256 preview texture, and a photo's
+ *  in its full view's texture. */
+const IMAGE_W = 320;
+const IMAGE_H = 240;
 const PREVIEW_KEY = "camera.preview";
+
+interface Box {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** Where the preview and the bar's controls sit on this surface. */
+function cameraGeometry() {
+  const W = SCREEN_W;
+  const H = SCREEN_H;
+  if (COMPACT || TALL) {
+    // The bar along the bottom; the preview over it, filling the width.
+    const BAR_Y = H - BAR_H;
+    const zoom = W / IMAGE_W;
+    const previewH = Math.round(IMAGE_H * zoom);
+    const previewY = COMPACT ? 0 : Math.round((BAR_Y - previewH) / 2);
+    return {
+      zoom,
+      preview: { x: 0, y: previewY, w: W, h: previewH },
+      bar: { x: 0, y: BAR_Y, w: W, h: BAR_H },
+      shutter: { x: (W - 88) / 2, y: BAR_Y + 7, w: 88, h: 32 },
+      thumb: { x: 10, y: BAR_Y + 6, w: 34, h: 34 },
+      switch: { x: W - 54, y: 8, w: 46, h: 30 },
+      trash: { x: W - 50, y: BAR_Y + 7, w: 42, h: 32 },
+      done: { x: 10, y: BAR_Y + 9, w: 60, h: 28 },
+      saving: { x: (W - 88) / 2 + 96, y: BAR_Y + 16, w: 100, right: true },
+      note: { x: (W - 280) / 2, y: COMPACT ? 150 : BAR_Y - 44 },
+    };
+  }
+  // Landscape: the preview as tall as the surface, the bar down the right.
+  const zoom = Math.min(H / IMAGE_H, (W - 96) / IMAGE_W);
+  const previewW = Math.round(IMAGE_W * zoom);
+  const previewH = Math.round(IMAGE_H * zoom);
+  const barX = previewW;
+  const barW = W - previewW;
+  const center = (w: number) => barX + (barW - w) / 2;
+  return {
+    zoom,
+    preview: { x: 0, y: Math.round((H - previewH) / 2), w: previewW, h: previewH },
+    bar: { x: barX, y: 0, w: barW, h: H },
+    shutter: { x: center(88), y: H / 2 - 16, w: 88, h: 32 },
+    thumb: { x: center(34), y: H - 50, w: 34, h: 34 },
+    switch: { x: center(46), y: 12, w: 46, h: 30 },
+    trash: { x: center(42), y: H - 48, w: 42, h: 32 },
+    done: { x: center(60), y: 12, w: 60, h: 28 },
+    saving: { x: barX, y: H / 2 + 24, w: barW, right: false },
+    note: { x: (previewW - 280) / 2, y: H - 60 },
+  };
+}
 const ALL_BUTTONS = 0xffff;
 
 interface Shot {
@@ -51,6 +102,12 @@ interface Shot {
 }
 
 export default function Camera() {
+  const g = cameraGeometry();
+  const SHUTTER: Box = g.shutter;
+  const THUMB: Box = g.thumb;
+  const SWITCH: Box = g.switch;
+  const TRASH: Box = g.trash;
+  const DONE: Box = g.done;
   const press = createPress();
   const alerts = createAlerts(press);
   const [inner, setInner] = createSignal(false);
@@ -209,43 +266,42 @@ export default function Camera() {
 
   return (
     <AuxiliarySurface>
-      <View class="relative w-[320] h-[240] bg-black overflow-hidden">
+      <View class="relative bg-black overflow-hidden" style={{ width: SCREEN_W, height: SCREEN_H }}>
         {/* the viewfinder */}
         <Show
           when={preview() || null}
           keyed
           fallback={
             <>
-              <Image class="absolute left-[144] top-[64] w-[32] h-[32]" src="art/switch.svg" />
-              <Text class="absolute left-0 top-[106] w-[320] text-sm text-white font-bold text-center">Camera unavailable</Text>
-              <Text class="absolute left-0 top-[126] w-[320] text-xs text-[#ffffffa0] text-center">This console did not start its camera.</Text>
+              <Image class="absolute w-[32] h-[32]" src="art/switch.svg" style={{ insetL: g.preview.x + g.preview.w / 2 - 16, insetT: g.preview.y + g.preview.h / 2 - 56 }} />
+              <Text class="absolute text-sm text-white font-bold text-center" style={{ insetL: g.preview.x, insetT: g.preview.y + g.preview.h / 2 - 14, width: g.preview.w }}>Camera unavailable</Text>
+              <Text class="absolute text-xs text-[#ffffffa0] text-center" style={{ insetL: g.preview.x, insetT: g.preview.y + g.preview.h / 2 + 6, width: g.preview.w }}>This console did not start its camera.</Text>
             </>
           }
         >
-          {(key) => <Image class="absolute left-0 top-0 w-[512] h-[256]" src={key} />}
+          {(key) => (
+            <View class="absolute overflow-hidden" style={{ insetL: g.preview.x, insetT: g.preview.y, width: g.preview.w, height: g.preview.h }}>
+              <Image class="absolute left-0 top-0" src={key} style={{ width: 512 * g.zoom, height: 256 * g.zoom }} />
+            </View>
+          )}
         </Show>
-        <View ref={(node: NodeMirror) => { flash = node; jump(node, "opacity", 0); }} class="absolute left-0 top-0 w-[320] h-[240] bg-white" />
-
-        {/* switch cameras */}
-        <Show when={live() && !review()}>
-          <View
-            class={lit("switch") ? "absolute rounded-[15] bg-[#ffffff60] border border-[#ffffff80]" : "absolute rounded-[15] bg-[#00000070] border border-[#ffffff50]"}
-            style={{ insetL: SWITCH.x, insetT: SWITCH.y, width: SWITCH.w, height: SWITCH.h }}
-          />
-          <Image class="absolute w-[24] h-[24]" src="art/switch.svg" style={{ insetL: SWITCH.x + 11, insetT: SWITCH.y + 3 }} />
-        </Show>
+        <View ref={(node: NodeMirror) => { flash = node; jump(node, "opacity", 0); }} class="absolute bg-white" style={{ insetL: g.preview.x, insetT: g.preview.y, width: g.preview.w, height: g.preview.h }} />
 
         {/* the review of the last photo */}
         <Show when={review()}>
-          <View class="absolute left-0 top-0 w-[320] h-[240] bg-black" />
+          <View class="absolute left-0 top-0 bg-black" style={{ width: SCREEN_W, height: SCREEN_H }} />
           <Show when={review()?.key || null} keyed>
-            {(key) => <Image class="absolute left-0 top-0 w-[512] h-[256]" src={key} />}
+            {(key) => (
+              <View class="absolute overflow-hidden" style={{ insetL: g.preview.x, insetT: g.preview.y, width: g.preview.w, height: g.preview.h }}>
+                <Image class="absolute left-0 top-0" src={key} style={{ width: 512 * g.zoom, height: 256 * g.zoom }} />
+              </View>
+            )}
           </Show>
         </Show>
 
-        {/* the bar: brushed dark steel, a lit top edge */}
-        <View class="absolute left-0 w-[320] bg-gradient-to-b from-[#5a5d63] to-[#1d1e21]" style={{ insetT: BAR_Y, height: BAR_H }} />
-        <View class="absolute left-0 w-[320] h-[1] bg-[#8a8e95]" style={{ insetT: BAR_Y }} />
+        {/* the bar: brushed dark steel, a lit top (or left) edge */}
+        <View class="absolute bg-gradient-to-b from-[#5a5d63] to-[#1d1e21]" style={{ insetL: g.bar.x, insetT: g.bar.y, width: g.bar.w, height: g.bar.h }} />
+        <View class="absolute bg-[#8a8e95]" style={{ insetL: g.bar.x, insetT: g.bar.y, width: g.bar.y === 0 ? 1 : g.bar.w, height: g.bar.y === 0 ? g.bar.h : 1 }} />
         <Show
           when={!review()}
           fallback={
@@ -282,13 +338,22 @@ export default function Camera() {
           />
           <Image class="absolute w-[26] h-[26]" src="art/shutter.svg" style={{ insetL: SHUTTER.x + 31, insetT: SHUTTER.y + 3 }} />
           <Show when={saving() > 0}>
-            <Text class="absolute text-xs text-[#c9ced6] text-right" style={{ insetL: SHUTTER.x + SHUTTER.w + 8, insetT: SHUTTER.y + 9, width: 100 }}>Saving...</Text>
+            <Text class={g.saving.right ? "absolute text-xs text-[#c9ced6] text-right" : "absolute text-xs text-[#c9ced6] text-center"} style={{ insetL: g.saving.x, insetT: g.saving.y, width: g.saving.w }}>Saving...</Text>
           </Show>
         </Show>
 
+        {/* switch cameras */}
+        <Show when={live() && !review()}>
+          <View
+            class={lit("switch") ? "absolute rounded-[15] bg-[#ffffff60] border border-[#ffffff80]" : "absolute rounded-[15] bg-[#00000070] border border-[#ffffff50]"}
+            style={{ insetL: SWITCH.x, insetT: SWITCH.y, width: SWITCH.w, height: SWITCH.h }}
+          />
+          <Image class="absolute w-[24] h-[24]" src="art/switch.svg" style={{ insetL: SWITCH.x + 11, insetT: SWITCH.y + 3 }} />
+        </Show>
+
         <Show when={note()}>
-          <View class="absolute left-[20] top-[150] w-[280] h-[26] rounded-[13] bg-[#000000c0]" />
-          <Text class="absolute left-[20] top-[155] w-[280] text-xs text-white text-center">{note()}</Text>
+          <View class="absolute w-[280] h-[26] rounded-[13] bg-[#000000c0]" style={{ insetL: g.note.x, insetT: g.note.y }} />
+          <Text class="absolute w-[280] text-xs text-white text-center" style={{ insetL: g.note.x, insetT: g.note.y + 5 }}>{note()}</Text>
         </Show>
         {alerts.view()}
       </View>

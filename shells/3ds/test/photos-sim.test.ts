@@ -15,6 +15,7 @@ import { BTN } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
 import { bootConsole3ds, type Console3ds } from "../../../vendor/pocketjs/hosts/sim/console-3ds.ts";
 import { encodePNG } from "../../../vendor/pocketjs/tools/png.ts";
 import { buildGuest } from "./build.ts";
+import { PORTRAIT, TAB5, tab5Shot } from "./tab5.ts";
 
 const OUT = mkdtempSync(join(tmpdir(), "pocket-photos-"));
 let GUEST = join(OUT, "guest", "photos-main");
@@ -38,7 +39,7 @@ afterAll(() => {
   rmSync(OUT, { recursive: true, force: true });
 });
 
-async function boot(photos: string[] = LIBRARY): Promise<Console3ds> {
+async function boot(photos: string[] = LIBRARY, auxiliary?: [number, number]): Promise<Console3ds> {
   const app = await bootConsole3ds({
     js: `${GUEST}.js`,
     pak: `${GUEST}.pak`,
@@ -47,6 +48,7 @@ async function boot(photos: string[] = LIBRARY): Promise<Console3ds> {
     wifi: null,
     camera: { photos },
     agent: { available: true },
+    auxiliary,
   });
   await app.run(10);
   return app;
@@ -115,5 +117,32 @@ describe("Photos", () => {
     const app = await boot([]);
     expect(app.texts("auxiliary")).toContain("No Photos");
     shot(app, "empty");
+  });
+});
+
+describe("on the Tab5's 592x360 surface", () => {
+  test("seven columns of thumbnails; a photo fills the space under the bar and swipes; Back returns", async () => {
+    const app = await boot(LIBRARY, TAB5);
+    await app.run(30);
+    tab5Shot(app, "photos-grid");
+    expect(app.texts("auxiliary")).toEqual(expect.arrayContaining(["Camera Roll", "Reload"]));
+    // The seventh thumbnail of the first row: 16 px margin, 80 px cells.
+    await app.tap(16 + 6 * 80 + 40, 80);
+    await app.run(40);
+    expect(app.texts("auxiliary")).toContain("7 of 30");
+    tab5Shot(app, "photos-photo");
+    await app.drag(420, 200, 120, 200, 10);
+    await app.run(20);
+    expect(app.texts("auxiliary")).toContain("8 of 30");
+    await app.tapText("Camera Roll");
+    await app.run(30);
+    expect(app.texts("auxiliary")).toContain("Reload");
+  });
+
+  test("a portrait surface keeps four columns", async () => {
+    const app = await boot(LIBRARY, PORTRAIT);
+    await app.run(30);
+    tab5Shot(app, "portrait-photos-grid");
+    expect(app.texts("auxiliary")).toContain("Camera Roll");
   });
 });
