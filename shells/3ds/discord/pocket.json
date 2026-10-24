@@ -7,6 +7,7 @@
   "version": "0.1.0",
   "applet": {
     "version": 1,
+    "summary": "The channels of your Discord servers and their messages, through your bot.",
     "services": [
       "discord",
       "glyphs"

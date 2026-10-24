@@ -6,7 +6,8 @@
   "title": "Photos",
   "version": "0.1.0",
   "applet": {
-    "version": 1
+    "version": 1,
+    "summary": "The pictures on the 3DS's SD card."
   },
   "engine": {
     "capabilities": {
