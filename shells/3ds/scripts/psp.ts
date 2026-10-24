@@ -21,8 +21,8 @@ import { APPS, LAUNCHER } from "./apps.ts";
 import { DIST_PSP, PLAN_DIR_PSP, PROJECT_ROOT, VENDOR } from "./paths.ts";
 
 /** The PRX tools/psp.ts links, which PSPLINK starts from the share. */
-export const PSP_PRX = resolve(VENDOR, "hosts/psp/target/mipsel-sony-psp/release/pocketjs-psp.prx");
-export const PSP_EBOOT = resolve(VENDOR, "hosts/psp/target/mipsel-sony-psp/release/EBOOT.PBP");
+export const PSP_PRX = resolve(VENDOR, "programs/psp/target/mipsel-sony-psp/release/pocketjs-psp.prx");
+export const PSP_EBOOT = resolve(VENDOR, "programs/psp/target/mipsel-sony-psp/release/EBOOT.PBP");
 
 /** `app`'s plan for the psp profile, or the reasons it does not resolve. */
 export function resolvePsp(app: string): { plan: ResolvedBuildPlan } | { reasons: string } {
@@ -85,7 +85,7 @@ export async function buildPsp(options: { eboot?: boolean } = {}): Promise<void>
   await run([
     process.execPath,
     "tools/psp.ts",
-    `--plan=${writePlan(launcher.plan)}`,
+    `--pocket=${resolve(DIST_PSP, "packages", `${launcher.plan.app.output}.pocket`)}`,
     `--project-root=${PROJECT_ROOT}`,
     `--outdir=${DIST_PSP}`,
     `--launcher-registry=${registry}`,

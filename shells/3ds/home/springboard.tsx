@@ -169,7 +169,7 @@ function bannerFor(sys: HomeSystem): Banner | null {
     return { app: failed, title: `${failed?.title ?? table.lastError.output} stopped`, line: table.lastError.message, resume: false };
   }
   const resume = table.resume ? table.apps.find((app) => app.output === table.resume) ?? null : null;
-  if (resume) return { app: resume, title: resume.title, line: "Tap here or press SELECT to go back to it.", resume: true };
+  if (resume) return { app: resume, title: resume.title, line: appletTouch() ? "Tap here or press SELECT to go back to it." : "Press SELECT to go back to it.", resume: true };
   return null;
 }
 
