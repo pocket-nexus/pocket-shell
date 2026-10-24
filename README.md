@@ -1,51 +1,55 @@
 # Pocket Shell
 
-Pocket Shell provides shells for handheld devices and desktop operating
-systems, built on [PocketJS](https://github.com/pocket-nexus/pocketjs).
-The applications live in one repository with one runtime submodule. Each
-shell owns its interface and input model.
+Pocket Shell is **Pocket Home** and its **Pocket Applets**: a launcher and
+a set of apps built on [PocketJS](https://github.com/pocket-nexus/pocketjs)
+that run from one set of packages on the Nintendo 3DS's touch screen and on
+the M5Stack Tab5's landscape panel.
 
-| Shell | Role | Source and documentation |
+| Home | Hacker News | Notes |
 | --- | --- | --- |
-| Nintendo 3DS | Pocket Home and its Pocket Applets on the touch screen; Claude's room on the top screen, and L+R asks Claude over any applet | [shells/3ds](shells/3ds/README.md) |
-| Touch navigation | Full-screen gesture navigation with sixteen mock apps on iPod touch 4 and Nokia E7 | [shells/touch](shells/touch/README.md) |
-| Desktop OS | Windows, application launching and Classic 98, XP and Aqua themes on macOS and Linux, with a browser preview; the shell Pocket Studio uses | [shells/desktop](shells/desktop/README.md) |
+| ![Home on the Tab5: seven applets, a dock and the floating home ball](shells/3ds/media/hw/tab5/home.png) | ![Hacker News on the Tab5](shells/3ds/media/hw/tab5/hn.png) | ![Notes on the Tab5, typed on the Tab5 keyboard](shells/3ds/media/hw/tab5/notes.png) |
 
-The former **pocket-desktop** project is now the desktop OS shell in this
+| YouTube | Camera | Settings |
+| --- | --- | --- |
+| ![YouTube on the Tab5](shells/3ds/media/hw/tab5/youtube.png) | ![The camera preview on the Tab5](shells/3ds/media/hw/tab5/camera.png) | ![Settings, the Applets page, on the Tab5](shells/3ds/media/hw/tab5/applets.png) |
+
+| Home on the 3DS | Notes on the 3DS |
+| --- | --- |
+| ![Pocket Home on the 3DS touch screen with Claude's room on the top screen](shells/3ds/media/hw/home.png) | ![The Notes list at 320x240](shells/3ds/media/notes-list.png) |
+
+The Tab5 pictures are the device's framebuffer at its logical **640x360**
+(the panel shows it at 2x); the 3DS Home picture is a capture from the
+console, and the 3DS Notes list is a simulator render at 320x240. Each
+applet lays itself out by size class from one source, so the 3DS and the
+Tab5 install the same programs: see [shells/3ds](shells/3ds/README.md).
+
+## The shells as explorations
+
+The repository holds three shells, and two more on an archive branch. Each
+explored one way of operating a small computer; what each taught is in
+[docs/EXPLORATIONS.md](docs/EXPLORATIONS.md).
+
+| Shell | Modality explored | Source and documentation |
+| --- | --- | --- |
+| Pocket Home on the 3DS and the Tab5 | A touch-screen launcher with installed applets; on the 3DS, Claude's room on the top screen and L+R to talk or type; on the Tab5, a floating home ball and a keyboard | [shells/3ds](shells/3ds/README.md) |
+| Touch navigation | Full-screen gestures over sixteen mock apps on the iPod touch 4 and the Nokia E7 | [shells/touch](shells/touch/README.md) |
+| Desktop OS | Windows, a pointer and a keyboard, with Classic 98, XP and Aqua themes on macOS and Linux and a browser preview; the shell Pocket Studio uses | [shells/desktop](shells/desktop/README.md) |
+| The Omarchy-style 3DS shell and the iPod touch 4 remote (archived) | Tiling windows on the top screen with shoulder chords and a deck on the touch screen; a handheld that mirrors and controls a Linux desktop | branch [`archive/3ds-omarchy-ipod-remote`](https://github.com/pocket-nexus/pocket-shell/tree/archive/3ds-omarchy-ipod-remote) |
+
+The former **pocket-desktop** project is the desktop OS shell in this
 repository. Its application code, assets, tests, native build scripts, browser
 preview, website and benchmark history are maintained under `shells/desktop/`.
 The import preserves its Git history. Existing installed package IDs and
-desktop artifact names remain stable.
-
-| Nintendo 3DS | Touch navigation | Desktop |
-| --- | --- | --- |
-| ![Pocket Home and Claude's room on a 3DS](shells/3ds/media/hw/home.png) | ![Touch navigation Home page](shells/touch/media/home.png) | ![Desktop Aqua theme](shells/desktop/docs/aqua-theme.png) |
-
-The 3DS image is a capture from the console; the touch and desktop images are
-simulator renders.
-
-## Archived shells
-
-Two earlier shells are kept on the branch
-[`archive/3ds-omarchy-ipod-remote`](https://github.com/pocket-nexus/pocket-shell/tree/archive/3ds-omarchy-ipod-remote),
-which is `main` at `78b94b2` before they were removed:
-
-- **The Omarchy-style 3DS shell**: tiling windows on the top screen, chords
-  on the shoulders and a deck on the touch screen, with its tapes, 26 golden
-  frames, films and hardware screenshots. Release `v2026.10.01` was built
-  from it.
-- **Pocket Shell on the iPod touch 4**: the Omarchy companion that mirrors
-  and controls a Linux desktop over USB or Wi-Fi, with its host daemon,
-  pointer helper and menu snapshot.
-
-They are not built or tested on `main`. To work on one, branch from the
-archive branch; its README and `AGENTS.md` describe that tree.
+desktop artifact names remain stable. The archived shells are `main` at
+`78b94b2` before they were removed; they are not built or tested on `main`, and
+work on one starts from the archive branch, whose README and `AGENTS.md`
+describe that tree.
 
 ## Repository layout
 
 ```text
 shells/
-  3ds/       home, hn and ui sources, scripts, test, media, manifests
+  3ds/       home, the applets (hn, youtube, x, discord, camera, photos, notes) and ui, scripts, test, media, manifests
   touch/     src (gesture model and mock apps), scripts, test, manifest
   desktop/   src/system-ui, scripts, test, assets, docs, preview, site, manifests
 scripts/     setup, desktop command dispatch, repository paths and process helpers
@@ -57,7 +61,6 @@ The three shells have separate Bun packages and TypeScript configurations.
 See the [asset policy and review](docs/ASSETS.md) for generated outputs,
 source inputs and retained documentation fixtures. Application code is separate;
 runtime APIs come from `@pocketjs/framework/*`.
-The 3DS shell remains specific to its two screens and physical controls.
 
 ## Development
 
@@ -92,6 +95,7 @@ to list its commands, including captures, benchmarks and the text companion.
 bun run deploy --host <console-ip> # build Home's .3dsx, install it over the wire and restart into it
 bun run push [hn] --host <console-ip>  # rebuild and hot-push Home (or install Hacker News)
 bun run offer                    # offer the applets (3DS and Tab5 packages) through the running Pocket Companion
+bun run tab5 [app…]              # build Home and the applets for the M5Stack Tab5 into dist/tab5
 bun run shot --host <console-ip>  # capture both console screens
 bun run 3ds                      # full console binary in dist/3ds
 bun run touch guest
