@@ -57,7 +57,8 @@ import {
 import { ICONS } from "./pages.tsx";
 import { type HomeApp, type HomeSystem } from "./system.ts";
 import { appTint, StatusBar, Tile, Wallpaper, type TileProps } from "../ui/chrome.tsx";
-import { COMPACT, SCREEN_H, SCREEN_W, TALL } from "../ui/screen.ts";
+import { setLegend } from "../ui/legend.tsx";
+import { appletTouch, COMPACT, SCREEN_H, SCREEN_W, TALL } from "../ui/screen.ts";
 import { ellipsize, FONT } from "../ui/text.ts";
 import type { Press, Target, TargetDrag, TouchPage } from "../ui/touch.ts";
 
@@ -666,6 +667,30 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
       </Show>
     </View>
   ) as unknown as ReturnType<typeof View>;
+
+  if (!appletTouch()) {
+    // Without touch the d-pad focus is how the board is read: the first icon
+    // holds it from the start, and the legend names the buttons.
+    createEffect(() => {
+      if (!env.active() || focus() !== "") return;
+      const first = shown().pages[page()]?.[0] ?? shown().dock[0];
+      if (first) setFocus(first);
+    });
+    createEffect(() => {
+      if (!env.active()) return;
+      const banner = bannerFor(sys);
+      setLegend(editing()
+        ? [
+            { button: "circle", label: "Remove" },
+            { button: "cross", label: "Done" },
+          ]
+        : [
+            { button: "circle", label: "Open" },
+            { button: "square", label: "Edit" },
+            ...(banner?.resume && banner.app ? [{ button: "select" as const, label: banner.app.title }] : []),
+          ]);
+    });
+  }
 
   return {
     view,

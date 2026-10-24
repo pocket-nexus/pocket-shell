@@ -28,6 +28,7 @@ import { createSlotPool, paintText, type SlotPool } from "../ui/slots.ts";
 import type { Press, Target } from "../ui/touch.ts";
 import type { Channel, Guild, Message } from "./api.ts";
 import type { ChatState, DiscordModel, ListState } from "./model.ts";
+import { glyph } from "@pocketjs/framework/modality";
 
 const OVERSCAN = 80;
 
@@ -343,6 +344,7 @@ export function serversPage(env: DiscordEnv, stack: NavStack, layer: LayerContex
     fixed: background(THEME.list),
     right: reloadButton(() => model.loadGuilds()),
     content,
+    legend: () => [{ button: "square", label: "Reload" }],
     key(pressed) {
       if (pressed & BTN.SQUARE || (pressed & BTN.CIRCLE && model.guilds().status === "error")) {
         model.loadGuilds();
@@ -499,6 +501,7 @@ export function channelsPage(env: DiscordEnv, stack: NavStack, layer: LayerConte
     fixed: background(THEME.list),
     right: reloadButton(() => model.reloadChannels()),
     content,
+    legend: () => [{ button: "square", label: "Reload" }],
     key(pressed) {
       if (pressed & BTN.SQUARE || (pressed & BTN.CIRCLE && model.channels().status === "error")) {
         model.reloadChannels();
@@ -739,7 +742,7 @@ export function chatPage(env: DiscordEnv, _stack: NavStack, layer: LayerContext)
           </Text>
         </Show>
         <Show when={ready() && layout().rows.length === 0}>
-          <Centered title={`Welcome to #${toAscii(model.chat()?.channel.name ?? "")}`} detail="This is the start of the channel. Press X to write the first message." press={press} />
+          <Centered title={`Welcome to #${toAscii(model.chat()?.channel.name ?? "")}`} detail={`This is the start of the channel. Press ${glyph("triangle")} to write the first message.`} press={press} />
         </Show>
         <Show when={model.chat()?.status === "loading"}>
           <Centered title="Loading" detail="Asking your Mac for the messages." spinner press={press} />
@@ -775,6 +778,12 @@ export function chatPage(env: DiscordEnv, _stack: NavStack, layer: LayerContext)
     fixed: background(THEME.chat),
     right: () => (ready() ? { id: "chat.compose", label: "Write", kind: "done", run: () => env.compose() } : null),
     content,
+    activateLabel: () => "",
+    legend: () => [
+      { button: "lr", label: "Page" },
+      ...(ready() ? [{ button: "triangle" as const, label: "Write" }] : []),
+      { button: "square", label: "Reload" },
+    ],
     key(pressed) {
       if (pressed & (BTN.LTRIGGER | BTN.RTRIGGER)) {
         layer.scrollBy(pressed & BTN.LTRIGGER ? -(VIEW_H - 34) : VIEW_H - 34);

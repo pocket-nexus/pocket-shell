@@ -11,12 +11,13 @@
 //   TALL     a portrait surface, such as 360x592: iOS 6 phone layouts
 //
 // The size is read once, by readScreen(), which every program's main.tsx
-// calls first thing in its root component: auxiliaryViewport() answers only
-// after mount() put the surface up. Components and the functions they call
-// read these; module-level code must not, because it runs before
-// readScreen() and would see 320x240.
+// calls first thing in its root component: the applet surface is known only
+// after mount() put it up (the auxiliary surface on a 3DS or a Tab5, the
+// whole screen on a PSP). Components and the functions they call read these;
+// module-level code must not, because it runs before readScreen() and would
+// see 320x240.
 
-import { auxiliaryViewport } from "@pocketjs/framework/display";
+import { appletOnAuxiliary, appletViewport } from "@pocketjs/framework/applet";
 import { hasFeature } from "@pocketjs/framework/platform";
 
 export let SCREEN_W = 320;
@@ -26,11 +27,14 @@ export let COMPACT = true;
 /** A portrait surface: the phone layouts. */
 export let TALL = false;
 
+/** The button legend's strip along the bottom of a surface without touch
+ *  (ui/legend.tsx). Programs lay out in the SCREEN_H above it. */
+export const LEGEND_H = 22;
+
 export function readScreen(): void {
-  const viewport = auxiliaryViewport();
-  if (!viewport) return;
+  const viewport = appletViewport();
   SCREEN_W = viewport.width;
-  SCREEN_H = viewport.height;
+  SCREEN_H = viewport.height - (appletTouch() ? 0 : LEGEND_H);
   COMPACT = SCREEN_W <= 320 && SCREEN_H <= 240;
   TALL = SCREEN_H > SCREEN_W;
 }
@@ -40,4 +44,10 @@ export function readScreen(): void {
  *  target. */
 export function appletTouch(): boolean {
   return hasFeature("input.touch.auxiliary");
+}
+
+/** The surface a program's gestures and system keyboard belong to: the
+ *  auxiliary touch surface on a 3DS or a Tab5, the primary display on a PSP. */
+export function appletSurfaceId(): "primary" | "auxiliary" {
+  return appletOnAuxiliary() ? "auxiliary" : "primary";
 }

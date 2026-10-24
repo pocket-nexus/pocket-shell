@@ -14,7 +14,8 @@
 
 import { batch, createEffect, createMemo, createSignal, For, onCleanup, onMount, Show, type Accessor } from "solid-js";
 import { animate, jump } from "@pocketjs/framework/animation";
-import { AuxiliarySurface, Image, Text, View } from "@pocketjs/framework/components";
+import { AppletSurface } from "@pocketjs/framework/applet";
+import { Image, Text, View } from "@pocketjs/framework/components";
 import {
   deletePhoto,
   freePhoto,
@@ -32,7 +33,7 @@ import { registerTexture, type NodeMirror } from "@pocketjs/framework/renderer";
 import { createAlerts } from "../ui/alert.tsx";
 import { NAV_H } from "../ui/bar.tsx";
 import { createNavStack, viewHeight, type LayerContext, type NavStack, type PageContent, type PageSpec } from "../ui/nav.tsx";
-import { COMPACT, SCREEN_H, SCREEN_W } from "../ui/screen.ts";
+import { COMPACT, SCREEN_H, SCREEN_W, appletTouch, appletSurfaceId } from "../ui/screen.ts";
 import { createSlotPool, type PlacedRow, type SlotPool } from "../ui/slots.ts";
 import { createPress, createTouchRouter, type Press, type Target } from "../ui/touch.ts";
 
@@ -441,7 +442,8 @@ function photoPage(env: PhotosEnv, stack: NavStack): PageSpec {
 export default function Photos() {
   fitSurface();
   const press = createPress();
-  const [keys, setKeys] = createSignal(false);
+  // Without touch (a PSP) the d-pad focus shows from the start.
+  const [keys, setKeys] = createSignal(!appletTouch());
   const [current, setCurrent] = createSignal(0);
   const alerts = createAlerts(press);
   const model = createPhotosModel();
@@ -485,7 +487,7 @@ export default function Photos() {
   stack.reset("grid");
 
   createTouchRouter({
-    surface: "auxiliary",
+    surface: appletSurfaceId(),
     press,
     page: () => alerts.touch() ?? stack.touch(),
     active: () => !stack.busy(),
@@ -497,11 +499,11 @@ export default function Photos() {
   });
 
   return (
-    <AuxiliarySurface>
+    <AppletSurface>
       <View class="relative w-full h-full bg-white overflow-hidden">
         {stack.view()}
         {alerts.view()}
       </View>
-    </AuxiliarySurface>
+    </AppletSurface>
   );
 }

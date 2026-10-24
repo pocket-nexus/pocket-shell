@@ -13,19 +13,21 @@
 // draws from glyph atlases the Mac renders (ui/glyphs.ts).
 
 import { createSignal, For, Show } from "solid-js";
-import { AuxiliarySurface, Text, View } from "@pocketjs/framework/components";
+import { AppletSurface } from "@pocketjs/framework/applet";
+import { Text, View } from "@pocketjs/framework/components";
 import { createGesture } from "@pocketjs/framework/gesture";
 import { onButtonPress, onFrame } from "@pocketjs/framework/lifecycle";
 import { companionNow } from "@pocketjs/framework/link";
 import { createOsk, Osk, oskHeight } from "@pocketjs/framework/osk";
 import { createGlyphs, GLYPH_BOLD, GLYPH_TEXT } from "../ui/glyphs.ts";
 import { createNavStack } from "../ui/nav.tsx";
-import { SCREEN_H, SCREEN_W } from "../ui/screen.ts";
+import { SCREEN_H, SCREEN_W, appletTouch, appletSurfaceId } from "../ui/screen.ts";
 import { ellipsize, FONT, toAscii, wrap } from "../ui/text.ts";
 import { createPress, createTouchRouter } from "../ui/touch.ts";
 import type { Post } from "./api.ts";
 import { createXModel } from "./model.ts";
 import { postPage, timelinePage, type XEnv } from "./views.tsx";
+import { Legend, legendWhileTyping } from "../ui/legend.tsx";
 
 const ALL_BUTTONS = 0xffff;
 const COMPOSE_BAR = 32;
@@ -34,11 +36,12 @@ const MAX_POST = 280;
 
 export default function X() {
   const W = SCREEN_W;
-  const KEYBOARD_TOP = SCREEN_H - oskHeight("auxiliary", "light");
+  const KEYBOARD_TOP = SCREEN_H - oskHeight(appletSurfaceId(), "light");
   const DRAFT_LINES = Math.max(1, Math.floor((KEYBOARD_TOP - COMPOSE_BAR - 26) / 16));
   const model = createXModel();
   const press = createPress();
-  const [keys, setKeys] = createSignal(false);
+  // Without touch (a PSP) the d-pad focus shows from the start.
+  const [keys, setKeys] = createSignal(!appletTouch());
   // Ages need minutes, not frames: the clock signal changes once a minute.
   const [now, setNow] = createSignal(Math.floor(companionNow() / 60000) * 60000);
   let frames = 0;
@@ -67,6 +70,7 @@ export default function X() {
     });
   };
   const osk = createOsk({ value: draft, setValue: setDraft, onCommit: send, onClose: () => close(), maxLength: MAX_POST, closeOnCommit: false });
+  legendWhileTyping(osk.isOpen, "Reply");
   const close = () => {
     if (osk.isOpen()) osk.close();
     setReplying(null);
@@ -95,7 +99,7 @@ export default function X() {
   model.setKind("following");
 
   createTouchRouter({
-    surface: "auxiliary",
+    surface: appletSurfaceId(),
     press,
     page: () => stack.touch(),
     active: () => !stack.busy() && !replying(),
@@ -105,7 +109,7 @@ export default function X() {
   // keyboard's session, so its two buttons take their own exempt gesture.
   const composerButton = (x: number) => (x < 80 ? "compose.cancel" : x >= W - 80 ? "compose.send" : "");
   createGesture({
-    surface: "auxiliary",
+    surface: appletSurfaceId(),
     region: { rect: () => (replying() ? { x: 0, y: 0, w: W, h: COMPOSE_BAR } : null) },
     allowWhenBlocked: true,
     onDown(contact) {
@@ -139,7 +143,7 @@ export default function X() {
   };
 
   return (
-    <AuxiliarySurface>
+    <AppletSurface>
       <View class="relative w-full h-full bg-white overflow-hidden">
         {stack.view()}
         <Show when={model.notice() && !replying()}>
@@ -171,12 +175,13 @@ export default function X() {
                 </Text>
               </Show>
               <View class="absolute left-0" style={{ insetT: KEYBOARD_TOP, width: W, height: SCREEN_H - KEYBOARD_TOP }}>
-                <Osk osk={osk} surface="auxiliary" theme="light" />
+                <Osk osk={osk} surface={appletSurfaceId()} theme="light" />
               </View>
             </>
           )}
         </Show>
       </View>
-    </AuxiliarySurface>
+      <Legend home />
+    </AppletSurface>
   );
 }
