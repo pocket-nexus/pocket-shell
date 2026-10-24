@@ -9,3 +9,5 @@ export const DIST_3DS = resolve(ROOT, "dist/3ds");
 export const PLAN_DIR = resolve(ROOT, ".pocket/plans/3ds");
 export const PLAN_DIR_TAB5 = resolve(ROOT, ".pocket/plans/tab5");
 export const DIST_TAB5 = resolve(ROOT, "dist/tab5");
+export const PLAN_DIR_PSP = resolve(ROOT, ".pocket/plans/psp");
+export const DIST_PSP = resolve(ROOT, "dist/psp");

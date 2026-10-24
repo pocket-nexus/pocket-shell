@@ -73,6 +73,36 @@ On a surface larger than the 3DS's:
   forgets saved networks on a host whose launcher is its settings
   (`wifiCanJoin()`); the 3DS keeps its saved-slot page.
 
+### The PSP
+
+Home, Hacker News, YouTube, X and Discord run on the PSP's whole 480×272
+screen from the same entries. Each manifest adds the applet full-screen
+presentation (`{screens: 1, touch: "none", buttons: true}`, PocketJS
+`docs/APPLETS.md`), so the psp profile compiles the program with no auxiliary
+surface; `AppletSurface` mounts it on the screen and `readScreen()` reads
+the size from `appletViewport()`. Camera and Photos serve the touch surface
+only and are left out of the PSP build.
+
+Without touch every page is read by its d-pad focus, which the first row or
+icon holds from the start, and a **22 px button legend** along the bottom
+(`ui/legend.tsx`) names what each button does on the page in front: ○ for
+the focused row, × for back, then the page's own (L and R for feeds and
+pages, △ for reload or write, □ for edit or reload), and SELECT for Home in an
+applet. An alert and the system keyboard put their own buttons there while
+they are open. On a touch surface the legend draws nothing and the layouts
+keep their full height.
+
+`bun run psp` builds one EBOOT with Home as app 0 and the applets as
+embedded packages. Under PSPLINK the PRX runs from the share the tethered
+computer serves; the companion answers the applets' requests in the same
+share (PocketJS `docs/POCKET-LINK.md`, "USB carrier"):
+
+```sh
+usbhostfs_pc /opt/pocket/host0 &
+bun tools/companion.ts serve --usb /opt/pocket/host0 --no-agent
+pspsh -e "ldstart host0:/pocketjs-psp.prx"   # after copying the PRX into the share
+```
+
 Icons ship an `@2x` texture beside each 1x one (`home/art/icons/bake.ts`), so
 a density-2 build draws them texel for texel. `POCKET_TAB5_SHOTS=<dir> bun run
 check:3ds` also writes each program's 592×360 and 360×592 screens.
@@ -161,6 +191,7 @@ bun run offer                           # build the applets' packages and offer 
 bun run shot --host <console-ip>        # one screenshot of both screens
 bun run 3ds [home|hn] [--pocket-only]   # build into dist/3ds
 bun run tab5 [app…]                     # build packages for the M5Stack Tab5 into dist/tab5
+bun run psp [--skip-eboot]              # build Home and the applets into one PSP EBOOT (dist/psp)
 bun run --cwd shells/3ds icons          # re-render and re-bake Home's icons (macOS, Blender 5)
 bun run check:3ds                       # typecheck, the Home and Hacker News sims, unit tests
 ```

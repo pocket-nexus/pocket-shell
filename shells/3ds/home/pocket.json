@@ -9,9 +9,7 @@
     "capabilities": {
       "requires": [
         "text.glyphs.baked",
-        "input.buttons",
-        "display.auxiliary",
-        "input.touch.auxiliary"
+        "input.buttons"
       ],
       "enhances": [
         "link.companion",
@@ -20,7 +18,9 @@
         "input.analog.left",
         "media.playback",
         "system.agent",
-        "data.fs"
+        "data.fs",
+        "display.auxiliary",
+        "input.touch.auxiliary"
       ]
     }
   },
@@ -28,6 +28,9 @@
     "entry": "home/main.tsx",
     "output": "home-main",
     "framework": "solid",
+    "modality": {
+      "touch": "auxiliary"
+    },
     "surfaces": {
       "auxiliary": {
         "adaptive": {
@@ -41,6 +44,23 @@
         "logical": [400, 240],
         "presentation": "native"
       }
-    }
+    },
+    "presentations": [
+      {
+        "id": "full-screen",
+        "entry": "home/main.tsx",
+        "modality": {
+          "screens": 1,
+          "touch": "none",
+          "buttons": true
+        },
+        "viewport": {
+          "fixed": {
+            "logical": [480, 272],
+            "presentation": "native"
+          }
+        }
+      }
+    ]
   }
 }

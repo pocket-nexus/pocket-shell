@@ -23,7 +23,7 @@ import { createMediaScrubber, mediaPlayer } from "@pocketjs/framework/media";
 import type { NodeMirror } from "@pocketjs/framework/renderer";
 import { barButtonWidth, NAV_H, type NavButton } from "../ui/bar.tsx";
 import { viewHeight, type LayerContext, type NavStack, type PageContent, type PageSpec } from "../ui/nav.tsx";
-import { COMPACT, SCREEN_H, SCREEN_W } from "../ui/screen.ts";
+import { COMPACT, SCREEN_H, SCREEN_W, appletSurfaceId } from "../ui/screen.ts";
 import { createSlotPool, paintText, type SlotPool } from "../ui/slots.ts";
 import { ellipsize, FONT, toAscii, wrap } from "../ui/text.ts";
 import type { Press, Target } from "../ui/touch.ts";
@@ -310,6 +310,11 @@ export function listPage(env: YtEnv, stack: NavStack, layer: LayerContext): Page
     right: COMPACT ? undefined : () => ({ ...RELOAD, run: () => model.reload() }),
     fixedTargets: () => segmentTargets(env),
     content,
+    legend: () => [
+      { button: "lr", label: "Section" },
+      { button: "triangle", label: "Reload" },
+      ...(searching() ? [{ button: "square" as const, label: "Search" }] : []),
+    ],
     key(pressed) {
       if (pressed & BTN.LTRIGGER) step(-1);
       else if (pressed & BTN.RTRIGGER) step(1);
@@ -498,7 +503,7 @@ export function playerPage(env: YtEnv, stack: NavStack): PageSpec {
   // finds no target there.
   let scrubbing = false;
   createGesture({
-    surface: "auxiliary",
+    surface: appletSurfaceId(),
     onDown(contact) {
       scrubbing = stack.top()?.page === "player" && !stack.busy() && duration() > 0 && phase() !== "error"
         && contact.x >= TRACK_X - 8 && contact.x < TRACK_X + TRACK_W + 8 && contact.y >= BAR_Y && contact.y < BAR_Y + 24;
@@ -603,6 +608,11 @@ export function playerPage(env: YtEnv, stack: NavStack): PageSpec {
             { id: "player.quieter", x: SCREEN_W - 8 - 2 * VOLUME_W, y: BAR_Y, w: VOLUME_W, h: BAR_H, run: () => nudgeVolume(-0.1) },
             { id: "player.louder", x: SCREEN_W - 8 - VOLUME_W, y: BAR_Y, w: VOLUME_W, h: BAR_H, run: () => nudgeVolume(0.1) },
           ]),
+    ],
+    legend: () => [
+      { button: "circle", label: "Play" },
+      { button: "dpad-h", label: "Seek" },
+      { button: "dpad-v", label: "Volume" },
     ],
     key(pressed) {
       if (pressed & BTN.CIRCLE) toggle();

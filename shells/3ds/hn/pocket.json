@@ -16,13 +16,13 @@
       "requires": [
         "text.glyphs.baked",
         "input.buttons",
-        "display.auxiliary",
-        "input.touch.auxiliary",
         "net.http"
       ],
       "enhances": [
         "input.analog.left",
-        "system.agent"
+        "system.agent",
+        "display.auxiliary",
+        "input.touch.auxiliary"
       ]
     }
   },
@@ -30,6 +30,9 @@
     "entry": "hn/main.tsx",
     "output": "hn-main",
     "framework": "solid",
+    "modality": {
+      "touch": "auxiliary"
+    },
     "surfaces": {
       "auxiliary": {
         "adaptive": {
@@ -43,6 +46,23 @@
         "logical": [400, 240],
         "presentation": "native"
       }
-    }
+    },
+    "presentations": [
+      {
+        "id": "full-screen",
+        "entry": "hn/main.tsx",
+        "modality": {
+          "screens": 1,
+          "touch": "none",
+          "buttons": true
+        },
+        "viewport": {
+          "fixed": {
+            "logical": [480, 272],
+            "presentation": "native"
+          }
+        }
+      }
+    ]
   }
 }
