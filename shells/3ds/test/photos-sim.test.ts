@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/test/photos-sim.test.ts — the Photos applet (shells/3ds/photos)
 // headless on the wasm core with the 3DS geometry and the sim's camera
-// storage (hosts/sim/camera.ts): the Camera Roll grid newest first with its
+// storage (platforms/sim/camera.ts): the Camera Roll grid newest first with its
 // count, thumbnails asked for near the visible rows only, a photo full
 // screen swiped and stepped through, and delete with a confirmation.
 //
@@ -12,7 +12,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BTN } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
-import { bootConsole3ds, type Console3ds } from "../../../vendor/pocketjs/hosts/sim/console-3ds.ts";
+import { bootConsole3ds, type Console3ds } from "../../../vendor/pocketjs/programs/sim/console-3ds.ts";
 import { encodePNG } from "../../../vendor/pocketjs/tools/png.ts";
 import { buildGuest } from "./build.ts";
 

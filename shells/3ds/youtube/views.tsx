@@ -450,7 +450,7 @@ export function playerPage(env: YtEnv, stack: NavStack): PageSpec {
   if (media) start(0);
   else {
     setPhase("error");
-    setError("This console's runtime has no media player. Update Pocket Home on the console.");
+    setError("This console's runtime has no media player. Update Pocket Shell on the console.");
   }
 
   /** The picture's box: H.264 fills the texture, PAL8 its top-left corner. */

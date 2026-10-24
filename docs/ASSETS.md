@@ -8,8 +8,8 @@ Build intermediates and individual validation runs stay ignored.
 | --- | --- |
 | Desktop `gen-icons.ts` | Original pixel grids and vector definitions; retained as source. Its 100 SVG outputs in `src/system-ui/icons/` are ignored and regenerated before builds. |
 | Desktop `gen-assets.ts`, W95FA OTF and its OFL notice | Font recipe and original input; retained. The ten 1×/2× `.bin` atlases in `src/system-ui/fonts/` are ignored. Inter comes from the pinned PocketJS submodule. |
-| 3DS `home/art/icons/*.png`, `icons.py` and `bake.ts` | Home's Blender-baked icon textures and the dock, plus their recipes. The build reads the committed PNGs and needs no Blender; Cycles output differs between renders, so `bun run --cwd shells/3ds icons` produces a new set to review. Renders and the contact sheet stay in ignored `.pocket-build/`. |
-| 3DS `home/art/*.svg` and `home/images.json` | Home's vector pictures (chevrons, checks, glows, the camera), rasterized by the PocketJS build. |
+| 3DS `shell/art/icons/*.png`, `icons.py` and `bake.ts` | Home's Blender-baked icon textures and the dock, plus their recipes. The build reads the committed PNGs and needs no Blender; Cycles output differs between renders, so `bun run --cwd shells/3ds icons` produces a new set to review. Renders and the contact sheet stay in ignored `.pocket-build/`. |
+| 3DS `shell/art/*.svg` and `shell/images.json` | Home's vector pictures (chevrons, checks, glows, the camera), rasterized by the PocketJS build. |
 | 3DS `media/hw/*.png`, desktop `docs/*-theme.png` | Console screenshots embedded in the 3DS README and selected desktop pictures; desktop theme images are also shipped on the site. These are reviewed documentation assets. |
 | Desktop `docs/bench/classic-2026-08-23.{md,json}` | Historical baseline cited by the website, including measured data and protocol. It predates the portable renderer. |
 | Desktop `docs/bench/aqua-gpu-2026-09-10.{md,json}` | Dated comparison supporting the documented drag benchmark. It measures CPU submission and capture estimates, not physical input latency. |

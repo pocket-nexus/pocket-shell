@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // src/system-ui/svc.ts — the System UI input protocol over the spec svc channel
 // (HostOps svcOpen/svcPoll/svcSend), the note dialect's input lines extended
-// for a native compositor. hosts/macos speaks it when the resolved System UI
+// for a native compositor. programs/desktop speaks it when the resolved System UI
 // plan.s companion list names "system-ui".
 //
 // host → guest lines (superset of apps/note/svc.ts):

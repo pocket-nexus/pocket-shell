@@ -28,7 +28,7 @@
     }
   },
   "include": [
-    "home",
+    "shell",
     "hn",
     "youtube",
     "x",

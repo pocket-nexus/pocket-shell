@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/home/clock.ts — wall-clock fields from Date.now() arithmetic alone.
+// shells/3ds/shell/clock.ts — wall-clock fields from Date.now() arithmetic alone.
 //
 // The 3DS host's QuickJS breaks down local time incorrectly
 // (Date.prototype.getHours/getMinutes/getDay), and the console reports no

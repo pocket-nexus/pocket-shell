@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/home/pages.tsx — the Settings pages: the root list (with the
+// shells/3ds/shell/pages.tsx — the Settings pages: the root list (with the
 // Dual Screen switch), Wi-Fi, Mac, Applets, General, About and Time Zone. Each page is section data over the
 // live system state; the grouped table draws it and the navigation stack
 // scrolls, focuses and pushes it.

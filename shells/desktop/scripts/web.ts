@@ -3,6 +3,7 @@ import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { extname, resolve } from "node:path";
 import { buildDesktopSystem } from "./build-system.ts";
 import { POCKETJS_ROOT, ROOT } from "./system-plan.ts";
+import { stageWebAssets } from "../../../vendor/pocketjs/tools/build/web-assets.ts";
 
 async function run(command: string[], cwd = ROOT): Promise<void> {
   const child = Bun.spawn(command, { cwd, stdout: "inherit", stderr: "inherit" });
@@ -25,20 +26,12 @@ await run([process.execPath, resolve(POCKETJS_ROOT, "tools/wasm.ts")], POCKETJS_
 
 await run([process.execPath, resolve(POCKETJS_ROOT, "tools/text-wasm.ts")], POCKETJS_ROOT);
 
-for (const file of [
-  "offload-worker.js",
-  "text-worker.js",
-  "text-engine.js",
-  "pocket_text.wasm",
-  "app-instance.html",
-  "app-instance.js",
-  "runtime-glyphs.js",
-  "system-engine.js",
-  "wasm-ops.js",
-  "pocketjs.wasm",
-]) {
-  cpSync(resolve(POCKETJS_ROOT, "hosts/web", file), resolve(runtime, file));
-}
+// PocketJS's web runtime keeps its source tree: app-instance.js and
+// system-engine.js (programs/web) import their drivers from platforms/web.
+stageWebAssets(runtime, {
+  wasm: resolve(POCKETJS_ROOT, "platforms/web/pocketjs.wasm"),
+  textWasm: resolve(POCKETJS_ROOT, "platforms/web/pocket_text.wasm"),
+});
 for (const file of ["index.html", "preview.js", "preview.css"]) {
   cpSync(resolve(ROOT, "preview", file), resolve(output, file));
 }

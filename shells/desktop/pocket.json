@@ -27,6 +27,7 @@
     "entry": "src/system-ui/main.tsx",
     "output": "pocket-desktop-system-ui",
     "framework": "solid",
+    "theme": "./src/system-ui/animation-theme.ts",
     "companions": [
       "system-ui"
     ],

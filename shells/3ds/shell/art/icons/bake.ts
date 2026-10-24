@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/home/art/icons/bake.ts — turn icons.py's 512 px Blender renders into
+// shells/3ds/shell/art/icons/bake.ts — turn icons.py's 512 px Blender renders into
 // the textures Home draws, and write a contact sheet.
 //
-//   bun shells/3ds/home/art/icons/bake.ts .pocket-build/home-icons/render [sheet dir]
+//   bun shells/3ds/shell/art/icons/bake.ts .pocket-build/shell-icons/render [sheet dir]
 //
 // Each icon is drawn at a few sizes (24 in table rows and the banner, 46 on
 // the springboard and the dock, 64 for the store's detail icon) and
@@ -55,7 +55,7 @@ const ICONS: Record<string, number[]> = {
   photos: [24, 46, 64],
 };
 
-const RENDERS = resolve(process.argv[2] ?? ".pocket-build/home-icons/render");
+const RENDERS = resolve(process.argv[2] ?? ".pocket-build/shell-icons/render");
 const OUT = import.meta.dir;
 
 type Rgba = Float32Array; // straight alpha, 0..1
@@ -288,7 +288,7 @@ for (const entry of baked) {
   blit(entry.rgba, entry.tex, 10 + column * 140, top, 1);
   if (entry.size !== 64) blit(entry.rgba, entry.tex, 450 + column * 270, top, entry.size === 24 ? 4 : 2);
 }
-const sheetDir = resolve(process.argv[3] ?? ".pocket-build/validation/home-icons");
+const sheetDir = resolve(process.argv[3] ?? ".pocket-build/validation/shell-icons");
 mkdirSync(sheetDir, { recursive: true });
 writeFileSync(join(sheetDir, "contact-sheet.png"), encodePNG(sheet, W, sheetH));
 console.log(`contact sheet -> ${join(sheetDir, "contact-sheet.png")}`);

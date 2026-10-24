@@ -14,9 +14,9 @@ import { PLAN_DIR, PROJECT_ROOT } from "./paths.ts";
 export const APPS: readonly string[] = readdirSync(PROJECT_ROOT, { withFileTypes: true })
   .filter((entry) => entry.isDirectory() && existsSync(resolve(PROJECT_ROOT, entry.name, "pocket.json")))
   .map((entry) => entry.name)
-  .sort((a, b) => (a === "home" ? -1 : b === "home" ? 1 : a.localeCompare(b)));
+  .sort((a, b) => (a === "shell" ? -1 : b === "shell" ? 1 : a.localeCompare(b)));
 export type ShellApp = string;
-export const LAUNCHER: ShellApp = "home";
+export const LAUNCHER: ShellApp = "shell";
 
 export function isShellApp(name: string | undefined): name is ShellApp {
   return APPS.includes(name ?? "");

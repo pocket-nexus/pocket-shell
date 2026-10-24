@@ -1,0 +1,37 @@
+{
+  "category": "companion",
+  "companionFor": "shell",
+  "tagline": "The Mac app that Pocket Applets work with: it installs them on the 3DS and does what they need a computer for.",
+  "description": [
+    "Pocket Companion pairs with a 3DS running Pocket Shell by a code the console's camera scans once. After that the console finds the Mac on the same Wi-Fi network by itself.",
+    "It carries every applet: the 3DS installs and updates them from the Mac icon on its Home screen. It answers the requests of the applets that need a computer: X through your signed-in session, Discord through a bot you create, YouTube converted with yt-dlp and ffmpeg, which it downloads for you.",
+    "Its window walks through the setup: Pocket Shell on the 3DS, the pairing code, the applets, then a page for each service. Passwords, sessions and tokens stay on the Mac.",
+    "It lives in the menu bar and can open when you log in. It is signed with a Developer ID and notarized by Apple."
+  ],
+  "media": [
+    { "page": "start", "file": "start.jpg", "caption": "Get Started: Pocket Shell on the 3DS, the pairing code, the applets, the services." },
+    { "page": "applets", "file": "applets.jpg", "caption": "The applets it offers to the 3DS, and the services each one needs set up." },
+    { "page": "discord", "file": "discord.jpg", "caption": "Discord: the steps of making a bot, and the token kept on the Mac." },
+    { "page": "youtube", "file": "youtube.jpg", "caption": "YouTube: yt-dlp and ffmpeg found or downloaded." }
+  ],
+  "card": "start",
+  "requirements": ["macOS 15 or later", "Apple silicon or Intel", "A 3DS with Pocket Shell on the same Wi-Fi network"],
+  "translations": {
+    "ja": {
+      "tagline": "Pocket Applets と組んで動く Mac アプリ。3DS にアプレットを入れ、コンピュータが必要な仕事を引き受けます。",
+      "description": [
+        "Pocket Companion は、Pocket Shell の 3DS と、本体のカメラで一度読み取るコードでペアリングします。その後、本体は同じ Wi-Fi の Mac を自分で見つけます。",
+        "すべてのアプレットを持っていて、3DS はホーム画面の Mac アイコンからインストールと更新をします。コンピュータが必要なアプレットの依頼に応えます:X はサインインしたセッションで、Discord はあなたが作るボットで、YouTube は yt-dlp と ffmpeg で変換します(この二つは Companion がダウンロードします)。",
+        "ウインドウが設定を順に案内します:3DS の Pocket Shell、ペアリングのコード、アプレット、そしてサービスごとのページ。パスワード、セッション、トークンは Mac に残ります。",
+        "メニューバーに常駐し、ログイン時に開くこともできます。Developer ID で署名され、Apple の公証を受けています。"
+      ],
+      "captions": {
+        "start.jpg": "はじめに:3DS の Pocket Shell、ペアリングのコード、アプレット、サービス。",
+        "applets.jpg": "3DS に提供するアプレットと、それぞれに必要なサービスの設定。",
+        "discord.jpg": "Discord:ボットの作り方と、Mac に保存されるトークン。",
+        "youtube.jpg": "YouTube:見つかった、またはダウンロードした yt-dlp と ffmpeg。"
+      },
+      "requirements": ["macOS 15 以降", "Apple シリコンまたは Intel", "同じ Wi-Fi にある Pocket Shell の 3DS"]
+    }
+  }
+}

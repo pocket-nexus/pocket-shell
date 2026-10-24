@@ -33,7 +33,7 @@
     "bake:fonts": "bun src/system-ui/gen-assets.ts",
     "bake:icons": "bun src/system-ui/gen-icons.ts",
     "test:text": "bun ../../vendor/pocketjs/tools/text-wasm.ts && bun scripts/build-sim.ts && bun test --conditions=browser test/text-layout.test.ts",
-    "test:rust": "cargo test --locked --manifest-path ../../vendor/pocketjs/engine/crates/pocket-text/Cargo.toml && cargo test --locked --manifest-path ../../vendor/pocketjs/engine/wasm/Cargo.toml && cargo test --locked --manifest-path ../../vendor/pocketjs/engine/Cargo.toml -p pocket-ui-surface && cargo test --locked --manifest-path ../../vendor/pocketjs/hosts/desktop/Cargo.toml",
+    "test:rust": "cargo test --locked --manifest-path ../../vendor/pocketjs/Cargo.toml -p pocket-text -p pocketjs-wasm -p pocket-ui-surface -p pocket-desktop-host",
     "companion:text": "bun ../../vendor/pocketjs/tools/text-provider.ts",
     "assets": "bun scripts/prepare-assets.ts"
   }

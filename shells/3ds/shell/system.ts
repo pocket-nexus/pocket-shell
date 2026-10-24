@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/home/system.ts — Home's view of the console: installed apps (the
+// shells/3ds/shell/system.ts — Home's view of the console: installed apps (the
 // launcher's app table), the Pocket Link, the Wi-Fi radio, the linked Mac's
 // catalog and installs in flight, and the clock.
 //

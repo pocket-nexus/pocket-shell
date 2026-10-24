@@ -87,7 +87,7 @@ jobs:
             "$GITHUB_SHA" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >> "$RUNNER_TEMP/release-notes.md"
           tag="v$RELEASE_VERSION"
           gh release create "$tag" ./*.3dsx SHA256SUMS build-info.json \
-            --target "$GITHUB_SHA" --title "Pocket Home $tag" \
+            --target "$GITHUB_SHA" --title "Pocket Shell $tag" \
             --notes-file "$RUNNER_TEMP/release-notes.md" --draft
           gh release edit "$tag" --draft=false --latest
           gh release view "$tag" --json url --jq .url >> "$GITHUB_STEP_SUMMARY"

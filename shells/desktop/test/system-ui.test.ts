@@ -5,8 +5,7 @@
 // solid bundle prebuilt).
 
 import { describe, expect, test } from "bun:test";
-import { resolve } from "node:path";
-import { REPOSITORY } from "../scripts/system-plan.ts";
+import { packageManifests } from "../scripts/system-plan.ts";
 import {
   captionButtonXs,
   captionSlots,
@@ -100,15 +99,10 @@ import {
 
 describe("Pocket app desktop catalog", () => {
   async function packageInputs() {
-    const installed = new Set(system.installation.installedPackages);
-    return Promise.all(
-      system.applications.catalog
-        .filter((entry) => installed.has(entry.package))
-        .map(async (entry) => ({
-          source: entry.manifest,
-          manifest: await Bun.file(resolve(REPOSITORY, entry.manifest)).json(),
-        })),
-    );
+    return packageManifests(
+      system.applications.catalog,
+      new Set(system.installation.installedPackages),
+    ) as Array<{ source: string; manifest: any }>;
   }
 
   test("the Pocket System preserves every installed package's complete resolved plan", async () => {

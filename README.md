@@ -7,7 +7,7 @@ shell owns its interface and input model.
 
 | Shell | Role | Source and documentation |
 | --- | --- | --- |
-| Nintendo 3DS | Pocket Home and its Pocket Applets on the touch screen; Claude's room on the top screen, and L+R asks Claude over any applet | [shells/3ds](shells/3ds/README.md) |
+| Nintendo 3DS | Pocket Shell and its Pocket Applets on the touch screen; Claude's room on the top screen, and L+R asks Claude over any applet | [shells/3ds](shells/3ds/README.md) |
 | Touch navigation | Full-screen gesture navigation with sixteen mock apps on iPod touch 4 and Nokia E7 | [shells/touch](shells/touch/README.md) |
 | Desktop OS | Windows, application launching and Classic 98, XP and Aqua themes on macOS and Linux, with a browser preview; the shell Pocket Studio uses | [shells/desktop](shells/desktop/README.md) |
 
@@ -19,7 +19,7 @@ desktop artifact names remain stable.
 
 | Nintendo 3DS | Touch navigation | Desktop |
 | --- | --- | --- |
-| ![Pocket Home and Claude's room on a 3DS](shells/3ds/media/hw/home.png) | ![Touch navigation Home page](shells/touch/media/home.png) | ![Desktop Aqua theme](shells/desktop/docs/aqua-theme.png) |
+| ![Pocket Shell and Claude's room on a 3DS](shells/3ds/media/hw/home.png) | ![Touch navigation Home page](shells/touch/media/home.png) | ![Desktop Aqua theme](shells/desktop/docs/aqua-theme.png) |
 
 The 3DS image is a capture from the console; the touch and desktop images are
 simulator renders.

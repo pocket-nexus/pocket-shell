@@ -1,0 +1,51 @@
+{
+  "category": "applets",
+  "companion": "companion",
+  "tagline": "A Home screen of applets for the Nintendo 3DS: Hacker News, X, Discord, YouTube, Photos and Camera.",
+  "description": [
+    "Pocket Shell is a Home screen for the Nintendo 3DS. Its applets draw their whole interface on the lower screen and are touched with the stylus; the upper screen is a small room where Claude waits.",
+    "The applets install from Pocket Companion on a paired Mac. Hacker News, X, Discord and YouTube reach their services through it while they are open, so the 3DS holds no password or token. Photos and Camera run on the console alone.",
+    "Pressing L and R together over any applet asks the assistant about what is on the screen, by voice or by keyboard. It needs Codex on the paired Mac.",
+    "Pocket Shell is a .3dsx for the Homebrew Launcher. It runs on the Old 3DS and the New 3DS."
+  ],
+  "media": [
+    { "still": "media/hw/home.png", "file": "home.jpg", "caption": "Home on an Old 3DS: the applets on the lower screen, Claude's room on the upper one." },
+    { "still": "media/hw/acting.png", "file": "thread.jpg", "caption": "A Hacker News thread, opened by the assistant from a typed request." },
+    { "still": "media/hw/ask.png", "file": "ask.jpg", "caption": "L and R together over any applet: talk or type to the assistant." },
+    { "still": "media/hw/reply.png", "file": "reply.jpg", "caption": "The assistant's reply over the applet, with Talk and Type for the next request." }
+  ],
+  "card": "media/hw/home.png",
+  "applets": [
+    { "name": "Hacker News", "icon": "hn", "line": "The front page, its threads and the comments under them.", "companion": true },
+    { "name": "X", "icon": "x", "line": "Your home timeline and the posts in it.", "companion": true },
+    { "name": "Discord", "icon": "discord", "line": "The channels of your servers and their messages, through your bot.", "companion": true },
+    { "name": "YouTube", "icon": "youtube", "line": "Videos found and converted on the Mac, played on the console.", "companion": true },
+    { "name": "Photos", "icon": "photos", "line": "The pictures on the SD card.", "companion": false },
+    { "name": "Camera", "icon": "camera", "line": "Pictures from the outer camera.", "companion": false }
+  ],
+  "translations": {
+    "ja": {
+      "tagline": "Nintendo 3DS のためのアプレットのホーム画面。Hacker News、X、Discord、YouTube、写真、カメラ。",
+      "description": [
+        "Pocket Shell は Nintendo 3DS のホーム画面です。アプレットは下画面にすべてを描き、タッチペンで操作します。上画面は Claude がいる小さな部屋です。",
+        "アプレットはペアリングした Mac の Pocket Companion からインストールします。Hacker News、X、Discord、YouTube は開いている間 Companion を通してサービスにつながるので、3DS にはパスワードもトークンも残りません。写真とカメラは本体だけで動きます。",
+        "どのアプレットの上でも L と R を同時に押すと、画面に映っているものについてアシスタントに声かキーボードで聞けます。ペアリングした Mac に Codex が必要です。",
+        "Pocket Shell は Homebrew Launcher で起動する .3dsx です。Old 3DS と New 3DS で動きます。"
+      ],
+      "captions": {
+        "home.jpg": "Old 3DS のホーム画面:下画面にアプレット、上画面に Claude の部屋。",
+        "thread.jpg": "アシスタントが入力された依頼から開いた Hacker News のスレッド。",
+        "ask.jpg": "どのアプレットでも L と R を同時に押すと、アシスタントに話すか入力するかを選べます。",
+        "reply.jpg": "アプレットの上に出たアシスタントの返事。次の依頼のための Talk と Type。"
+      },
+      "applets": {
+        "Hacker News": "トップページ、スレッド、その下のコメント。",
+        "X": "ホームのタイムラインとその投稿。",
+        "Discord": "サーバーのチャンネルとメッセージ。あなたのボット経由で。",
+        "YouTube": "Mac で見つけて変換した動画を本体で再生。",
+        "Photos": "SD カードの写真。",
+        "Camera": "外側カメラで撮る写真。"
+      }
+    }
+  }
+}

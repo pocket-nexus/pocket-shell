@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/test/home-sim.test.ts — Pocket Home (apps/home) headless on the wasm core
+// shells/3ds/test/shell-sim.test.ts — Pocket Shell (shells/3ds/shell) headless on the wasm core
 // with the 3DS geometry, the 3DS app table and the Pocket Link, Wi-Fi and
-// camera fakes (hosts/sim/console-3ds.ts). Each journey drives the stylus and
+// camera fakes (programs/sim/console-3ds.ts). Each journey drives the stylus and
 // the buttons and checks what the touch screen shows and what the host was
 // asked. Home draws nothing on the top screen: it belongs to the system.
 //
@@ -13,13 +13,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BTN } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
 import type { LinkCatalogApp } from "../../../vendor/pocketjs/contracts/spec/link.ts";
-import { bootConsole3ds, type Console3ds, type Console3dsOptions } from "../../../vendor/pocketjs/hosts/sim/console-3ds.ts";
-import { createSimFsHost } from "../../../vendor/pocketjs/hosts/sim/fs.ts";
+import { bootConsole3ds, type Console3ds, type Console3dsOptions } from "../../../vendor/pocketjs/programs/sim/console-3ds.ts";
+import { createSimFsHost } from "../../../vendor/pocketjs/platforms/sim/fs.ts";
 import { encodePNG } from "../../../vendor/pocketjs/tools/png.ts";
 import { buildGuest } from "./build.ts";
 
-const OUT = mkdtempSync(join(tmpdir(), "pocket-home-"));
-let GUEST = join(OUT, "guest", "home-main");
+const OUT = mkdtempSync(join(tmpdir(), "pocket-shell-"));
+let GUEST = join(OUT, "guest", "pocket-shell");
 const SHOTS = process.env.POCKET_HOME_SHOTS;
 const GLOBALS = ["ui", "__pak", "__simHz", "frame", "link", "wifi", "camera", "net", "agent", "fs", "__pocketApp"] as const;
 const saved = new Map(GLOBALS.map((key) => [key, (globalThis as Record<string, unknown>)[key]]));
@@ -38,7 +38,7 @@ const CATALOG: LinkCatalogApp[] = [
 ];
 
 beforeAll(() => {
-  GUEST = buildGuest("home", OUT);
+  GUEST = buildGuest("shell", OUT);
   if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 }, 120_000);
 

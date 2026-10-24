@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/test/hn-fixture.ts — a deterministic Hacker News for the HN sim tests:
-// feeds, stories and a comment thread as NET routes (hosts/sim/net.ts).
+// feeds, stories and a comment thread as NET routes (platforms/sim/net.ts).
 // Every title, name and comment is invented for the fixture.
 
-import type { SimNetRoute } from "../../../vendor/pocketjs/hosts/sim/net.ts";
+import type { SimNetRoute } from "../../../vendor/pocketjs/platforms/sim/net.ts";
 
 export const HN_API = "https://hacker-news.firebaseio.com/v0";
 /** 2026-10-19T01:41:00Z, the console sim's default boot epoch. */

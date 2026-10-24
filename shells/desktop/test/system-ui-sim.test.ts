@@ -23,7 +23,7 @@ import {
   runScenario,
   treeHasText,
   type SimWorld,
-} from "../../../vendor/pocketjs/hosts/sim/sim.ts";
+} from "../../../vendor/pocketjs/programs/sim/sim.ts";
 import {
   DESKTOP_ABOUT,
   DESKTOP_NAME,

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/home/scanner.tsx — Settings > Mac > Pair a Mac: the outer camera's
+// shells/3ds/shell/scanner.tsx — Settings > Mac > Pair a Mac: the outer camera's
 // live preview at 1:1 on the touch screen under a viewfinder, the console's
 // QR decoder polled every frame, and the pairing handshake's progress.
 //

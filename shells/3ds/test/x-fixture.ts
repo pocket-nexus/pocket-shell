@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/test/x-fixture.ts — a deterministic X for the X sim tests: the
 // companion's x service (https://companion.pocket/x/) as NET routes
-// (hosts/sim/net.ts), in the JSON shape PocketJS tools/companion/services/x.ts
+// (platforms/sim/net.ts), in the JSON shape PocketJS tools/companion/services/x.ts
 // answers. Every name and post is invented for the fixture.
 
 import { readFileSync } from "node:fs";
@@ -10,7 +10,7 @@ import opentype from "opentype.js";
 import { bakeSlot } from "../../../vendor/pocketjs/framework/compiler/bake-font.ts";
 import { encodeImageEntry } from "../../../vendor/pocketjs/framework/compiler/pak.ts";
 import { PSM } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
-import type { SimNetResponse, SimNetRoute } from "../../../vendor/pocketjs/hosts/sim/net.ts";
+import type { SimNetResponse, SimNetRoute } from "../../../vendor/pocketjs/platforms/sim/net.ts";
 import type { Post } from "../x/api.ts";
 
 export const X_SERVICE = "https://companion.pocket/x";

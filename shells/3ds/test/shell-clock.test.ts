@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/test/home-clock.test.ts — Pocket Home's clock arithmetic (shells/3ds/home/clock.ts):
+// shells/3ds/test/shell-clock.test.ts — Pocket Shell's clock arithmetic (shells/3ds/shell/clock.ts):
 // civil fields from Date.now() with a fixed UTC offset, never from Date's own
 // local-time breakdown (broken on the 3DS host's QuickJS).
 
@@ -12,7 +12,7 @@ import {
   offsetText,
   statusTime,
   TIME_ZONES,
-} from "../home/clock.ts";
+} from "../shell/clock.ts";
 
 describe("civilFromEpoch", () => {
   test("matches Date's UTC fields for every offset across eras", () => {
