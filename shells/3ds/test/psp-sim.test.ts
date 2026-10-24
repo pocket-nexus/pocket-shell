@@ -49,6 +49,23 @@ describe("the PSP's full screen", () => {
     expect(home.launches).toEqual(["youtube-main"]);
   }, 120_000);
 
+  test("Home over the USB carrier: no store icon; Settings names the companion", async () => {
+    const zero = { id: "1e992d21f442aba3", name: "CardputerZero", address: "usb", port: 0 };
+    const home = await bootPsp(buildPspGuest("home", OUT), {
+      apps: APPS,
+      current: "home-main",
+      link: { device: { id: "000004766e7535b5", name: "PSP", model: "PSP", address: "usb" }, paired: [zero], linked: zero.id },
+    });
+    await home.run(40);
+    expect(home.texts()).toEqual(expect.arrayContaining(["Settings", "Hacker News"]));
+    expect(home.texts()).not.toContain("Mac");
+    await home.press(BTN.DOWN, 20);
+    await home.press(BTN.CIRCLE, 60);
+    pspShot(home, "home-settings-usb");
+    expect(home.texts()).toEqual(expect.arrayContaining(["Companion", "CardputerZero"]));
+    expect(home.link?.log.filter((call) => call.startsWith("catalog")) ?? []).toEqual([]);
+  }, 120_000);
+
   test("Hacker News: the legend follows the page, ○ opens a thread, × comes back", async () => {
     const hn = await bootPsp(buildPspGuest("hn", OUT), { current: "hn-main", net: hnRoutes() });
     await hn.run(90);

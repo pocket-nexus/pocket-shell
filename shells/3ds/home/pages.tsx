@@ -79,7 +79,7 @@ function rootPage(env: PageEnv, stack: NavStack, layer: LayerContext): PageSpec 
       {
         cells: [
           { id: "settings.wifi", label: "Wi-Fi", value: wifiSummary(sys), icon: ICONS.wifi, accessory: "chevron", run: () => stack.push("wifi") },
-          { id: "settings.mac", label: "Mac", value: linkSummary(sys), icon: ICONS.mac, accessory: "chevron", run: () => stack.push("mac") },
+          { id: "settings.mac", label: sys.tethered ? "Companion" : "Mac", value: linkSummary(sys), icon: ICONS.mac, accessory: "chevron", run: () => stack.push("mac") },
         ],
       },
       {
@@ -261,13 +261,22 @@ export function wifiJoinPage(env: PageEnv, ssid: string, stack: NavStack, layer:
 function macPage(env: PageEnv, stack: NavStack, layer: LayerContext): PageSpec {
   const { sys } = env;
   return {
-    title: () => "Mac",
+    title: () => (sys.tethered ? "Companion" : "Mac"),
     content: table(env, layer, () => {
       if (!sys.hasLink) {
         return [{ cells: [{ id: "mac.none", label: "Pocket Link", value: "Unavailable", tone: "muted" }], footer: "This console's runtime has no Pocket Link." }];
       }
       const link = sys.link();
       const companion = link.companion;
+      if (sys.tethered) {
+        const linked = link.state === LINK_STATE.linked && companion;
+        return [{
+          cells: [{ id: "mac.status", label: "Status", value: linked ? "Linked" : "Searching", accessory: linked ? undefined : "spinner" }],
+          footer: linked
+            ? `Linked to ${companion.name} over USB. Web requests and video come through it; the applets come with this console.`
+            : "Looking for the companion on the computer this console is plugged into. Run Pocket Companion there with --usb on the share.",
+        }];
+      }
       const status =
         link.state === LINK_STATE.linked ? "Linked"
         : link.state === LINK_STATE.connecting ? "Connecting"
@@ -398,7 +407,7 @@ function aboutPage(env: PageEnv, _stack: NavStack, layer: LayerContext): PageSpe
           cells: [
             { id: "about.wifi", label: "Wi-Fi", value: wifiSummary(sys) },
             { id: "about.ip", label: "IP Address", value: wifi?.address || device.address || "None" },
-            { id: "about.mac", label: "Mac", value: linkSummary(sys) },
+            { id: "about.mac", label: sys.tethered ? "Companion" : "Mac", value: linkSummary(sys) },
           ],
         },
         {

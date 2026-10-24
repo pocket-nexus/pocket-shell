@@ -217,7 +217,8 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
 
   // ---- the layout ----------------------------------------------------------------
 
-  const keys = createMemo(() => [SETTINGS_KEY, MAC_KEY, ...apps().map((app) => appKey(app.output))]);
+  // A tethered console's companion offers no store, so Home shows no icon for it.
+  const keys = createMemo(() => [SETTINGS_KEY, ...(sys.tethered ? [] : [MAC_KEY]), ...apps().map((app) => appKey(app.output))]);
   const [saved, setSaved] = createSignal<HomeLayout | null>(loadLayout());
   const layout = createMemo(() => reconcile(saved(), keys(), board.perPage), undefined, { equals: sameLayout });
   // A host may mount storage after the first evaluation (the sim does);
