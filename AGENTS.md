@@ -92,10 +92,11 @@ package.json; desktop artifacts land in `shells/desktop/dist/`.
 
 Changes under `shells/3ds/home`, `hn` or `ui` are hot pushes, and an
 accepted push persists on the card for that app. A change under
-`vendor/pocketjs/hosts/3ds` is native: `bun run deploy` writes the new
-`.3dsx` to `sdmc:/3ds/` through the running Runtime and restarts into it, and
-the restarted `.3dsx` boots the guest it embeds. **ftpd is needed once, to
-pair** (ftpd and Pocket Runtime are both homebrew, and one runs at a time).
+`vendor/pocketjs/products/3ds`, `platforms/3ds` or `devices/3ds` is native:
+`bun run deploy` writes the new `.3dsx` to `sdmc:/3ds/` through the running
+Runtime and restarts into it, and the restarted `.3dsx` boots the guest it
+embeds. **ftpd is needed once, to pair** (ftpd and Pocket Runtime are both
+homebrew, and one runs at a time).
 The console takes `.3dsx` files only.
 
 **Recovery state is isolated per app** in

@@ -30,9 +30,6 @@
       "@pocketjs/framework/components": [
         "./../../vendor/pocketjs/framework/src/components.ts"
       ],
-      "@pocketjs/framework/config": [
-        "./../../vendor/pocketjs/framework/src/config.ts"
-      ],
       "@pocketjs/framework/host": [
         "./../../vendor/pocketjs/framework/src/host.ts"
       ],

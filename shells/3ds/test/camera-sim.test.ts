@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/test/camera-sim.test.ts — the Camera applet (shells/3ds/camera)
 // headless on the wasm core with the 3DS geometry and the sim's camera
-// (hosts/sim/camera.ts): the preview without QR decoding, the shutter by A,
+// (platforms/sim/camera.ts): the preview without QR decoding, the shutter by A,
 // R and the stylus, the bar's thumbnail of the newest photo, switching to
 // the inner camera, and the review with delete.
 //
@@ -12,7 +12,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BTN } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
-import { bootConsole3ds, type Console3ds } from "../../../vendor/pocketjs/hosts/sim/console-3ds.ts";
+import { bootConsole3ds, type Console3ds } from "../../../vendor/pocketjs/programs/sim/console-3ds.ts";
 import { encodePNG } from "../../../vendor/pocketjs/tools/png.ts";
 import { buildGuest } from "./build.ts";
 

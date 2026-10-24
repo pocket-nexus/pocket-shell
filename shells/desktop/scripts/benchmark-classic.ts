@@ -30,7 +30,7 @@ const memorySamples = quick ? 3 : 10;
 const sampleIntervalMs = quick ? 500 : 2_000;
 const binary = resolve(
   POCKETJS_ROOT,
-  "hosts/desktop/target/release/pocket-desktop-host",
+  "target/release/pocket-desktop-host",
 );
 const systemPlanPath = resolve(PLAN_DIR, "pocket-desktop.system.plan.json");
 // Measurements depend on this machine and run; promote a reviewed baseline

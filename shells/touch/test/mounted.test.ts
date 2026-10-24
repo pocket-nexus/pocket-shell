@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { describe, expect, test } from "bun:test";
-import { bootWorld, treeHasText } from "../../../vendor/pocketjs/hosts/sim/sim.ts";
+import { bootWorld, treeHasText } from "../../../vendor/pocketjs/programs/sim/sim.ts";
 import { __packTouch } from "../../../vendor/pocketjs/framework/src/touch.ts";
 import { APPS } from "../src/catalog.ts";
 import { PROP } from "../../../vendor/pocketjs/contracts/spec/spec.ts";

@@ -15,8 +15,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BTN, IMG_FLAG_LINEAR, PSM } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
 import { encodeImageEntry } from "../../../vendor/pocketjs/framework/compiler/pak.ts";
-import { bootConsole3ds, type Console3ds } from "../../../vendor/pocketjs/hosts/sim/console-3ds.ts";
-import type { SimNetRequest, SimNetRoute } from "../../../vendor/pocketjs/hosts/sim/net.ts";
+import { bootConsole3ds, type Console3ds } from "../../../vendor/pocketjs/programs/sim/console-3ds.ts";
+import type { SimNetRequest, SimNetRoute } from "../../../vendor/pocketjs/platforms/sim/net.ts";
 import { encodePNG } from "../../../vendor/pocketjs/tools/png.ts";
 import { buildGuest } from "./build.ts";
 

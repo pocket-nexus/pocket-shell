@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { createTextEngine } from "../../../vendor/pocketjs/hosts/web/text-engine.js";
+import { createTextEngine } from "../../../vendor/pocketjs/platforms/web/text-engine.js";
 import { resolve } from "node:path";
 /** Deterministic test scheduler: the actual Rust WASM provider runs BETWEEN
  * guest frames. Production uses a Worker; no capability executes in an op. */
@@ -7,7 +7,7 @@ export async function testTextProvider() {
   const root = resolve(import.meta.dir, "..");
   const engine = await createTextEngine(
     await Bun.file(
-      resolve(root, "../../vendor/pocketjs/hosts/web/pocket_text.wasm"),
+      resolve(root, "../../vendor/pocketjs/platforms/web/pocket_text.wasm"),
     ).arrayBuffer(),
     await Bun.file(
       resolve(root, "../../vendor/pocketjs/dist/pocket-desktop-system-ui.pak"),

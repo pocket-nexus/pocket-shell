@@ -8,7 +8,7 @@ import { DIST, PLAN_DIR, POCKETJS_ROOT, ROOT } from "./system-plan.ts";
 
 const options = process.argv.slice(2);
 const value = (name: string, fallback: string) => options.find(v => v.startsWith(`${name}=`))?.slice(name.length + 1) ?? fallback;
-const host = resolve(value("--host", resolve(POCKETJS_ROOT, "hosts/desktop/target/release/pocket-desktop-host")));
+const host = resolve(value("--host", resolve(POCKETJS_ROOT, "target/release/pocket-desktop-host")));
 const directory = resolve(value("--out", ".pocket/bench/drag"));
 const planPath = resolve(PLAN_DIR, "pocket-desktop.system.plan.json");
 const plan = JSON.parse(readFileSync(planPath, "utf8"));
