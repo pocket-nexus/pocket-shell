@@ -36,6 +36,7 @@ pairs, installs and switches, which applets cannot.
 | YouTube | `youtube/` | `dev.pocket-nexus.youtube`, `youtube-main` | the same |
 | X | `x/` | `dev.pocket-nexus.x`, `x-main` | the same |
 | Discord | `discord/` | `dev.pocket-nexus.discord`, `discord-main` | the same |
+| Notes | `notes/` | `dev.pocket-nexus.notes`, `notes-main` | the same |
 
 `ui/` is the iOS 6 kit Home and the applets build on at the 3DS's 0.82 scale: the
 navigation stack and bar, grouped tables, alerts, text fitting, a slot pool
