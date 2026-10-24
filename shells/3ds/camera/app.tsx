@@ -15,7 +15,8 @@
 
 import { createSignal, onCleanup, Show } from "solid-js";
 import { animate, jump } from "@pocketjs/framework/animation";
-import { AuxiliarySurface, Image, Text, View } from "@pocketjs/framework/components";
+import { AppletSurface } from "@pocketjs/framework/applet";
+import { Image, Text, View } from "@pocketjs/framework/components";
 import {
   capturePhoto,
   closeCamera,
@@ -32,7 +33,7 @@ import { BTN } from "@pocketjs/framework/input";
 import { onButtonPress, onFrame } from "@pocketjs/framework/lifecycle";
 import { registerTexture, type NodeMirror } from "@pocketjs/framework/renderer";
 import { createAlerts } from "../ui/alert.tsx";
-import { COMPACT, SCREEN_H, SCREEN_W, TALL } from "../ui/screen.ts";
+import { COMPACT, SCREEN_H, SCREEN_W, TALL, appletSurfaceId } from "../ui/screen.ts";
 import { createPress, createTouchRouter, type Target } from "../ui/touch.ts";
 
 const BAR_H = 46;
@@ -245,7 +246,7 @@ export default function Camera() {
     return out;
   };
   createTouchRouter({
-    surface: "auxiliary",
+    surface: appletSurfaceId(),
     press,
     page: () => alerts.touch() ?? { targets },
   });
@@ -265,7 +266,7 @@ export default function Camera() {
   const lit = (id: string) => press.is(id);
 
   return (
-    <AuxiliarySurface>
+    <AppletSurface>
       <View class="relative bg-black overflow-hidden" style={{ width: SCREEN_W, height: SCREEN_H }}>
         {/* the viewfinder */}
         <Show
@@ -357,6 +358,6 @@ export default function Camera() {
         </Show>
         {alerts.view()}
       </View>
-    </AuxiliarySurface>
+    </AppletSurface>
   );
 }

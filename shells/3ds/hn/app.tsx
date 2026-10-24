@@ -11,7 +11,8 @@
 // the linked Mac, two at a time.
 
 import { createSignal } from "solid-js";
-import { AuxiliarySurface, View } from "@pocketjs/framework/components";
+import { AppletSurface } from "@pocketjs/framework/applet";
+import { View } from "@pocketjs/framework/components";
 import { BTN } from "@pocketjs/framework/input";
 import { onButtonPress, onFrame } from "@pocketjs/framework/lifecycle";
 import { companionNow } from "@pocketjs/framework/link";
@@ -19,13 +20,16 @@ import { createNavStack } from "../ui/nav.tsx";
 import { createPress, createTouchRouter } from "../ui/touch.ts";
 import { createHnModel } from "./model.ts";
 import { commentsPage, listPage, type HnEnv } from "./views.tsx";
+import { Legend } from "../ui/legend.tsx";
+import { appletTouch, appletSurfaceId } from "../ui/screen.ts";
 
 const ALL_BUTTONS = 0xffff;
 
 export default function HackerNews() {
   const model = createHnModel();
   const press = createPress();
-  const [keys, setKeys] = createSignal(false);
+  // Without touch (a PSP) the d-pad focus shows from the start.
+  const [keys, setKeys] = createSignal(!appletTouch());
   // Ages need minutes, not frames: the clock signal changes once a minute.
   const [now, setNow] = createSignal(Math.floor(companionNow() / 60000) * 60000);
   let frames = 0;
@@ -49,7 +53,7 @@ export default function HackerNews() {
   model.setFeed("top");
 
   createTouchRouter({
-    surface: "auxiliary",
+    surface: appletSurfaceId(),
     press,
     page: () => stack.touch(),
     active: () => !stack.busy(),
@@ -61,8 +65,9 @@ export default function HackerNews() {
   });
 
   return (
-    <AuxiliarySurface>
+    <AppletSurface>
       <View class="relative w-full h-full bg-white overflow-hidden">{stack.view()}</View>
-    </AuxiliarySurface>
+      <Legend home />
+    </AppletSurface>
   );
 }

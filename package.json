@@ -13,6 +13,7 @@
     "setup": "bun install --frozen-lockfile && git submodule update --init && bun install --cwd vendor/pocketjs --frozen-lockfile && bun scripts/setup.ts",
     "3ds": "bun run --cwd shells/3ds 3ds",
     "tab5": "bun run --cwd shells/3ds tab5",
+    "psp": "bun run --cwd shells/3ds psp",
     "pair": "bun run --cwd shells/3ds pair",
     "push": "bun run --cwd shells/3ds push",
     "deploy": "bun run --cwd shells/3ds deploy",

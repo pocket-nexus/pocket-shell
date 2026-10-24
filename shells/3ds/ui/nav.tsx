@@ -8,7 +8,7 @@
 // layer owns the scroller and the focus; the touch router asks the top layer
 // for its targets; the keys go to the top layer too.
 
-import { createMemo, createSignal, For, onCleanup, onMount, Show, untrack, type Accessor, type JSX } from "solid-js";
+import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show, untrack, type Accessor, type JSX } from "solid-js";
 import { View, type NodeMirror } from "@pocketjs/framework/components";
 import { animate, jump } from "@pocketjs/framework/animation";
 import { after } from "@pocketjs/framework/clock";
@@ -16,7 +16,8 @@ import { BTN } from "@pocketjs/framework/input";
 import { analogY, onFrame } from "@pocketjs/framework/lifecycle";
 import { createScroller } from "@pocketjs/framework/kinetics";
 import { NAV_H, NavBar, navTargets, type NavButton } from "./bar.tsx";
-import { SCREEN_H, SCREEN_W } from "./screen.ts";
+import { setLegend, type LegendEntry } from "./legend.tsx";
+import { appletTouch, SCREEN_H, SCREEN_W } from "./screen.ts";
 import type { Press, Target, TouchPage } from "./touch.ts";
 
 const PUSH_MS = 300;
@@ -60,6 +61,11 @@ export interface PageSpec {
   /** Px of fixed content along the bottom (a toolbar) that the scrolling
    *  content stops above. */
   inset?: number;
+  /** What ○ does to the focused row in the button legend (default "Open";
+   *  "" when ○ does nothing to a row). */
+  activateLabel?: Accessor<string>;
+  /** The page's own buttons in the legend, after ○ and ×: shoulders, △, □. */
+  legend?: Accessor<readonly LegendEntry[]>;
 }
 
 export interface StackEntry {
@@ -112,6 +118,9 @@ export interface NavOptions {
   onExit(): void;
   /** Label of the root page's back button ("Home"); null draws none. */
   rootBack?: string | null;
+  /** What × does at the root page in the button legend, when it does
+   *  something there without a back button (Home's Settings closes). */
+  exitLabel?: string;
   /** The page background (Settings' pinstripes) unless a page is bare. */
   background?: () => JSX.Element;
 }
@@ -276,6 +285,30 @@ function LayerView(props: {
     const span = content.span(next);
     if (span) reveal(span[0], span[1]);
   };
+
+  if (!appletTouch()) {
+    // Without touch the d-pad focus is how a page is read: the first row on
+    // screen holds it from the start, and the legend names what each button
+    // does on the page in front.
+    createEffect(() => {
+      if (!content || !isTop() || focus() !== "") return;
+      const order = content.focusOrder();
+      if (order.length === 0) return;
+      const offset = untrack(scroller.offset);
+      setFocus(order.find((id) => (content.span(id)?.[0] ?? 0) >= offset) ?? order[0]!);
+    });
+    createEffect(() => {
+      if (!isTop()) return;
+      const entries: LegendEntry[] = [];
+      const activate = spec.activateLabel?.() ?? "Open";
+      if (content && activate && content.focusOrder().length > 0) entries.push({ button: "circle", label: activate });
+      const back = backButton();
+      if (back) entries.push({ button: "cross", label: back.label });
+      else if (props.options.exitLabel && !below()) entries.push({ button: "cross", label: props.options.exitLabel });
+      entries.push(...(spec.legend?.() ?? []));
+      setLegend(entries);
+    });
+  }
 
   const layer: Layer = {
     spec,

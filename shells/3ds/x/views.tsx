@@ -627,6 +627,10 @@ export function timelinePage(env: XEnv, stack: NavStack, layer: LayerContext): P
     right: reloadButton(() => model.reload()),
     fixedTargets: () => segmentTargets(env),
     content,
+    legend: () => [
+      { button: "lr", label: "Timeline" },
+      { button: "triangle", label: "Reload" },
+    ],
     key(pressed) {
       if (pressed & (BTN.LTRIGGER | BTN.RTRIGGER)) {
         const at = KINDS.findIndex((kind) => kind.id === model.kind());
@@ -733,6 +737,10 @@ export function postPage(env: XEnv, stack: NavStack, layer: LayerContext): PageS
       model.openThread(id);
     }),
     content,
+    legend: () => [
+      { button: "lr", label: "Page" },
+      { button: "triangle", label: "Reload" },
+    ],
     key(pressed) {
       if (pressed & (BTN.LTRIGGER | BTN.RTRIGGER)) {
         layer.scrollBy(pressed & BTN.LTRIGGER ? -(VIEW_H - 34) : VIEW_H - 34);

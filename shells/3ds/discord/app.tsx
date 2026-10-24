@@ -11,17 +11,19 @@
 // @pocketjs/framework/net; the console never holds the bot's token.
 
 import { createEffect, createSignal, For, Show } from "solid-js";
-import { AuxiliarySurface, Text, View } from "@pocketjs/framework/components";
+import { AppletSurface } from "@pocketjs/framework/applet";
+import { Text, View } from "@pocketjs/framework/components";
 import { createGesture } from "@pocketjs/framework/gesture";
 import { onButtonPress } from "@pocketjs/framework/lifecycle";
 import { createOsk, Osk, oskHeight } from "@pocketjs/framework/osk";
 import { createGlyphs, GLYPH_BOLD, GLYPH_TEXT } from "../ui/glyphs.ts";
 import { createNavStack } from "../ui/nav.tsx";
-import { SCREEN_H, SCREEN_W } from "../ui/screen.ts";
+import { SCREEN_H, SCREEN_W, appletTouch, appletSurfaceId } from "../ui/screen.ts";
 import { createPress, createTouchRouter } from "../ui/touch.ts";
 import { ellipsize, FONT, toAscii, wrap } from "../ui/text.ts";
 import { createDiscordModel } from "./model.ts";
 import { channelsPage, chatPage, serversPage, type DiscordEnv } from "./views.tsx";
+import { Legend, legendWhileTyping } from "../ui/legend.tsx";
 
 const ALL_BUTTONS = 0xffff;
 const COMPOSE_BAR = 32;
@@ -29,11 +31,12 @@ export const MAX_MESSAGE = 2000;
 
 export default function Discord() {
   const W = SCREEN_W;
-  const KEYBOARD_TOP = SCREEN_H - oskHeight("auxiliary", "dark");
+  const KEYBOARD_TOP = SCREEN_H - oskHeight(appletSurfaceId(), "dark");
   const DRAFT_LINES = Math.max(1, Math.floor((KEYBOARD_TOP - COMPOSE_BAR - 26) / 16));
   const model = createDiscordModel();
   const press = createPress();
-  const [keys, setKeys] = createSignal(false);
+  // Without touch (a PSP) the d-pad focus shows from the start.
+  const [keys, setKeys] = createSignal(!appletTouch());
   const [composing, setComposing] = createSignal(false);
   const [draft, setDraft] = createSignal("");
   const [sending, setSending] = createSignal(false);
@@ -54,6 +57,7 @@ export default function Discord() {
     });
   };
   const osk = createOsk({ value: draft, setValue: setDraft, onCommit: send, onClose: () => close(), maxLength: MAX_MESSAGE, closeOnCommit: false });
+  legendWhileTyping(osk.isOpen, "Send");
   const close = () => {
     if (osk.isOpen()) osk.close();
     setComposing(false);
@@ -91,7 +95,7 @@ export default function Discord() {
   });
 
   createTouchRouter({
-    surface: "auxiliary",
+    surface: appletSurfaceId(),
     press,
     page: () => stack.touch(),
     active: () => !stack.busy() && !composing(),
@@ -103,7 +107,7 @@ export default function Discord() {
   // recognizer, and this one would otherwise take the bar's back button.
   const composerButton = (x: number) => (x < 80 ? "compose.cancel" : x >= W - 80 ? "compose.send" : "");
   createGesture({
-    surface: "auxiliary",
+    surface: appletSurfaceId(),
     region: { rect: () => (composing() ? { x: 0, y: 0, w: W, h: COMPOSE_BAR } : null) },
     allowWhenBlocked: true,
     onDown(contact) {
@@ -137,7 +141,7 @@ export default function Discord() {
   };
 
   return (
-    <AuxiliarySurface>
+    <AppletSurface>
       <View class="relative w-full h-full bg-[#2f3136] overflow-hidden">
         {stack.view()}
         <Show when={composing()}>
@@ -163,11 +167,12 @@ export default function Discord() {
             </Text>
           </Show>
           <View class="absolute left-0" style={{ insetT: KEYBOARD_TOP, width: W, height: SCREEN_H - KEYBOARD_TOP }}>
-            <Osk osk={osk} surface="auxiliary" theme="dark" />
+            <Osk osk={osk} surface={appletSurfaceId()} theme="dark" />
           </View>
         </Show>
       </View>
-    </AuxiliarySurface>
+      <Legend home />
+    </AppletSurface>
   );
 }
 

@@ -14,9 +14,10 @@ import { displayApi } from "./display.ts";
 import { LINK_PAIRING, LINK_STATE, sizeText, type HomeApp, type HomeSystem } from "./system.ts";
 import { appTint } from "../ui/chrome.tsx";
 import type { LayerContext, NavStack, PageSpec } from "../ui/nav.tsx";
-import { SCREEN_H, SCREEN_W } from "../ui/screen.ts";
+import { SCREEN_H, SCREEN_W, appletSurfaceId } from "../ui/screen.ts";
 import { tableContent, type Cell, type CellIcon, type Section } from "../ui/table.tsx";
 import type { Press } from "../ui/touch.ts";
+import { legendWhileTyping } from "../ui/legend.tsx";
 
 export const HOME_VERSION = "0.1.0";
 
@@ -236,8 +237,9 @@ export function wifiJoinPage(env: PageEnv, ssid: string, stack: NavStack, layer:
     stack.pop();
   };
   const osk = createOsk({ value: password, setValue: setPassword, onCommit: join, onClose: () => stack.pop(), maxLength: 63, closeOnCommit: false });
+  legendWhileTyping(osk.isOpen, "Join");
   onMount(() => osk.open());
-  const keyboardTop = SCREEN_H - oskHeight("auxiliary", "light");
+  const keyboardTop = SCREEN_H - oskHeight(appletSurfaceId(), "light");
   return {
     title: () => ssid,
     inset: SCREEN_H - keyboardTop,
@@ -250,7 +252,7 @@ export function wifiJoinPage(env: PageEnv, ssid: string, stack: NavStack, layer:
     ]),
     fixed: () => (
       <View class="absolute left-0" style={{ insetT: keyboardTop, width: SCREEN_W, height: SCREEN_H - keyboardTop }}>
-        <Osk osk={osk} surface="auxiliary" theme="light" />
+        <Osk osk={osk} surface={appletSurfaceId()} theme="light" />
       </View>
     ),
   };
