@@ -8,7 +8,9 @@
 // the springboard and the dock, 64 for the store's detail icon) and
 // each size has its own texture, so the springboard draws its icons texel
 // for texel. A texture is the power of two above the icon with the icon
-// centred and room for the drop shadow.
+// centred and room for the drop shadow. Every size also gets an `@2x`
+// texture, twice the icon in twice the texture, which a density-2 build
+// (the M5Stack Tab5) draws texel for texel instead.
 //
 // Each downsample gets a mild unsharp mask (SHARPEN), so edges stay one
 // texel wide at 46 and 24 px. Every icon gets the same finish here, so the
@@ -56,7 +58,9 @@ const ICONS: Record<string, number[]> = {
 };
 
 const RENDERS = resolve(process.argv[2] ?? ".pocket-build/home-icons/render");
-const OUT = import.meta.dir;
+/** Where the textures go: this directory, or a 4th argument to review a
+ *  bake before copying it in. */
+const OUT = process.argv[4] ? resolve(process.argv[4]) : import.meta.dir;
 
 type Rgba = Float32Array; // straight alpha, 0..1
 
@@ -100,6 +104,8 @@ function sharpen(src: Rgba, n: number, amount: number): Rgba {
   return out;
 }
 const SHARPEN: Record<number, number> = { 24: 0.45, 46: 0.6, 64: 0.5 };
+/** The `@2x` downsamples: twice the texels across the same edges. */
+const SHARPEN_2X: Record<number, number> = { 24: 0.4, 46: 0.4, 64: 0.35 };
 
 /** Signed distance to the rounded square of side n (negative inside). */
 function sdf(px: number, py: number, n: number): number {
@@ -128,8 +134,10 @@ function over(dst: Rgba, o: number, r: number, g: number, b: number, a: number):
   dst[o + 3] = oa;
 }
 
-/** The finish on an n x n icon (picture may be null for `plain`). */
-function finish(picture: Rgba | null, n: number): Rgba {
+/** The finish on an n x n icon (picture may be null for `plain`). `scale`
+ *  is texels per logical px (2 for an `@2x` texture): the rim keeps its
+ *  logical width. */
+function finish(picture: Rgba | null, n: number, scale = 1): Rgba {
   const out = picture ? picture.slice() : new Float32Array(n * n * 4);
   // The gloss: inside a wide ellipse centred above the icon.
   const ex = n / 2, ey = -0.55 * n, er = 1.05 * n;
@@ -146,9 +154,9 @@ function finish(picture: Rgba | null, n: number): Rgba {
       // faces up, shaded where it faces down.
       const cx = x + 0.5, cy = y + 0.5;
       const d = sdf(cx, cy, n);
-      if (d > -1.4 && d < 0.5) {
+      if (d > -1.4 * scale && d < 0.5 * scale) {
         const ny = (sdf(cx, cy + 0.5, n) - sdf(cx, cy - 0.5, n));
-        const band = 1 - Math.min(1, Math.abs(d + 0.6) / 0.9);
+        const band = 1 - Math.min(1, Math.abs(d / scale + 0.6) / 0.9);
         if (ny < 0) over(out, o, 1, 1, 1, band * 0.45 * -ny);
         else over(out, o, 0, 0, 0, band * 0.35 * ny);
       }
@@ -217,6 +225,11 @@ for (const [name, sizes] of Object.entries(ICONS)) {
     writeFileSync(join(OUT, `${name}-${n}.png`), encodePNG(rgba, size.tex, size.tex));
     baked.push({ name, size: n, tex: size.tex, rgba });
     console.log(`${name}-${n}.png  ${size.tex}x${size.tex}`);
+    const double: Size = { icon: n * 2, tex: size.tex * 2, shadow: size.shadow };
+    const picture2x = render ? sharpen(resample(render.rgba, 512, n * 2), n * 2, SHARPEN_2X[n]!) : null;
+    const rgba2x = compose(finish(picture2x, n * 2, 2), double);
+    writeFileSync(join(OUT, `${name}-${n}@2x.png`), encodePNG(rgba2x, double.tex, double.tex));
+    console.log(`${name}-${n}@2x.png  ${double.tex}x${double.tex}`);
   }
 }
 
