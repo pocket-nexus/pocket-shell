@@ -124,6 +124,26 @@ describe("Notes on the 3DS", () => {
     shot(app, "list");
   }, 120_000);
 
+  test("the on-screen backspace at a line's start joins it to the line above", async () => {
+    const app = await boot();
+    await app.tapText("New Note");
+    await app.run(SETTLE);
+    await app.tapText("a");
+    await app.tapText("b");
+    await app.key("Enter");
+    await app.tapText("c");
+    await app.run(SETTLE);
+    expect(app.texts("auxiliary")).toContain("c");
+    await app.tapText("⌫");
+    await app.tapText("⌫");
+    await app.tapText("x");
+    await app.run(SETTLE);
+    expect(app.texts("auxiliary")).toContain("abx");
+    await app.tapText("▼");
+    await app.run(SETTLE);
+    expect(fs.text(noteFiles(fs)[0]!)).toBe("abx");
+  }, 120_000);
+
   test("the list comes back from the card after a reboot, and Edit deletes", async () => {
     const store = createMemoryFs();
     const first = await boot(store);

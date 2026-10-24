@@ -14,7 +14,7 @@ import { createCaretBlink } from "@pocketjs/framework/animation";
 import { Text, View, type NodeMirror } from "@pocketjs/framework/components";
 import { createGesture } from "@pocketjs/framework/gesture";
 import { onTextEvent, type TextEvent } from "@pocketjs/framework/input";
-import { createOsk, Osk, oskHeight } from "@pocketjs/framework/osk";
+import { createOsk, Osk, oskHeight, type OskController } from "@pocketjs/framework/osk";
 import { NAV_H, type NavButton } from "../ui/bar.tsx";
 import { viewHeight, type LayerContext, type NavStack, type PageContent, type PageSpec } from "../ui/nav.tsx";
 import { COMPACT, SCREEN_H, SCREEN_W } from "../ui/screen.ts";
@@ -276,6 +276,16 @@ export function typePage(env: NotesEnv, stack: NavStack, layer: LayerContext): P
     onClose: () => stack.pop(),
     closeOnCommit: false,
   });
+  // The session edits one line; its backspace key at the line's start
+  // joins the line to the one above, which only the document can do.
+  const typing: OskController = {
+    ...osk,
+    backspace() {
+      const doc = model.doc();
+      if (doc.caret.col === 0 && doc.caret.row > 0) model.backspace();
+      else osk.backspace();
+    },
+  };
   let release = () => {};
   onMount(() => {
     osk.open();
@@ -302,7 +312,7 @@ export function typePage(env: NotesEnv, stack: NavStack, layer: LayerContext): P
     content: editorContent(env, layer, keyboardTop),
     fixed: () => (
       <View class="absolute left-0" style={{ insetT: keyboardTop, width: SCREEN_W, height: SCREEN_H - keyboardTop }}>
-        <Osk osk={osk} surface="auxiliary" theme="light" />
+        <Osk osk={typing} surface="auxiliary" theme="light" />
       </View>
     ),
   };
