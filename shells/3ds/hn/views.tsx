@@ -49,14 +49,14 @@ const NO_ROWS: never[] = [];
 const RELOAD: NavButton = { id: "feed.reload", label: "Reload", kind: "plain", run: () => {} };
 
 const SEG_X = 8;
-// Sized to the surface by measure(), which each page calls first.
+// Sized to the surface by fitSurface(), which each page calls first.
 let W = 320;
 let VIEW_H = 204;
 let TITLE_W = 0;
 let SEG_W = 0;
 let HEADER_W = 0;
 
-function measure(): void {
+function fitSurface(): void {
   W = SCREEN_W;
   VIEW_H = viewHeight();
   TITLE_W = W - TITLE_X - BUBBLE_W - 14;
@@ -319,7 +319,7 @@ function Centered(props: { title: string; detail: string; spinner?: boolean; but
 }
 
 export function listPage(env: HnEnv, stack: NavStack, layer: LayerContext): PageSpec {
-  measure();
+  fitSurface();
   const { model, press } = env;
   const layout = createMemo(() => storyRows(env));
   const listed = () => model.state().status === "ready" && model.state().ids.length > 0;
@@ -657,7 +657,7 @@ function Header(props: { header: Accessor<StoryHeader> }) {
 }
 
 export function commentsPage(env: HnEnv, _stack: NavStack, layer: LayerContext): PageSpec {
-  measure();
+  fitSurface();
   const { model } = env;
   const layout = createMemo(() => threadRows(env));
   const header = createMemo(() => layout().header);

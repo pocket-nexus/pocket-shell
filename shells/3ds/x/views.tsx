@@ -19,7 +19,9 @@ import { Image, Text, View } from "@pocketjs/framework/components";
 import { ClassicSpinner } from "@pocketjs/framework/classic";
 import type { NodeMirror } from "@pocketjs/framework/renderer";
 import { BTN } from "@pocketjs/framework/input";
-import type { LayerContext, NavStack, PageContent, PageSpec } from "../ui/nav.tsx";
+import type { NavButton } from "../ui/bar.tsx";
+import { viewHeight, type LayerContext, type NavStack, type PageContent, type PageSpec } from "../ui/nav.tsx";
+import { COMPACT, SCREEN_W } from "../ui/screen.ts";
 import { ellipsize, FONT, measure, toAscii, wrap } from "../ui/text.ts";
 import { richText, type Glyphs } from "../ui/glyphs.ts";
 import { createSlotPool, paintText, type SlotPool } from "../ui/slots.ts";
@@ -27,11 +29,30 @@ import type { Press, Target } from "../ui/touch.ts";
 import { KINDS, type Post } from "./api.ts";
 import type { XModel } from "./model.ts";
 
-const W = 320;
-const VIEW_H = 204;
 const OVERSCAN = 80;
 const TEXT_X = 50;
-const TEXT_W = W - TEXT_X - 10;
+
+// Sized to the surface by fitSurface(), which each page calls first.
+let W = 320;
+let VIEW_H = 204;
+let TEXT_W = 0;
+let SEG_W = 0;
+let SEG_X = 0;
+
+function fitSurface(): void {
+  W = SCREEN_W;
+  VIEW_H = viewHeight();
+  TEXT_W = W - TEXT_X - 10;
+  // Two segments of at most 100 px, centred in the bar.
+  SEG_W = Math.min(100, (W - 120) / KINDS.length);
+  SEG_X = (W - SEG_W * KINDS.length) / 2;
+}
+
+/** The bar's Reload button on a surface larger than the 3DS's: the touch
+ *  path for X's reload. */
+function reloadButton(run: () => void): (() => NavButton) | undefined {
+  return COMPACT ? undefined : () => ({ id: "x.reload", label: "Reload", kind: "plain", run });
+}
 const PAD = 7;
 const REPOST_H = 14;
 const HEAD_H = 16;
@@ -342,7 +363,7 @@ function PostSlot(props: { pool: SlotPool<PostRow>; slot: number; lit: (key: str
     like: () => (liked() ? "absolute left-[24] top-[2] text-xs text-[#f91880]" : "absolute left-[24] top-[2] text-xs text-[#536471]"),
   };
   return (
-    <View ref={box} class="absolute left-0 top-0 w-[320] h-[60] opacity-0 contain-strict">
+    <View ref={box} class="absolute left-0 top-0 h-[60] opacity-0 contain-strict" style={{ width: W }}>
       <View ref={wash} class="absolute inset-0 opacity-0 bg-[#e8f3fd]" />
       <View class="absolute left-0 right-0 bottom-0 h-[1] bg-[#e6ecf0]" />
       <Text ref={repost} class="absolute left-[50] top-[6] text-xs text-[#536471] font-bold">{" "}</Text>
@@ -357,10 +378,10 @@ function PostSlot(props: { pool: SlotPool<PostRow>; slot: number; lit: (key: str
         <Text ref={meta} class="ml-[6] text-xs text-[#536471]">{" "}</Text>
       </View>
       <Text ref={body} class="absolute left-[50] top-[23] text-sm text-[#0f1419] leading-[17]">{" "}</Text>
-      <View ref={quoteBox} class="absolute left-[50] w-[260] h-0 opacity-0 rounded-[8] border border-[#cfd9de] bg-white">
+      <View ref={quoteBox} class="absolute left-[50] h-0 opacity-0 rounded-[8] border border-[#cfd9de] bg-white" style={{ width: TEXT_W }}>
         <Text ref={quote} class="absolute left-[7] top-[5] text-xs text-[#0f1419] leading-[15]">{" "}</Text>
       </View>
-      <View ref={bar} class="absolute left-0 top-0 w-[320] h-[18]">
+      <View ref={bar} class="absolute left-0 top-0 h-[18]" style={{ width: W }}>
         <For each={ACTS}>
           {(act, index) => (
             <View class="absolute top-0 w-[64] h-[18]" style={{ insetL: ACT_X + index() * ACT_W }}>
@@ -408,24 +429,24 @@ function Centered(props: { title: string; detail: string; spinner?: boolean; but
   return (
     <>
       <Show when={props.spinner}>
-        <View class="absolute left-[149]" style={{ insetT: top() + 40 }}>
+        <View class="absolute" style={{ insetL: W / 2 - 11, insetT: top() + 40 }}>
           <ClassicSpinner size={22} color={"#536471"} />
         </View>
       </Show>
-      <Text class="absolute left-0 w-[320] text-base text-[#0f1419] font-bold text-center" style={{ insetT: top() + 74 }}>{props.title}</Text>
+      <Text class="absolute left-0 text-base text-[#0f1419] font-bold text-center" style={{ insetT: top() + 74, width: W }}>{props.title}</Text>
       <For each={lines()}>
-        {(line, index) => <Text class="absolute left-[25] w-[270] text-xs text-[#536471] text-center" style={{ insetT: top() + 98 + index() * 15 }}>{line}</Text>}
+        {(line, index) => <Text class="absolute w-[270] text-xs text-[#536471] text-center" style={{ insetL: (W - 270) / 2, insetT: top() + 98 + index() * 15 }}>{line}</Text>}
       </For>
       <Show when={props.button}>
         {(button) => (
           <>
             <View
               class={props.press.is(button().id)
-                ? "absolute left-[100] w-[120] h-[30] rounded-[15] bg-[#1a8cd8]"
-                : "absolute left-[100] w-[120] h-[30] rounded-[15] bg-[#0f1419]"}
-              style={{ insetT: top() + 164 }}
+                ? "absolute w-[120] h-[30] rounded-[15] bg-[#1a8cd8]"
+                : "absolute w-[120] h-[30] rounded-[15] bg-[#0f1419]"}
+              style={{ insetL: (W - 120) / 2, insetT: top() + 164 }}
             />
-            <Text class="absolute left-[100] w-[120] text-sm text-white font-bold text-center" style={{ insetT: top() + 171 }}>{button().label}</Text>
+            <Text class="absolute w-[120] text-sm text-white font-bold text-center" style={{ insetL: (W - 120) / 2, insetT: top() + 171 }}>{button().label}</Text>
           </>
         )}
       </Show>
@@ -470,15 +491,13 @@ function wantGlyphs(env: XEnv, rows: () => readonly PostRow[], offset: () => num
 
 // ---- the timeline ------------------------------------------------------------------
 
-const SEG_X = 60;
-const SEG_W = (W - SEG_X * 2) / KINDS.length;
 
 function segmentTargets(env: XEnv): Target[] {
   return KINDS.map((kind, index) => ({ id: `kind.${kind.id}`, x: SEG_X + index * SEG_W, y: 0, w: SEG_W, h: 36, run: () => env.model.setKind(kind.id) }));
 }
 
 /** A segment's fill inside the frame's 1 px border: x and width. The frame
- *  spans SEG_X .. SEG_X + 200 with its border inside that, and a 1 px
+ *  spans SEG_X .. SEG_X + 2 * SEG_W with its border inside that, and a 1 px
  *  divider sits at each segment's left edge but the first. */
 function segmentFill(index: number): { x: number; w: number } {
   const left = SEG_X + index * SEG_W + 1;
@@ -491,7 +510,7 @@ function Segments(props: { env: XEnv }) {
   const on = (kind: (typeof KINDS)[number]) => model.kind() === kind.id || press.is(`kind.${kind.id}`);
   return (
     <>
-      <View class="absolute left-[60] top-[6] w-[200] h-[24] rounded-[5] border border-[#000000] bg-gradient-to-b from-[#5c6166] to-[#2a2e33]" />
+      <View class="absolute top-[6] h-[24] rounded-[5] border border-[#000000] bg-gradient-to-b from-[#5c6166] to-[#2a2e33]" style={{ insetL: SEG_X, width: SEG_W * KINDS.length }} />
       <For each={KINDS}>
         {(kind, index) => {
           const fill = segmentFill(index());
@@ -526,6 +545,7 @@ function Segments(props: { env: XEnv }) {
 const NO_ROWS: never[] = [];
 
 export function timelinePage(env: XEnv, stack: NavStack, layer: LayerContext): PageSpec {
+  fitSurface();
   const { model, press } = env;
   const layout = createMemo(() => {
     const state = model.state();
@@ -604,6 +624,7 @@ export function timelinePage(env: XEnv, stack: NavStack, layer: LayerContext): P
     tint: "black",
     bare: "white",
     titleView: () => <Segments env={env} />,
+    right: reloadButton(() => model.reload()),
     fixedTargets: () => segmentTargets(env),
     content,
     key(pressed) {
@@ -621,6 +642,7 @@ export function timelinePage(env: XEnv, stack: NavStack, layer: LayerContext): P
 // ---- a post's thread ------------------------------------------------------------------
 
 export function postPage(env: XEnv, stack: NavStack, layer: LayerContext): PageSpec {
+  fitSurface();
   const { model, press } = env;
   const id = env.opening.id;
   const state = () => model.thread(id);
@@ -673,7 +695,7 @@ export function postPage(env: XEnv, stack: NavStack, layer: LayerContext): PageS
               : <Centered title="Loading" detail="Reading the conversation through your Mac." spinner press={press} />}
         </Show>
         <Show when={ready() && layout().footer}>
-          <Text class="absolute left-0 w-[320] text-xs text-[#536471] font-bold text-center" style={{ insetT: layout().height - 31 }}>{layout().footer}</Text>
+          <Text class="absolute left-0 text-xs text-[#536471] font-bold text-center" style={{ insetT: layout().height - 31, width: W }}>{layout().footer}</Text>
         </Show>
       </>
     ),
@@ -706,6 +728,10 @@ export function postPage(env: XEnv, stack: NavStack, layer: LayerContext): PageS
     backLabel: "Post",
     tint: "black",
     bare: "white",
+    right: reloadButton(() => {
+      placed = false;
+      model.openThread(id);
+    }),
     content,
     key(pressed) {
       if (pressed & (BTN.LTRIGGER | BTN.RTRIGGER)) {
