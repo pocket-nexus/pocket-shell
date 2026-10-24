@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/home/scanner.tsx — Settings > Mac > Pair a Mac: the outer camera's
-// live preview at 1:1 on the touch screen under a viewfinder, the console's
-// QR decoder polled every frame, and the pairing handshake's progress.
+// live preview under a viewfinder (1:1 on the 3DS's touch screen; on a larger
+// surface scaled to the height under the bar, or to the width in portrait),
+// the console's QR decoder polled every frame, and the pairing handshake's
+// progress.
 //
 //   scanning -> (pocketlink QR) -> connecting to <name> -> paired -> back to Mac
 //
@@ -16,7 +18,9 @@ import { onFrame } from "@pocketjs/framework/lifecycle";
 import { registerTexture } from "@pocketjs/framework/renderer";
 import { ClassicSpinner } from "@pocketjs/framework/classic";
 import { LINK_PAIRING, type HomeSystem } from "./system.ts";
+import { NAV_H } from "../ui/bar.tsx";
 import type { NavStack, PageSpec } from "../ui/nav.tsx";
+import { COMPACT, SCREEN_H, SCREEN_W, TALL } from "../ui/screen.ts";
 import { ellipsize, FONT, toAscii } from "../ui/text.ts";
 
 export const PREVIEW_KEY = "camera.preview";
@@ -44,11 +48,23 @@ export function pairingName(uri: string): string {
   return "Mac";
 }
 
-const BOX = 150;
-const BOX_X = (320 - BOX) / 2;
-const BOX_Y = 46;
+/** The camera image's size in its 512x256 preview texture. */
+const IMAGE_W = 320;
+const IMAGE_H = 240;
 
 export function scannerPage(sys: HomeSystem, stack: NavStack, setScan: (state: ScanState) => void, scan: Accessor<ScanState>): PageSpec {
+  // The preview fills the 3DS's screen behind the bar. A landscape surface
+  // shows it under the bar as tall as the space there, centred, with the pill
+  // over its foot; a portrait one scales it to its width, the pill below.
+  const zoom = COMPACT ? 1 : TALL ? SCREEN_W / IMAGE_W : (SCREEN_H - NAV_H) / IMAGE_H;
+  const previewX = Math.round((SCREEN_W - IMAGE_W * zoom) / 2);
+  const previewY = COMPACT ? 0 : TALL ? NAV_H + 24 : NAV_H;
+  const previewBottom = previewY + Math.round(IMAGE_H * zoom);
+  const BOX = Math.round(150 * zoom);
+  const BOX_X = Math.round(previewX + (IMAGE_W * zoom - BOX) / 2);
+  const BOX_Y = COMPACT ? 46 : Math.round(previewY + (IMAGE_H * zoom - BOX) / 2);
+  const dimTop = Math.max(previewY, NAV_H);
+  const pillY = COMPACT ? 204 : TALL ? previewBottom + 24 : SCREEN_H - 40;
   const handle = openCamera();
   if (handle >= 0) registerTexture(PREVIEW_KEY, handle);
   setScan(handle >= 0 ? { t: "scanning", hint: "" } : { t: "unavailable" });
@@ -97,11 +113,11 @@ export function scannerPage(sys: HomeSystem, stack: NavStack, setScan: (state: S
       case "scanning":
         return state.hint || "Point the camera at the code on your Mac";
       case "connecting":
-        return ellipsize(`Connecting to ${state.name}...`, FONT.smBold, 240);
+        return ellipsize(`Connecting to ${state.name}...`, FONT.smBold, SCREEN_W - 80);
       case "paired":
-        return ellipsize(`Paired with ${state.name}`, FONT.smBold, 240);
+        return ellipsize(`Paired with ${state.name}`, FONT.smBold, SCREEN_W - 80);
       case "failed":
-        return ellipsize(state.message, FONT.smBold, 270);
+        return ellipsize(state.message, FONT.smBold, SCREEN_W - 50);
       default:
         return "";
     }
@@ -114,22 +130,24 @@ export function scannerPage(sys: HomeSystem, stack: NavStack, setScan: (state: S
     bare: true,
     fixed: () => (
       <>
-        <View class="absolute left-0 top-0 w-[320] h-[240] bg-black overflow-hidden">
+        <View class="absolute left-0 top-0 bg-black overflow-hidden" style={{ width: SCREEN_W, height: SCREEN_H }}>
           <Show when={scan().t !== "unavailable"}>
-            <Image class="absolute left-0 top-0 w-[512] h-[256]" src={PREVIEW_KEY} />
+            <Image class="absolute" src={PREVIEW_KEY} style={{ insetL: previewX, insetT: previewY, width: 512 * zoom, height: 256 * zoom }} />
           </Show>
+          <View class="absolute left-0 bg-black" style={{ insetT: previewBottom, width: SCREEN_W, height: SCREEN_H - previewBottom }} />
+          <View class="absolute top-0 bg-black" style={{ insetL: previewX + Math.round(IMAGE_W * zoom), width: SCREEN_W, height: SCREEN_H }} />
         </View>
         <Show when={scan().t === "unavailable"}>
-          <Image class="absolute left-[136] top-[80] w-[48] h-[48]" src="art/camera.svg" />
-          <Text class="absolute left-0 top-[136] w-[320] text-sm text-white font-bold text-center">Camera unavailable</Text>
-          <Text class="absolute left-0 top-[156] w-[320] text-xs text-[#ffffffa0] text-center">This console did not start its outer camera.</Text>
+          <Image class="absolute top-[80] w-[48] h-[48]" src="art/camera.svg" style={{ insetL: (SCREEN_W - 48) / 2 }} />
+          <Text class="absolute left-0 top-[136] text-sm text-white font-bold text-center" style={{ width: SCREEN_W }}>Camera unavailable</Text>
+          <Text class="absolute left-0 top-[156] text-xs text-[#ffffffa0] text-center" style={{ width: SCREEN_W }}>This console did not start its outer camera.</Text>
         </Show>
         <Show when={scan().t !== "unavailable"}>
-          {/* the viewfinder: dim everything outside the square, bracket its corners */}
-          <View class="absolute left-0 top-[36] w-[320] bg-[#00000070]" style={{ height: BOX_Y - 36 }} />
-          <View class="absolute left-0 w-[320] bg-[#00000070]" style={{ insetT: BOX_Y + BOX, height: 240 - BOX_Y - BOX }} />
-          <View class="absolute left-0 bg-[#00000070]" style={{ insetT: BOX_Y, width: BOX_X, height: BOX }} />
-          <View class="absolute bg-[#00000070]" style={{ insetL: BOX_X + BOX, insetT: BOX_Y, width: 320 - BOX_X - BOX, height: BOX }} />
+          {/* the viewfinder: dim the picture outside the square, bracket its corners */}
+          <View class="absolute bg-[#00000070]" style={{ insetL: previewX, insetT: dimTop, width: SCREEN_W - 2 * previewX, height: BOX_Y - dimTop }} />
+          <View class="absolute bg-[#00000070]" style={{ insetL: previewX, insetT: BOX_Y + BOX, width: SCREEN_W - 2 * previewX, height: previewBottom - BOX_Y - BOX }} />
+          <View class="absolute bg-[#00000070]" style={{ insetL: previewX, insetT: BOX_Y, width: BOX_X - previewX, height: BOX }} />
+          <View class="absolute bg-[#00000070]" style={{ insetL: BOX_X + BOX, insetT: BOX_Y, width: SCREEN_W - previewX - BOX_X - BOX, height: BOX }} />
           <View class={scan().t === "paired" ? "absolute w-[22] h-[4] bg-[#5fd35f]" : "absolute w-[22] h-[4] bg-white"} style={{ insetL: BOX_X - 2, insetT: BOX_Y - 2 }} />
           <View class={scan().t === "paired" ? "absolute w-[4] h-[22] bg-[#5fd35f]" : "absolute w-[4] h-[22] bg-white"} style={{ insetL: BOX_X - 2, insetT: BOX_Y - 2 }} />
           <View class={scan().t === "paired" ? "absolute w-[22] h-[4] bg-[#5fd35f]" : "absolute w-[22] h-[4] bg-white"} style={{ insetL: BOX_X + BOX - 20, insetT: BOX_Y - 2 }} />
@@ -139,21 +157,27 @@ export function scannerPage(sys: HomeSystem, stack: NavStack, setScan: (state: S
           <View class={scan().t === "paired" ? "absolute w-[22] h-[4] bg-[#5fd35f]" : "absolute w-[22] h-[4] bg-white"} style={{ insetL: BOX_X + BOX - 20, insetT: BOX_Y + BOX - 2 }} />
           <View class={scan().t === "paired" ? "absolute w-[4] h-[22] bg-[#5fd35f]" : "absolute w-[4] h-[22] bg-white"} style={{ insetL: BOX_X + BOX - 2, insetT: BOX_Y + BOX - 20 }} />
           <Show when={scan().t === "paired"}>
-            <View class="absolute w-[64] h-[64] rounded-[32] bg-[#3fae3fd0]" style={{ insetL: 128, insetT: BOX_Y + BOX / 2 - 32 }} />
-            <Image class="absolute w-[40] h-[40]" src="art/checkmark-big.svg" style={{ insetL: 140, insetT: BOX_Y + BOX / 2 - 20 }} />
+            <View class="absolute w-[64] h-[64] rounded-[32] bg-[#3fae3fd0]" style={{ insetL: SCREEN_W / 2 - 32, insetT: BOX_Y + BOX / 2 - 32 }} />
+            <Image class="absolute w-[40] h-[40]" src="art/checkmark-big.svg" style={{ insetL: SCREEN_W / 2 - 20, insetT: BOX_Y + BOX / 2 - 20 }} />
           </Show>
           {/* status pill */}
           <View
             class={scan().t === "failed" || (scan().t === "scanning" && pill() !== "Point the camera at the code on your Mac")
-              ? "absolute left-[12] top-[204] w-[296] h-[28] rounded-[14] bg-[#b3261ee0] border border-[#ffffff50]"
-              : "absolute left-[12] top-[204] w-[296] h-[28] rounded-[14] bg-[#000000b0] border border-[#ffffff40]"}
+              ? "absolute h-[28] rounded-[14] bg-[#b3261ee0] border border-[#ffffff50]"
+              : "absolute h-[28] rounded-[14] bg-[#000000b0] border border-[#ffffff40]"}
+            style={{ insetL: previewX + 12, insetT: pillY, width: SCREEN_W - 2 * previewX - 24 }}
           />
           <Show when={scan().t === "connecting"}>
-            <View class="absolute left-[22] top-[210]">
+            <View class="absolute" style={{ insetL: previewX + 22, insetT: pillY + 6 }}>
               <ClassicSpinner size={16} color={"#ffffff"} />
             </View>
           </Show>
-          <Text class="absolute left-[12] top-[209] w-[296] text-sm text-white font-bold text-center">{pill()}</Text>
+          <Text class="absolute text-sm text-white font-bold text-center" style={{ insetL: previewX + 12, insetT: pillY + 5, width: SCREEN_W - 2 * previewX - 24 }}>{pill()}</Text>
+          <Show when={TALL}>
+            <Text class="absolute left-[20] text-xs text-[#ffffff90] text-center" style={{ insetT: pillY + 44, width: SCREEN_W - 40 }}>
+              {"On your Mac, open Pocket Companion\nand choose Pair a Console..."}
+            </Text>
+          </Show>
         </Show>
       </>
     ),

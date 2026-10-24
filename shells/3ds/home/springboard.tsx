@@ -16,6 +16,12 @@
 // past the last opens a new page), and the dock takes it while it has fewer
 // than four icons. START, B, Done or a tap on the wallpaper ends edit mode.
 //
+// The grid is four columns of two rows on the 3DS's 320x240. A larger
+// surface fits as many columns of about 96 px (at least four) and rows of at
+// least 74 px (90 px in portrait) as it holds over the dock: six by three on
+// a 592x360 landscape surface, four by five on a 360x592 portrait one.
+// Board metrics are read once per boot.
+//
 // Installed applets come from the launcher's app table. Tapping one zooms
 // the screen and asks the host to switch to it; Home boots again after every
 // switch, and its board zooms back from where the launch zoom ended. An
@@ -51,23 +57,15 @@ import {
 import { ICONS } from "./pages.tsx";
 import { type HomeApp, type HomeSystem } from "./system.ts";
 import { appTint, StatusBar, Tile, Wallpaper, type TileProps } from "../ui/chrome.tsx";
+import { COMPACT, SCREEN_H, SCREEN_W, TALL } from "../ui/screen.ts";
 import { ellipsize, FONT } from "../ui/text.ts";
 import type { Press, Target, TargetDrag, TouchPage } from "../ui/touch.ts";
 
 export { COLS, PER_PAGE } from "./layout.ts";
-export const ROWS = 2;
 const ICON = 46;
-const CELL_W = 80;
-/** Icon labels span the whole cell in bold 10 px (text-2xs), the size
- *  SpringBoard's labels have at the 3DS's 0.82 scale. */
-const LABEL_W = CELL_W;
-const ROW_Y = [26, 100];
 const BANNER_H = 36;
 /** Seconds a banner stays before it slides away. */
 const BANNER_SECONDS = 6;
-const DOCK_Y = 174;
-const DOTS_Y = 168;
-const PAGE_W = 320;
 /** A release faster than this (px/s) turns the page toward the flick. */
 const FLICK = 250;
 /** UIScrollView's rubber band: the row moves (1 - 1/(over*k/w + 1))*w. */
@@ -75,15 +73,65 @@ const RUBBER = 0.55;
 /** A carried icon held this close to a side for EDGE_FRAMES turns the page. */
 const EDGE = 14;
 const EDGE_FRAMES = 30;
-/** Below this line a carried icon goes to the dock. */
-const DOCK_LINE = 164;
 /** Icons slide to a new place in this many ms. */
 const SLIDE_MS = 200;
 /** The carried icon is drawn this much larger, as on SpringBoard. */
 const CARRY_SCALE = 1.18;
-const DONE = { x: 262, y: 20, w: 52, h: 22 };
 
-const rubber = (over: number) => (1 - 1 / ((Math.abs(over) * RUBBER) / PAGE_W + 1)) * PAGE_W * Math.sign(over);
+/** Where the board puts things on this surface. */
+interface Board {
+  /** Page width: the surface width. */
+  pageW: number;
+  cols: number;
+  rows: number;
+  perPage: number;
+  /** Column width; icon labels span the whole cell in bold 10 px
+   *  (text-2xs), the size SpringBoard's labels have at the 3DS's 0.82 scale. */
+  cellW: number;
+  /** Each grid row's icon top. */
+  rowY: number[];
+  /** The page area's height; below it a carried icon goes to the dock. */
+  gridH: number;
+  dotsY: number;
+  dockY: number;
+  /** The glass shelf texture: its top and its drawn width (the shelf is 320
+   *  of its 512 texels, stretched to the surface's width). */
+  shelfY: number;
+  shelfW: number;
+  done: { x: number; y: number; w: number; h: number };
+}
+
+function boardMetrics(): Board {
+  if (COMPACT) {
+    return {
+      pageW: 320, cols: COLS, rows: 2, perPage: PER_PAGE, cellW: 80, rowY: [26, 100], gridH: 164,
+      dotsY: 168, dockY: 174, shelfY: 200, shelfW: 512, done: { x: 262, y: 20, w: 52, h: 22 },
+    };
+  }
+  // The dock sits where it does on the 3DS, 66 px above the bottom, with the
+  // page dots over it; the rows share what is left under the status bar.
+  const cols = Math.max(COLS, Math.floor(SCREEN_W / 96));
+  const dockY = SCREEN_H - 66;
+  const dotsY = TALL ? dockY - 34 : dockY - 8;
+  const top = TALL ? 32 : 26;
+  const free = dotsY - 4 - top - (ICON + 13);
+  const rows = Math.max(1, Math.floor(free / (TALL ? 90 : 74)) + 1);
+  const pitch = rows > 1 ? Math.min(TALL ? 100 : 90, Math.floor(free / (rows - 1))) : 0;
+  return {
+    pageW: SCREEN_W,
+    cols,
+    rows,
+    perPage: cols * rows,
+    cellW: SCREEN_W / cols,
+    rowY: Array.from({ length: rows }, (_, row) => top + row * pitch),
+    gridH: dockY - 10,
+    dotsY,
+    dockY,
+    shelfY: SCREEN_H - 40,
+    shelfW: (512 * SCREEN_W) / 320,
+    done: { x: SCREEN_W - 58, y: 20, w: 52, h: 22 },
+  };
+}
 
 export interface SpringboardEnv {
   sys: HomeSystem;
@@ -130,10 +178,6 @@ const LAUNCH_SCALE = 1.6;
 const LAUNCH_MS = 260;
 const ARRIVE_MS = 300;
 
-const iconX = (slot: number) => (slot % COLS) * CELL_W + (CELL_W - ICON) / 2;
-const iconY = (slot: number) => ROW_Y[Math.floor(slot / COLS)]!;
-/** The dock's icons sit centred in 80 px cells. */
-const dockX = (slot: number, count: number) => 160 - (count * CELL_W) / 2 + slot * CELL_W + (CELL_W - ICON) / 2;
 
 /** An icon's position: in the paging row for the grid, on screen for the dock. */
 interface Spot {
@@ -143,6 +187,13 @@ interface Spot {
 
 export function createSpringboard(env: SpringboardEnv): Springboard {
   const { sys, press } = env;
+  const board = boardMetrics();
+  const { pageW: PAGE_W, cols: COLS, cellW: CELL_W, rowY: ROW_Y, dockY: DOCK_Y, gridH: DOCK_LINE, done: DONE } = board;
+  const rubber = (over: number) => (1 - 1 / ((Math.abs(over) * RUBBER) / PAGE_W + 1)) * PAGE_W * Math.sign(over);
+  const iconX = (slot: number) => (slot % COLS) * CELL_W + (CELL_W - ICON) / 2;
+  const iconY = (slot: number) => ROW_Y[Math.floor(slot / COLS)]!;
+  /** The dock's icons sit centred in cells as wide as the grid's. */
+  const dockX = (slot: number, count: number) => PAGE_W / 2 - (count * CELL_W) / 2 + slot * CELL_W + (CELL_W - ICON) / 2;
   const apps = () => sys.table().apps;
   const [page, setPage] = createSignal(0);
   const [focus, setFocus] = createSignal<string>("");
@@ -159,7 +210,7 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
 
   const keys = createMemo(() => [SETTINGS_KEY, MAC_KEY, ...apps().map((app) => appKey(app.output))]);
   const [saved, setSaved] = createSignal<HomeLayout | null>(loadLayout());
-  const layout = createMemo(() => reconcile(saved(), keys()), undefined, { equals: sameLayout });
+  const layout = createMemo(() => reconcile(saved(), keys(), board.perPage), undefined, { equals: sameLayout });
   // A host may mount storage after the first evaluation (the sim does);
   // read it once more on the first frame.
   let storeChecked = canStore();
@@ -305,11 +356,12 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
   const placeAt = (lifted: HomeLayout, x: number, y: number): Place => {
     if (y >= DOCK_LINE) {
       const count = Math.min(DOCK_MAX, lifted.dock.length + 1);
-      const slot = Math.round((x - (160 - (count * CELL_W) / 2) - CELL_W / 2) / CELL_W);
+      const slot = Math.round((x - (PAGE_W / 2 - (count * CELL_W) / 2) - CELL_W / 2) / CELL_W);
       return { at: "dock", slot: Math.max(0, Math.min(lifted.dock.length, slot)) };
     }
     const column = Math.max(0, Math.min(COLS - 1, Math.floor(x / CELL_W)));
-    const row = y < (ROW_Y[0]! + ROW_Y[1]! + ICON) / 2 ? 0 : 1;
+    let row = 0;
+    while (row < ROW_Y.length - 1 && y >= (ROW_Y[row]! + ROW_Y[row + 1]! + ICON) / 2) row++;
     const onPage = lifted.pages[page()]?.length ?? 0;
     return { at: "grid", page: page(), slot: Math.min(onPage, row * COLS + column) };
   };
@@ -322,7 +374,7 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
     if (!held) return;
     const place = placeAt(held.lifted, x, y);
     if (samePlace(place, held.place)) return;
-    const preview = drop(held.lifted, held.key, place);
+    const preview = drop(held.lifted, held.key, place, board.perPage);
     setCarry({ ...held, place: preview ? place : null, preview: preview ?? held.lifted });
   };
 
@@ -444,7 +496,7 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
     const dock = shown().dock;
     dock.forEach((key, slot) => icon(key, dockX(slot, dock.length), DOCK_Y));
     if (editingNow) out.push({ id: "home.done", ...DONE, run: endEditing });
-    if (banner()) out.push({ id: "banner", x: 0, y: 0, w: 320, h: BANNER_H, run: tapBanner });
+    if (banner()) out.push({ id: "banner", x: 0, y: 0, w: PAGE_W, h: BANNER_H, run: tapBanner });
     return out;
   };
 
@@ -508,7 +560,7 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
   /** The key being carried: its icon in the grid or dock is the hole the
    *  carried copy will fill, so it is drawn invisible meanwhile. */
   const carried = createMemo(() => carry()?.key ?? "");
-  const iconProps = { env, focus, editing, wiggle, spots, titleFor, tileFor, appFor, carried };
+  const iconProps = { env, board, focus, editing, wiggle, spots, titleFor, tileFor, appFor, carried };
 
   /** The board as Home boots: back from the launch zoom, while the host's
    *  switch transition fades its scrim away. */
@@ -521,29 +573,29 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
   };
 
   const view = () => (
-    <View ref={arrive} class="absolute left-0 top-0 w-[320] h-[240]">
+    <View ref={arrive} class="absolute left-0 top-0" style={{ width: PAGE_W, height: SCREEN_H }}>
       <Wallpaper screen="bottom" />
-      <View ref={(node) => (gridNode = node)} class="absolute left-0 top-0 w-[320] h-[164]">
+      <View ref={(node) => (gridNode = node)} class="absolute left-0 top-0" style={{ width: PAGE_W, height: DOCK_LINE }}>
         <For each={gridKeys()}>{(key, index) => <HomeIcon iconKey={key} index={index} {...iconProps} />}</For>
       </View>
       <Show when={apps().length === 0 && gridKeys().length === 0}>
-        <Text class="absolute left-0 top-[58] w-[320] text-sm text-[#ffffffd0] font-bold text-center">No applets yet</Text>
-        <Text class="absolute left-0 top-[78] w-[320] text-xs text-[#ffffffa0] text-center">Open Mac below to install applets from your Mac.</Text>
+        <Text class="absolute left-0 text-sm text-[#ffffffd0] font-bold text-center" style={{ insetT: COMPACT ? 58 : Math.round(DOCK_LINE * 0.35), width: PAGE_W }}>No applets yet</Text>
+        <Text class="absolute left-0 text-xs text-[#ffffffa0] text-center" style={{ insetT: COMPACT ? 78 : Math.round(DOCK_LINE * 0.35) + 20, width: PAGE_W }}>Open Mac below to install applets from your Mac.</Text>
       </Show>
       <Show when={pages() > 1}>
         <For each={Array.from({ length: pages() }, (_, index) => index)}>
           {(index) => (
             <View
               class={page() === index ? "absolute w-[6] h-[6] rounded-[3] bg-white" : "absolute w-[6] h-[6] rounded-[3] bg-[#ffffff55]"}
-              style={{ insetL: 160 - pages() * 6 + index * 12, insetT: DOTS_Y }}
+              style={{ insetL: PAGE_W / 2 - pages() * 6 + index * 12, insetT: board.dotsY }}
             />
           )}
         </For>
       </Show>
-      <Image class="absolute left-0 top-[200] w-[512] h-[64]" src="art/icons/dock.png" />
+      <Image class="absolute left-0 h-[64]" src="art/icons/dock.png" style={{ insetT: board.shelfY, width: board.shelfW }} />
       <For each={dockKeys()}>{(key, index) => <HomeIcon iconKey={key} index={index} {...iconProps} />}</For>
       <StatusBar
-        width={320}
+        width={PAGE_W}
         carrier="Pocket"
         bars={() => {
           const wifi = sys.wifi();
@@ -574,7 +626,7 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
             <Show when={appFor(held().key) !== null}>
               <Image class="absolute left-[-9] top-[-9] w-[22] h-[22]" src="art/delete-badge.svg" />
             </Show>
-            <IconLabel title={titleFor(held().key)} x={(ICON - LABEL_W) / 2} y={49} />
+            <IconLabel title={titleFor(held().key)} x={(ICON - CELL_W) / 2} y={49} width={CELL_W} />
           </View>
         )}
       </Show>
@@ -586,18 +638,19 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
               jump(node, "translateY", -BANNER_H);
               animate(node, "translateY", 0, { dur: 260, easing: "out" });
             }}
-            class="absolute left-0 top-0 w-[320] h-[36] bg-gradient-to-b from-[#3a3a3a] to-[#0c0c0c]"
+            class="absolute left-0 top-0 h-[36] bg-gradient-to-b from-[#3a3a3a] to-[#0c0c0c]"
+            style={{ width: PAGE_W }}
           >
-            <View class="absolute left-0 bottom-0 w-[320] h-[1] bg-[#000000]" />
-            <View class="absolute left-0 top-0 w-[320] h-[1] bg-[#ffffff30]" />
+            <View class="absolute left-0 bottom-0 h-[1] bg-[#000000]" style={{ width: PAGE_W }} />
+            <View class="absolute left-0 top-0 h-[1] bg-[#ffffff30]" style={{ width: PAGE_W }} />
             <Show
               when={current().app}
               fallback={<Tile x={7} y={6} size={24} art={ICONS.general.art} />}
             >
               {(app) => <Tile x={7} y={6} size={24} {...appTint(app().id, app().title)} />}
             </Show>
-            <Text class="absolute left-[38] top-[3] text-xs text-white font-bold">{ellipsize(current().title, FONT.xsBold, 272)}</Text>
-            <Text class="absolute left-[38] top-[18] text-xs text-[#ffffffb8]">{ellipsize(current().line, FONT.xs, 272)}</Text>
+            <Text class="absolute left-[38] top-[3] text-xs text-white font-bold">{ellipsize(current().title, FONT.xsBold, PAGE_W - 48)}</Text>
+            <Text class="absolute left-[38] top-[18] text-xs text-[#ffffffb8]">{ellipsize(current().line, FONT.xs, PAGE_W - 48)}</Text>
           </View>
         )}
       </Show>
@@ -656,6 +709,7 @@ function HomeIcon(props: {
   iconKey: string;
   index: Accessor<number>;
   env: SpringboardEnv;
+  board: Board;
   focus: Accessor<string>;
   editing: Accessor<boolean>;
   wiggle: Accessor<number>;
@@ -676,7 +730,7 @@ function HomeIcon(props: {
     on(spot, (now, before) => {
       if (!node || !before || (before.x === now.x && before.y === now.y)) return;
       // A move across the paging row (a page turn) is not animated.
-      if (Math.abs(before.x - now.x) >= PAGE_W) return;
+      if (Math.abs(before.x - now.x) >= props.board.pageW) return;
       jump(node, "translateX", before.x - now.x);
       jump(node, "translateY", before.y - now.y);
       animate(node, "translateX", 0, { dur: SLIDE_MS, easing: "out" });
@@ -694,16 +748,16 @@ function HomeIcon(props: {
       <Show when={deletable()}>
         <Image class="absolute left-[-9] top-[-9] w-[22] h-[22]" src="art/delete-badge.svg" />
       </Show>
-      <IconLabel title={props.titleFor(key)} x={(ICON - LABEL_W) / 2} y={49} />
+      <IconLabel title={props.titleFor(key)} x={(ICON - props.board.cellW) / 2} y={49} width={props.board.cellW} />
     </View>
   );
 }
 
 /** An icon's title under it: white with a dark drop one pixel below, cut
  *  with "..." when it does not fit the cell. */
-function IconLabel(props: { title: string; x: number; y: number }) {
-  const text = () => ellipsize(props.title, FONT.xxsBold, LABEL_W - 2);
-  const box = (y: number) => ({ insetL: props.x, insetT: y, width: LABEL_W });
+function IconLabel(props: { title: string; x: number; y: number; width: number }) {
+  const text = () => ellipsize(props.title, FONT.xxsBold, props.width - 2);
+  const box = (y: number) => ({ insetL: props.x, insetT: y, width: props.width });
   return (
     <>
       <Text class="absolute text-2xs text-[#00000099] font-bold text-center" style={box(props.y + 1)}>{text()}</Text>

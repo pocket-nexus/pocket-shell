@@ -5,13 +5,17 @@
 // scrolls, focuses and pushes it.
 
 import { createSignal, onMount, type Accessor } from "solid-js";
+import { View } from "@pocketjs/framework/components";
 import { getOps } from "@pocketjs/framework/host";
+import { createOsk, Osk, oskHeight } from "@pocketjs/framework/osk";
+import type { WifiNetwork } from "@pocketjs/framework/wifi";
 import { offsetText, TIME_ZONES } from "./clock.ts";
 import { displayApi } from "./display.ts";
 import { LINK_PAIRING, LINK_STATE, sizeText, type HomeApp, type HomeSystem } from "./system.ts";
 import { appTint } from "../ui/chrome.tsx";
 import type { LayerContext, NavStack, PageSpec } from "../ui/nav.tsx";
-import { tableContent, type CellIcon, type Section } from "../ui/table.tsx";
+import { SCREEN_H, SCREEN_W } from "../ui/screen.ts";
+import { tableContent, type Cell, type CellIcon, type Section } from "../ui/table.tsx";
 import type { Press } from "../ui/touch.ts";
 
 export const HOME_VERSION = "0.1.0";
@@ -52,7 +56,7 @@ export function linkSummary(sys: HomeSystem): string {
 }
 
 function table(env: PageEnv, layer: LayerContext, sections: Accessor<Section[]>) {
-  return tableContent({ sections, width: 320, press: env.press, focus: layer.focus, keys: env.keys });
+  return tableContent({ sections, width: SCREEN_W, press: env.press, focus: layer.focus, keys: env.keys });
 }
 
 const DUAL_SCREEN_FOOTER =
@@ -102,8 +106,9 @@ function rootPage(env: PageEnv, stack: NavStack, layer: LayerContext): PageSpec 
 const ADD_NETWORK =
   "The console joins only its three saved connections. To add one, open System Settings > Internet Settings > Connection Settings from the HOME Menu.";
 
-function wifiPage(env: PageEnv, _stack: NavStack, layer: LayerContext): PageSpec {
+function wifiPage(env: PageEnv, stack: NavStack, layer: LayerContext): PageSpec {
   const { sys } = env;
+  if (sys.canJoin) return joinableWifiPage(env, stack, layer);
   return {
     title: () => "Wi-Fi",
     content: table(env, layer, () => {
@@ -147,6 +152,107 @@ function wifiPage(env: PageEnv, _stack: NavStack, layer: LayerContext): PageSpec
       }
       return sections;
     }),
+  };
+}
+
+/** Wi-Fi on a console whose launcher is its settings: the networks a scan
+ *  finds (one tap joins, asking for the password when the network has one),
+ *  the saved ones with Forget, and the connection. */
+function joinableWifiPage(env: PageEnv, stack: NavStack, layer: LayerContext): PageSpec {
+  const { sys } = env;
+  onMount(() => sys.scan());
+  const choose = (network: WifiNetwork) => {
+    const wifi = sys.wifi();
+    const slot = wifi?.saved.find((saved) => saved.ssid === network.ssid)?.slot;
+    if (slot !== undefined) sys.connect(slot);
+    else if (network.secure) stack.push(`wifi.join:${network.ssid}`);
+    else sys.join(network.ssid, "");
+  };
+  return {
+    title: () => "Wi-Fi",
+    right: () => ({ id: "wifi.scan", label: "Scan", kind: "plain", run: () => sys.scan() }),
+    content: table(env, layer, () => {
+      const wifi = sys.wifi();
+      if (!wifi) return [];
+      const on = wifi.state !== "off";
+      const sections: Section[] = [
+        {
+          cells: [{ id: "wifi.toggle", label: "Wi-Fi", accessory: "switch", on, run: () => sys.setWifi(sys.wifi()?.state === "off") }],
+          footer: on ? undefined : "Pocket Link, applet downloads and the web need Wi-Fi.",
+        },
+      ];
+      if (!on) return sections;
+      const networks: Cell[] = (wifi.networks ?? []).map((network, index) => {
+        const current = wifi.ssid === network.ssid;
+        return {
+          id: `wifi.net.${index}`,
+          label: network.ssid,
+          detail: network.secure ? "Secured" : "Open",
+          accessory: current && wifi.state === "connecting" ? ("spinner" as const) : current ? ("check" as const) : ("bars" as const),
+          on: current,
+          level: network.strength,
+          run: () => choose(network),
+        };
+      });
+      if (wifi.scanning && networks.length === 0) {
+        networks.push({ id: "wifi.scanning", label: "Looking for networks...", accessory: "spinner", tone: "muted" });
+      }
+      sections.push({
+        header: "Choose a Network...",
+        cells: networks.length > 0 ? networks : [{ id: "wifi.empty", label: "No networks found", tone: "muted" }],
+        footer: wifi.error || undefined,
+      });
+      const saved = wifi.saved.filter((entry) => entry.ssid !== "");
+      if (saved.length > 0) {
+        sections.push({
+          header: "Saved Networks",
+          cells: saved.map((entry) => ({
+            id: `wifi.saved.${entry.slot}`,
+            label: entry.ssid,
+            run: () => sys.connect(entry.slot),
+            button: { id: `wifi.forget.${entry.slot}`, label: "Forget", tone: "red" as const, run: () => sys.forgetNetwork(entry.slot) },
+          })),
+        });
+      }
+      if (wifi.state === "connected") {
+        sections.push({
+          header: "Connection",
+          cells: [{ id: "wifi.address", label: "IP Address", value: wifi.address || "None" }],
+        });
+      }
+      return sections;
+    }),
+  };
+}
+
+/** The password for a network a scan found: typed on the on-screen
+ *  keyboard, joined with its return key; its hide key goes back. */
+export function wifiJoinPage(env: PageEnv, ssid: string, stack: NavStack, layer: LayerContext): PageSpec {
+  const { sys } = env;
+  const [password, setPassword] = createSignal("");
+  const join = (text: string) => {
+    if (!text) return;
+    sys.join(ssid, text);
+    stack.pop();
+  };
+  const osk = createOsk({ value: password, setValue: setPassword, onCommit: join, onClose: () => stack.pop(), maxLength: 63, closeOnCommit: false });
+  onMount(() => osk.open());
+  const keyboardTop = SCREEN_H - oskHeight("auxiliary", "light");
+  return {
+    title: () => ssid,
+    inset: SCREEN_H - keyboardTop,
+    content: table(env, layer, () => [
+      {
+        header: `Enter the password for "${ssid}"`,
+        cells: [{ id: "wifi.join.password", label: "Password", value: password() ? "*".repeat(password().length) : "" }],
+        footer: "The return key joins; the keyboard's hide key goes back.",
+      },
+    ]),
+    fixed: () => (
+      <View class="absolute left-0" style={{ insetT: keyboardTop, width: SCREEN_W, height: SCREEN_H - keyboardTop }}>
+        <Osk osk={osk} surface="auxiliary" theme="light" />
+      </View>
+    ),
   };
 }
 
@@ -263,6 +369,13 @@ export function runtimeText(): string {
   return abi === null ? host : `${host}, ABI ${abi}`;
 }
 
+/** The console's model when the link does not name it: the 3DS, or the
+ *  runtime's target id. */
+function consoleModel(): string {
+  const host = (getOps() as unknown as { __host?: unknown }).__host;
+  return typeof host !== "string" || host.startsWith("3ds") ? "Nintendo 3DS" : host;
+}
+
 function aboutPage(env: PageEnv, _stack: NavStack, layer: LayerContext): PageSpec {
   const { sys } = env;
   return {
@@ -274,8 +387,8 @@ function aboutPage(env: PageEnv, _stack: NavStack, layer: LayerContext): PageSpe
       return [
         {
           cells: [
-            { id: "about.name", label: "Name", value: device.name || "Nintendo 3DS" },
-            { id: "about.model", label: "Model", value: device.model || "Nintendo 3DS" },
+            { id: "about.name", label: "Name", value: device.name || consoleModel() },
+            { id: "about.model", label: "Model", value: device.model || consoleModel() },
             { id: "about.id", label: "Console ID", value: device.id || "Unknown" },
           ],
         },

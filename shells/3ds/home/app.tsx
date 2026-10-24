@@ -18,7 +18,7 @@ import { animate, jump } from "@pocketjs/framework/animation";
 import { after } from "@pocketjs/framework/clock";
 import { BTN } from "@pocketjs/framework/input";
 import { onButtonPress } from "@pocketjs/framework/lifecycle";
-import { SETTINGS_PAGES, type PageEnv } from "./pages.tsx";
+import { SETTINGS_PAGES, wifiJoinPage, type PageEnv } from "./pages.tsx";
 import { scannerPage, type ScanState } from "./scanner.tsx";
 import { createSpringboard } from "./springboard.tsx";
 import { storeAppPage, storePage } from "./store.tsx";
@@ -26,6 +26,7 @@ import { createHomeSystem } from "./system.ts";
 import { createAlerts } from "../ui/alert.tsx";
 import { Pinstripes } from "../ui/chrome.tsx";
 import { createNavStack } from "../ui/nav.tsx";
+import { SCREEN_H, SCREEN_W } from "../ui/screen.ts";
 import { createPress, createTouchRouter } from "../ui/touch.ts";
 
 const ALL_BUTTONS = 0xffff;
@@ -35,7 +36,7 @@ function AppFrame(props: { onReady(node: NodeMirror): void; children: JSX.Elemen
   let node: NodeMirror | undefined;
   onMount(() => node && props.onReady(node));
   return (
-    <View ref={(el) => (node = el)} class="absolute left-0 top-0 w-[320] h-[240] overflow-hidden">
+    <View ref={(el) => (node = el)} class="absolute left-0 top-0 overflow-hidden" style={{ width: SCREEN_W, height: SCREEN_H }}>
       {props.children}
     </View>
   );
@@ -74,11 +75,12 @@ export default function Home() {
     setKeys,
     onExit: closeApp,
     rootBack: null,
-    background: () => <Pinstripes width={320} height={240} />,
+    background: () => <Pinstripes width={SCREEN_W} height={SCREEN_H} />,
     page(id, nav, layer) {
       if (id === "scan") return scannerPage(sys, nav, setScan, scan);
       if (id === "store") return storePage({ sys, press, keys }, nav, layer);
       if (id.startsWith("store.app:")) return storeAppPage({ sys, press, keys }, id.slice("store.app:".length), nav, layer);
+      if (id.startsWith("wifi.join:")) return wifiJoinPage(env, id.slice("wifi.join:".length), nav, layer);
       return SETTINGS_PAGES[id]!(env, nav, layer);
     },
   });
