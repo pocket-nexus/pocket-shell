@@ -10,7 +10,7 @@
 
 import { createMemo, createSignal, For, onCleanup, onMount, Show, untrack, type Accessor, type JSX } from "solid-js";
 import { View, type NodeMirror } from "@pocketjs/framework/components";
-import { animate, jump } from "@pocketjs/framework/animation";
+import { animate, animationClass, jump } from "@pocketjs/framework/animation";
 import { after } from "@pocketjs/framework/clock";
 import { BTN } from "@pocketjs/framework/input";
 import { analogY, onFrame } from "@pocketjs/framework/lifecycle";
@@ -20,6 +20,10 @@ import { SCREEN_H, SCREEN_W } from "./screen.ts";
 import type { Press, Target, TouchPage } from "./touch.ts";
 
 const PUSH_MS = 300;
+/** A push slides the page below a third of the way out on a composited
+ *  target. On a repaint target it holds still under the page sliding in,
+ *  so one opaque region moves per frame and the host moves its pixels. */
+const UNDER_SLIDES = animationClass === "composited";
 
 /** Height of a page's scrolling content view: the surface under the bar,
  *  less `inset` px of fixed content (a toolbar) along the bottom. */
@@ -145,7 +149,7 @@ export function createNavStack(options: NavOptions): NavStack {
       setEntries([...entries(), { key: nextKey++, page }]);
       if (below) {
         const node = nodes.get(below.key);
-        if (node) animate(node, "translateX", -SCREEN_W / 3, { dur: PUSH_MS, easing: "out" });
+        if (node && UNDER_SLIDES) animate(node, "translateX", -SCREEN_W / 3, { dur: PUSH_MS, easing: "out" });
         settle(PUSH_MS, () => hidden.get(below.key)?.(true));
       }
     },
@@ -162,7 +166,7 @@ export function createNavStack(options: NavOptions): NavStack {
       const node = nodes.get(leaving.key);
       const under = nodes.get(below.key);
       if (node) animate(node, "translateX", SCREEN_W, { dur: PUSH_MS, easing: "out" });
-      if (under) animate(under, "translateX", 0, { dur: PUSH_MS, easing: "out" });
+      if (under && UNDER_SLIDES) animate(under, "translateX", 0, { dur: PUSH_MS, easing: "out" });
       settle(PUSH_MS, () => setEntries(entries().filter((entry) => entry.key !== leaving.key)));
     },
     reset(page) {

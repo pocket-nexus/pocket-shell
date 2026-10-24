@@ -30,7 +30,7 @@
 
 import { createEffect, createMemo, createSignal, For, on, Show, type Accessor } from "solid-js";
 import { Image, Text, View, type NodeMirror } from "@pocketjs/framework/components";
-import { animate, cancelAnim, jump } from "@pocketjs/framework/animation";
+import { animate, animationClass, cancelAnim, jump } from "@pocketjs/framework/animation";
 import { after } from "@pocketjs/framework/clock";
 import { BTN } from "@pocketjs/framework/input";
 import { onFrame } from "@pocketjs/framework/lifecycle";
@@ -177,6 +177,14 @@ function bannerFor(sys: HomeSystem): Banner | null {
 const LAUNCH_SCALE = 1.6;
 const LAUNCH_MS = 260;
 const ARRIVE_MS = 300;
+/** The board zooms out behind a launched applet, and back in when Home
+ *  arrives, on a composited target. A repaint target cuts: a scale tween
+ *  over the board repaints the whole surface every frame. */
+const ZOOMS = animationClass === "composited";
+/** Icons in edit mode rock between -2 and 2 degrees on a composited
+ *  target. A repaint target repaints every icon on each rock, so its icons
+ *  hold still and the delete badges alone say the mode. */
+const WIGGLES = animationClass === "composited";
 
 
 /** An icon's position: in the paging row for the grid, on screen for the dock. */
@@ -293,7 +301,7 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
       const stored = loadLayout();
       if (stored) setSaved(stored);
     }
-    if (editing() && frames % 5 === 0) setWiggle((wiggle() + 1) % 4);
+    if (WIGGLES && editing() && frames % 5 === 0) setWiggle((wiggle() + 1) % 4);
     // Keep the page index inside the layout after a removal.
     if (page() > pages() - 1) showPage(pages() - 1);
     const held = carry();
@@ -436,11 +444,12 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
   const launch = (app: HomeApp) => {
     if (launching()) return;
     setLaunching(app.output);
-    if (boardNode) {
+    if (ZOOMS && boardNode) {
       animate(boardNode, "scale", LAUNCH_SCALE, { dur: LAUNCH_MS, easing: "in" });
       animate(boardNode, "opacity", 0, { dur: LAUNCH_MS, easing: "in" });
     }
-    after(0.28, () => {
+    // Without the zoom the pressed tile shows for three frames.
+    after(ZOOMS ? 0.28 : 0.1, () => {
       if (sys.launch(app.output)) return;
       setLaunching("");
       if (boardNode) {
@@ -566,6 +575,7 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
    *  switch transition fades its scrim away. */
   const arrive = (node: NodeMirror) => {
     boardNode = node;
+    if (!ZOOMS) return;
     jump(node, "scale", LAUNCH_SCALE);
     jump(node, "opacity", 0);
     animate(node, "scale", 1, { dur: ARRIVE_MS, easing: "out" });
@@ -723,7 +733,7 @@ function HomeIcon(props: {
   const spot = createMemo(() => props.spots().get(key) ?? { x: -100, y: -100 }, undefined, {
     equals: (a, b) => a.x === b.x && a.y === b.y,
   });
-  const angle = () => (props.editing() ? ([-2, 0, 2, 0][(props.wiggle() + props.index()) % 4] ?? 0) : 0);
+  const angle = () => (WIGGLES && props.editing() ? ([-2, 0, 2, 0][(props.wiggle() + props.index()) % 4] ?? 0) : 0);
   const deletable = () => props.editing() && props.appFor(key) !== null;
   let node: NodeMirror | undefined;
   createEffect(

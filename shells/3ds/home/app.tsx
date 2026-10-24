@@ -14,7 +14,7 @@
 import { createEffect, createSignal, onMount, Show, type JSX } from "solid-js";
 import { setHomeHint } from "@pocketjs/framework/agent";
 import { AuxiliarySurface, View, type NodeMirror } from "@pocketjs/framework/components";
-import { animate, jump } from "@pocketjs/framework/animation";
+import { animate, animationClass, jump } from "@pocketjs/framework/animation";
 import { after } from "@pocketjs/framework/clock";
 import { BTN } from "@pocketjs/framework/input";
 import { onButtonPress } from "@pocketjs/framework/lifecycle";
@@ -31,6 +31,11 @@ import { createPress, createTouchRouter } from "../ui/touch.ts";
 
 const ALL_BUTTONS = 0xffff;
 const ZOOM_MS = 280;
+/** Settings and the Mac zoom open and closed on a composited target; a
+ *  repaint target cuts, as a scale tween over a page repaints the whole
+ *  surface every frame. */
+const ZOOMS = animationClass === "composited";
+const ZOOM_SECONDS = ZOOMS ? ZOOM_MS / 1000 : 0;
 
 function AppFrame(props: { onReady(node: NodeMirror): void; children: JSX.Element }) {
   let node: NodeMirror | undefined;
@@ -58,11 +63,11 @@ export default function Home() {
   const closeApp = () => {
     if (!app() || zooming()) return;
     setZooming(true);
-    if (appNode) {
+    if (ZOOMS && appNode) {
       animate(appNode, "scale", 0.3, { dur: ZOOM_MS, easing: "in" });
       animate(appNode, "opacity", 0, { dur: ZOOM_MS, easing: "in" });
     }
-    after(ZOOM_MS / 1000, () => {
+    after(ZOOM_SECONDS, () => {
       setApp(null);
       stack.reset(null);
       setZooming(false);
@@ -90,7 +95,7 @@ export default function Home() {
     stack.reset(which);
     setApp(which);
     setZooming(true);
-    after(ZOOM_MS / 1000, () => setZooming(false));
+    after(ZOOM_SECONDS, () => setZooming(false));
   };
 
   createEffect(() => setHomeHint(app() !== null));
@@ -140,6 +145,7 @@ export default function Home() {
           <AppFrame
             onReady={(node) => {
               appNode = node;
+              if (!ZOOMS) return;
               jump(node, "scale", 0.3);
               jump(node, "opacity", 0);
               animate(node, "scale", 1, { dur: ZOOM_MS, easing: "out" });

@@ -10,6 +10,7 @@
 // state change picks between two whole literals instead of building one.
 
 import { Show, type Accessor, type JSX } from "solid-js";
+import { animationClass } from "@pocketjs/framework/animation";
 import { Image, Text, View } from "@pocketjs/framework/components";
 import { COMPACT, SCREEN_H, SCREEN_W } from "./screen.ts";
 
@@ -57,15 +58,19 @@ function Disc(props: { x: number; y: number; r: number; color: string }) {
 /** The wallpaper of a surface larger than the 3DS's: overlapping flat
  *  discs on a flat field, in the 3DS wallpaper's navy, teal and violet. An
  *  RGB565 panel draws a smooth gradient this large as visible steps; flat
- *  fills draw clean and cost a fill to redraw. */
+ *  fills draw clean. On a repaint target the field stays bare: a disc this
+ *  large is a sampled texture over most of the surface, which a CPU
+ *  repaints under every moving icon and on every full frame. */
 function FlatWallpaper() {
   const big = Math.max(SCREEN_W, SCREEN_H);
   return (
     <View class="absolute left-0 top-0 overflow-hidden bg-[#0c1a2b]" style={{ width: SCREEN_W, height: SCREEN_H }}>
-      <Disc x={SCREEN_W * 0.08} y={SCREEN_H * 0.24} r={big * 0.4} color="#103a55" />
-      <Disc x={SCREEN_W * 0.98} y={SCREEN_H * 0.84} r={big * 0.36} color="#222a5a" />
-      <Disc x={SCREEN_W * 0.86} y={SCREEN_H * 0.2} r={big * 0.18} color="#16506c" />
-      <Disc x={SCREEN_W * 0.18} y={SCREEN_H * 0.76} r={big * 0.14} color="#2f2c63" />
+      <Show when={animationClass === "composited"}>
+        <Disc x={SCREEN_W * 0.08} y={SCREEN_H * 0.24} r={big * 0.4} color="#103a55" />
+        <Disc x={SCREEN_W * 0.98} y={SCREEN_H * 0.84} r={big * 0.36} color="#222a5a" />
+        <Disc x={SCREEN_W * 0.86} y={SCREEN_H * 0.2} r={big * 0.18} color="#16506c" />
+        <Disc x={SCREEN_W * 0.18} y={SCREEN_H * 0.76} r={big * 0.14} color="#2f2c63" />
+      </Show>
     </View>
   );
 }
