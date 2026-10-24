@@ -1,8 +1,8 @@
 {
   "$schema": "https://pocketjs.dev/schema/pocket-2.json",
   "pocket": 2,
-  "id": "dev.pocket-nexus.home",
-  "name": "pocket-home",
+  "id": "dev.pocket-nexus.shell",
+  "name": "pocket-shell",
   "title": "Pocket Shell",
   "version": "0.1.0",
   "engine": {
@@ -25,8 +25,8 @@
     }
   },
   "app": {
-    "entry": "home/main.tsx",
-    "output": "home-main",
+    "entry": "shell/main.tsx",
+    "output": "pocket-shell",
     "framework": "solid",
     "surfaces": {
       "auxiliary": {

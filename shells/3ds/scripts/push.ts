@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// bun run push [home|hn] [--host <ip>] — rebuild an app's package and
+// bun run push [shell|hn] [--host <ip>] — rebuild an app's package and
 // hot-push it to a paired console over the Pocket Runtime dev wire, without
 // touching the native binary. Home replaces the running launcher's guest;
 // any other app installs into its own slot and starts, and SELECT returns to

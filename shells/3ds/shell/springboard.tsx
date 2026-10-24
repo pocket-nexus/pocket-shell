@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/home/springboard.tsx — the Home screen on the touch screen: the
+// shells/3ds/shell/springboard.tsx — the Home screen on the touch screen: the
 // status bar (carrier, Wi-Fi, time), pages of glossy icons over the
 // wallpaper, page dots and the glass dock (Settings, Camera, Photos, Mac).
 //

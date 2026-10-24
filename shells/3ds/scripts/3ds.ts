@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// bun run 3ds [home|hn] [--pocket-only] — build a console binary or package.
+// bun run 3ds [shell|hn] [--pocket-only] — build a console binary or package.
 //
 // The toolchain lives in the submodule and is driven by a resolved plan
 // (scripts/apps.ts) with this shell as the project root. The build writes
 // into the submodule's own dist/3ds, where the Rust core, QuickJS and the
 // container's bind mount are, so the artefacts are copied back afterwards.
 //
-//   bun run 3ds                  -> dist/3ds/home-main.3dsx (the launcher)
-//   bun run 3ds --pocket-only    -> dist/3ds/home-main.pocket (hot push)
+//   bun run 3ds                  -> dist/3ds/pocket-shell.3dsx (the launcher)
+//   bun run 3ds --pocket-only    -> dist/3ds/pocket-shell.pocket (hot push)
 //   bun run 3ds hn --pocket-only -> dist/3ds/hn-main.pocket (installed by Home)
 
 import { copyFileSync, existsSync, mkdirSync } from "node:fs";

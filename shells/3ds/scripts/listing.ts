@@ -51,7 +51,7 @@ async function shell() {
   await card(resolve(PROJECT_ROOT, listing.card), resolve(dir, "card.jpg"), `scale=-2:${CARD.height}:flags=neighbor`);
   const applets = [];
   for (const applet of listing.applets!) {
-    await $`ffmpeg -nostdin -v error -y -i ${resolve(PROJECT_ROOT, `home/art/icons/${applet.icon}-64.png`)} -frames:v 1 -vf scale=128:128:flags=lanczos ${resolve(dir, `${applet.icon}.png`)}`;
+    await $`ffmpeg -nostdin -v error -y -i ${resolve(PROJECT_ROOT, `shell/art/icons/${applet.icon}-64.png`)} -frames:v 1 -vf scale=128:128:flags=lanczos ${resolve(dir, `${applet.icon}.png`)}`;
     applets.push({ ...applet, icon: `${applet.icon}.png` });
   }
   writeFileSync(resolve(dir, "listing.json"), `${JSON.stringify({ ...listing, media, card: "card.jpg", applets }, null, 2)}\n`);

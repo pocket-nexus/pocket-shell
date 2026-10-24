@@ -8,7 +8,7 @@ first, and this repository moves its pin.
 The repository holds **three shells**, and a change belongs
 to one of them:
 
-- `shells/3ds/` — Pocket Home, the 3DS launcher, and the **Pocket Applets** it
+- `shells/3ds/` — Pocket Shell, the 3DS launcher, and the **Pocket Applets** it
   ships with (Hacker News, YouTube, X, Discord), over one iOS 6 kit in `ui/`.
   **Its only platform is the Nintendo 3DS**: two screens of fixed size, a
   resistive panel with one contact, a d-pad and shoulder buttons. Every

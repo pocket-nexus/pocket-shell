@@ -1,6 +1,6 @@
 # Pocket Shell on the 3DS
 
-The 3DS shell is **Pocket Home**, the console's launcher, and the **Pocket
+The 3DS shell is **Pocket Shell**, the console's launcher, and the **Pocket
 Applets** it ships with. Every applet draws on the touch screen and nowhere
 else. The top screen belongs to the system: for each applet (each declares
 the capability `system.agent`), the PocketJS 3DS host draws Claude's room
@@ -56,7 +56,7 @@ pairs, installs and switches, which applets cannot.
 
 | Program | Directory | Package | Reaches the console |
 | --- | --- | --- | --- |
-| Pocket Home | `home/` | `dev.pocket-nexus.home`, `home-main` | embedded in the `.3dsx`; the launcher |
+| Pocket Shell | `shell/` | `dev.pocket-nexus.shell`, `pocket-shell` | embedded in the `.3dsx`; the launcher |
 | Hacker News | `hn/` | `dev.pocket-nexus.hn`, `hn-main` | installed through Home from the linked Mac, or pushed |
 | YouTube | `youtube/` | `dev.pocket-nexus.youtube`, `youtube-main` | the same |
 | X | `x/` | `dev.pocket-nexus.x`, `x-main` | the same |
@@ -81,13 +81,13 @@ two-icon dock. Labels are bold 10 px (`text-2xs`), so "Hacker News" and
 - Page dots above the dock follow the drag.
 
 **Icons are rendered at 512 px and finished at their size.**
-`home/art/icons/icons.py` models Settings, Hacker News, Wi-Fi and Apps in
+`shell/art/icons/icons.py` models Settings, Hacker News, Wi-Fi and Apps in
 Blender as lit objects on lacquer or metal plates, and Mac as a two-tone
 lacquer face after the Finder (a raised profile line, enamel eyes and
 smile), with few large shapes so they hold at 46 and 24 px. Pocket Nexus is the face "O" of the Pocket
 Nexus wordmark, drawn by the wordmark's own code (PocketJS
-`apps/nexus/art/draw.js`, run in headless Chrome by `home/art/icons/nexus.ts`).
-`home/art/icons/bake.ts` gives all of them one finish (the rounded mask, the
+`apps/nexus/art/draw.js`, run in headless Chrome by `shell/art/icons/nexus.ts`).
+`shell/art/icons/bake.ts` gives all of them one finish (the rounded mask, the
 iOS 6 gloss, a lit top rim, a shaded bottom rim and, at 46 px, a drop
 shadow), sharpens them after the downsample and writes 24, 46 and 64 px
 textures. The build reads the committed
@@ -143,20 +143,20 @@ applets in the companion's catalog.
 Run from the repository root.
 
 ```sh
-bun run deploy --host <console-ip>      # build home-main.3dsx, install it over the wire, restart into it
+bun run deploy --host <console-ip>      # build pocket-shell.3dsx, install it over the wire, restart into it
 bun run push --host <console-ip>        # rebuild Home's package and hot-push it
 bun run push hn --host <console-ip>     # rebuild Hacker News, install it into its slot and start it
 bun run offer                           # build the applets' packages and offer them through the companion
 bun run shot --host <console-ip>        # one screenshot of both screens
-bun run 3ds [home|hn] [--pocket-only]   # build into dist/3ds
+bun run 3ds [shell|hn] [--pocket-only]   # build into dist/3ds
 bun run --cwd shells/3ds icons          # re-render and re-bake Home's icons (macOS, Blender 5)
 bun run check:3ds                       # typecheck, the Home and Hacker News sims, unit tests
 ```
 
-A change under `home/`, `hn/` or `ui/` reaches a console with `push`. A
+A change under `shell/`, `hn/` or `ui/` reaches a console with `push`. A
 change in the runtime (`vendor/pocketjs/products/3ds`, `platforms/3ds` or
 `devices/3ds`) needs `deploy`. Pairing needs ftpd once:
 `bun run pair --host <console-ip>`. The `.3dsx` is the only console format.
 
 Home's recovery state is in `/pocketjs/runtime/apps/<slot>/`, where the slot
-is the first 16 hex digits of the SHA-256 of `dev.pocket-nexus.home`.
+is the first 16 hex digits of the SHA-256 of `dev.pocket-nexus.shell`.

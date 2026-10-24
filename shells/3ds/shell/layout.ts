@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/home/layout.ts — where each icon sits on the Home screen: pages
+// shells/3ds/shell/layout.ts — where each icon sits on the Home screen: pages
 // of up to PER_PAGE icons and a dock of up to DOCK_MAX, as iOS SpringBoard
 // keeps them, and where that order is kept between boots.
 //
@@ -13,7 +13,7 @@
 // dock while it has room, everything else to the first page with room).
 //
 // Storage is the fs module (contracts/spec/fs.ts, capability data.fs, an
-// enhancement in home/pocket.json): one small JSON file in Home's data root.
+// enhancement in shell/pocket.json): one small JSON file in Home's data root.
 // A host without it keeps the order for the session only.
 
 import { existsSync, readFileSync, writeFileSync } from "@pocketjs/framework/fs";
