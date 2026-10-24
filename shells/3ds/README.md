@@ -21,8 +21,8 @@ which took **30.4k tokens**.
 
 An applet is a Pocket app that declares the manifest section `applet` and
 meets the applet rules (PocketJS
-[APPLETS.md](../../vendor/pocketjs/docs/APPLETS.md)): one 320×240 touch
-surface, the agent enhanced, an allowlist of capabilities, every network
+[APPLETS.md](../../vendor/pocketjs/docs/APPLETS.md)): one touch surface
+that admits 320×240, the agent enhanced, an allowlist of capabilities, every network
 destination declared (`applet.services`, `applet.hosts`), no native code and
 no code evaluation, bundle and pak budgets. The PocketJS build refuses an
 applet that breaks a rule, and `bun run check:3ds` runs the rules over every
@@ -40,6 +40,42 @@ pairs, installs and switches, which applets cannot.
 `ui/` is the iOS 6 kit Home and the applets build on at the 3DS's 0.82 scale: the
 navigation stack and bar, grouped tables, alerts, text fitting, a slot pool
 for long lists and one stylus router per screen.
+
+### Surfaces
+
+Every manifest declares an adaptive surface, `app.surfaces.auxiliary.adaptive`
+from **320×240 to 640×720**, and lays out at the size the host presents.
+`ui/screen.ts` is the one place that reads it (`SCREEN_W`, `SCREEN_H`, set by
+`readScreen()` as each program's root component starts) and names the size
+classes:
+
+| Class | Surfaces | Layout |
+| --- | --- | --- |
+| `COMPACT` | the 3DS touch screen, 320×240 | as drawn for it; the sims' 320×240 screenshots stay byte-identical |
+| landscape | the M5Stack Tab5's 592×360, the PSP's 480×272 | the iOS 6 apps held sideways |
+| `TALL` | portrait, such as 360×592 | the iOS 6 phone apps |
+
+On a surface larger than the 3DS's:
+
+- The springboard fits columns of about 96 px and rows of at least 74 px
+  (90 px in portrait) over the dock: **six by three** on 592×360, four by
+  five on 360×592. Its wallpaper is flat discs on a flat field: an RGB565
+  panel draws a smooth gradient this large as visible steps.
+- Lists, tables, headers and composers span the width, and each list shows
+  as many rows as its height holds.
+- A **Reload** button in the bar stands in for the X and Y reload buttons
+  (Hacker News, YouTube, X, Discord's servers and channels, Photos), and
+  YouTube's player has **-** and **+** for the volume.
+- YouTube's player fits the largest 16:9 picture over its control bar;
+  Camera's preview is as tall as the surface with its bar down the right
+  side; Photos fits as many 80 px columns as the width holds.
+- Settings > Wi-Fi scans, joins with a password typed on the keyboard, and
+  forgets saved networks on a host whose launcher is its settings
+  (`wifiCanJoin()`); the 3DS keeps its saved-slot page.
+
+Icons ship an `@2x` texture beside each 1x one (`home/art/icons/bake.ts`), so
+a density-2 build draws them texel for texel. `POCKET_TAB5_SHOTS=<dir> bun run
+check:3ds` also writes each program's 592×360 and 360×592 screens.
 
 **Home** is the springboard, Settings (Wi-Fi, Mac pairing by QR code, the
 Mac's app catalog) and the clock, which reads the Mac's time over the Pocket
@@ -124,6 +160,7 @@ bun run push hn --host <console-ip>     # rebuild Hacker News, install it into i
 bun run offer                           # build the applets' packages and offer them through the companion
 bun run shot --host <console-ip>        # one screenshot of both screens
 bun run 3ds [home|hn] [--pocket-only]   # build into dist/3ds
+bun run tab5 [app…]                     # build packages for the M5Stack Tab5 into dist/tab5
 bun run --cwd shells/3ds icons          # re-render and re-bake Home's icons (macOS, Blender 5)
 bun run check:3ds                       # typecheck, the Home and Hacker News sims, unit tests
 ```

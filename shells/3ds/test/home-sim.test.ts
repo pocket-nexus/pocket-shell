@@ -672,6 +672,40 @@ describe("on the Tab5's 592x360 surface", () => {
     expect(home.locate("9:41 AM")![0] + home.locate("9:41 AM")![2]).toBeGreaterThan(570);
   });
 
+  test("pages of eighteen turn with a flick; holding an icon edits; its badge deletes after the alert", async () => {
+    const many = Array.from({ length: 20 }, (_, index) => ({
+      output: `app${index + 1}-main`,
+      id: `dev.example.app${index + 1}`,
+      title: `App ${index + 1}`,
+      version: "1.0.0",
+      bytes: 40_000,
+    }));
+    const home = await boot({ apps: many, auxiliary: TAB5 });
+    await home.run(20);
+    expect(home.texts("auxiliary")).toContain("App 18");
+    expect(home.texts("auxiliary")).not.toContain("App 19");
+    tab5Shot(home, "home-many");
+    await home.drag(500, 150, 200, 150, 6);
+    await home.run(30);
+    expect(home.texts("auxiliary")).toContain("App 19");
+    tab5Shot(home, "home-page-2");
+    await home.drag(100, 150, 500, 150, 6);
+    await home.run(30);
+    // Hold the first icon: edit mode, a badge on each applet, Done in the bar.
+    for (let frame = 0; frame < 40; frame++) await home.step({ touches: [{ x: 49, y: 49 }], surface: "auxiliary" });
+    await home.step({ surface: "auxiliary" });
+    await home.run(10);
+    expect(home.texts("auxiliary")).toContain("Done");
+    tab5Shot(home, "home-editing");
+    await home.tap(28, 28);
+    await home.run(4);
+    expect(home.texts("auxiliary")).toContain('Delete "App 1"?');
+    tab5Shot(home, "home-delete-alert");
+    await home.tapText("Delete");
+    await home.run(6);
+    expect(home.link!.log).toContain("remove dev.example.app1");
+  });
+
   test("a portrait surface holds four columns of five rows", async () => {
     const home = await portrait();
     await home.run(30);
