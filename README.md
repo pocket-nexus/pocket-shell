@@ -91,7 +91,7 @@ to list its commands, including captures, benchmarks and the text companion.
 ```sh
 bun run deploy --host <console-ip> # build Home's .3dsx, install it over the wire and restart into it
 bun run push [hn] --host <console-ip>  # rebuild and hot-push Home (or install Hacker News)
-bun run offer                    # offer the 3DS applets through the running Pocket Companion
+bun run offer                    # offer the applets (3DS and Tab5 packages) through the running Pocket Companion
 bun run shot --host <console-ip>  # capture both console screens
 bun run 3ds                      # full console binary in dist/3ds
 bun run touch guest

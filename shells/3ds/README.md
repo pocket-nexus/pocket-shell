@@ -157,7 +157,7 @@ Run from the repository root.
 bun run deploy --host <console-ip>      # build home-main.3dsx, install it over the wire, restart into it
 bun run push --host <console-ip>        # rebuild Home's package and hot-push it
 bun run push hn --host <console-ip>     # rebuild Hacker News, install it into its slot and start it
-bun run offer                           # build the applets' packages and offer them through the companion
+bun run offer [--3ds|--tab5]            # build the applets' 3DS and Tab5 packages and offer them through the companion
 bun run shot --host <console-ip>        # one screenshot of both screens
 bun run 3ds [home|hn] [--pocket-only]   # build into dist/3ds
 bun run tab5 [app…]                     # build packages for the M5Stack Tab5 into dist/tab5
