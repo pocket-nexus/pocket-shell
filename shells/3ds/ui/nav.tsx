@@ -20,10 +20,12 @@ import { SCREEN_H, SCREEN_W } from "./screen.ts";
 import type { Press, Target, TouchPage } from "./touch.ts";
 
 const PUSH_MS = 300;
-/** A push slides the page below a third of the way out on a composited
- *  target. On a repaint target it holds still under the page sliding in,
- *  so one opaque region moves per frame and the host moves its pixels. */
-const UNDER_SLIDES = animationClass === "composited";
+/** A push slides the new page in over the page below, which slides a third
+ *  of the way out, on a composited target. A repaint target cuts: a page
+ *  sliding over another repaints the band it uncovers and whatever moves
+ *  under it every frame. */
+const SLIDES = animationClass === "composited";
+const SETTLE_MS = SLIDES ? PUSH_MS : 0;
 
 /** Height of a page's scrolling content view: the surface under the bar,
  *  less `inset` px of fixed content (a toolbar) along the bottom. */
@@ -149,8 +151,8 @@ export function createNavStack(options: NavOptions): NavStack {
       setEntries([...entries(), { key: nextKey++, page }]);
       if (below) {
         const node = nodes.get(below.key);
-        if (node && UNDER_SLIDES) animate(node, "translateX", -SCREEN_W / 3, { dur: PUSH_MS, easing: "out" });
-        settle(PUSH_MS, () => hidden.get(below.key)?.(true));
+        if (node && SLIDES) animate(node, "translateX", -SCREEN_W / 3, { dur: PUSH_MS, easing: "out" });
+        settle(SETTLE_MS, () => hidden.get(below.key)?.(true));
       }
     },
     pop() {
@@ -165,9 +167,9 @@ export function createNavStack(options: NavOptions): NavStack {
       hidden.get(below.key)?.(false);
       const node = nodes.get(leaving.key);
       const under = nodes.get(below.key);
-      if (node) animate(node, "translateX", SCREEN_W, { dur: PUSH_MS, easing: "out" });
-      if (under && UNDER_SLIDES) animate(under, "translateX", 0, { dur: PUSH_MS, easing: "out" });
-      settle(PUSH_MS, () => setEntries(entries().filter((entry) => entry.key !== leaving.key)));
+      if (node && SLIDES) animate(node, "translateX", SCREEN_W, { dur: PUSH_MS, easing: "out" });
+      if (under && SLIDES) animate(under, "translateX", 0, { dur: PUSH_MS, easing: "out" });
+      settle(SETTLE_MS, () => setEntries(entries().filter((entry) => entry.key !== leaving.key)));
     },
     reset(page) {
       setEntries(page ? [{ key: nextKey++, page }] : []);
@@ -320,7 +322,7 @@ function LayerView(props: {
   onMount(() => {
     if (!node) return;
     props.register(layer, node, setHidden);
-    if (!props.first) {
+    if (!props.first && SLIDES) {
       jump(node, "translateX", SCREEN_W);
       animate(node, "translateX", 0, { dur: PUSH_MS, easing: "out" });
     }
