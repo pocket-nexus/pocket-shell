@@ -8,12 +8,15 @@ first, and this repository moves its pin.
 The repository holds **three shells**, and a change belongs
 to one of them:
 
-- `shells/3ds/` — Pocket Home, the 3DS launcher, and the **Pocket Applets** it
-  ships with (Hacker News, YouTube, X, Discord), over one iOS 6 kit in `ui/`.
-  **Its only platform is the Nintendo 3DS**: two screens of fixed size, a
-  resistive panel with one contact, a d-pad and shoulder buttons. Every
-  applet draws on the touch screen and declares `system.agent`; the top
-  screen and the L+R agent overlay belong to the PocketJS host and
+- `shells/3ds/` — Pocket Home, the launcher, and the **Pocket Applets** it
+  ships with (Hacker News, YouTube, X, Discord, Camera, Photos, Notes), over
+  one iOS 6 kit in `ui/`. **Its platforms are the Nintendo 3DS and the M5Stack
+  Tab5**: on the 3DS two screens of fixed size, a resistive panel with one
+  contact, a d-pad and shoulder buttons; on the Tab5 one 640x360 touch
+  surface, a host-drawn home ball and a keyboard. Each program reads its
+  surface size at start (`ui/screen.ts`) and lays out by size class. Every
+  applet draws on the touch surface and declares `system.agent`; the 3DS's
+  top screen and the L+R agent overlay belong to the PocketJS host and
   framework, not to this repository.
 - `shells/touch/` — Pocket Shell Touch, a full-screen gesture shell with
   retained mock apps on iPod touch 4 and Nokia E7. It owns navigation, window

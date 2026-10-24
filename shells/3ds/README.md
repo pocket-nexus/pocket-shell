@@ -1,13 +1,15 @@
-# Pocket Shell on the 3DS
+# Pocket Shell on the 3DS and the M5Stack Tab5
 
-The 3DS shell is **Pocket Home**, the console's launcher, and the **Pocket
-Applets** it ships with. Every applet draws on the touch screen and nowhere
-else. The top screen belongs to the system: for each applet (each declares
-the capability `system.agent`), the PocketJS 3DS host draws Claude's room
+This shell is **Pocket Home**, the console's launcher, and the **Pocket
+Applets** it ships with, built once for the Nintendo 3DS and the M5Stack
+Tab5. On the 3DS every applet draws on the touch screen and nowhere else.
+The top screen belongs to the system: for each applet (each declares the
+capability `system.agent`), the PocketJS 3DS host draws Claude's room
 there, and **L+R opens the agent over any applet**. The runtime side (the room, the overlay, the
 companion's agent) is PocketJS's and is described in
 [POCKET-AGENT.md](../../vendor/pocketjs/docs/POCKET-AGENT.md) in the pinned
-submodule.
+submodule. On the Tab5 the same programs lay out for its one landscape panel;
+see [The M5Stack Tab5](#the-m5stack-tab5).
 
 | Home | L+R | The agent at work | The reply |
 | --- | --- | --- | --- |
@@ -36,6 +38,8 @@ pairs, installs and switches, which applets cannot.
 | YouTube | `youtube/` | `dev.pocket-nexus.youtube`, `youtube-main` | the same |
 | X | `x/` | `dev.pocket-nexus.x`, `x-main` | the same |
 | Discord | `discord/` | `dev.pocket-nexus.discord`, `discord-main` | the same |
+| Camera | `camera/` | `dev.pocket-nexus.camera`, `camera-main` | the same |
+| Photos | `photos/` | `dev.pocket-nexus.photos`, `photos-main` | the same |
 | Notes | `notes/` | `dev.pocket-nexus.notes`, `notes-main` | the same |
 
 `ui/` is the iOS 6 kit Home and the applets build on at the 3DS's 0.82 scale: the
@@ -53,13 +57,13 @@ classes:
 | Class | Surfaces | Layout |
 | --- | --- | --- |
 | `COMPACT` | the 3DS touch screen, 320×240 | as drawn for it; the sims' 320×240 screenshots stay byte-identical |
-| landscape | the M5Stack Tab5's 592×360, the PSP's 480×272 | the iOS 6 apps held sideways |
+| landscape | the M5Stack Tab5's 640×360 (the sims also run 592×360), the PSP's 480×272 | the iOS 6 apps held sideways |
 | `TALL` | portrait, such as 360×592 | the iOS 6 phone apps |
 
 On a surface larger than the 3DS's:
 
 - The springboard fits columns of about 96 px and rows of at least 74 px
-  (90 px in portrait) over the dock: **six by three** on 592×360, four by
+  (90 px in portrait) over the dock: **six by three** on 640×360, four by
   five on 360×592. Its wallpaper is flat discs on a flat field: an RGB565
   panel draws a smooth gradient this large as visible steps.
 - Lists, tables, headers and composers span the width, and each list shows
@@ -77,6 +81,44 @@ On a surface larger than the 3DS's:
 Icons ship an `@2x` texture beside each 1x one (`home/art/icons/bake.ts`), so
 a density-2 build draws them texel for texel. `POCKET_TAB5_SHOTS=<dir> bun run
 check:3ds` also writes each program's 592×360 and 360×592 screens.
+
+### The M5Stack Tab5
+
+The Tab5 target is PocketJS's `programs/m5stack-tab5` with the profile
+`tab5-home` (`home.runtime-config.ts`): an ESP32-P4 whose 1280x720 panel
+shows the auxiliary surface at **640x360 logical, presented at 2x**, turned
+onto the portrait panel. The firmware embeds Pocket Home as its launcher
+(`-DPOCKETJS_TAB5_HOME_PACKAGE=<home-main.pocket>`), keeps the installed
+applets on the microSD card and boots one runtime per app; the applets
+install from the Mac's catalog as on the 3DS. The six pictures at the top of
+the repository README are this surface.
+
+- `bun run tab5 [app…]` compiles each app against the Tab5 runtime config
+  into `dist/tab5/<output>.pocket`, so its profile hash matches the
+  firmware's; `bun run offer` builds both the 3DS and the Tab5 package of
+  every applet into `dist/3ds/apps/` and points the running Pocket Companion
+  at them, and the companion lists to each console the files with a variant
+  for its target.
+- The Tab5 has no buttons. The firmware paints a **floating home ball** over
+  the picture: a tap sends SELECT (back to Home, or the launcher summoned
+  from an app), a finger that moves at once drags the ball inside the
+  picture, and a finger that rests and then slides makes a gesture, logged by
+  its direction, where an effect attaches later. A touch on the ball never
+  reaches a program.
+- The **Tab5 keyboard** (M5Stack A164, I2C on Ext.Port1) types through
+  PocketJS's text events (`onTextEvent` from `@pocketjs/framework/input`,
+  capability `input.text`): a character commits, a named key arrives as a
+  `KeyboardEvent.key` name (`Enter`, `Backspace`, `ArrowLeft`). An open
+  system-keyboard session takes the keyboard itself, so the Wi-Fi password
+  field and Notes fill from the keys with no change in the apps; Notes also
+  reads the keys on its editor page. The keyboard's firmware keeps its Ctrl
+  bit set once Ctrl was pressed, so the host reads no modifier from it.
+- **Notes** keeps `notes/<id>.txt` and `notes/index.json` in the applet's
+  `data.fs` tree, the microSD card on the Tab5 and the SD card's slot on the
+  3DS; it saves a second after the last edit and when its editor closes.
+- The Tab5 is a repaint display without a compositor, so its animation class
+  is `repaint`: Home keeps a flat wallpaper, cuts where the 3DS zooms and
+  wiggles, and its navigation stack cuts where the 3DS slides.
 
 **Home** is the springboard, Settings (Wi-Fi, Mac pairing by QR code, the
 Mac's app catalog) and the clock, which reads the Mac's time over the Pocket
