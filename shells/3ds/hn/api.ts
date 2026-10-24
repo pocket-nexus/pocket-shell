@@ -9,6 +9,7 @@
 // kept in memory for the life of the app.
 
 import { fetch, NetError } from "@pocketjs/framework/net";
+import { notLinked, theComputer } from "../ui/companion.ts";
 
 export const API = "https://hacker-news.firebaseio.com/v0";
 export const MAX_INFLIGHT = 2;
@@ -141,9 +142,9 @@ export function createHnClient(): HnClient {
 export function errorText(error: unknown): { title: string; detail: string } {
   const code = error instanceof HnError ? error.code : "";
   if (code === "unavailable") {
-    return { title: "Not linked to a Mac", detail: "Hacker News loads through your Mac. Pair one in Settings > Mac and open Pocket Companion." };
+    return notLinked("Hacker News");
   }
-  if (code === "timeout") return { title: "The request timed out", detail: "The Mac or the network did not answer in time." };
+  if (code === "timeout") return { title: "The request timed out", detail: `${theComputer()} or the network did not answer in time.` };
   const message = error instanceof Error ? error.message : String(error);
   return { title: "Could not load", detail: message || "The request failed." };
 }

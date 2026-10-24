@@ -23,6 +23,7 @@ import { FEEDS, type Item } from "./api.ts";
 import { ageText, domainOf, htmlToText } from "./html.ts";
 import { flattenThread, MAX_COMMENTS, type HnModel } from "./model.ts";
 import { glyph } from "@pocketjs/framework/modality";
+import { yourComputer } from "../ui/companion.ts";
 
 const OVERSCAN = 80;
 const TITLE_X = 32;
@@ -362,7 +363,7 @@ export function listPage(env: HnEnv, stack: NavStack, layer: LayerContext): Page
             ? <Centered title={model.state().error!.title} detail={model.state().error!.detail} button={{ id: "feed.retry", label: "Try Again" }} press={press} />
             : model.state().status === "ready"
               ? <Centered title="No Stories" detail="This list is empty right now." press={press} />
-              : <Centered title="Loading" detail="Fetching the front page through your Mac." spinner press={press} />}
+              : <Centered title="Loading" detail={`Fetching the front page through ${yourComputer()}.`} spinner press={press} />}
         </Show>
         <Show when={listed() && model.state().shown < model.state().ids.length}>
           <View class="absolute" style={{ insetL: W / 2 - 42, insetT: layout().height - MORE_H + 13 }}>

@@ -28,6 +28,7 @@ import { createSlotPool, paintText, type SlotPool } from "../ui/slots.ts";
 import type { Press, Target } from "../ui/touch.ts";
 import { KINDS, type Post } from "./api.ts";
 import type { XModel } from "./model.ts";
+import { yourComputer } from "../ui/companion.ts";
 
 const OVERSCAN = 80;
 const TEXT_X = 50;
@@ -584,7 +585,7 @@ export function timelinePage(env: XEnv, stack: NavStack, layer: LayerContext): P
             ? <Centered title={model.state().error!.title} detail={model.state().error!.detail} button={{ id: "x.retry", label: "Try Again" }} press={press} />
             : model.state().status === "ready"
               ? <Centered title="Nothing here yet" detail="Posts from the accounts you follow show up here." press={press} />
-              : <Centered title="Loading" detail="Reading your timeline through your Mac." spinner press={press} />}
+              : <Centered title="Loading" detail={`Reading your timeline through ${yourComputer()}.`} spinner press={press} />}
         </Show>
         <Show when={listed() && model.state().cursor}>
           <View class="absolute left-[118]" style={{ insetT: layout().height - MORE_H + 13 }}>
@@ -696,7 +697,7 @@ export function postPage(env: XEnv, stack: NavStack, layer: LayerContext): PageS
             ? <Centered title={state()!.error!.title} detail={state()!.error!.detail} button={{ id: "post.retry", label: "Try Again" }} press={press} />
             : state()?.status === "ready"
               ? <Centered title="Post unavailable" detail="X did not return this post. It may be deleted or protected." press={press} />
-              : <Centered title="Loading" detail="Reading the conversation through your Mac." spinner press={press} />}
+              : <Centered title="Loading" detail={`Reading the conversation through ${yourComputer()}.`} spinner press={press} />}
         </Show>
         <Show when={ready() && layout().footer}>
           <Text class="absolute left-0 text-xs text-[#536471] font-bold text-center" style={{ insetT: layout().height - 31, width: W }}>{layout().footer}</Text>

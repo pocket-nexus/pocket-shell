@@ -5,6 +5,7 @@
 
 import { createSignal, type Accessor } from "solid-js";
 import { YtError, type Topic, type Video, type YtClient } from "./api.ts";
+import { notLinked, theComputer } from "../ui/companion.ts";
 
 export type Section = Topic | "search";
 
@@ -34,9 +35,9 @@ const LOADING: ListState = { status: "loading", items: [], error: null };
 export function errorText(error: unknown): { title: string; detail: string } {
   const code = error instanceof YtError ? error.code : "";
   if (code === "unavailable") {
-    return { title: "Not linked to a Mac", detail: "YouTube loads through your Mac. Pair one in Settings > Mac and open Pocket Companion." };
+    return notLinked("YouTube");
   }
-  if (code === "timeout") return { title: "The request timed out", detail: "The Mac or YouTube did not answer in time." };
+  if (code === "timeout") return { title: "The request timed out", detail: `${theComputer()} or YouTube did not answer in time.` };
   const message = error instanceof Error ? error.message : String(error);
   return { title: "Could not load", detail: message || "The request failed." };
 }

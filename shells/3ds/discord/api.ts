@@ -12,6 +12,7 @@
 import { fetch, NetError } from "@pocketjs/framework/net";
 import { companionService } from "@pocketjs/framework/link";
 import { GLYPH_ATLAS_URL } from "../ui/glyphs.ts";
+import { notLinked, tethered, theComputer, yourComputer } from "../ui/companion.ts";
 
 export const MAX_INFLIGHT = 2;
 /** How long the companion holds a poll open waiting for a new message. */
@@ -166,14 +167,14 @@ export function errorText(error: unknown): { title: string; detail: string } {
   const code = error instanceof DiscordError ? error.code : "";
   if (code === "setup") {
     return {
-      title: "Set up Discord on your Mac",
-      detail: "Create a bot in the Discord developer portal, invite it to your servers, then on the Mac run: bun tools/companion.ts service discord token <bot-token>",
+      title: `Set up Discord on ${yourComputer()}`,
+      detail: `Create a bot in the Discord developer portal, invite it to your servers, then on ${tethered() ? yourComputer() : "the Mac"} run: bun tools/companion.ts service discord token <bot-token>`,
     };
   }
   if (code === "unavailable") {
-    return { title: "Not linked to a Mac", detail: "Discord runs through your Mac. Pair one in Settings > Mac and open Pocket Companion." };
+    return notLinked("Discord", "runs");
   }
-  if (code === "timeout") return { title: "The request timed out", detail: "The Mac or Discord did not answer in time." };
+  if (code === "timeout") return { title: "The request timed out", detail: `${theComputer()} or Discord did not answer in time.` };
   const message = error instanceof Error ? error.message : String(error);
   return { title: "Could not load", detail: message || "The request failed." };
 }
