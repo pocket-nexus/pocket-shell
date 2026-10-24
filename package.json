@@ -16,6 +16,7 @@
     "push": "bun run --cwd shells/3ds push",
     "deploy": "bun run --cwd shells/3ds deploy",
     "offer": "bun run --cwd shells/3ds offer",
+    "release": "bun run --cwd shells/3ds release",
     "probe": "bun run --cwd shells/3ds probe",
     "shot": "bun run --cwd shells/3ds shot",
     "typecheck": "bun vendor/pocketjs/node_modules/typescript/bin/tsc --noEmit && bun run --cwd shells/3ds typecheck && bun run --cwd shells/desktop typecheck && bun run --cwd shells/touch typecheck",

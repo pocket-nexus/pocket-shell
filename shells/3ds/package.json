@@ -11,6 +11,7 @@
     "push": "bun scripts/push.ts",
     "deploy": "bun scripts/deploy.ts",
     "offer": "bun scripts/offer.ts",
+    "release": "bun scripts/release.ts",
     "probe": "bun scripts/probe.ts",
     "shot": "bun scripts/shot.ts",
     "icons": "bun scripts/icons.ts",

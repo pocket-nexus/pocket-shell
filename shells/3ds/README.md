@@ -17,6 +17,31 @@ These are screenshots from an Old 3DS. The third and fourth come from one
 typed request ("Open Hacker News and tell me what the top story is about"),
 which took **30.4k tokens**.
 
+## Install
+
+Pocket Studio offers both downloads on
+[studio.pocket.nexus/apps/shell](https://studio.pocket.nexus/apps/shell):
+
+1. **Pocket Shell** (`pocket-shell-<version>.3dsx`): copy it to `sdmc:/3ds/`
+   and start it from the Homebrew Launcher of a console with Luma3DS. It holds
+   Home.
+2. **Pocket Companion** (`pocket-companion-<version>-macos.zip`, macOS 15 or
+   later, Apple silicon or Intel, signed with a Developer ID): unzip it, move it
+   to Applications and open it. Its window shows a pairing code.
+3. On the 3DS, **Settings › Mac › Pair a Mac…** scans that code with the outer
+   camera. The applets then install from the **Mac** icon on Home; the
+   Companion carries all of them.
+
+Hacker News, X, Discord and YouTube reach their services through the
+Companion while they run; X, Discord and YouTube are set up in its window.
+Photos and Camera run without it once installed.
+
+`bun run release [--version YYYY.MM.DD] [--sign <identity>] [--notarize
+<profile>]` builds both files into `dist/release/` with `SHA256SUMS` and
+`build-info.json` (`scripts/release.ts`): the console binary, every applet as
+a package, and PocketJS's `tools/companion-app.ts --release --universal --apps`
+over those packages.
+
 ## Home and the applets
 
 An applet is a Pocket app that declares the manifest section `applet` and
