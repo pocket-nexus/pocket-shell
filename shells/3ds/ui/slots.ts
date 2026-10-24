@@ -20,6 +20,9 @@ export interface PlacedRow {
   /** Top in content px. Rows are in order of y. */
   y: number;
   h: number;
+  /** What the slot draws besides the row's place. A row whose content is
+   *  the one the slot last painted is only moved (the painter's `moved`). */
+  content?: unknown;
 }
 
 export interface SlotOptions {
@@ -31,12 +34,16 @@ export interface SlotOptions {
   minRowH: number;
 }
 
+/** Paint `row` into a slot. With `moved`, the slot shows this row's
+ *  content already: only its place changed. */
+export type SlotPainter<R> = (row: R | null, moved: boolean) => void;
+
 export interface SlotPool<R> {
   /** Slot indices to mount, one component each. */
   slots: readonly number[];
   /** A mounted slot's painter: called with its current row now and with
    *  every different row (or null) after. */
-  attach(slot: number, paint: (row: R | null) => void): void;
+  attach(slot: number, paint: SlotPainter<R>): void;
 }
 
 /** Places the band once per frame, outside the reactive graph: a memo on the
@@ -48,7 +55,9 @@ export function createSlotPool<R extends PlacedRow>(
 ): SlotPool<R> {
   const size = Math.ceil((options.view + options.overscan * 2) / options.minRowH) + 1;
   const shown: (R | null)[] = new Array(size).fill(null);
-  const painters: (((row: R | null) => void) | undefined)[] = new Array(size);
+  const painters: (SlotPainter<R> | undefined)[] = new Array(size);
+  /** The content each slot last painted. */
+  const drawn: unknown[] = new Array(size).fill(undefined);
   let placedRows: readonly R[] | null = null;
   let placedFirst = -1;
   let placedEnd = -1;
@@ -80,7 +89,9 @@ export function createSlotPool<R extends PlacedRow>(
       // slot: one repaint per row instead of a clear and a repaint.
       if (row === null && sameList) continue;
       shown[slot] = row;
-      painters[slot]?.(row);
+      const moved = row !== null && row.content !== undefined && row.content === drawn[slot];
+      drawn[slot] = row?.content;
+      painters[slot]?.(row, moved);
     }
   };
   place();
@@ -89,7 +100,8 @@ export function createSlotPool<R extends PlacedRow>(
     slots: Array.from({ length: size }, (_, slot) => slot),
     attach(slot, paint) {
       painters[slot] = paint;
-      paint(shown[slot] ?? null);
+      drawn[slot] = shown[slot]?.content;
+      paint(shown[slot] ?? null, false);
     },
   };
 }
