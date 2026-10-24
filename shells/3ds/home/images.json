@@ -78,7 +78,7 @@
     "linear": true
   },
   "art/stripes.svg": {
-    "linear": true
+    "psm": 0
   },
   "art/icons/youtube-24.png": {
     "linear": true
