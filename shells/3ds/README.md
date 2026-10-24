@@ -166,7 +166,7 @@ bun run check:3ds                       # typecheck, the Home and Hacker News si
 ```
 
 A change under `home/`, `hn/` or `ui/` reaches a console with `push`. A
-change in the runtime (`vendor/pocketjs/hosts/3ds`) needs `deploy`. Pairing
+change in the runtime (`vendor/pocketjs/products/3ds`) needs `deploy`. Pairing
 needs ftpd once: `bun run pair --host <console-ip>`. The `.3dsx` is the only
 console format.
 

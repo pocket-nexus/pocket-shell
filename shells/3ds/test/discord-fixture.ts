@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/test/discord-fixture.ts — the companion's discord service as NET
-// routes for the Discord sim tests (hosts/sim/net.ts): servers, channels, a
+// routes for the Discord sim tests (platforms/sim/net.ts): servers, channels, a
 // channel's pages, the live poll, sending and pictures. Every name and
 // message is invented for the fixture.
 
 import { GLYPH_SERVICE, glyphRoute } from "./x-fixture.ts";
-import type { SimNetRequest, SimNetResponse, SimNetRoute } from "../../../vendor/pocketjs/hosts/sim/net.ts";
+import type { SimNetRequest, SimNetResponse, SimNetRoute } from "../../../vendor/pocketjs/platforms/sim/net.ts";
 
 export const DISCORD = "https://companion.pocket/discord";
 

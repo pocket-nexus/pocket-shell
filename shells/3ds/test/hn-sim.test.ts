@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/test/hn-sim.test.ts — the Hacker News mini-app (apps/hn) headless on the
 // wasm core with the 3DS geometry and a fixture-routed NET module
-// (hosts/sim/net.ts, tests/hn-fixture.ts): the story list, paging, feeds,
+// (platforms/sim/net.ts, tests/hn-fixture.ts): the story list, paging, feeds,
 // a story's thread (the story and every comment in full) with collapse, and
 // the error states. The app draws nothing on the top screen.
 //
@@ -12,7 +12,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BTN } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
-import { bootConsole3ds, type Console3ds, type Console3dsOptions } from "../../../vendor/pocketjs/hosts/sim/console-3ds.ts";
+import { bootConsole3ds, type Console3ds, type Console3dsOptions } from "../../../vendor/pocketjs/programs/sim/console-3ds.ts";
 import { encodePNG } from "../../../vendor/pocketjs/tools/png.ts";
 import { buildGuest } from "./build.ts";
 import { HN_API, hnRoutes } from "./hn-fixture.ts";

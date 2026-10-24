@@ -7,7 +7,7 @@
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { Console3ds } from "../../../vendor/pocketjs/hosts/sim/console-3ds.ts";
+import type { Console3ds } from "../../../vendor/pocketjs/programs/sim/console-3ds.ts";
 import { encodePNG } from "../../../vendor/pocketjs/tools/png.ts";
 
 export const TAB5: [number, number] = [592, 360];
