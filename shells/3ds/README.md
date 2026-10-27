@@ -84,7 +84,7 @@ check:3ds` also writes each program's 592×360 and 360×592 screens.
 
 ### The M5Stack Tab5
 
-The Tab5 target is PocketJS's `programs/m5stack-tab5` with the profile
+The Tab5 target is pocket-m5's `programs/m5stack-tab5` with the profile
 `tab5-home` (`home.runtime-config.ts`): an ESP32-P4 whose 1280x720 panel
 shows the auxiliary surface at **640x360 logical, presented at 2x**, turned
 onto the portrait panel. The firmware embeds Pocket Home as its launcher
@@ -95,7 +95,10 @@ the repository README are this surface.
 
 - `bun run tab5 [app…]` compiles each app against the Tab5 runtime config
   into `dist/tab5/<output>.pocket`, so its profile hash matches the
-  firmware's; `bun run offer` builds both the 3DS and the Tab5 package of
+  firmware's. The config is read from a
+  [pocket-m5](https://github.com/pocket-nexus/pocket-m5) checkout:
+  `POCKET_M5_ROOT` when set, else `../pocket-m5` beside this repository.
+  `bun run offer` builds both the 3DS and the Tab5 package of
   every applet into `dist/3ds/apps/` and points the running Pocket Companion
   at them, and the companion lists to each console the files with a variant
   for its target.
