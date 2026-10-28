@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
-import { mountPocketSystem } from "./runtime/system-engine.js";
+import { mountPocketSystem } from "./runtime/programs/web/system-engine.js";
 
 const status = document.querySelector("#status");
 const log = document.querySelector("#log");
@@ -13,8 +13,8 @@ try {
   await mountPocketSystem(document.querySelector("#desktop"), {
     planUrl: "./pocket-desktop.system.plan.json",
     distBase: "./dist/",
-    wasmUrl: "./runtime/pocketjs.wasm",
-    instanceUrl: "./runtime/app-instance.html",
+    wasmUrl: "./runtime/platforms/web/pocketjs.wasm",
+    instanceUrl: "./runtime/programs/web/app-instance.html",
     liveResize: false,
     onLog: append,
   });
