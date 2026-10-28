@@ -40,7 +40,17 @@ const receipt = await buildDesktopSystem({
   planDir,
 });
 const manifest = resolve(POCKETJS_ROOT, "programs/desktop/Cargo.toml");
-await run(["cargo", "build", "--release", "--locked", "--manifest-path", manifest]);
+// The host compiles in the exported linux-app profile; a build without one
+// stops at startup.
+const profileDir = resolve(ROOT, ".pocket-build/linux-app-profile");
+await run(
+  [process.execPath, resolve(POCKETJS_ROOT, "tools/pocket.ts"), "profile", "export", "--target", "linux-app", "--out", profileDir],
+  POCKETJS_ROOT,
+);
+await run(["cargo", "build", "--release", "--locked", "--manifest-path", manifest], ROOT, {
+  ...process.env,
+  POCKETJS_PROFILE_RS: resolve(profileDir, "pocket_profile.rs"),
+});
 const binary = resolve(
   POCKETJS_ROOT,
   "target/release/pocket-desktop-host",
