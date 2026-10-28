@@ -33,6 +33,8 @@ const ALL_BUTTONS = 0xffff;
 const COMPOSE_BAR = 32;
 /** X's limit on a post. */
 const MAX_POST = 280;
+/** Frames the lists rest before glyph atlases are asked for and loaded. */
+const SETTLE_FRAMES = 6;
 
 export default function X() {
   const W = SCREEN_W;
@@ -45,9 +47,13 @@ export default function X() {
   // Ages need minutes, not frames: the clock signal changes once a minute.
   const [now, setNow] = createSignal(Math.floor(companionNow() / 60000) * 60000);
   let frames = 0;
+  // The frame a list last moved (env.moved): glyph atlases are asked for and
+  // loaded once the lists have rested SETTLE_FRAMES frames (ui/glyphs.ts when).
+  let movedAt = -SETTLE_FRAMES;
   onFrame(() => {
     if (++frames % 60 === 0) setNow(Math.floor(companionNow() / 60000) * 60000);
   });
+  const resting = () => frames - movedAt >= SETTLE_FRAMES;
 
   // -- the reply composer -------------------------------------------------------
   const [replying, setReplying] = createSignal<Post | null>(null);
@@ -83,7 +89,18 @@ export default function X() {
     osk.open();
   };
 
-  const env: XEnv = { model, press, keys, now, opening: { id: "" }, text: createGlyphs(GLYPH_TEXT, model.client.atlas), bold: createGlyphs(GLYPH_BOLD, model.client.atlas), reply };
+  const env: XEnv = {
+    model,
+    press,
+    keys,
+    now,
+    opening: { id: "" },
+    text: createGlyphs(GLYPH_TEXT, model.client.atlas, { when: resting }),
+    bold: createGlyphs(GLYPH_BOLD, model.client.atlas, { when: resting }),
+    reply,
+    moved: () => (movedAt = frames),
+    resting,
+  };
 
   const stack = createNavStack({
     press,
