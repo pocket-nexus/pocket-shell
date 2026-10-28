@@ -22,6 +22,8 @@ import type { Press, Target } from "../ui/touch.ts";
 import { FEEDS, type Item } from "./api.ts";
 import { ageText, domainOf, htmlToText } from "./html.ts";
 import { flattenThread, MAX_COMMENTS, type HnModel } from "./model.ts";
+import { glyph } from "@pocketjs/framework/modality";
+import { yourComputer } from "../ui/companion.ts";
 
 const OVERSCAN = 80;
 const TITLE_X = 32;
@@ -361,7 +363,7 @@ export function listPage(env: HnEnv, stack: NavStack, layer: LayerContext): Page
             ? <Centered title={model.state().error!.title} detail={model.state().error!.detail} button={{ id: "feed.retry", label: "Try Again" }} press={press} />
             : model.state().status === "ready"
               ? <Centered title="No Stories" detail="This list is empty right now." press={press} />
-              : <Centered title="Loading" detail="Fetching the front page through your Mac." spinner press={press} />}
+              : <Centered title="Loading" detail={`Fetching the front page through ${yourComputer()}.`} spinner press={press} />}
         </Show>
         <Show when={listed() && model.state().shown < model.state().ids.length}>
           <View class="absolute" style={{ insetL: W / 2 - 42, insetT: layout().height - MORE_H + 13 }}>
@@ -404,6 +406,10 @@ export function listPage(env: HnEnv, stack: NavStack, layer: LayerContext): Page
     right: reloadButton(() => model.reload()),
     fixedTargets: () => segmentTargets(env),
     content,
+    legend: () => [
+      { button: "lr", label: "Feed" },
+      { button: "triangle", label: "Reload" },
+    ],
     key(pressed) {
       if (pressed & BTN.LTRIGGER) step(-1);
       else if (pressed & BTN.RTRIGGER) step(1);
@@ -555,7 +561,7 @@ function threadRows(env: HnEnv): { header: StoryHeader | null; rows: CommentRow[
   const total = story?.descendants ?? 0;
   const loading = thread.pending > 0;
   const footer = thread.error
-    ? `${thread.error.title}. Press X to retry.`
+    ? `${thread.error.title}. Press ${glyph("triangle")} to retry.`
     : loading
       ? "Loading comments..."
       : total === 0
@@ -718,6 +724,11 @@ export function commentsPage(env: HnEnv, _stack: NavStack, layer: LayerContext):
       if (thread) model.openThread(thread.story);
     }),
     content,
+    activateLabel: () => "Fold",
+    legend: () => [
+      { button: "lr", label: "Page" },
+      { button: "triangle", label: "Reload" },
+    ],
     key(pressed) {
       if (pressed & (BTN.LTRIGGER | BTN.RTRIGGER)) {
         layer.scrollBy(pressed & BTN.LTRIGGER ? -(VIEW_H - 34) : VIEW_H - 34);

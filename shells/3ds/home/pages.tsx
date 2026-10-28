@@ -14,9 +14,10 @@ import { displayApi } from "./display.ts";
 import { LINK_PAIRING, LINK_STATE, sizeText, type HomeApp, type HomeSystem } from "./system.ts";
 import { appTint } from "../ui/chrome.tsx";
 import type { LayerContext, NavStack, PageSpec } from "../ui/nav.tsx";
-import { SCREEN_H, SCREEN_W } from "../ui/screen.ts";
+import { SCREEN_H, SCREEN_W, appletSurfaceId } from "../ui/screen.ts";
 import { tableContent, type Cell, type CellIcon, type Section } from "../ui/table.tsx";
 import type { Press } from "../ui/touch.ts";
+import { legendWhileTyping } from "../ui/legend.tsx";
 
 export const HOME_VERSION = "0.1.0";
 
@@ -78,7 +79,7 @@ function rootPage(env: PageEnv, stack: NavStack, layer: LayerContext): PageSpec 
       {
         cells: [
           { id: "settings.wifi", label: "Wi-Fi", value: wifiSummary(sys), icon: ICONS.wifi, accessory: "chevron", run: () => stack.push("wifi") },
-          { id: "settings.mac", label: "Mac", value: linkSummary(sys), icon: ICONS.mac, accessory: "chevron", run: () => stack.push("mac") },
+          { id: "settings.mac", label: sys.tethered ? "Companion" : "Mac", value: linkSummary(sys), icon: ICONS.mac, accessory: "chevron", run: () => stack.push("mac") },
         ],
       },
       {
@@ -236,8 +237,9 @@ export function wifiJoinPage(env: PageEnv, ssid: string, stack: NavStack, layer:
     stack.pop();
   };
   const osk = createOsk({ value: password, setValue: setPassword, onCommit: join, onClose: () => stack.pop(), maxLength: 63, closeOnCommit: false });
+  legendWhileTyping(osk.isOpen, "Join");
   onMount(() => osk.open());
-  const keyboardTop = SCREEN_H - oskHeight("auxiliary", "light");
+  const keyboardTop = SCREEN_H - oskHeight(appletSurfaceId(), "light");
   return {
     title: () => ssid,
     inset: SCREEN_H - keyboardTop,
@@ -250,7 +252,7 @@ export function wifiJoinPage(env: PageEnv, ssid: string, stack: NavStack, layer:
     ]),
     fixed: () => (
       <View class="absolute left-0" style={{ insetT: keyboardTop, width: SCREEN_W, height: SCREEN_H - keyboardTop }}>
-        <Osk osk={osk} surface="auxiliary" theme="light" />
+        <Osk osk={osk} surface={appletSurfaceId()} theme="light" />
       </View>
     ),
   };
@@ -259,13 +261,22 @@ export function wifiJoinPage(env: PageEnv, ssid: string, stack: NavStack, layer:
 function macPage(env: PageEnv, stack: NavStack, layer: LayerContext): PageSpec {
   const { sys } = env;
   return {
-    title: () => "Mac",
+    title: () => (sys.tethered ? "Companion" : "Mac"),
     content: table(env, layer, () => {
       if (!sys.hasLink) {
         return [{ cells: [{ id: "mac.none", label: "Pocket Link", value: "Unavailable", tone: "muted" }], footer: "This console's runtime has no Pocket Link." }];
       }
       const link = sys.link();
       const companion = link.companion;
+      if (sys.tethered) {
+        const linked = link.state === LINK_STATE.linked && companion;
+        return [{
+          cells: [{ id: "mac.status", label: "Status", value: linked ? "Linked" : "Searching", accessory: linked ? undefined : "spinner" }],
+          footer: linked
+            ? `Linked to ${companion.name} over USB. Web requests and video come through it; the applets come with this console.`
+            : "Looking for the companion on the computer this console is plugged into. Run Pocket Companion there with --usb on the share.",
+        }];
+      }
       const status =
         link.state === LINK_STATE.linked ? "Linked"
         : link.state === LINK_STATE.connecting ? "Connecting"
@@ -396,7 +407,7 @@ function aboutPage(env: PageEnv, _stack: NavStack, layer: LayerContext): PageSpe
           cells: [
             { id: "about.wifi", label: "Wi-Fi", value: wifiSummary(sys) },
             { id: "about.ip", label: "IP Address", value: wifi?.address || device.address || "None" },
-            { id: "about.mac", label: "Mac", value: linkSummary(sys) },
+            { id: "about.mac", label: sys.tethered ? "Companion" : "Mac", value: linkSummary(sys) },
           ],
         },
         {

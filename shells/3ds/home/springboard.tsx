@@ -57,7 +57,8 @@ import {
 import { ICONS } from "./pages.tsx";
 import { type HomeApp, type HomeSystem } from "./system.ts";
 import { appTint, StatusBar, Tile, Wallpaper, type TileProps } from "../ui/chrome.tsx";
-import { COMPACT, SCREEN_H, SCREEN_W, TALL } from "../ui/screen.ts";
+import { setLegend } from "../ui/legend.tsx";
+import { appletTouch, COMPACT, SCREEN_H, SCREEN_W, TALL } from "../ui/screen.ts";
 import { ellipsize, FONT } from "../ui/text.ts";
 import type { Press, Target, TargetDrag, TouchPage } from "../ui/touch.ts";
 
@@ -168,7 +169,7 @@ function bannerFor(sys: HomeSystem): Banner | null {
     return { app: failed, title: `${failed?.title ?? table.lastError.output} stopped`, line: table.lastError.message, resume: false };
   }
   const resume = table.resume ? table.apps.find((app) => app.output === table.resume) ?? null : null;
-  if (resume) return { app: resume, title: resume.title, line: "Tap here or press SELECT to go back to it.", resume: true };
+  if (resume) return { app: resume, title: resume.title, line: appletTouch() ? "Tap here or press SELECT to go back to it." : "Press SELECT to go back to it.", resume: true };
   return null;
 }
 
@@ -216,7 +217,8 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
 
   // ---- the layout ----------------------------------------------------------------
 
-  const keys = createMemo(() => [SETTINGS_KEY, MAC_KEY, ...apps().map((app) => appKey(app.output))]);
+  // A tethered console's companion offers no store, so Home shows no icon for it.
+  const keys = createMemo(() => [SETTINGS_KEY, ...(sys.tethered ? [] : [MAC_KEY]), ...apps().map((app) => appKey(app.output))]);
   const [saved, setSaved] = createSignal<HomeLayout | null>(loadLayout());
   const layout = createMemo(() => reconcile(saved(), keys(), board.perPage), undefined, { equals: sameLayout });
   // A host may mount storage after the first evaluation (the sim does);
@@ -666,6 +668,30 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
       </Show>
     </View>
   ) as unknown as ReturnType<typeof View>;
+
+  if (!appletTouch()) {
+    // Without touch the d-pad focus is how the board is read: the first icon
+    // holds it from the start, and the legend names the buttons.
+    createEffect(() => {
+      if (!env.active() || focus() !== "") return;
+      const first = shown().pages[page()]?.[0] ?? shown().dock[0];
+      if (first) setFocus(first);
+    });
+    createEffect(() => {
+      if (!env.active()) return;
+      const banner = bannerFor(sys);
+      setLegend(editing()
+        ? [
+            { button: "circle", label: "Remove" },
+            { button: "cross", label: "Done" },
+          ]
+        : [
+            { button: "circle", label: "Open" },
+            { button: "square", label: "Edit" },
+            ...(banner?.resume && banner.app ? [{ button: "select" as const, label: banner.app.title }] : []),
+          ]);
+    });
+  }
 
   return {
     view,

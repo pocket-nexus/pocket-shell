@@ -13,6 +13,7 @@ import { createSignal } from "solid-js";
 import { getOps } from "@pocketjs/framework/host";
 import { companionService } from "@pocketjs/framework/link";
 import { fetch, NetError, type PocketResponse } from "@pocketjs/framework/net";
+import { theComputer } from "../ui/companion.ts";
 export const MAX_INFLIGHT = 2;
 export const THUMB_TEXTURES = 40;
 
@@ -93,7 +94,7 @@ export function createYtClient(): YtClient {
           running--;
           if (response.ok) task.resolve(response);
           else {
-            let message = `The Mac answered ${response.status}.`;
+            let message = `${theComputer()} answered ${response.status}.`;
             try {
               const body = JSON.parse(await response.text()) as { error?: string };
               if (body.error) message = body.error;

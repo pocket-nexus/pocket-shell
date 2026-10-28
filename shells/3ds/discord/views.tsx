@@ -28,6 +28,8 @@ import { createSlotPool, paintText, type SlotPool } from "../ui/slots.ts";
 import type { Press, Target } from "../ui/touch.ts";
 import type { Channel, Guild, Message } from "./api.ts";
 import type { ChatState, DiscordModel, ListState } from "./model.ts";
+import { glyph } from "@pocketjs/framework/modality";
+import { tethered, yourComputer } from "../ui/companion.ts";
 
 const OVERSCAN = 80;
 
@@ -309,7 +311,7 @@ export function serversPage(env: DiscordEnv, stack: NavStack, layer: LayerContex
       <>
         <For each={pool.slots}>{(slot) => <GuildSlot env={env} pool={pool} slot={slot} lit={lit} />}</For>
         <Show when={!listed()}>
-          {stateView(model.guilds(), { title: "No Servers", detail: "Invite the bot to a server: run bun tools/companion.ts service discord status on the Mac for its invite link." }, "Asking your Mac for the bot's servers.", "guilds.retry", press)}
+          {stateView(model.guilds(), { title: "No Servers", detail: `Invite the bot to a server: run bun tools/companion.ts service discord status on ${tethered() ? yourComputer() : "the Mac"} for its invite link.` }, `Asking ${yourComputer()} for the bot's servers.`, "guilds.retry", press)}
         </Show>
       </>
     ),
@@ -343,6 +345,7 @@ export function serversPage(env: DiscordEnv, stack: NavStack, layer: LayerContex
     fixed: background(THEME.list),
     right: reloadButton(() => model.loadGuilds()),
     content,
+    legend: () => [{ button: "square", label: "Reload" }],
     key(pressed) {
       if (pressed & BTN.SQUARE || (pressed & BTN.CIRCLE && model.guilds().status === "error")) {
         model.loadGuilds();
@@ -464,7 +467,7 @@ export function channelsPage(env: DiscordEnv, stack: NavStack, layer: LayerConte
       <>
         <For each={pool.slots}>{(slot) => <ChannelSlot pool={pool} slot={slot} lit={lit} />}</For>
         <Show when={!listed()}>
-          {stateView(model.channels(), { title: "No Channels", detail: "The bot cannot read any text channel here. Give it View Channels and Read Message History." }, "Asking your Mac for the channels.", "channels.retry", press)}
+          {stateView(model.channels(), { title: "No Channels", detail: "The bot cannot read any text channel here. Give it View Channels and Read Message History." }, `Asking ${yourComputer()} for the channels.`, "channels.retry", press)}
         </Show>
       </>
     ),
@@ -499,6 +502,7 @@ export function channelsPage(env: DiscordEnv, stack: NavStack, layer: LayerConte
     fixed: background(THEME.list),
     right: reloadButton(() => model.reloadChannels()),
     content,
+    legend: () => [{ button: "square", label: "Reload" }],
     key(pressed) {
       if (pressed & BTN.SQUARE || (pressed & BTN.CIRCLE && model.channels().status === "error")) {
         model.reloadChannels();
@@ -739,10 +743,10 @@ export function chatPage(env: DiscordEnv, _stack: NavStack, layer: LayerContext)
           </Text>
         </Show>
         <Show when={ready() && layout().rows.length === 0}>
-          <Centered title={`Welcome to #${toAscii(model.chat()?.channel.name ?? "")}`} detail="This is the start of the channel. Press X to write the first message." press={press} />
+          <Centered title={`Welcome to #${toAscii(model.chat()?.channel.name ?? "")}`} detail={`This is the start of the channel. Press ${glyph("triangle")} to write the first message.`} press={press} />
         </Show>
         <Show when={model.chat()?.status === "loading"}>
-          <Centered title="Loading" detail="Asking your Mac for the messages." spinner press={press} />
+          <Centered title="Loading" detail={`Asking ${yourComputer()} for the messages.`} spinner press={press} />
         </Show>
         <Show when={model.chat()?.status === "error"}>
           <Centered title={model.chat()!.error!.title} detail={model.chat()!.error!.detail} button={{ id: "chat.retry", label: "Try Again" }} press={press} />
@@ -775,6 +779,12 @@ export function chatPage(env: DiscordEnv, _stack: NavStack, layer: LayerContext)
     fixed: background(THEME.chat),
     right: () => (ready() ? { id: "chat.compose", label: "Write", kind: "done", run: () => env.compose() } : null),
     content,
+    activateLabel: () => "",
+    legend: () => [
+      { button: "lr", label: "Page" },
+      ...(ready() ? [{ button: "triangle" as const, label: "Write" }] : []),
+      { button: "square", label: "Reload" },
+    ],
     key(pressed) {
       if (pressed & (BTN.LTRIGGER | BTN.RTRIGGER)) {
         layer.scrollBy(pressed & BTN.LTRIGGER ? -(VIEW_H - 34) : VIEW_H - 34);

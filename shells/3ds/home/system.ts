@@ -141,6 +141,10 @@ export interface HomeSystem {
   table: Accessor<HomeTable>;
   link: Accessor<LinkStatus>;
   hasLink: boolean;
+  /** The link rides the USB share of the computer this console is plugged
+   *  into (a PSP's): its companion answers requests, with no catalog, no
+   *  installs and no pairing. */
+  tethered: boolean;
   wifi: Accessor<WifiStatus | null>;
   hasWifi: boolean;
   /** The host lets Home scan for, join and forget networks (a console whose
@@ -181,6 +185,7 @@ export function createHomeSystem(): HomeSystem {
   const [catalogError, setCatalogError] = createSignal("");
   const [installs, setInstalls] = createSignal<Record<string, Install>>({});
   const hasLink = linkHost() !== null;
+  const tethered = hasLink && link().device.address === "usb";
   const hasWifi = wifiHost() !== null;
   const canJoin = wifiCanJoin();
 
@@ -192,7 +197,7 @@ export function createHomeSystem(): HomeSystem {
 
   let catalogRequest = 0;
   const loadCatalog = () => {
-    if (link().state !== LINK_STATE.linked) {
+    if (tethered || link().state !== LINK_STATE.linked) {
       setCatalogState("idle");
       return;
     }
@@ -271,6 +276,7 @@ export function createHomeSystem(): HomeSystem {
     table,
     link,
     hasLink,
+    tethered,
     wifi,
     hasWifi,
     canJoin,

@@ -13,7 +13,8 @@
 
 import { createEffect, createSignal, onMount, Show, type JSX } from "solid-js";
 import { setHomeHint } from "@pocketjs/framework/agent";
-import { AuxiliarySurface, View, type NodeMirror } from "@pocketjs/framework/components";
+import { AppletSurface } from "@pocketjs/framework/applet";
+import { View, type NodeMirror } from "@pocketjs/framework/components";
 import { animate, animationClass, jump } from "@pocketjs/framework/animation";
 import { after } from "@pocketjs/framework/clock";
 import { BTN } from "@pocketjs/framework/input";
@@ -25,8 +26,9 @@ import { storeAppPage, storePage } from "./store.tsx";
 import { createHomeSystem } from "./system.ts";
 import { createAlerts } from "../ui/alert.tsx";
 import { Pinstripes } from "../ui/chrome.tsx";
+import { Legend } from "../ui/legend.tsx";
 import { createNavStack } from "../ui/nav.tsx";
-import { SCREEN_H, SCREEN_W } from "../ui/screen.ts";
+import { SCREEN_H, SCREEN_W, appletTouch, appletSurfaceId } from "../ui/screen.ts";
 import { createPress, createTouchRouter } from "../ui/touch.ts";
 
 const ALL_BUTTONS = 0xffff;
@@ -50,7 +52,8 @@ function AppFrame(props: { onReady(node: NodeMirror): void; children: JSX.Elemen
 export default function Home() {
   const sys = createHomeSystem();
   const press = createPress();
-  const [keys, setKeys] = createSignal(false);
+  // Without touch (a PSP) the d-pad focus shows from the start.
+  const [keys, setKeys] = createSignal(!appletTouch());
   const alerts = createAlerts(press);
   const [scan, setScan] = createSignal<ScanState>({ t: "scanning", hint: "" });
   const [app, setApp] = createSignal<"settings" | "store" | null>(null);
@@ -80,6 +83,7 @@ export default function Home() {
     setKeys,
     onExit: closeApp,
     rootBack: null,
+    exitLabel: "Home",
     background: () => <Pinstripes width={SCREEN_W} height={SCREEN_H} />,
     page(id, nav, layer) {
       if (id === "scan") return scannerPage(sys, nav, setScan, scan);
@@ -111,7 +115,7 @@ export default function Home() {
   });
 
   createTouchRouter({
-    surface: "auxiliary",
+    surface: appletSurfaceId(),
     press,
     page: () => alerts.touch() ?? (app() ? stack.touch() : board.touch()),
     active: () => !zooming() && !stack.busy() && board.launching() === "",
@@ -138,7 +142,7 @@ export default function Home() {
   });
 
   return (
-    <AuxiliarySurface>
+    <AppletSurface>
       <View class="relative w-full h-full bg-black overflow-hidden">
         {board.view()}
         <Show when={app()}>
@@ -157,6 +161,7 @@ export default function Home() {
         </Show>
         {alerts.view()}
       </View>
-    </AuxiliarySurface>
+      <Legend />
+    </AppletSurface>
   );
 }

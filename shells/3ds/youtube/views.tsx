@@ -20,15 +20,21 @@ import { getOps } from "@pocketjs/framework/host";
 import { BTN } from "@pocketjs/framework/input";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 import { createMediaScrubber, mediaPlayer } from "@pocketjs/framework/media";
+import { glyph } from "@pocketjs/framework/modality";
 import type { NodeMirror } from "@pocketjs/framework/renderer";
 import { barButtonWidth, NAV_H, type NavButton } from "../ui/bar.tsx";
 import { viewHeight, type LayerContext, type NavStack, type PageContent, type PageSpec } from "../ui/nav.tsx";
-import { COMPACT, SCREEN_H, SCREEN_W } from "../ui/screen.ts";
+import { COMPACT, SCREEN_H, SCREEN_W, appletSurfaceId, appletTouch } from "../ui/screen.ts";
 import { createSlotPool, paintText, type SlotPool } from "../ui/slots.ts";
 import { ellipsize, FONT, toAscii, wrap } from "../ui/text.ts";
 import type { Press, Target } from "../ui/touch.ts";
 import { durationText, TOPICS, viewsText, type Codec, type PlayInfo, type Video, type YtClient } from "./api.ts";
 import type { YtModel } from "./model.ts";
+import { yourComputer } from "../ui/companion.ts";
+
+/** The player's prompt to act: the confirm button on a 3DS's small layout
+ *  and on a screen with no touch (○ on a PSP), a tap on a touch surface. */
+const retry = (action: string) => (COMPACT || !appletTouch() ? `${glyph("circle")} to ${action}` : `Tap to ${action}`);
 
 const ROW_H = 64;
 const OVERSCAN = 128;
@@ -268,10 +274,10 @@ export function listPage(env: YtEnv, stack: NavStack, layer: LayerContext): Page
           {model.state().status === "error"
             ? <Centered title={model.state().error!.title} detail={model.state().error!.detail} button={{ id: "list.retry", label: "Try Again" }} press={press} top={top()} />
             : model.state().status === "idle"
-              ? <Centered title="Search YouTube" detail="Tap the field above and type what to look for." press={press} top={top()} />
+              ? <Centered title="Search YouTube" detail={appletTouch() ? "Tap the field above and type what to look for." : `Press ${glyph("circle")} on the field above and type what to look for.`} press={press} top={top()} />
               : model.state().status === "ready"
                 ? <Centered title="No Videos" detail="Nothing came back for this list." press={press} top={top()} />
-                : <Centered title="Loading" detail="Asking YouTube through your Mac." spinner press={press} top={top()} />}
+                : <Centered title="Loading" detail={`Asking YouTube through ${yourComputer()}.`} spinner press={press} top={top()} />}
         </Show>
       </>
     ),
@@ -310,6 +316,11 @@ export function listPage(env: YtEnv, stack: NavStack, layer: LayerContext): Page
     right: COMPACT ? undefined : () => ({ ...RELOAD, run: () => model.reload() }),
     fixedTargets: () => segmentTargets(env),
     content,
+    legend: () => [
+      { button: "lr", label: "Section" },
+      { button: "triangle", label: "Reload" },
+      ...(searching() ? [{ button: "square" as const, label: "Search" }] : []),
+    ],
     key(pressed) {
       if (pressed & BTN.LTRIGGER) step(-1);
       else if (pressed & BTN.RTRIGGER) step(1);
@@ -498,7 +509,7 @@ export function playerPage(env: YtEnv, stack: NavStack): PageSpec {
   // finds no target there.
   let scrubbing = false;
   createGesture({
-    surface: "auxiliary",
+    surface: appletSurfaceId(),
     onDown(contact) {
       scrubbing = stack.top()?.page === "player" && !stack.busy() && duration() > 0 && phase() !== "error"
         && contact.x >= TRACK_X - 8 && contact.x < TRACK_X + TRACK_W + 8 && contact.y >= BAR_Y && contact.y < BAR_Y + 24;
@@ -544,10 +555,10 @@ export function playerPage(env: YtEnv, stack: NavStack): PageSpec {
           <For each={wrap(toAscii(error()), FONT.xs, 280, 3)}>
             {(line, index) => <Text class="absolute w-[280] text-xs text-[#b0b0b0] text-center" style={{ insetL: VIDEO_X + (VIDEO_W - 280) / 2, insetT: VIDEO_Y + VIDEO_H / 2 - 6 + index() * 15 }}>{line}</Text>}
           </For>
-          <Text class="absolute text-xs text-[#e52d27] font-bold text-center" style={{ insetL: VIDEO_X, insetT: VIDEO_Y + VIDEO_H / 2 + 46, width: VIDEO_W }}>{COMPACT ? "A to try again" : "Tap to try again"}</Text>
+          <Text class="absolute text-xs text-[#e52d27] font-bold text-center" style={{ insetL: VIDEO_X, insetT: VIDEO_Y + VIDEO_H / 2 + 46, width: VIDEO_W }}>{retry("try again")}</Text>
         </Show>
         <Show when={phase() === "ended"}>
-          <Text class="absolute text-sm text-white font-bold text-center" style={{ insetL: VIDEO_X, insetT: VIDEO_Y + VIDEO_H / 2 - 10, width: VIDEO_W }}>{COMPACT ? "A to watch again" : "Tap to watch again"}</Text>
+          <Text class="absolute text-sm text-white font-bold text-center" style={{ insetL: VIDEO_X, insetT: VIDEO_Y + VIDEO_H / 2 - 10, width: VIDEO_W }}>{retry("watch again")}</Text>
         </Show>
         <Show when={muted() && phase() !== "error"}>
           <View class="absolute rounded-[8] bg-[#000000c0]" style={{ insetL: VIDEO_X + 6, insetT: VIDEO_Y + 6, width: VIDEO_W - 12, height: soundHint().length * 15 + 8 }} />
@@ -603,6 +614,11 @@ export function playerPage(env: YtEnv, stack: NavStack): PageSpec {
             { id: "player.quieter", x: SCREEN_W - 8 - 2 * VOLUME_W, y: BAR_Y, w: VOLUME_W, h: BAR_H, run: () => nudgeVolume(-0.1) },
             { id: "player.louder", x: SCREEN_W - 8 - VOLUME_W, y: BAR_Y, w: VOLUME_W, h: BAR_H, run: () => nudgeVolume(0.1) },
           ]),
+    ],
+    legend: () => [
+      { button: "circle", label: "Play" },
+      { button: "dpad-h", label: "Seek" },
+      { button: "dpad-v", label: "Volume" },
     ],
     key(pressed) {
       if (pressed & BTN.CIRCLE) toggle();
