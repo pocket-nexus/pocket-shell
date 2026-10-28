@@ -87,6 +87,12 @@ function Mark(props: { button: LegendButton }) {
       <Text class="text-2xs font-bold" style={{ textColor: KEY_TEXT }}>{label}</Text>
     </View>
   );
+  // A word (START, SELECT) is as wide as its label plus 4 px on each side.
+  const wordKey = (label: string) => (
+    <View class="items-center justify-center" style={{ height: 13, paddingL: 4, paddingR: 4, radius: 3, bgColor: KEY_FILL }}>
+      <Text class="text-2xs font-bold" style={{ textColor: KEY_TEXT }}>{label}</Text>
+    </View>
+  );
   return (
     <Switch>
       <Match when={props.button === "circle"}>
@@ -122,8 +128,8 @@ function Mark(props: { button: LegendButton }) {
           <View style={{ posType: 1, insetL: 4.5, insetT: 0, width: 4, height: 13, radius: 1, bgColor: props.button === "dpad-v" ? KEY_FILL : DPAD_IDLE }} />
         </View>
       </Match>
-      <Match when={props.button === "start"}>{key("START", 34)}</Match>
-      <Match when={props.button === "select"}>{key("SELECT", 38)}</Match>
+      <Match when={props.button === "start"}>{wordKey("START")}</Match>
+      <Match when={props.button === "select"}>{wordKey("SELECT")}</Match>
     </Switch>
   );
 }
