@@ -51,7 +51,7 @@ jobs:
           image=$(bun -e 'import { THREE_DS_CONTAINER_IMAGE } from "./vendor/pocketjs/tools/3ds-toolchain.ts"; console.log(THREE_DS_CONTAINER_IMAGE)')
           docker pull "$image"
       - name: Build the release binary
-        run: bun run 3ds --locked
+        run: bun run 3ds
       - name: Verify and stage release files
         env:
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
