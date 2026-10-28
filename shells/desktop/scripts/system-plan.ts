@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { resolve } from "node:path";
 import {
+  readPocketManifest,
   validateAndResolveSystemPlan,
   validatePocketSystem,
   type ResolvedSystemPlan,
@@ -33,7 +34,7 @@ export async function resolveDesktopSystem(
       .filter((entry) => installed.has(entry.package))
       .map(async (entry) => ({
         source: entry.manifest,
-        manifest: await Bun.file(resolve(REPOSITORY, entry.manifest)).json(),
+        manifest: readPocketManifest(resolve(REPOSITORY, entry.manifest)).manifest,
       })),
   );
   const resolved = validateAndResolveSystemPlan(input, {

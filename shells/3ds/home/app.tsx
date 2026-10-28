@@ -14,11 +14,11 @@
 import { createEffect, createSignal, onMount, Show, type JSX } from "solid-js";
 import { setHomeHint } from "@pocketjs/framework/agent";
 import { AuxiliarySurface, View, type NodeMirror } from "@pocketjs/framework/components";
-import { animate, jump } from "@pocketjs/framework/animation";
+import { animate, animationClass, jump } from "@pocketjs/framework/animation";
 import { after } from "@pocketjs/framework/clock";
 import { BTN } from "@pocketjs/framework/input";
 import { onButtonPress } from "@pocketjs/framework/lifecycle";
-import { SETTINGS_PAGES, type PageEnv } from "./pages.tsx";
+import { SETTINGS_PAGES, wifiJoinPage, type PageEnv } from "./pages.tsx";
 import { scannerPage, type ScanState } from "./scanner.tsx";
 import { createSpringboard } from "./springboard.tsx";
 import { storeAppPage, storePage } from "./store.tsx";
@@ -26,16 +26,22 @@ import { createHomeSystem } from "./system.ts";
 import { createAlerts } from "../ui/alert.tsx";
 import { Pinstripes } from "../ui/chrome.tsx";
 import { createNavStack } from "../ui/nav.tsx";
+import { SCREEN_H, SCREEN_W } from "../ui/screen.ts";
 import { createPress, createTouchRouter } from "../ui/touch.ts";
 
 const ALL_BUTTONS = 0xffff;
 const ZOOM_MS = 280;
+/** Settings and the Mac zoom open and closed on a composited target; a
+ *  repaint target cuts, as a scale tween over a page repaints the whole
+ *  surface every frame. */
+const ZOOMS = animationClass === "composited";
+const ZOOM_SECONDS = ZOOMS ? ZOOM_MS / 1000 : 0;
 
 function AppFrame(props: { onReady(node: NodeMirror): void; children: JSX.Element }) {
   let node: NodeMirror | undefined;
   onMount(() => node && props.onReady(node));
   return (
-    <View ref={(el) => (node = el)} class="absolute left-0 top-0 w-[320] h-[240] overflow-hidden">
+    <View ref={(el) => (node = el)} class="absolute left-0 top-0 overflow-hidden" style={{ width: SCREEN_W, height: SCREEN_H }}>
       {props.children}
     </View>
   );
@@ -57,11 +63,11 @@ export default function Home() {
   const closeApp = () => {
     if (!app() || zooming()) return;
     setZooming(true);
-    if (appNode) {
+    if (ZOOMS && appNode) {
       animate(appNode, "scale", 0.3, { dur: ZOOM_MS, easing: "in" });
       animate(appNode, "opacity", 0, { dur: ZOOM_MS, easing: "in" });
     }
-    after(ZOOM_MS / 1000, () => {
+    after(ZOOM_SECONDS, () => {
       setApp(null);
       stack.reset(null);
       setZooming(false);
@@ -74,11 +80,12 @@ export default function Home() {
     setKeys,
     onExit: closeApp,
     rootBack: null,
-    background: () => <Pinstripes width={320} height={240} />,
+    background: () => <Pinstripes width={SCREEN_W} height={SCREEN_H} />,
     page(id, nav, layer) {
       if (id === "scan") return scannerPage(sys, nav, setScan, scan);
       if (id === "store") return storePage({ sys, press, keys }, nav, layer);
       if (id.startsWith("store.app:")) return storeAppPage({ sys, press, keys }, id.slice("store.app:".length), nav, layer);
+      if (id.startsWith("wifi.join:")) return wifiJoinPage(env, id.slice("wifi.join:".length), nav, layer);
       return SETTINGS_PAGES[id]!(env, nav, layer);
     },
   });
@@ -88,7 +95,7 @@ export default function Home() {
     stack.reset(which);
     setApp(which);
     setZooming(true);
-    after(ZOOM_MS / 1000, () => setZooming(false));
+    after(ZOOM_SECONDS, () => setZooming(false));
   };
 
   createEffect(() => setHomeHint(app() !== null));
@@ -138,6 +145,7 @@ export default function Home() {
           <AppFrame
             onReady={(node) => {
               appNode = node;
+              if (!ZOOMS) return;
               jump(node, "scale", 0.3);
               jump(node, "opacity", 0);
               animate(node, "scale", 1, { dur: ZOOM_MS, easing: "out" });

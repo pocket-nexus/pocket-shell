@@ -42,6 +42,12 @@ for (const key of Object.keys(touchImages)) sourceInputs.add(`shells/touch/src/$
 for (const path of sourceInputs) {
   if (!tracked.includes(path)) failures.push(`missing committed input: ${path}`);
 }
+// A build at raster density N reads `<name>@Nx.png` beside a declared PNG
+// (PocketJS density variants), so those variants are inputs too.
+for (const path of [...sourceInputs].filter((path) => path.endsWith(".png"))) {
+  const variant = new RegExp(`^${path.slice(0, -4).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}@[2-9]x\\.png$`);
+  for (const candidate of tracked) if (variant.test(candidate)) sourceInputs.add(candidate);
+}
 const mediaExtensions = new Set([".svg", ".png", ".gif", ".bin", ".otf", ".ttf", ".jpg", ".jpeg", ".webp", ".wasm", ".pak", ".pocket"]);
 for (const path of tracked.filter((path) => mediaExtensions.has(extname(path)))) {
   if (!referenced.has(path) && !sourceInputs.has(path)) {

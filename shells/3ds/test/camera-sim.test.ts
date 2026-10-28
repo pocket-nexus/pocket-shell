@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/test/camera-sim.test.ts — the Camera applet (shells/3ds/camera)
 // headless on the wasm core with the 3DS geometry and the sim's camera
-// (hosts/sim/camera.ts): the preview without QR decoding, the shutter by A,
+// (platforms/sim/camera.ts): the preview without QR decoding, the shutter by A,
 // R and the stylus, the bar's thumbnail of the newest photo, switching to
 // the inner camera, and the review with delete.
 //
@@ -12,9 +12,10 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BTN } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
-import { bootConsole3ds, type Console3ds } from "../../../vendor/pocketjs/hosts/sim/console-3ds.ts";
+import { bootConsole3ds, type Console3ds } from "../../../vendor/pocketjs/programs/sim/console-3ds.ts";
 import { encodePNG } from "../../../vendor/pocketjs/tools/png.ts";
 import { buildGuest } from "./build.ts";
+import { PORTRAIT, TAB5, tab5Shot } from "./tab5.ts";
 
 const OUT = mkdtempSync(join(tmpdir(), "pocket-camera-"));
 let GUEST = join(OUT, "guest", "camera-main");
@@ -32,7 +33,7 @@ afterAll(() => {
   rmSync(OUT, { recursive: true, force: true });
 });
 
-async function boot(photos: string[] = []): Promise<Console3ds> {
+async function boot(photos: string[] = [], auxiliary?: [number, number]): Promise<Console3ds> {
   const app = await bootConsole3ds({
     js: `${GUEST}.js`,
     pak: `${GUEST}.pak`,
@@ -41,6 +42,7 @@ async function boot(photos: string[] = []): Promise<Console3ds> {
     wifi: null,
     camera: { photos },
     agent: { available: true },
+    auxiliary,
   });
   await app.run(6);
   return app;
@@ -115,5 +117,38 @@ describe("Camera", () => {
     await app.press(BTN.CROSS, 6);
     expect(app.texts("auxiliary")).not.toContain("Done");
     expect(app.camera!.photos()).toEqual(["100POCKT/PKT_0001.JPG"]);
+  });
+});
+
+describe("on the Tab5's 592x360 surface", () => {
+  // The preview is 480x360 on the left; the bar runs down the right 112 px:
+  // the switch at its top, the shutter in its middle, the thumbnail below.
+  test("the shutter, the switch and the thumbnail answer touch in the side bar", async () => {
+    const app = await boot(["100POCKT/PKT_0003.JPG"], TAB5);
+    tab5Shot(app, "camera");
+    await app.tap(536, 180);
+    await app.run(8);
+    expect(app.camera!.photos()[0]).toBe("100POCKT/PKT_0004.JPG");
+    await app.tap(536, 26);
+    await app.run(4);
+    expect(app.camera!.inner()).toBe(true);
+    await app.tap(536, 327);
+    await app.run(6);
+    expect(app.texts("auxiliary")).toContain("Done");
+    tab5Shot(app, "camera-review");
+    await app.tap(536, 344 - 18);
+    await app.run(6);
+    expect(app.texts("auxiliary")).toContain("Delete Photo?");
+    await app.tapText("Delete");
+    await app.run(6);
+    expect(app.camera!.photos()).toEqual(["100POCKT/PKT_0003.JPG"]);
+  });
+
+  test("a portrait surface puts the bar under the preview", async () => {
+    const app = await boot(["100POCKT/PKT_0003.JPG"], PORTRAIT);
+    tab5Shot(app, "portrait-camera");
+    await app.tap(180, 592 - 23);
+    await app.run(8);
+    expect(app.camera!.photos()[0]).toBe("100POCKT/PKT_0004.JPG");
   });
 });

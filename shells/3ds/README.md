@@ -1,13 +1,15 @@
-# Pocket Shell on the 3DS
+# Pocket Shell on the 3DS and the M5Stack Tab5
 
-The 3DS shell is **Pocket Home**, the console's launcher, and the **Pocket
-Applets** it ships with. Every applet draws on the touch screen and nowhere
-else. The top screen belongs to the system: for each applet (each declares
-the capability `system.agent`), the PocketJS 3DS host draws Claude's room
+This shell is **Pocket Home**, the console's launcher, and the **Pocket
+Applets** it ships with, built once for the Nintendo 3DS and the M5Stack
+Tab5. On the 3DS every applet draws on the touch screen and nowhere else.
+The top screen belongs to the system: for each applet (each declares the
+capability `system.agent`), the PocketJS 3DS host draws Claude's room
 there, and **L+R opens the agent over any applet**. The runtime side (the room, the overlay, the
 companion's agent) is PocketJS's and is described in
 [POCKET-AGENT.md](../../vendor/pocketjs/docs/POCKET-AGENT.md) in the pinned
-submodule.
+submodule. On the Tab5 the same programs lay out for its one landscape panel;
+see [The M5Stack Tab5](#the-m5stack-tab5).
 
 | Home | L+R | The agent at work | The reply |
 | --- | --- | --- | --- |
@@ -21,8 +23,8 @@ which took **30.4k tokens**.
 
 An applet is a Pocket app that declares the manifest section `applet` and
 meets the applet rules (PocketJS
-[APPLETS.md](../../vendor/pocketjs/docs/APPLETS.md)): one 320×240 touch
-surface, the agent enhanced, an allowlist of capabilities, every network
+[APPLETS.md](../../vendor/pocketjs/docs/APPLETS.md)): one touch surface
+that admits 320×240, the agent enhanced, an allowlist of capabilities, every network
 destination declared (`applet.services`, `applet.hosts`), no native code and
 no code evaluation, bundle and pak budgets. The PocketJS build refuses an
 applet that breaks a rule, and `bun run check:3ds` runs the rules over every
@@ -36,10 +38,90 @@ pairs, installs and switches, which applets cannot.
 | YouTube | `youtube/` | `dev.pocket-nexus.youtube`, `youtube-main` | the same |
 | X | `x/` | `dev.pocket-nexus.x`, `x-main` | the same |
 | Discord | `discord/` | `dev.pocket-nexus.discord`, `discord-main` | the same |
+| Camera | `camera/` | `dev.pocket-nexus.camera`, `camera-main` | the same |
+| Photos | `photos/` | `dev.pocket-nexus.photos`, `photos-main` | the same |
+| Notes | `notes/` | `dev.pocket-nexus.notes`, `notes-main` | the same |
 
 `ui/` is the iOS 6 kit Home and the applets build on at the 3DS's 0.82 scale: the
 navigation stack and bar, grouped tables, alerts, text fitting, a slot pool
 for long lists and one stylus router per screen.
+
+### Surfaces
+
+Every manifest declares an adaptive surface, `app.surfaces.auxiliary.adaptive`
+from **320×240 to 640×720**, and lays out at the size the host presents.
+`ui/screen.ts` is the one place that reads it (`SCREEN_W`, `SCREEN_H`, set by
+`readScreen()` as each program's root component starts) and names the size
+classes:
+
+| Class | Surfaces | Layout |
+| --- | --- | --- |
+| `COMPACT` | the 3DS touch screen, 320×240 | as drawn for it; the sims' 320×240 screenshots stay byte-identical |
+| landscape | the M5Stack Tab5's 640×360 (the sims also run 592×360), the PSP's 480×272 | the iOS 6 apps held sideways |
+| `TALL` | portrait, such as 360×592 | the iOS 6 phone apps |
+
+On a surface larger than the 3DS's:
+
+- The springboard fits columns of about 96 px and rows of at least 74 px
+  (90 px in portrait) over the dock: **six by three** on 640×360, four by
+  five on 360×592. Its wallpaper is flat discs on a flat field: an RGB565
+  panel draws a smooth gradient this large as visible steps.
+- Lists, tables, headers and composers span the width, and each list shows
+  as many rows as its height holds.
+- A **Reload** button in the bar stands in for the X and Y reload buttons
+  (Hacker News, YouTube, X, Discord's servers and channels, Photos), and
+  YouTube's player has **-** and **+** for the volume.
+- YouTube's player fits the largest 16:9 picture over its control bar;
+  Camera's preview is as tall as the surface with its bar down the right
+  side; Photos fits as many 80 px columns as the width holds.
+- Settings > Wi-Fi scans, joins with a password typed on the keyboard, and
+  forgets saved networks on a host whose launcher is its settings
+  (`wifiCanJoin()`); the 3DS keeps its saved-slot page.
+
+Icons ship an `@2x` texture beside each 1x one (`home/art/icons/bake.ts`), so
+a density-2 build draws them texel for texel. `POCKET_TAB5_SHOTS=<dir> bun run
+check:3ds` also writes each program's 592×360 and 360×592 screens.
+
+### The M5Stack Tab5
+
+The Tab5 target is pocket-m5's `programs/m5stack-tab5` with the profile
+`tab5-home` (`home.runtime-config.ts`): an ESP32-P4 whose 1280x720 panel
+shows the auxiliary surface at **640x360 logical, presented at 2x**, turned
+onto the portrait panel. The firmware embeds Pocket Home as its launcher
+(`-DPOCKETJS_TAB5_HOME_PACKAGE=<home-main.pocket>`), keeps the installed
+applets on the microSD card and boots one runtime per app; the applets
+install from the Mac's catalog as on the 3DS. The six pictures at the top of
+the repository README are this surface.
+
+- `bun run tab5 [app…]` compiles each app against the Tab5 runtime config
+  into `dist/tab5/<output>.pocket`, so its profile hash matches the
+  firmware's. The config is read from a
+  [pocket-m5](https://github.com/pocket-nexus/pocket-m5) checkout:
+  `POCKET_M5_ROOT` when set, else `../pocket-m5` beside this repository.
+  `bun run offer` builds both the 3DS and the Tab5 package of
+  every applet into `dist/3ds/apps/` and points the running Pocket Companion
+  at them, and the companion lists to each console the files with a variant
+  for its target.
+- The Tab5 has no buttons. The firmware paints a **floating home ball** over
+  the picture: a tap sends SELECT (back to Home, or the launcher summoned
+  from an app), a finger that moves at once drags the ball inside the
+  picture, and a finger that rests and then slides makes a gesture, logged by
+  its direction, where an effect attaches later. A touch on the ball never
+  reaches a program.
+- The **Tab5 keyboard** (M5Stack A164, I2C on Ext.Port1) types through
+  PocketJS's text events (`onTextEvent` from `@pocketjs/framework/input`,
+  capability `input.text`): a character commits, a named key arrives as a
+  `KeyboardEvent.key` name (`Enter`, `Backspace`, `ArrowLeft`). An open
+  system-keyboard session takes the keyboard itself, so the Wi-Fi password
+  field and Notes fill from the keys with no change in the apps; Notes also
+  reads the keys on its editor page. The keyboard's firmware keeps its Ctrl
+  bit set once Ctrl was pressed, so the host reads no modifier from it.
+- **Notes** keeps `notes/<id>.txt` and `notes/index.json` in the applet's
+  `data.fs` tree, the microSD card on the Tab5 and the SD card's slot on the
+  3DS; it saves a second after the last edit and when its editor closes.
+- The Tab5 is a repaint display without a compositor, so its animation class
+  is `repaint`: Home keeps a flat wallpaper, cuts where the 3DS zooms and
+  wiggles, and its navigation stack cuts where the 3DS slides.
 
 **Home** is the springboard, Settings (Wi-Fi, Mac pairing by QR code, the
 Mac's app catalog) and the clock, which reads the Mac's time over the Pocket
@@ -121,15 +203,16 @@ Run from the repository root.
 bun run deploy --host <console-ip>      # build home-main.3dsx, install it over the wire, restart into it
 bun run push --host <console-ip>        # rebuild Home's package and hot-push it
 bun run push hn --host <console-ip>     # rebuild Hacker News, install it into its slot and start it
-bun run offer                           # build the applets' packages and offer them through the companion
+bun run offer [--3ds|--tab5]            # build the applets' 3DS and Tab5 packages and offer them through the companion
 bun run shot --host <console-ip>        # one screenshot of both screens
 bun run 3ds [home|hn] [--pocket-only]   # build into dist/3ds
+bun run tab5 [app…]                     # build packages for the M5Stack Tab5 into dist/tab5
 bun run --cwd shells/3ds icons          # re-render and re-bake Home's icons (macOS, Blender 5)
 bun run check:3ds                       # typecheck, the Home and Hacker News sims, unit tests
 ```
 
 A change under `home/`, `hn/` or `ui/` reaches a console with `push`. A
-change in the runtime (`vendor/pocketjs/hosts/3ds`) needs `deploy`. Pairing
+change in the runtime (`vendor/pocketjs/products/3ds`) needs `deploy`. Pairing
 needs ftpd once: `bun run pair --host <console-ip>`. The `.3dsx` is the only
 console format.
 

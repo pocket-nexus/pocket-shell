@@ -8,12 +8,15 @@ first, and this repository moves its pin.
 The repository holds **three shells**, and a change belongs
 to one of them:
 
-- `shells/3ds/` — Pocket Home, the 3DS launcher, and the **Pocket Applets** it
-  ships with (Hacker News, YouTube, X, Discord), over one iOS 6 kit in `ui/`.
-  **Its only platform is the Nintendo 3DS**: two screens of fixed size, a
-  resistive panel with one contact, a d-pad and shoulder buttons. Every
-  applet draws on the touch screen and declares `system.agent`; the top
-  screen and the L+R agent overlay belong to the PocketJS host and
+- `shells/3ds/` — Pocket Home, the launcher, and the **Pocket Applets** it
+  ships with (Hacker News, YouTube, X, Discord, Camera, Photos, Notes), over
+  one iOS 6 kit in `ui/`. **Its platforms are the Nintendo 3DS and the M5Stack
+  Tab5**: on the 3DS two screens of fixed size, a resistive panel with one
+  contact, a d-pad and shoulder buttons; on the Tab5 one 640x360 touch
+  surface, a host-drawn home ball and a keyboard. Each program reads its
+  surface size at start (`ui/screen.ts`) and lays out by size class. Every
+  applet draws on the touch surface and declares `system.agent`; the 3DS's
+  top screen and the L+R agent overlay belong to the PocketJS host and
   framework, not to this repository.
 - `shells/touch/` — Pocket Shell Touch, a full-screen gesture shell with
   retained mock apps on iPod touch 4 and Nokia E7. It owns navigation, window
@@ -92,7 +95,7 @@ package.json; desktop artifacts land in `shells/desktop/dist/`.
 
 Changes under `shells/3ds/home`, `hn` or `ui` are hot pushes, and an
 accepted push persists on the card for that app. A change under
-`vendor/pocketjs/hosts/3ds` is native: `bun run deploy` writes the new
+`vendor/pocketjs/products/3ds` is native: `bun run deploy` writes the new
 `.3dsx` to `sdmc:/3ds/` through the running Runtime and restarts into it, and
 the restarted `.3dsx` boots the guest it embeds. **ftpd is needed once, to
 pair** (ftpd and Pocket Runtime are both homebrew, and one runs at a time).

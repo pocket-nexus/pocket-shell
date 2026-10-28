@@ -1,0 +1,11 @@
+{
+  "art/chevron-white.svg": {
+    "linear": true
+  },
+  "art/chevron.svg": {
+    "linear": true
+  },
+  "art/stripes.svg": {
+    "psm": 0
+  }
+}

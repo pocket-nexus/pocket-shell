@@ -19,7 +19,9 @@ import { ClassicSpinner } from "@pocketjs/framework/classic";
 import { getOps } from "@pocketjs/framework/host";
 import type { NodeMirror } from "@pocketjs/framework/renderer";
 import { BTN } from "@pocketjs/framework/input";
-import type { LayerContext, NavStack, PageContent, PageSpec } from "../ui/nav.tsx";
+import type { NavButton } from "../ui/bar.tsx";
+import { viewHeight, type LayerContext, type NavStack, type PageContent, type PageSpec } from "../ui/nav.tsx";
+import { COMPACT, SCREEN_H, SCREEN_W } from "../ui/screen.ts";
 import { ellipsize, FONT, measure, toAscii, wrap } from "../ui/text.ts";
 import { richText, type Glyphs } from "../ui/glyphs.ts";
 import { createSlotPool, paintText, type SlotPool } from "../ui/slots.ts";
@@ -27,9 +29,24 @@ import type { Press, Target } from "../ui/touch.ts";
 import type { Channel, Guild, Message } from "./api.ts";
 import type { ChatState, DiscordModel, ListState } from "./model.ts";
 
-const W = 320;
-const VIEW_H = 204;
 const OVERSCAN = 80;
+
+// Sized to the surface by fitSurface(), which each page calls first.
+let W = 320;
+let VIEW_H = 204;
+let BODY_W = 0;
+
+function fitSurface(): void {
+  W = SCREEN_W;
+  VIEW_H = viewHeight();
+  BODY_W = W - BODY_X - 10;
+}
+
+/** The bar's Reload button on a surface larger than the 3DS's: the touch
+ *  path for Y's reload. */
+function reloadButton(run: () => void): (() => NavButton) | undefined {
+  return COMPACT ? undefined : () => ({ id: "discord.reload", label: "Reload", kind: "plain", run });
+}
 const NO_ROWS: never[] = [];
 
 /** Discord's dark theme. */
@@ -183,24 +200,24 @@ export function Centered(props: { title: string; detail: string; spinner?: boole
   return (
     <>
       <Show when={props.spinner}>
-        <View class="absolute left-[149]" style={{ insetT: top() - 34 }}>
+        <View class="absolute" style={{ insetL: W / 2 - 11, insetT: top() - 34 }}>
           <ClassicSpinner size={22} color={THEME.muted} />
         </View>
       </Show>
-      <Text class="absolute left-0 w-[320] text-base text-white font-bold text-center" style={{ insetT: top() }}>{props.title}</Text>
+      <Text class="absolute left-0 text-base text-white font-bold text-center" style={{ insetT: top(), width: W }}>{props.title}</Text>
       <For each={lines()}>
-        {(line, index) => <Text class="absolute left-[25] w-[270] text-xs text-[#b9bbbe] text-center" style={{ insetT: top() + 24 + index() * 15 }}>{line}</Text>}
+        {(line, index) => <Text class="absolute w-[270] text-xs text-[#b9bbbe] text-center" style={{ insetL: (W - 270) / 2, insetT: top() + 24 + index() * 15 }}>{line}</Text>}
       </For>
       <Show when={props.button}>
         {(button) => (
           <>
             <View
               class={props.press.is(button().id)
-                ? "absolute left-[100] w-[120] h-[30] rounded-[6] bg-[#4752c4]"
-                : "absolute left-[100] w-[120] h-[30] rounded-[6] bg-[#5865f2]"}
-              style={{ insetT: top() + 110 }}
+                ? "absolute w-[120] h-[30] rounded-[6] bg-[#4752c4]"
+                : "absolute w-[120] h-[30] rounded-[6] bg-[#5865f2]"}
+              style={{ insetL: (W - 120) / 2, insetT: top() + 110 }}
             />
-            <Text class="absolute left-[100] w-[120] text-sm text-white font-bold text-center" style={{ insetT: top() + 117 }}>{button().label}</Text>
+            <Text class="absolute w-[120] text-sm text-white font-bold text-center" style={{ insetL: (W - 120) / 2, insetT: top() + 117 }}>{button().label}</Text>
           </>
         )}
       </Show>
@@ -214,7 +231,7 @@ function stateView<T>(state: ListState<T>, empty: { title: string; detail: strin
   return <Centered title={empty.title} detail={empty.detail} press={press} />;
 }
 
-const background = (color: string) => () => <View class="absolute left-0 top-0 w-[320] h-[240]" style={{ bgColor: color }} />;
+const background = (color: string) => () => <View class="absolute left-0 top-0" style={{ bgColor: color, width: SCREEN_W, height: SCREEN_H }} />;
 
 // ---- servers ----------------------------------------------------------------------
 
@@ -259,7 +276,7 @@ function GuildSlot(props: { env: DiscordEnv; pool: SlotPool<GuildRow>; slot: num
     }));
   });
   return (
-    <View ref={box} class="absolute left-0 top-0 w-[320] h-[44] opacity-0 contain-strict">
+    <View ref={box} class="absolute left-0 top-0 h-[44] opacity-0 contain-strict" style={{ width: W }}>
       <View ref={wash} class="absolute inset-0 opacity-0 bg-[#4f545c]" />
       <View class="absolute left-[52] right-0 bottom-0 h-[1] bg-[#3f4248]" />
       <Picture x={10} y={6} refs={refs} />
@@ -269,6 +286,7 @@ function GuildSlot(props: { env: DiscordEnv; pool: SlotPool<GuildRow>; slot: num
 }
 
 export function serversPage(env: DiscordEnv, stack: NavStack, layer: LayerContext): PageSpec {
+  fitSurface();
   const { model, press } = env;
   createEffect(() => env.bold.want(model.guilds().items.map((guild) => guild.name)));
   const rows = createMemo((): GuildRow[] => {
@@ -298,7 +316,7 @@ export function serversPage(env: DiscordEnv, stack: NavStack, layer: LayerContex
     height: () => rows().length * GUILD_H,
     focusOrder: () => keys().order,
     targets(top, offset, bottom) {
-      if (model.guilds().status === "error") return [{ id: "guilds.retry", x: 100, y: top + 160 - offset, w: 120, h: 30, run: () => model.loadGuilds() }];
+      if (model.guilds().status === "error") return [{ id: "guilds.retry", x: (W - 120) / 2, y: top + 160 - offset, w: 120, h: 30, run: () => model.loadGuilds() }];
       const out: Target[] = [];
       for (const row of rows()) {
         const y = top + row.y - offset;
@@ -323,6 +341,7 @@ export function serversPage(env: DiscordEnv, stack: NavStack, layer: LayerContex
     tint: "black",
     bare: true,
     fixed: background(THEME.list),
+    right: reloadButton(() => model.loadGuilds()),
     content,
     key(pressed) {
       if (pressed & BTN.SQUARE || (pressed & BTN.CIRCLE && model.guilds().status === "error")) {
@@ -389,7 +408,7 @@ function ChannelSlot(props: { pool: SlotPool<ChannelRow>; slot: number; lit: (id
     }));
   });
   return (
-    <View ref={box} class="absolute left-0 top-0 w-[320] h-[34] opacity-0 contain-strict">
+    <View ref={box} class="absolute left-0 top-0 h-[34] opacity-0 contain-strict" style={{ width: W }}>
       <View ref={wash} class="absolute left-[6] right-[6] top-[2] bottom-[2] rounded-[4] opacity-0 bg-[#4f545c]" />
       <Text ref={header} class="absolute left-[10] top-[11] text-2xs text-[#8e9297] font-bold">{" "}</Text>
       <Text ref={hash} class="absolute left-[14] top-[7] text-base text-[#8e9297]">{" "}</Text>
@@ -399,6 +418,7 @@ function ChannelSlot(props: { pool: SlotPool<ChannelRow>; slot: number; lit: (id
 }
 
 export function channelsPage(env: DiscordEnv, stack: NavStack, layer: LayerContext): PageSpec {
+  fitSurface();
   const { model, press } = env;
   createEffect(() => {
     const items = model.channels().items;
@@ -451,7 +471,7 @@ export function channelsPage(env: DiscordEnv, stack: NavStack, layer: LayerConte
     height,
     focusOrder: () => keys().order,
     targets(top, offset, bottom) {
-      if (model.channels().status === "error") return [{ id: "channels.retry", x: 100, y: top + 160 - offset, w: 120, h: 30, run: () => model.reloadChannels() }];
+      if (model.channels().status === "error") return [{ id: "channels.retry", x: (W - 120) / 2, y: top + 160 - offset, w: 120, h: 30, run: () => model.reloadChannels() }];
       const out: Target[] = [];
       for (const row of rows()) {
         if (!row.channel) continue;
@@ -477,6 +497,7 @@ export function channelsPage(env: DiscordEnv, stack: NavStack, layer: LayerConte
     tint: "black",
     bare: true,
     fixed: background(THEME.list),
+    right: reloadButton(() => model.reloadChannels()),
     content,
     key(pressed) {
       if (pressed & BTN.SQUARE || (pressed & BTN.CIRCLE && model.channels().status === "error")) {
@@ -492,7 +513,6 @@ export function channelsPage(env: DiscordEnv, stack: NavStack, layer: LayerConte
 
 /** Message text: 14 px type on 16 px lines, from x 46. */
 const BODY_X = 46;
-const BODY_W = W - BODY_X - 10;
 const BODY_LINE = 16;
 const HEADER_H = 20;
 const REPLY_H = 14;
@@ -642,7 +662,7 @@ function MessageSlot(props: { env: DiscordEnv; pool: SlotPool<MessageRow>; slot:
     }));
   });
   return (
-    <View ref={box} class="absolute left-0 top-0 w-[320] h-[40] opacity-0 contain-strict">
+    <View ref={box} class="absolute left-0 top-0 h-[40] opacity-0 contain-strict" style={{ width: W }}>
       <View ref={wash} class="absolute inset-0 opacity-0 bg-[#32353b]" />
       <Picture x={8} y={5} refs={refs} />
       <Text ref={reply} class="absolute left-[46] top-[4] text-2xs text-[#b9bbbe]">{" "}</Text>
@@ -654,6 +674,7 @@ function MessageSlot(props: { env: DiscordEnv; pool: SlotPool<MessageRow>; slot:
 }
 
 export function chatPage(env: DiscordEnv, _stack: NavStack, layer: LayerContext): PageSpec {
+  fitSurface();
   const { model, press } = env;
   const layout = createMemo(() => {
     const chat = model.chat();
@@ -732,7 +753,7 @@ export function chatPage(env: DiscordEnv, _stack: NavStack, layer: LayerContext)
     focusOrder: () => keys().order,
     targets(top, offset) {
       const chat = model.chat();
-      if (chat?.status === "error") return [{ id: "chat.retry", x: 100, y: top + 160 - offset, w: 120, h: 30, run: () => model.reloadChannel() }];
+      if (chat?.status === "error") return [{ id: "chat.retry", x: (W - 120) / 2, y: top + 160 - offset, w: 120, h: 30, run: () => model.reloadChannel() }];
       if (chat?.more && !chat.loadingOlder) return [{ id: "chat.earlier", x: 60, y: top + 6 - offset, w: 200, h: 24, run: () => model.older() }];
       return [];
     },

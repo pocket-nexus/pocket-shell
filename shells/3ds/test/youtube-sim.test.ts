@@ -15,9 +15,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BTN, IMG_FLAG_LINEAR, PSM } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
 import { encodeImageEntry } from "../../../vendor/pocketjs/framework/compiler/pak.ts";
-import { bootConsole3ds, type Console3ds } from "../../../vendor/pocketjs/hosts/sim/console-3ds.ts";
-import type { SimNetRequest, SimNetRoute } from "../../../vendor/pocketjs/hosts/sim/net.ts";
+import { bootConsole3ds, type Console3ds } from "../../../vendor/pocketjs/programs/sim/console-3ds.ts";
+import type { SimNetRequest, SimNetRoute } from "../../../vendor/pocketjs/platforms/sim/net.ts";
 import { encodePNG } from "../../../vendor/pocketjs/tools/png.ts";
+import { PORTRAIT, TAB5, tab5Shot } from "./tab5.ts";
 import { buildGuest } from "./build.ts";
 
 const OUT = mkdtempSync(join(tmpdir(), "pocket-youtube-"));
@@ -152,9 +153,9 @@ function installMedia(h264: boolean): FakeMedia {
   return fake;
 }
 
-async function boot(): Promise<{ app: Console3ds; svc: Service }> {
+async function boot(auxiliary?: [number, number]): Promise<{ app: Console3ds; svc: Service }> {
   const svc = service();
-  const app = await bootConsole3ds({ js: `${GUEST}.js`, pak: `${GUEST}.pak`, current: "youtube-main", link: null, wifi: null, camera: false, net: svc.routes });
+  const app = await bootConsole3ds({ js: `${GUEST}.js`, pak: `${GUEST}.pak`, current: "youtube-main", link: null, wifi: null, camera: false, net: svc.routes, auxiliary });
   await app.run(40);
   return { app, svc };
 }
@@ -283,5 +284,48 @@ describe("the player", () => {
     expect(media.closes).toBeGreaterThan(closes);
     expect(svc.requests.at(-1)).toBe("/stop");
     expect(app.texts("auxiliary").join("\n")).toContain("(tech)");
+  });
+});
+
+describe("on the Tab5's 592x360 surface", () => {
+  test("the list spans the width; Reload, a section and a row answer touch", async () => {
+    const { app, svc } = await boot(TAB5);
+    tab5Shot(app, "youtube-list");
+    const texts = app.texts("auxiliary");
+    for (const label of ["Tech", "Search", "Reload", TITLES[0]!]) expect(texts.join(" ")).toContain(label);
+    const lists = svc.requests.filter((path) => path.startsWith("/feed")).length;
+    await app.tapText("Reload");
+    await app.run(30);
+    expect(svc.requests.filter((path) => path.startsWith("/feed")).length).toBeGreaterThan(lists);
+    await app.tapText("Music");
+    await app.run(30);
+    tab5Shot(app, "youtube-music");
+  });
+
+  test("the player fits 16:9 over its bar; touch pauses, seeks and sets the volume", async () => {
+    const { app, svc } = await boot(TAB5);
+    const media = installMedia(false);
+    await app.tap(300, 36 + 32);
+    await app.run(40);
+    expect(media.opened).toEqual(["192.168.8.2:9000:64"]);
+    media.phase = "playing";
+    media.positionMs = 65_000;
+    await app.run(20);
+    expect(app.texts("auxiliary").join(" ")).toContain("1:05 / 5:00");
+    tab5Shot(app, "youtube-player");
+    await app.tap(296, 180);
+    await app.run(6);
+    expect(media.paused.at(-1)).toBe(true);
+    await app.tapText("+");
+    expect(media.volumes.at(-1)).toBe(0.9);
+    await app.tapText("-");
+    expect(media.volumes.at(-1)).toBe(0.8);
+    expect(svc.plays).toHaveLength(1);
+  });
+
+  test("a portrait surface shows the list", async () => {
+    const { app } = await boot(PORTRAIT);
+    tab5Shot(app, "portrait-youtube-list");
+    expect(app.texts("auxiliary")).toContain("Search");
   });
 });

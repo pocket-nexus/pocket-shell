@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { resolve } from "node:path";
-import { bootWorld } from "../../../vendor/pocketjs/hosts/sim/sim.ts";
+import { bootWorld } from "../../../vendor/pocketjs/programs/sim/sim.ts";
 import { encodePNG } from "../../../vendor/pocketjs/tests/png.ts";
 import { ROOT } from "./system-plan.ts";
 import { testTextProvider } from "../test/text-provider.ts";

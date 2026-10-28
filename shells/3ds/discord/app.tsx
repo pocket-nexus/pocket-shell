@@ -17,19 +17,20 @@ import { onButtonPress } from "@pocketjs/framework/lifecycle";
 import { createOsk, Osk, oskHeight } from "@pocketjs/framework/osk";
 import { createGlyphs, GLYPH_BOLD, GLYPH_TEXT } from "../ui/glyphs.ts";
 import { createNavStack } from "../ui/nav.tsx";
+import { SCREEN_H, SCREEN_W } from "../ui/screen.ts";
 import { createPress, createTouchRouter } from "../ui/touch.ts";
 import { ellipsize, FONT, toAscii, wrap } from "../ui/text.ts";
 import { createDiscordModel } from "./model.ts";
 import { channelsPage, chatPage, serversPage, type DiscordEnv } from "./views.tsx";
 
 const ALL_BUTTONS = 0xffff;
-const W = 320;
-const KEYBOARD_TOP = 240 - oskHeight("auxiliary", "dark");
 const COMPOSE_BAR = 32;
-const DRAFT_LINES = Math.max(1, Math.floor((KEYBOARD_TOP - COMPOSE_BAR - 26) / 16));
 export const MAX_MESSAGE = 2000;
 
 export default function Discord() {
+  const W = SCREEN_W;
+  const KEYBOARD_TOP = SCREEN_H - oskHeight("auxiliary", "dark");
+  const DRAFT_LINES = Math.max(1, Math.floor((KEYBOARD_TOP - COMPOSE_BAR - 26) / 16));
   const model = createDiscordModel();
   const press = createPress();
   const [keys, setKeys] = createSignal(false);
@@ -140,15 +141,15 @@ export default function Discord() {
       <View class="relative w-full h-full bg-[#2f3136] overflow-hidden">
         {stack.view()}
         <Show when={composing()}>
-          <View class="absolute left-0 top-0 w-[320] h-[240] bg-[#36393f]" />
-          <View class="absolute left-0 top-0 w-[320] h-[32] bg-[#202225]" />
+          <View class="absolute left-0 top-0 bg-[#36393f]" style={{ width: W, height: SCREEN_H }} />
+          <View class="absolute left-0 top-0 h-[32] bg-[#202225]" style={{ width: W }} />
           <Text class={press.is("compose.cancel") ? "absolute left-[10] top-[9] text-sm text-[#ffffff]" : "absolute left-[10] top-[9] text-sm text-[#b9bbbe]"}>Cancel</Text>
-          <Text class="absolute left-[80] top-[9] w-[160] text-sm text-white font-bold text-center">
-            {ellipsize(`#${toAscii(model.chat()?.channel.name ?? "")}`, FONT.smBold, 160)}
+          <Text class="absolute left-[80] top-[9] text-sm text-white font-bold text-center" style={{ width: W - 160 }}>
+            {ellipsize(`#${toAscii(model.chat()?.channel.name ?? "")}`, FONT.smBold, W - 160)}
           </Text>
-          <View class={draft().trim() && !sending() ? "absolute left-[254] top-[4] w-[58] h-[24] rounded-[5] bg-[#5865f2]" : "absolute left-[254] top-[4] w-[58] h-[24] rounded-[5] bg-[#4e5058]"} />
-          <Text class="absolute left-[254] top-[9] w-[58] text-xs text-white font-bold text-center">{sending() ? "..." : "Send"}</Text>
-          <View class="absolute left-[8] w-[304] rounded-[8] bg-[#40444b]" style={{ insetT: COMPOSE_BAR + 6, height: KEYBOARD_TOP - COMPOSE_BAR - 12 }} />
+          <View class={draft().trim() && !sending() ? "absolute top-[4] w-[58] h-[24] rounded-[5] bg-[#5865f2]" : "absolute top-[4] w-[58] h-[24] rounded-[5] bg-[#4e5058]"} style={{ insetL: W - 66 }} />
+          <Text class="absolute top-[9] w-[58] text-xs text-white font-bold text-center" style={{ insetL: W - 66 }}>{sending() ? "..." : "Send"}</Text>
+          <View class="absolute left-[8] rounded-[8] bg-[#40444b]" style={{ insetT: COMPOSE_BAR + 6, width: W - 16, height: KEYBOARD_TOP - COMPOSE_BAR - 12 }} />
           <For each={draftLines()}>
             {(line, index) => (
               <Text class={draft() ? "absolute left-[14] text-sm text-[#dcddde]" : "absolute left-[14] text-sm text-[#72767d]"} style={{ insetT: COMPOSE_BAR + 12 + index() * 16 }}>
@@ -157,11 +158,11 @@ export default function Discord() {
             )}
           </For>
           <Show when={sendError()}>
-            <Text class="absolute left-[14] w-[292] text-2xs text-[#ed4245]" style={{ insetT: KEYBOARD_TOP - 18 }}>
-              {ellipsize(sendError(), FONT.xxs, 292)}
+            <Text class="absolute left-[14] text-2xs text-[#ed4245]" style={{ insetT: KEYBOARD_TOP - 18, width: W - 28 }}>
+              {ellipsize(sendError(), FONT.xxs, W - 28)}
             </Text>
           </Show>
-          <View class="absolute left-0 w-[320]" style={{ insetT: KEYBOARD_TOP, height: 240 - KEYBOARD_TOP }}>
+          <View class="absolute left-0" style={{ insetT: KEYBOARD_TOP, width: W, height: SCREEN_H - KEYBOARD_TOP }}>
             <Osk osk={osk} surface="auxiliary" theme="dark" />
           </View>
         </Show>

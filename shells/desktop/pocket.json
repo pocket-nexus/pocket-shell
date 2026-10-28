@@ -25,6 +25,7 @@
   },
   "app": {
     "entry": "src/system-ui/main.tsx",
+    "theme": "./src/system-ui/animation-theme.ts",
     "output": "pocket-desktop-system-ui",
     "framework": "solid",
     "companions": [

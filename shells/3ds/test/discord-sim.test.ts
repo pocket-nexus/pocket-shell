@@ -12,10 +12,11 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BTN } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
-import { bootConsole3ds, type Console3ds } from "../../../vendor/pocketjs/hosts/sim/console-3ds.ts";
+import { bootConsole3ds, type Console3ds } from "../../../vendor/pocketjs/programs/sim/console-3ds.ts";
 import { encodePNG } from "../../../vendor/pocketjs/tools/png.ts";
 import { buildGuest } from "./build.ts";
 import { discordFixture, type DiscordFixture } from "./discord-fixture.ts";
+import { PORTRAIT, TAB5, tab5Shot } from "./tab5.ts";
 
 const OUT = mkdtempSync(join(tmpdir(), "pocket-discord-"));
 let GUEST = join(OUT, "guest", "discord-main");
@@ -33,8 +34,8 @@ afterAll(() => {
   rmSync(OUT, { recursive: true, force: true });
 });
 
-async function boot(fixture: DiscordFixture): Promise<Console3ds> {
-  const app = await bootConsole3ds({ js: `${GUEST}.js`, pak: `${GUEST}.pak`, current: "discord-main", link: null, wifi: null, camera: false, net: fixture.routes });
+async function boot(fixture: DiscordFixture, auxiliary?: [number, number]): Promise<Console3ds> {
+  const app = await bootConsole3ds({ js: `${GUEST}.js`, pak: `${GUEST}.pak`, current: "discord-main", link: null, wifi: null, camera: false, net: fixture.routes, auxiliary });
   await app.run(30);
   return app;
 }
@@ -194,5 +195,37 @@ describe("discord", () => {
       await app.run(10);
     }
     expect(app.texts("auxiliary")).toContain("Message number 1 in the backlog.");
+  });
+});
+
+describe("on the Tab5's 592x360 surface", () => {
+  test("servers, channels and a channel span the width; Reload, Write and the keyboard answer touch", async () => {
+    const fixture = discordFixture();
+    const app = await boot(fixture, TAB5);
+    tab5Shot(app, "discord-servers");
+    expect(app.texts("auxiliary")).toEqual(expect.arrayContaining(["Servers", "Pocket Lab", "Reload"]));
+    const before = started(app).length;
+    await app.tapText("Reload");
+    await app.run(30);
+    expect(started(app).length).toBeGreaterThan(before);
+    await app.tapText("Pocket Lab");
+    await app.run(40);
+    tab5Shot(app, "discord-channels");
+    await app.tapText("general");
+    await app.run(60);
+    tab5Shot(app, "discord-chat");
+    await app.tapText("Write");
+    await app.run(10);
+    for (const key of ["h", "i"]) await app.tapText(key);
+    tab5Shot(app, "discord-compose");
+    await app.tapText("✓");
+    await app.run(30);
+    expect(fixture.posted).toEqual([{ channel: "201", content: "hi" }]);
+  });
+
+  test("a portrait surface shows the servers", async () => {
+    const app = await boot(discordFixture(), PORTRAIT);
+    tab5Shot(app, "portrait-discord-servers");
+    expect(app.texts("auxiliary")).toContain("Pocket Lab");
   });
 });

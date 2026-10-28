@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/test/home-sim.test.ts — Pocket Home (apps/home) headless on the wasm core
 // with the 3DS geometry, the 3DS app table and the Pocket Link, Wi-Fi and
-// camera fakes (hosts/sim/console-3ds.ts). Each journey drives the stylus and
+// camera fakes (programs/sim/console-3ds.ts). Each journey drives the stylus and
 // the buttons and checks what the touch screen shows and what the host was
 // asked. Home draws nothing on the top screen: it belongs to the system.
 //
@@ -13,10 +13,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BTN } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
 import type { LinkCatalogApp } from "../../../vendor/pocketjs/contracts/spec/link.ts";
-import { bootConsole3ds, type Console3ds, type Console3dsOptions } from "../../../vendor/pocketjs/hosts/sim/console-3ds.ts";
-import { createSimFsHost } from "../../../vendor/pocketjs/hosts/sim/fs.ts";
+import { bootConsole3ds, type Console3ds, type Console3dsOptions } from "../../../vendor/pocketjs/programs/sim/console-3ds.ts";
+import { createSimFsHost } from "../../../vendor/pocketjs/platforms/sim/fs.ts";
 import { encodePNG } from "../../../vendor/pocketjs/tools/png.ts";
 import { buildGuest } from "./build.ts";
+import { PORTRAIT, TAB5, tab5Shot } from "./tab5.ts";
 
 const OUT = mkdtempSync(join(tmpdir(), "pocket-home-"));
 let GUEST = join(OUT, "guest", "home-main");
@@ -644,4 +645,148 @@ test("a journey is a pure function of its input", async () => {
     hashes.push(seen);
   }
   expect(hashes[0]).toEqual(hashes[1]!);
+});
+
+describe("on the Tab5's 592x360 surface", () => {
+  const PHONE_APPS = [
+    ...APPS,
+    { output: "camera-main", id: "dev.pocket-nexus.camera", title: "Camera", version: "0.1.0", bytes: 90_000 },
+    { output: "photos-main", id: "dev.pocket-nexus.photos", title: "Photos", version: "0.1.0", bytes: 90_000 },
+    { output: "youtube-main", id: "dev.pocket-nexus.youtube", title: "YouTube", version: "0.1.0", bytes: 90_000 },
+    { output: "x-main", id: "dev.pocket-nexus.x", title: "X", version: "0.1.0", bytes: 90_000 },
+    { output: "discord-main", id: "dev.pocket-nexus.discord", title: "Discord", version: "0.1.0", bytes: 90_000 },
+  ];
+  const tall = (options: Partial<Console3dsOptions> = {}) => boot({ apps: PHONE_APPS, auxiliary: TAB5, ...options });
+  const portrait = (options: Partial<Console3dsOptions> = {}) => boot({ apps: PHONE_APPS, auxiliary: PORTRAIT, ...options });
+
+  test("the springboard holds six columns over the dock", async () => {
+    const home = await tall();
+    await home.run(30);
+    tab5Shot(home, "home-springboard");
+    const bottom = home.texts("auxiliary");
+    for (const label of ["Hacker News", "YouTube", "Discord", "Settings", "Mac", "Camera", "Photos", "9:41 AM"]) expect(bottom).toContain(label);
+    // Six columns: the sixth applet shares the first row; the dock sits at
+    // the bottom of the surface, the clock at its right edge.
+    expect(home.locate("Discord")![1]).toBeLessThan(100);
+    expect(home.locate("Settings")![1]).toBeGreaterThan(320);
+    expect(home.locate("9:41 AM")![0] + home.locate("9:41 AM")![2]).toBeGreaterThan(570);
+  });
+
+  test("pages of eighteen turn with a flick; holding an icon edits; its badge deletes after the alert", async () => {
+    const many = Array.from({ length: 20 }, (_, index) => ({
+      output: `app${index + 1}-main`,
+      id: `dev.example.app${index + 1}`,
+      title: `App ${index + 1}`,
+      version: "1.0.0",
+      bytes: 40_000,
+    }));
+    const home = await boot({ apps: many, auxiliary: TAB5 });
+    await home.run(20);
+    expect(home.texts("auxiliary")).toContain("App 18");
+    expect(home.texts("auxiliary")).not.toContain("App 19");
+    tab5Shot(home, "home-many");
+    await home.drag(500, 150, 200, 150, 6);
+    await home.run(30);
+    expect(home.texts("auxiliary")).toContain("App 19");
+    tab5Shot(home, "home-page-2");
+    await home.drag(100, 150, 500, 150, 6);
+    await home.run(30);
+    // Hold the first icon: edit mode, a badge on each applet, Done in the bar.
+    for (let frame = 0; frame < 40; frame++) await home.step({ touches: [{ x: 49, y: 49 }], surface: "auxiliary" });
+    await home.step({ surface: "auxiliary" });
+    await home.run(10);
+    expect(home.texts("auxiliary")).toContain("Done");
+    tab5Shot(home, "home-editing");
+    await home.tap(28, 28);
+    await home.run(4);
+    expect(home.texts("auxiliary")).toContain('Delete "App 1"?');
+    tab5Shot(home, "home-delete-alert");
+    await home.tapText("Delete");
+    await home.run(6);
+    expect(home.link!.log).toContain("remove dev.example.app1");
+  });
+
+  test("a portrait surface holds four columns of five rows", async () => {
+    const home = await portrait();
+    await home.run(30);
+    tab5Shot(home, "portrait-home-springboard");
+    expect(home.locate("YouTube")![1]).toBeLessThan(100);
+    expect(home.locate("X")![1]).toBeGreaterThan(100);
+    expect(home.locate("Settings")![1]).toBeGreaterThan(540);
+  });
+
+  test("Settings and its pages fill the surface; the host's button closes them", async () => {
+    const home = await tall();
+    await home.run(10);
+    await openSettings(home);
+    tab5Shot(home, "home-settings");
+    await home.tapText("Wi-Fi");
+    await home.run(24);
+    tab5Shot(home, "home-wifi");
+    await home.press(BTN.SELECT);
+    await home.run(30);
+    expect(home.texts("auxiliary")).toContain("Hacker News");
+  });
+
+  test("Wi-Fi scans, joins with a typed password, and forgets a saved network", async () => {
+    const networks = [
+      { ssid: "GL-SFT1200-128", strength: 3, secure: true },
+      { ssid: "PocketNet", strength: 2, secure: true },
+      { ssid: "Cafe", strength: 1, secure: false },
+    ];
+    const home = await tall({ wifi: { saved: ["PocketNet", "", ""], connected: 0, networks } });
+    await home.run(10);
+    await openSettings(home);
+    await home.tapText("Wi-Fi");
+    await home.run(40);
+    expect(home.wifi!.log).toContain("scan");
+    for (const label of ["Choose a Network...", "GL-SFT1200-128", "Cafe", "Saved Networks", "Forget"]) expect(home.texts("auxiliary")).toContain(label);
+    tab5Shot(home, "home-wifi-join");
+
+    // A wrong password: the network is not saved and the page says why.
+    await home.tapText("GL-SFT1200-128");
+    await home.run(24);
+    expect(home.texts("auxiliary").join(" ")).toContain('Enter the password for "GL-SFT1200-128"');
+    for (const key of ["w", "r", "o", "n", "g"]) await home.tapText(key);
+    expect(home.texts("auxiliary")).toContain("*****");
+    tab5Shot(home, "home-wifi-password");
+    await home.tapText("✓");
+    await home.run(40);
+    expect(home.wifi!.log).toContain("join GL-SFT1200-128");
+    expect(home.wifi!.status().error).toBe("Incorrect password");
+    expect(home.texts("auxiliary")).toContain("Incorrect password");
+
+    await home.tapText("GL-SFT1200-128");
+    await home.run(24);
+    for (const key of ["s", "e", "c", "r", "e", "t"]) await home.tapText(key);
+    await home.tapText("✓");
+    await home.run(40);
+    expect(home.wifi!.status().ssid).toBe("GL-SFT1200-128");
+    expect(home.wifi!.status().saved.map((entry) => entry.ssid)).toContain("GL-SFT1200-128");
+
+    const forget = home.locate("Forget")!;
+    await home.tap(forget[0] + forget[2] / 2, forget[1] + forget[3] / 2);
+    await home.run(10);
+    expect(home.wifi!.log.some((line) => line.startsWith("forget "))).toBe(true);
+  });
+
+  test("the Mac store and the pairing scanner fill the surface", async () => {
+    const home = await tall();
+    await home.run(10);
+    await home.tapText("Mac");
+    await home.run(24);
+    tab5Shot(home, "home-store");
+    await home.tapText("Weather");
+    await home.run(24);
+    tab5Shot(home, "home-store-detail");
+    const unpaired = await tall({ link: { paired: [], catalog: CATALOG } });
+    await unpaired.run(10);
+    await openSettings(unpaired);
+    await unpaired.tapText("Mac");
+    await unpaired.run(24);
+    tab5Shot(unpaired, "home-mac");
+    await unpaired.tapText("Pair a Mac...");
+    await unpaired.run(24);
+    tab5Shot(unpaired, "home-scanner");
+  });
 });

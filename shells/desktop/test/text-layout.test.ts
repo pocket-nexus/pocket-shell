@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { beforeAll, describe, expect, test } from "bun:test";
-import { createTextEngine } from "../../../vendor/pocketjs/hosts/web/text-engine.js";
-import { createWasmUi } from "../../../vendor/pocketjs/hosts/web/wasm-ops.js";
+import { createTextEngine } from "../../../vendor/pocketjs/platforms/web/text-engine.js";
+import { createWasmUi } from "../../../vendor/pocketjs/platforms/web/wasm-ops.js";
 import { createTextLayout } from "@pocketjs/framework/text-layout";
 import { runServicePumps } from "../../../vendor/pocketjs/framework/src/services.ts";
 import {
@@ -21,7 +21,7 @@ import {
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 const root = resolve(import.meta.dir, "..");
-const wasmPath = resolve(root, "../../vendor/pocketjs/hosts/web/pocket_text.wasm");
+const wasmPath = resolve(root, "../../vendor/pocketjs/platforms/web/pocket_text.wasm");
 const pakPath = resolve(
   root,
   "../../vendor/pocketjs/dist/pocket-desktop-system-ui.pak",
@@ -72,7 +72,7 @@ describe("portable Rust text service", () => {
   test("uses the package atlas and matches WASM core line breaks at two widths", async () => {
     const ui = await createWasmUi(
       await Bun.file(
-        resolve(root, "../../vendor/pocketjs/hosts/web/pocketjs.wasm"),
+        resolve(root, "../../vendor/pocketjs/platforms/web/pocketjs.wasm"),
       ).arrayBuffer(),
     );
     ui.ops.loadFontAtlas!(

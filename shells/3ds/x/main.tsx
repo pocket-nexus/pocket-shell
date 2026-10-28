@@ -2,5 +2,9 @@
 // @title X
 import X from "./app.tsx";
 import { mount } from "@pocketjs/framework/solid";
+import { readScreen } from "../ui/screen.ts";
 
-mount(() => <X />);
+mount(() => {
+  readScreen();
+  return <X />;
+});

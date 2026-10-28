@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
 import { extname, resolve } from "node:path";
 import { buildDesktopSystem } from "./build-system.ts";
 import { POCKETJS_ROOT, ROOT } from "./system-plan.ts";
@@ -25,19 +25,23 @@ await run([process.execPath, resolve(POCKETJS_ROOT, "tools/wasm.ts")], POCKETJS_
 
 await run([process.execPath, resolve(POCKETJS_ROOT, "tools/text-wasm.ts")], POCKETJS_ROOT);
 
-for (const file of [
-  "offload-worker.js",
-  "text-worker.js",
-  "text-engine.js",
-  "pocket_text.wasm",
-  "app-instance.html",
-  "app-instance.js",
-  "runtime-glyphs.js",
-  "system-engine.js",
-  "wasm-ops.js",
-  "pocketjs.wasm",
-]) {
-  cpSync(resolve(POCKETJS_ROOT, "hosts/web", file), resolve(runtime, file));
+// The web program (programs/web) imports the browser platform
+// (platforms/web) by relative path, so both keep pocketjs's layout under
+// runtime/: the scripts and wasm of the platform, and the program's three
+// entry files.
+const platform = resolve(POCKETJS_ROOT, "platforms/web");
+mkdirSync(resolve(runtime, "platforms/web"), { recursive: true });
+for (const file of readdirSync(platform)) {
+  if (/\.(js|wasm)$/.test(file)) cpSync(resolve(platform, file), resolve(runtime, "platforms/web", file));
+}
+// platforms/web/generated-ui.js re-exports the generated guest bindings.
+mkdirSync(resolve(runtime, "engine/guest-web/src"), { recursive: true });
+for (const file of ["generated-ui.js", "ui-descriptors.js"]) {
+  cpSync(resolve(POCKETJS_ROOT, "engine/guest-web/src", file), resolve(runtime, "engine/guest-web/src", file));
+}
+mkdirSync(resolve(runtime, "programs/web"), { recursive: true });
+for (const file of ["app-instance.html", "app-instance.js", "system-engine.js"]) {
+  cpSync(resolve(POCKETJS_ROOT, "programs/web", file), resolve(runtime, "programs/web", file));
 }
 for (const file of ["index.html", "preview.js", "preview.css"]) {
   cpSync(resolve(ROOT, "preview", file), resolve(output, file));

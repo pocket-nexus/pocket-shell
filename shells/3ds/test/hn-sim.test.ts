@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/test/hn-sim.test.ts — the Hacker News mini-app (apps/hn) headless on the
 // wasm core with the 3DS geometry and a fixture-routed NET module
-// (hosts/sim/net.ts, tests/hn-fixture.ts): the story list, paging, feeds,
+// (platforms/sim/net.ts, tests/hn-fixture.ts): the story list, paging, feeds,
 // a story's thread (the story and every comment in full) with collapse, and
 // the error states. The app draws nothing on the top screen.
 //
@@ -12,10 +12,11 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BTN } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
-import { bootConsole3ds, type Console3ds, type Console3dsOptions } from "../../../vendor/pocketjs/hosts/sim/console-3ds.ts";
+import { bootConsole3ds, type Console3ds, type Console3dsOptions } from "../../../vendor/pocketjs/programs/sim/console-3ds.ts";
 import { encodePNG } from "../../../vendor/pocketjs/tools/png.ts";
 import { buildGuest } from "./build.ts";
 import { HN_API, hnRoutes } from "./hn-fixture.ts";
+import { PORTRAIT, TAB5, tab5Shot } from "./tab5.ts";
 
 const OUT = mkdtempSync(join(tmpdir(), "pocket-hn-"));
 let GUEST = join(OUT, "guest", "hn-main");
@@ -232,5 +233,41 @@ describe("errors", () => {
     const hn = await boot({ net: undefined });
     await hn.run(10);
     expect(hn.texts("auxiliary")).toContain("Not linked to a Mac");
+  });
+});
+
+describe("on the Tab5's 592x360 surface", () => {
+  test("the list fills the surface; Reload and the segments answer touch", async () => {
+    const hn = await boot({ auxiliary: TAB5 });
+    await hn.run(80);
+    tab5Shot(hn, "hn-list");
+    const texts = hn.texts("auxiliary");
+    for (const label of ["Top", "Show", "Reload", "1", "7"]) expect(texts).toContain(label);
+    // Seven stories show at once, not five.
+    expect(texts.join(" ")).toContain("7");
+    const before = started(hn).length;
+    await hn.tapText("Reload");
+    await hn.run(40);
+    expect(started(hn).length).toBeGreaterThan(before);
+    await hn.tapText("Ask");
+    await hn.run(60);
+    expect(started(hn)).toContain(`${HN_API}/askstories.json`);
+  });
+
+  test("a story's thread fills the surface", async () => {
+    const hn = await boot({ auxiliary: TAB5 });
+    await hn.run(80);
+    await hn.tapText("Show HN: A dual-screen Hacker News reader for the Nintendo 3DS");
+    await hn.run(60);
+    tab5Shot(hn, "hn-comments");
+    expect(hn.texts("auxiliary")).toContain("Reload");
+    expect(hn.texts("auxiliary").join(" ")).toContain("Does it cache stories between launches?");
+  });
+
+  test("a portrait surface shows the list", async () => {
+    const hn = await boot({ auxiliary: PORTRAIT });
+    await hn.run(80);
+    tab5Shot(hn, "portrait-hn-list");
+    expect(hn.texts("auxiliary")).toContain("Show");
   });
 });

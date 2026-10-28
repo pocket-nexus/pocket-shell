@@ -17,6 +17,7 @@ import { BTN } from "@pocketjs/framework/input";
 import { onButtonPress } from "@pocketjs/framework/lifecycle";
 import { createOsk, Osk, oskHeight } from "@pocketjs/framework/osk";
 import { createNavStack } from "../ui/nav.tsx";
+import { SCREEN_H, SCREEN_W } from "../ui/screen.ts";
 import { createPress, createTouchRouter } from "../ui/touch.ts";
 import { createYtClient } from "./api.ts";
 import { createYtModel } from "./model.ts";
@@ -71,12 +72,12 @@ export default function YouTube() {
     stack.key(pressed);
   });
 
-  const keyboardTop = 240 - oskHeight("auxiliary", "light");
+  const keyboardTop = SCREEN_H - oskHeight("auxiliary", "light");
   return (
     <AuxiliarySurface>
       <View class="relative w-full h-full bg-white overflow-hidden">
         {stack.view()}
-        <View class="absolute left-0 w-[320]" style={{ insetT: keyboardTop, height: 240 - keyboardTop }}>
+        <View class="absolute left-0" style={{ insetT: keyboardTop, width: SCREEN_W, height: SCREEN_H - keyboardTop }}>
           <Osk osk={osk} surface="auxiliary" theme="light" />
         </View>
       </View>

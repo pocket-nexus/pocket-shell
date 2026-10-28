@@ -20,6 +20,7 @@ import { companionNow } from "@pocketjs/framework/link";
 import { createOsk, Osk, oskHeight } from "@pocketjs/framework/osk";
 import { createGlyphs, GLYPH_BOLD, GLYPH_TEXT } from "../ui/glyphs.ts";
 import { createNavStack } from "../ui/nav.tsx";
+import { SCREEN_H, SCREEN_W } from "../ui/screen.ts";
 import { ellipsize, FONT, toAscii, wrap } from "../ui/text.ts";
 import { createPress, createTouchRouter } from "../ui/touch.ts";
 import type { Post } from "./api.ts";
@@ -27,14 +28,14 @@ import { createXModel } from "./model.ts";
 import { postPage, timelinePage, type XEnv } from "./views.tsx";
 
 const ALL_BUTTONS = 0xffff;
-const W = 320;
-const KEYBOARD_TOP = 240 - oskHeight("auxiliary", "light");
 const COMPOSE_BAR = 32;
-const DRAFT_LINES = Math.max(1, Math.floor((KEYBOARD_TOP - COMPOSE_BAR - 26) / 16));
 /** X's limit on a post. */
 const MAX_POST = 280;
 
 export default function X() {
+  const W = SCREEN_W;
+  const KEYBOARD_TOP = SCREEN_H - oskHeight("auxiliary", "light");
+  const DRAFT_LINES = Math.max(1, Math.floor((KEYBOARD_TOP - COMPOSE_BAR - 26) / 16));
   const model = createXModel();
   const press = createPress();
   const [keys, setKeys] = createSignal(false);
@@ -142,20 +143,20 @@ export default function X() {
       <View class="relative w-full h-full bg-white overflow-hidden">
         {stack.view()}
         <Show when={model.notice() && !replying()}>
-          <View class="absolute left-[20] top-[200] w-[280] h-[28] rounded-[14] bg-[#0f1419e8]" />
-          <Text class="absolute left-[30] top-[207] w-[260] text-xs text-white text-center">{ellipsize(toAscii(model.notice()), FONT.xs, 260)}</Text>
+          <View class="absolute w-[280] h-[28] rounded-[14] bg-[#0f1419e8]" style={{ insetL: (W - 280) / 2, insetT: SCREEN_H - 40 }} />
+          <Text class="absolute w-[260] text-xs text-white text-center" style={{ insetL: (W - 260) / 2, insetT: SCREEN_H - 33 }}>{ellipsize(toAscii(model.notice()), FONT.xs, 260)}</Text>
         </Show>
         <Show when={replying()}>
           {(post) => (
             <>
-              <View class="absolute left-0 top-0 w-[320] h-[240] bg-white" />
-              <View class="absolute left-0 top-0 w-[320] h-[32] bg-[#0f1419]" />
+              <View class="absolute left-0 top-0 bg-white" style={{ width: W, height: SCREEN_H }} />
+              <View class="absolute left-0 top-0 h-[32] bg-[#0f1419]" style={{ width: W }} />
               <Text class={press.is("compose.cancel") ? "absolute left-[10] top-[9] text-sm text-[#ffffff]" : "absolute left-[10] top-[9] text-sm text-[#8b98a5]"}>Cancel</Text>
-              <Text class="absolute left-[80] top-[9] w-[160] text-sm text-white font-bold text-center">
-                {ellipsize(`Reply to @${toAscii(post().handle)}`, FONT.smBold, 160)}
+              <Text class="absolute left-[80] top-[9] text-sm text-white font-bold text-center" style={{ width: W - 160 }}>
+                {ellipsize(`Reply to @${toAscii(post().handle)}`, FONT.smBold, W - 160)}
               </Text>
-              <View class={draft().trim() && !sending() ? "absolute left-[248] top-[4] w-[64] h-[24] rounded-[12] bg-[#1d9bf0]" : "absolute left-[248] top-[4] w-[64] h-[24] rounded-[12] bg-[#536471]"} />
-              <Text class="absolute left-[248] top-[9] w-[64] text-xs text-white font-bold text-center">{sending() ? "..." : "Reply"}</Text>
+              <View class={draft().trim() && !sending() ? "absolute top-[4] w-[64] h-[24] rounded-[12] bg-[#1d9bf0]" : "absolute top-[4] w-[64] h-[24] rounded-[12] bg-[#536471]"} style={{ insetL: W - 72 }} />
+              <Text class="absolute top-[9] w-[64] text-xs text-white font-bold text-center" style={{ insetL: W - 72 }}>{sending() ? "..." : "Reply"}</Text>
               <For each={draftLines()}>
                 {(line, index) => (
                   <Text class={draft() ? "absolute left-[14] text-sm text-[#0f1419]" : "absolute left-[14] text-sm text-[#8b98a5]"} style={{ insetT: COMPOSE_BAR + 10 + index() * 16 }}>
@@ -163,13 +164,13 @@ export default function X() {
                   </Text>
                 )}
               </For>
-              <Text class="absolute left-[250] w-[60] text-2xs text-[#8b98a5] text-right" style={{ insetT: KEYBOARD_TOP - 16 }}>{`${[...draft()].length}/${MAX_POST}`}</Text>
+              <Text class="absolute w-[60] text-2xs text-[#8b98a5] text-right" style={{ insetL: W - 70, insetT: KEYBOARD_TOP - 16 }}>{`${[...draft()].length}/${MAX_POST}`}</Text>
               <Show when={sendError()}>
-                <Text class="absolute left-[14] w-[230] text-2xs text-[#f4212e]" style={{ insetT: KEYBOARD_TOP - 16 }}>
-                  {ellipsize(toAscii(sendError()), FONT.xxs, 230)}
+                <Text class="absolute left-[14] text-2xs text-[#f4212e]" style={{ insetT: KEYBOARD_TOP - 16, width: W - 90 }}>
+                  {ellipsize(toAscii(sendError()), FONT.xxs, W - 90)}
                 </Text>
               </Show>
-              <View class="absolute left-0 w-[320]" style={{ insetT: KEYBOARD_TOP, height: 240 - KEYBOARD_TOP }}>
+              <View class="absolute left-0" style={{ insetT: KEYBOARD_TOP, width: W, height: SCREEN_H - KEYBOARD_TOP }}>
                 <Osk osk={osk} surface="auxiliary" theme="light" />
               </View>
             </>

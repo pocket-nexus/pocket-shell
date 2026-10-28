@@ -26,7 +26,17 @@ import {
   type LinkCatalogApp,
   type LinkStatus,
 } from "@pocketjs/framework/link";
-import { connectSavedNetwork, setWifiEnabled, wifiHost, wifiStatus, type WifiStatus } from "@pocketjs/framework/wifi";
+import {
+  connectSavedNetwork,
+  forgetNetwork,
+  joinNetwork,
+  scanNetworks,
+  setWifiEnabled,
+  wifiCanJoin,
+  wifiHost,
+  wifiStatus,
+  type WifiStatus,
+} from "@pocketjs/framework/wifi";
 import { DEFAULT_OFFSET } from "./clock.ts";
 import { toAscii } from "../ui/text.ts";
 
@@ -118,6 +128,7 @@ function readWifi(): WifiStatus | null {
     ssid: toAscii(status.ssid),
     saved: status.saved.map((entry) => ({ ...entry, ssid: toAscii(entry.ssid) })),
     error: toAscii(status.error),
+    ...(status.networks ? { networks: status.networks.map((network) => ({ ...network, ssid: toAscii(network.ssid) })) } : {}),
   };
 }
 
@@ -132,6 +143,9 @@ export interface HomeSystem {
   hasLink: boolean;
   wifi: Accessor<WifiStatus | null>;
   hasWifi: boolean;
+  /** The host lets Home scan for, join and forget networks (a console whose
+   *  launcher is its settings); otherwise Home uses the saved slots only. */
+  canJoin: boolean;
   catalog: Accessor<LinkCatalogApp[]>;
   catalogState: Accessor<CatalogState>;
   catalogError: Accessor<string>;
@@ -145,6 +159,9 @@ export interface HomeSystem {
   forget(id: string): boolean;
   setWifi(on: boolean): void;
   connect(slot: number): void;
+  scan(): void;
+  join(ssid: string, passphrase: string): void;
+  forgetNetwork(slot: number): void;
   /** True once since the link last became "linked". */
   linked: Accessor<boolean>;
 }
@@ -165,6 +182,7 @@ export function createHomeSystem(): HomeSystem {
   const [installs, setInstalls] = createSignal<Record<string, Install>>({});
   const hasLink = linkHost() !== null;
   const hasWifi = wifiHost() !== null;
+  const canJoin = wifiCanJoin();
 
   const refresh = () => {
     setLink(readLink());
@@ -212,7 +230,7 @@ export function createHomeSystem(): HomeSystem {
 
   let frames = 0;
   const busy = () =>
-    wifi()?.state === "connecting" || link().state === LINK_STATE.connecting || link().pairing === LINK_PAIRING.connecting;
+    wifi()?.state === "connecting" || wifi()?.scanning === true || link().state === LINK_STATE.connecting || link().pairing === LINK_PAIRING.connecting;
   onFrame(() => {
     frames++;
     if (frames % POLL_FRAMES === 0) {
@@ -255,6 +273,7 @@ export function createHomeSystem(): HomeSystem {
     hasLink,
     wifi,
     hasWifi,
+    canJoin,
     catalog,
     catalogState,
     catalogError,
@@ -299,6 +318,18 @@ export function createHomeSystem(): HomeSystem {
     },
     connect(slot) {
       connectSavedNetwork(slot);
+      refresh();
+    },
+    scan() {
+      scanNetworks();
+      refresh();
+    },
+    join(ssid, passphrase) {
+      joinNetwork(ssid, passphrase);
+      refresh();
+    },
+    forgetNetwork(slot) {
+      forgetNetwork(slot);
       refresh();
     },
     linked,

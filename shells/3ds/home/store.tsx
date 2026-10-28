@@ -10,6 +10,7 @@ import { ClassicSpinner } from "@pocketjs/framework/classic";
 import type { LinkCatalogApp } from "@pocketjs/framework/link";
 import { LINK_STATE, sizeText, type HomeSystem, type Install } from "./system.ts";
 import { appTint, Tile } from "../ui/chrome.tsx";
+import { SCREEN_W } from "../ui/screen.ts";
 import type { NavButton } from "../ui/bar.tsx";
 import type { LayerContext, NavStack, PageSpec } from "../ui/nav.tsx";
 import { tableContent } from "../ui/table.tsx";
@@ -19,7 +20,8 @@ import { ICONS } from "./pages.tsx";
 
 const ROW = 56;
 const LEFT = 9;
-const WIDTH = 320 - LEFT * 2;
+/** The list's width on this surface. */
+const width = () => SCREEN_W - LEFT * 2;
 const TOP = 10;
 const PILL_W = 64;
 const FOOTER_H = 26;
@@ -102,20 +104,20 @@ function StoreRow(props: { app: LinkCatalogApp; index: number; env: StoreEnv; li
   const install = () => sys.installs()[app.id];
   const meta = () => {
     const state = install();
-    if (state?.error) return ellipsize(state.error, FONT.xs, WIDTH - 60 - PILL_W);
+    if (state?.error) return ellipsize(state.error, FONT.xs, width() - 60 - PILL_W);
     if (action() === "installing" && state) return `Installing  ${sizeText(state.received)} of ${sizeText(state.bytes)}`;
     return `Version ${app.version}  ${sizeText(app.bytes)}`;
   };
   return (
     <>
-      <View class={props.lit() ? "absolute bg-gradient-to-b from-[#058cf5] to-[#015ee6]" : "hidden"} style={{ insetL: 0, insetT: y, width: WIDTH, height: ROW }} />
-      <View class="absolute h-[1] bg-[#d9dce0]" style={{ insetL: 54, insetT: y + ROW - 1, width: WIDTH - 54 }} />
+      <View class={props.lit() ? "absolute bg-gradient-to-b from-[#058cf5] to-[#015ee6]" : "hidden"} style={{ insetL: 0, insetT: y, width: width(), height: ROW }} />
+      <View class="absolute h-[1] bg-[#d9dce0]" style={{ insetL: 54, insetT: y + ROW - 1, width: width() - 54 }} />
       <Tile x={8} y={y + 8} size={40} {...tint} dim={() => press.is(`store.row.${app.id}`)} />
       <Text class={props.lit() ? "absolute text-sm text-white font-bold" : "absolute text-sm text-black font-bold"} style={{ insetL: 56, insetT: y + 5 }}>
-        {ellipsize(app.title, FONT.smBold, WIDTH - 60 - PILL_W - 8)}
+        {ellipsize(app.title, FONT.smBold, width() - 60 - PILL_W - 8)}
       </Text>
       <Text class={props.lit() ? "absolute text-xs text-white" : "absolute text-xs text-[#4f5663]"} style={{ insetL: 56, insetT: y + 22 }}>
-        {ellipsize(app.summary || "No description", FONT.xs, WIDTH - 60 - PILL_W - 8)}
+        {ellipsize(app.summary || "No description", FONT.xs, width() - 60 - PILL_W - 8)}
       </Text>
       <Text
         class={install()?.error ? "absolute text-xs text-[#c4241b]" : props.lit() ? "absolute text-xs text-[#d8e8ff]" : "absolute text-xs text-[#8a9099]"}
@@ -123,7 +125,7 @@ function StoreRow(props: { app: LinkCatalogApp; index: number; env: StoreEnv; li
       >
         {meta()}
       </Text>
-      <Pill app={app} sys={sys} press={press} id={`store.pill.${app.id}`} x={WIDTH - PILL_W - 8} y={y + 16} w={PILL_W} />
+      <Pill app={app} sys={sys} press={press} id={`store.pill.${app.id}`} x={width() - PILL_W - 8} y={y + 16} w={PILL_W} />
     </>
   );
 }
@@ -131,16 +133,16 @@ function StoreRow(props: { app: LinkCatalogApp; index: number; env: StoreEnv; li
 function EmptyState(props: { title: string; message: string; button?: { id: string; label: string }; press: Press; spinner?: boolean }) {
   return (
     <>
-      <Show when={props.spinner} fallback={<Tile x={136} y={22} size={48} art={ICONS.mac.art} />}>
-        <View class="absolute left-[149] top-[36]">
+      <Show when={props.spinner} fallback={<Tile x={(SCREEN_W - 48) / 2} y={22} size={48} art={ICONS.mac.art} />}>
+        <View class="absolute top-[36]" style={{ insetL: SCREEN_W / 2 - 11 }}>
           <ClassicSpinner size={22} color={"#6d7584"} />
         </View>
       </Show>
-      <Text class="absolute left-0 top-[80] w-[320] text-base text-[#ffffffb0] font-bold text-center">{props.title}</Text>
-      <Text class="absolute left-0 top-[79] w-[320] text-base text-[#4c566c] font-bold text-center">{props.title}</Text>
+      <Text class="absolute left-0 top-[80] text-base text-[#ffffffb0] font-bold text-center" style={{ width: SCREEN_W }}>{props.title}</Text>
+      <Text class="absolute left-0 top-[79] text-base text-[#4c566c] font-bold text-center" style={{ width: SCREEN_W }}>{props.title}</Text>
       <For each={props.message.split("\n")}>
         {(line, index) => (
-          <Text class="absolute left-[20] w-[280] text-xs text-[#5d6677] text-center" style={{ insetT: 104 + index() * 15 }}>{line}</Text>
+          <Text class="absolute left-[20] text-xs text-[#5d6677] text-center" style={{ insetT: 104 + index() * 15, width: SCREEN_W - 40 }}>{line}</Text>
         )}
       </For>
       <Show when={props.button}>
@@ -219,9 +221,9 @@ export function storePage(env: StoreEnv, stack: NavStack, layer: LayerContext): 
             />
           }
         >
-          <Text class="absolute left-0 w-[320] text-xs text-[#ffffffb0] text-center" style={{ insetT: TOP + apps().length * ROW + 9 }}>{ellipsize(offered(), FONT.xs, 300)}</Text>
-          <Text class="absolute left-0 w-[320] text-xs text-[#4c566c] text-center" style={{ insetT: TOP + apps().length * ROW + 8 }}>{ellipsize(offered(), FONT.xs, 300)}</Text>
-          <View class="absolute rounded-[8] border border-[#abb1b9] bg-white" style={{ insetL: LEFT, insetT: TOP, width: WIDTH, height: apps().length * ROW }}>
+          <Text class="absolute left-0 text-xs text-[#ffffffb0] text-center" style={{ insetT: TOP + apps().length * ROW + 9, width: SCREEN_W }}>{ellipsize(offered(), FONT.xs, SCREEN_W - 20)}</Text>
+          <Text class="absolute left-0 text-xs text-[#4c566c] text-center" style={{ insetT: TOP + apps().length * ROW + 8, width: SCREEN_W }}>{ellipsize(offered(), FONT.xs, SCREEN_W - 20)}</Text>
+          <View class="absolute rounded-[8] border border-[#abb1b9] bg-white" style={{ insetL: LEFT, insetT: TOP, width: width(), height: apps().length * ROW }}>
             <For each={apps()}>
               {(app, index) => (
                 <StoreRow
@@ -247,8 +249,8 @@ export function storePage(env: StoreEnv, stack: NavStack, layer: LayerContext): 
         apps().forEach((app, index) => {
           const y = top + TOP + index * ROW - offset;
           if (y + ROW <= top || y >= bottom) return;
-          out.push({ id: `store.row.${app.id}`, x: LEFT, y, w: WIDTH, h: ROW, run: () => details(app) });
-          out.push({ id: `store.pill.${app.id}`, x: LEFT + WIDTH - PILL_W - 14, y, w: PILL_W + 14, h: ROW, run: () => act(sys, app) });
+          out.push({ id: `store.row.${app.id}`, x: LEFT, y, w: width(), h: ROW, run: () => details(app) });
+          out.push({ id: `store.pill.${app.id}`, x: LEFT + width() - PILL_W - 14, y, w: PILL_W + 14, h: ROW, run: () => act(sys, app) });
         });
         return out;
       },
@@ -278,7 +280,7 @@ const DESCRIPTION_LINE = 17;
 export function storeAppPage(env: StoreEnv, appId: string, _stack: NavStack, layer: LayerContext): PageSpec {
   const { sys, press } = env;
   const app = () => sys.catalog().find((entry) => entry.id === appId) ?? null;
-  const description = createMemo(() => wrap(app()?.summary || "No description.", FONT.sm, WIDTH - 24));
+  const description = createMemo(() => wrap(app()?.summary || "No description.", FONT.sm, width() - 24));
   const descriptionY = DETAIL_HEAD_H + 26;
   const descriptionH = () => 10 + description().length * DESCRIPTION_LINE + 8;
   const infoY = () => descriptionY + descriptionH() + 4;
@@ -286,7 +288,7 @@ export function storeAppPage(env: StoreEnv, appId: string, _stack: NavStack, lay
     const current = app();
     if (!current) return "";
     const install = sys.installs()[current.id];
-    if (install?.error) return ellipsize(install.error, FONT.xs, 320 - DETAIL_TEXT_X - 10);
+    if (install?.error) return ellipsize(install.error, FONT.xs, SCREEN_W - DETAIL_TEXT_X - 10);
     if (install && !install.done) return `Installing  ${sizeText(install.received)} of ${sizeText(install.bytes)}`;
     return `Version ${current.version}  ${sizeText(current.bytes)}`;
   };
@@ -307,7 +309,7 @@ export function storeAppPage(env: StoreEnv, appId: string, _stack: NavStack, lay
         },
       ];
     },
-    width: 320,
+    width: SCREEN_W,
     press,
     focus: layer.focus,
     keys: env.keys,
@@ -324,23 +326,23 @@ export function storeAppPage(env: StoreEnv, appId: string, _stack: NavStack, lay
       view: () => (
         <Show
           when={app()}
-          fallback={<Text class="absolute left-0 top-[80] w-[320] text-sm text-[#4c566c] font-bold text-center">The Mac no longer offers this app.</Text>}
+          fallback={<Text class="absolute left-0 top-[80] text-sm text-[#4c566c] font-bold text-center" style={{ width: SCREEN_W }}>The Mac no longer offers this app.</Text>}
         >
           {(current) => {
             const tint = appTint(current().id, current().title);
             return (
               <>
                 <Tile x={12} y={12} size={DETAIL_ICON} {...tint} />
-                <Text class="absolute text-lg text-[#ffffffb0] font-bold" style={{ insetL: DETAIL_TEXT_X, insetT: 13 }}>{ellipsize(current().title, FONT.lgBold, 320 - DETAIL_TEXT_X - 10)}</Text>
-                <Text class="absolute text-lg text-black font-bold" style={{ insetL: DETAIL_TEXT_X, insetT: 12 }}>{ellipsize(current().title, FONT.lgBold, 320 - DETAIL_TEXT_X - 10)}</Text>
-                <Text class="absolute text-xs text-[#4f5663]" style={{ insetL: DETAIL_TEXT_X, insetT: 34 }}>{ellipsize(sys.link().companion?.name ?? "Mac", FONT.xs, 320 - DETAIL_TEXT_X - 10)}</Text>
+                <Text class="absolute text-lg text-[#ffffffb0] font-bold" style={{ insetL: DETAIL_TEXT_X, insetT: 13 }}>{ellipsize(current().title, FONT.lgBold, SCREEN_W - DETAIL_TEXT_X - 10)}</Text>
+                <Text class="absolute text-lg text-black font-bold" style={{ insetL: DETAIL_TEXT_X, insetT: 12 }}>{ellipsize(current().title, FONT.lgBold, SCREEN_W - DETAIL_TEXT_X - 10)}</Text>
+                <Text class="absolute text-xs text-[#4f5663]" style={{ insetL: DETAIL_TEXT_X, insetT: 34 }}>{ellipsize(sys.link().companion?.name ?? "Mac", FONT.xs, SCREEN_W - DETAIL_TEXT_X - 10)}</Text>
                 <Text class={sys.installs()[current().id]?.error ? "absolute text-xs text-[#c4241b]" : "absolute text-xs text-[#6d7584]"} style={{ insetL: DETAIL_TEXT_X, insetT: 49 }}>{meta()}</Text>
                 <Pill app={current()} sys={sys} press={press} id={buttonId} x={DETAIL_TEXT_X} y={64 - 2} w={DETAIL_BUTTON_W} />
                 <Text class="absolute left-[18] text-sm text-[#ffffffb0] font-bold" style={{ insetT: DETAIL_HEAD_H + 5 }}>Description</Text>
                 <Text class="absolute left-[18] text-sm text-[#4c566c] font-bold" style={{ insetT: DETAIL_HEAD_H + 4 }}>Description</Text>
-                <View class="absolute rounded-[8] border border-[#abb1b9] bg-white" style={{ insetL: LEFT, insetT: descriptionY, width: WIDTH, height: descriptionH() }} />
+                <View class="absolute rounded-[8] border border-[#abb1b9] bg-white" style={{ insetL: LEFT, insetT: descriptionY, width: width(), height: descriptionH() }} />
                 <Text class="absolute text-sm text-[#2c3a50] leading-[17]" style={{ insetL: LEFT + 12, insetT: descriptionY + 10 }}>{description().join("\n")}</Text>
-                <View class="absolute left-0 w-[320]" style={{ insetT: infoY() }}>{info.view()}</View>
+                <View class="absolute left-0" style={{ insetT: infoY(), width: SCREEN_W }}>{info.view()}</View>
               </>
             );
           }}

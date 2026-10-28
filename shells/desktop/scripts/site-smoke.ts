@@ -152,7 +152,7 @@ const required = [
   "assets/xp-theme.png",
   "assets/aqua-theme.png",
   "play/index.html",
-  "play/runtime/pocketjs.wasm",
+  "play/runtime/platforms/web/pocketjs.wasm",
   "play/pocket-desktop.system.plan.json",
 ];
 for (const file of required) {

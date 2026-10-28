@@ -33,21 +33,15 @@
     "framework": "solid",
     "surfaces": {
       "auxiliary": {
-        "fixed": {
-          "logical": [
-            320,
-            240
-          ],
-          "presentation": "native"
+        "adaptive": {
+          "min": [320, 240],
+          "max": [640, 720]
         }
       }
     },
     "viewport": {
       "fixed": {
-        "logical": [
-          400,
-          240
-        ],
+        "logical": [400, 240],
         "presentation": "native"
       }
     }

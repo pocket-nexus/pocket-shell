@@ -12,10 +12,11 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BTN } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
-import { bootConsole3ds, type Console3ds, type Console3dsOptions } from "../../../vendor/pocketjs/hosts/sim/console-3ds.ts";
+import { bootConsole3ds, type Console3ds, type Console3dsOptions } from "../../../vendor/pocketjs/programs/sim/console-3ds.ts";
 import { encodePNG } from "../../../vendor/pocketjs/tools/png.ts";
 import { buildGuest } from "./build.ts";
 import { CJK_NAME, X_SERVICE, xRoutes, type XCalls } from "./x-fixture.ts";
+import { PORTRAIT, TAB5, tab5Shot } from "./tab5.ts";
 
 const OUT = mkdtempSync(join(tmpdir(), "pocket-x-"));
 let GUEST = join(OUT, "guest", "x-main");
@@ -244,5 +245,52 @@ describe("errors", () => {
     expect(all).toContain("service x login");
     expect(all).toContain("Try Again");
     shot(x, "signed-out");
+  });
+});
+
+describe("on the Tab5's 592x360 surface", () => {
+  test("the timeline spans the width; Reload and the control answer touch", async () => {
+    const x = await boot({ auxiliary: TAB5 });
+    await x.run(60);
+    tab5Shot(x, "x-timeline");
+    const texts = x.texts("auxiliary").join(" | ");
+    for (const text of ["Following", "For You", "Reload", "Ruth Kim", "Pocket Dev"]) expect(texts).toContain(text);
+    const before = started(x).length;
+    await x.tapText("Reload");
+    await x.run(40);
+    expect(started(x).length).toBeGreaterThan(before);
+    await x.tapText("For You");
+    await x.run(40);
+    expect(started(x)).toContain(`${X_SERVICE}/timeline?kind=foryou`);
+  });
+
+  test("a post's thread and the reply composer fill the surface; the keyboard's check key sends", async () => {
+    const calls = newCalls();
+    const x = await boot({ auxiliary: TAB5, calls });
+    await x.run(60);
+    await scrollTo(x, "Luis Moreno");
+    await x.tapText("Luis Moreno");
+    await x.run(60);
+    expect(started(x)).toContain(`${X_SERVICE}/post/1002`);
+    tab5Shot(x, "x-post");
+    await x.tapText("Home");
+    await x.run(30);
+    await scrollTo(x, CJK_NAME);
+    const like = await scrollTo(x, "12");
+    await x.tap(like[0] - 10 - 128, like[1] + 4);
+    await x.run(20);
+    expect(x.texts("auxiliary").join(" ")).toContain("Reply to @dpadfan");
+    for (const key of ["h", "i"]) await x.tapText(key);
+    tab5Shot(x, "x-compose");
+    await x.tapText("✓");
+    await x.run(20);
+    expect(calls.replies).toEqual([{ id: "1004", text: "hi" }]);
+  });
+
+  test("a portrait surface shows the timeline", async () => {
+    const x = await boot({ auxiliary: PORTRAIT });
+    await x.run(60);
+    tab5Shot(x, "portrait-x-timeline");
+    expect(x.texts("auxiliary").join(" ")).toContain("For You");
   });
 });

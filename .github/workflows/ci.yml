@@ -20,8 +20,12 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.14
+      - name: Read the runtime's pinned Rust toolchain
+        id: rust-pin
+        run: echo "version=$(sed -n 's/^channel = "\(.*\)"/\1/p' vendor/pocketjs/rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
       - uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: ${{ steps.rust-pin.outputs.version }}
           targets: wasm32-unknown-unknown
       - run: bun run setup
       - run: bun run check
@@ -45,15 +49,17 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.14
+      - name: Read the runtime's pinned Rust toolchain
+        id: rust-pin
+        run: echo "version=$(sed -n 's/^channel = "\(.*\)"/\1/p' vendor/pocketjs/rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
       - uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: ${{ steps.rust-pin.outputs.version }}
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
-            vendor/pocketjs/engine/crates/pocket-text
-            vendor/pocketjs/hosts/desktop
-            vendor/pocketjs/engine/wasm
+            vendor/pocketjs
       - run: bun run setup
       - run: bun run check
       - run: bun run desktop test:rust
