@@ -38,7 +38,7 @@ if (buildOnly) {
 
 const binary = resolve(
   POCKETJS_ROOT,
-  "programs/desktop/target/release/pocket-desktop-host",
+  "target/release/pocket-desktop-host",
 );
 const code = await run(
   [binary, "--system-plan", receipt.systemPlanPath, ...hostArgs],

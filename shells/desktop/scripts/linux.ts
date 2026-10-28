@@ -43,7 +43,7 @@ const manifest = resolve(POCKETJS_ROOT, "programs/desktop/Cargo.toml");
 await run(["cargo", "build", "--release", "--locked", "--manifest-path", manifest]);
 const binary = resolve(
   POCKETJS_ROOT,
-  "programs/desktop/target/release/pocket-desktop-host",
+  "target/release/pocket-desktop-host",
 );
 
 if (packageArchive) {
