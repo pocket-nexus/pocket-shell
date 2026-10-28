@@ -43,8 +43,9 @@ jobs:
           bun scripts/release-3ds.ts prepare "$version"
           echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Install the runtime's pinned Rust toolchain
-        working-directory: vendor/pocketjs/products/3ds/core
-        run: rustup show active-toolchain
+        run: |
+          nightly="$(bun -e 'import { BUILD_STD_NIGHTLY } from "./vendor/pocketjs/tools/build/toolchains/rust.ts"; console.log(BUILD_STD_NIGHTLY)')"
+          rustup toolchain install "$nightly" --profile minimal --component rust-src
       - name: Pull the runtime's pinned devkitARM image
         run: |
           image=$(bun -e 'import { THREE_DS_CONTAINER_IMAGE } from "./vendor/pocketjs/tools/3ds-toolchain.ts"; console.log(THREE_DS_CONTAINER_IMAGE)')
