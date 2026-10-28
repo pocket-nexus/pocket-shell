@@ -18,7 +18,7 @@ const args = process.argv.slice(2).filter((arg) => arg !== "--");
 const buildOnly = args.includes("--build-only");
 const hostArgs = args.filter((arg) => arg !== "--build-only");
 const receipt = await buildDesktopSystem();
-const manifest = resolve(POCKETJS_ROOT, "hosts/desktop/Cargo.toml");
+const manifest = resolve(POCKETJS_ROOT, "programs/desktop/Cargo.toml");
 const buildCode = await run([
   "cargo",
   "build",
@@ -38,7 +38,7 @@ if (buildOnly) {
 
 const binary = resolve(
   POCKETJS_ROOT,
-  "hosts/desktop/target/release/pocket-desktop-host",
+  "programs/desktop/target/release/pocket-desktop-host",
 );
 const code = await run(
   [binary, "--system-plan", receipt.systemPlanPath, ...hostArgs],

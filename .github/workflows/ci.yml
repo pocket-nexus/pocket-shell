@@ -51,9 +51,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
-            vendor/pocketjs/engine/crates/pocket-text
-            vendor/pocketjs/hosts/desktop
-            vendor/pocketjs/engine/wasm
+            vendor/pocketjs
       - run: bun run setup
       - run: bun run check
       - run: bun run desktop test:rust

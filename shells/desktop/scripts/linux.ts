@@ -39,11 +39,11 @@ const receipt = await buildDesktopSystem({
   dist: artifactDir,
   planDir,
 });
-const manifest = resolve(POCKETJS_ROOT, "hosts/desktop/Cargo.toml");
+const manifest = resolve(POCKETJS_ROOT, "programs/desktop/Cargo.toml");
 await run(["cargo", "build", "--release", "--locked", "--manifest-path", manifest]);
 const binary = resolve(
   POCKETJS_ROOT,
-  "hosts/desktop/target/release/pocket-desktop-host",
+  "programs/desktop/target/release/pocket-desktop-host",
 );
 
 if (packageArchive) {

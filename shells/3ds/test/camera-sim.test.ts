@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/test/camera-sim.test.ts — the Camera applet (shells/3ds/camera)
 // headless on the wasm core with the 3DS geometry and the sim's camera
-// (hosts/sim/camera.ts): the preview without QR decoding, the shutter by A,
+// (platforms/sim/camera.ts): the preview without QR decoding, the shutter by A,
 // R and the stylus, the bar's thumbnail of the newest photo, switching to
 // the inner camera, and the review with delete.
 //

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/test/photos-sim.test.ts — the Photos applet (shells/3ds/photos)
 // headless on the wasm core with the 3DS geometry and the sim's camera
-// storage (hosts/sim/camera.ts): the Camera Roll grid newest first with its
+// storage (platforms/sim/camera.ts): the Camera Roll grid newest first with its
 // count, thumbnails asked for near the visible rows only, a photo full
 // screen swiped and stepped through, and delete with a confirmation.
 //

@@ -18,12 +18,12 @@ import {
   FONT_CMAP_ENTRY_SIZE,
   FONT_HEADER_SIZE,
 } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
-import { createWasmUi } from "../../../vendor/pocketjs/hosts/web/wasm-ops.js";
+import { createWasmUi } from "../../../vendor/pocketjs/platforms/web/wasm-ops.js";
 import { segsFromBreaks, wrapLine } from "../src/system-ui/notepad.ts";
 import { prepareAssets } from "../scripts/prepare-assets.ts";
 
 const ROOT = new URL("..", import.meta.url).pathname;
-const WASM_PATH = join(ROOT, "../../vendor/pocketjs/hosts/web/pocketjs.wasm");
+const WASM_PATH = join(ROOT, "../../vendor/pocketjs/platforms/web/pocketjs.wasm");
 
 function ensureBuilt(path: string, cmd: string[]): void {
   if (existsSync(path)) return;

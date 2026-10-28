@@ -25,19 +25,20 @@ await run([process.execPath, resolve(POCKETJS_ROOT, "tools/wasm.ts")], POCKETJS_
 
 await run([process.execPath, resolve(POCKETJS_ROOT, "tools/text-wasm.ts")], POCKETJS_ROOT);
 
-for (const file of [
-  "offload-worker.js",
-  "text-worker.js",
-  "text-engine.js",
-  "pocket_text.wasm",
-  "app-instance.html",
-  "app-instance.js",
-  "runtime-glyphs.js",
-  "system-engine.js",
-  "wasm-ops.js",
-  "pocketjs.wasm",
+// The browser platform (platforms/web) and the web program (programs/web).
+for (const [dir, file] of [
+  ["platforms/web", "offload-worker.js"],
+  ["platforms/web", "text-worker.js"],
+  ["platforms/web", "text-engine.js"],
+  ["platforms/web", "pocket_text.wasm"],
+  ["programs/web", "app-instance.html"],
+  ["programs/web", "app-instance.js"],
+  ["platforms/web", "runtime-glyphs.js"],
+  ["programs/web", "system-engine.js"],
+  ["platforms/web", "wasm-ops.js"],
+  ["platforms/web", "pocketjs.wasm"],
 ]) {
-  cpSync(resolve(POCKETJS_ROOT, "hosts/web", file), resolve(runtime, file));
+  cpSync(resolve(POCKETJS_ROOT, dir, file), resolve(runtime, file));
 }
 for (const file of ["index.html", "preview.js", "preview.css"]) {
   cpSync(resolve(ROOT, "preview", file), resolve(output, file));

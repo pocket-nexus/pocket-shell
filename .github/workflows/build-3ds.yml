@@ -43,7 +43,7 @@ jobs:
           bun scripts/release-3ds.ts prepare "$version"
           echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Install the runtime's pinned Rust toolchain
-        working-directory: vendor/pocketjs/hosts/3ds/core
+        working-directory: vendor/pocketjs/products/3ds/core
         run: rustup show active-toolchain
       - name: Pull the runtime's pinned devkitARM image
         run: |

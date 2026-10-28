@@ -94,6 +94,7 @@ import { ABOUT_GEO, ABOUT_LINE_STEP, aboutGeo } from "../src/system-ui/programs.
 import about from "../pocket.about.json";
 import system from "../pocket.system.json";
 import {
+  readPocketManifest,
   validateAndResolveBuildPlan,
   validateAndResolveSystemPlan,
 } from "@pocketjs/framework/manifest";
@@ -106,7 +107,7 @@ describe("Pocket app desktop catalog", () => {
         .filter((entry) => installed.has(entry.package))
         .map(async (entry) => ({
           source: entry.manifest,
-          manifest: await Bun.file(resolve(REPOSITORY, entry.manifest)).json(),
+          manifest: readPocketManifest(resolve(REPOSITORY, entry.manifest)).manifest,
         })),
     );
   }
