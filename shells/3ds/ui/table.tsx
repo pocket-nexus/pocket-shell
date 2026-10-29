@@ -32,7 +32,7 @@ export interface Cell {
   /** Second line under the label (smaller, grey). */
   detail?: string;
   icon?: CellIcon;
-  /** An app's icon (appTint) instead of a system icon. */
+  /** An app's icon (home/app-icon.ts appTile) instead of a system icon. */
   tile?: AppTint;
   accessory?: "chevron" | "check" | "switch" | "spinner" | "bars";
   /** Switch position or check visibility. */
@@ -183,7 +183,7 @@ function CellView(props: { placed: PlacedCell; width: number; lit: Accessor<bool
         {(icon) => <Tile x={6} y={y + (h - 24) / 2} size={24} art={icon().art} />}
       </Show>
       <Show when={cell.tile}>
-        {(tile) => <Tile x={6} y={y + (h - 24) / 2} size={24} art={tile().art} from={tile().from} to={tile().to} letters={tile().letters} />}
+        {(tile) => <Tile x={6} y={y + (h - 24) / 2} size={24} {...tile()} />}
       </Show>
       <Text
         class={cell.tone === "action"

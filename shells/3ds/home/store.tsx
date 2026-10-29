@@ -9,7 +9,8 @@ import { Text, View } from "@pocketjs/framework/components";
 import { ClassicSpinner } from "@pocketjs/framework/classic";
 import type { LinkCatalogApp } from "@pocketjs/framework/link";
 import { LINK_STATE, sizeText, type HomeSystem, type Install } from "./system.ts";
-import { appTint, Tile } from "../ui/chrome.tsx";
+import { Tile } from "../ui/chrome.tsx";
+import { appTile } from "./app-icon.ts";
 import { SCREEN_W } from "../ui/screen.ts";
 import type { NavButton } from "../ui/bar.tsx";
 import type { LayerContext, NavStack, PageSpec } from "../ui/nav.tsx";
@@ -99,7 +100,7 @@ function StoreRow(props: { app: LinkCatalogApp; index: number; env: StoreEnv; li
   const { sys, press } = props.env;
   const app = props.app;
   const y = props.index * ROW;
-  const tint = appTint(app.id, app.title);
+  const tint = () => appTile(app.id, sys.table().apps.find((entry) => entry.id === app.id));
   const action = () => storeAction(app, sys.table().apps, sys.installs()[app.id]);
   const install = () => sys.installs()[app.id];
   const meta = () => {
@@ -112,7 +113,7 @@ function StoreRow(props: { app: LinkCatalogApp; index: number; env: StoreEnv; li
     <>
       <View class={props.lit() ? "absolute bg-gradient-to-b from-[#058cf5] to-[#015ee6]" : "hidden"} style={{ insetL: 0, insetT: y, width: width(), height: ROW }} />
       <View class="absolute h-[1] bg-[#d9dce0]" style={{ insetL: 54, insetT: y + ROW - 1, width: width() - 54 }} />
-      <Tile x={8} y={y + 8} size={40} {...tint} dim={() => press.is(`store.row.${app.id}`)} />
+      <Tile x={8} y={y + 8} size={40} {...tint()} dim={() => press.is(`store.row.${app.id}`)} />
       <Text class={props.lit() ? "absolute text-sm text-white font-bold" : "absolute text-sm text-black font-bold"} style={{ insetL: 56, insetT: y + 5 }}>
         {ellipsize(app.title, FONT.smBold, width() - 60 - PILL_W - 8)}
       </Text>
@@ -329,10 +330,10 @@ export function storeAppPage(env: StoreEnv, appId: string, _stack: NavStack, lay
           fallback={<Text class="absolute left-0 top-[80] text-sm text-[#4c566c] font-bold text-center" style={{ width: SCREEN_W }}>The Mac no longer offers this app.</Text>}
         >
           {(current) => {
-            const tint = appTint(current().id, current().title);
+            const tint = () => appTile(current().id, sys.table().apps.find((entry) => entry.id === current().id));
             return (
               <>
-                <Tile x={12} y={12} size={DETAIL_ICON} {...tint} />
+                <Tile x={12} y={12} size={DETAIL_ICON} {...tint()} />
                 <Text class="absolute text-lg text-[#ffffffb0] font-bold" style={{ insetL: DETAIL_TEXT_X, insetT: 13 }}>{ellipsize(current().title, FONT.lgBold, SCREEN_W - DETAIL_TEXT_X - 10)}</Text>
                 <Text class="absolute text-lg text-black font-bold" style={{ insetL: DETAIL_TEXT_X, insetT: 12 }}>{ellipsize(current().title, FONT.lgBold, SCREEN_W - DETAIL_TEXT_X - 10)}</Text>
                 <Text class="absolute text-xs text-[#4f5663]" style={{ insetL: DETAIL_TEXT_X, insetT: 34 }}>{ellipsize(sys.link().companion?.name ?? "Mac", FONT.xs, SCREEN_W - DETAIL_TEXT_X - 10)}</Text>

@@ -56,7 +56,8 @@ import {
 } from "./layout.ts";
 import { ICONS } from "./pages.tsx";
 import { type HomeApp, type HomeSystem } from "./system.ts";
-import { appTint, StatusBar, Tile, Wallpaper, type TileProps } from "../ui/chrome.tsx";
+import { StatusBar, Tile, Wallpaper, type TileProps } from "../ui/chrome.tsx";
+import { appTile } from "./app-icon.ts";
 import { COMPACT, SCREEN_H, SCREEN_W, TALL } from "../ui/screen.ts";
 import { ellipsize, FONT } from "../ui/text.ts";
 import type { Press, Target, TargetDrag, TouchPage } from "../ui/touch.ts";
@@ -268,7 +269,7 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
     if (key === SETTINGS_KEY) return { art: ICONS.general.art };
     if (key === MAC_KEY) return { art: ICONS.mac.art };
     const app = appFor(key);
-    return app ? appTint(app.id, app.title) : {};
+    return app ? appTile(app.id, app) : {};
   };
 
   // ---- banner -------------------------------------------------------------------
@@ -657,7 +658,7 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
               when={current().app}
               fallback={<Tile x={7} y={6} size={24} art={ICONS.general.art} />}
             >
-              {(app) => <Tile x={7} y={6} size={24} {...appTint(app().id, app().title)} />}
+              {(app) => <Tile x={7} y={6} size={24} {...appTile(app().id, app())} />}
             </Show>
             <Text class="absolute left-[38] top-[3] text-xs text-white font-bold">{ellipsize(current().title, FONT.xsBold, PAGE_W - 48)}</Text>
             <Text class="absolute left-[38] top-[18] text-xs text-[#ffffffb8]">{ellipsize(current().line, FONT.xs, PAGE_W - 48)}</Text>

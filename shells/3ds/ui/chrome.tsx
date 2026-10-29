@@ -172,7 +172,7 @@ const ART: Record<IconArt | "plain", readonly Variant[]> = {
   discord: [[24, 32, "art/icons/discord-24.png"], [46, 64, "art/icons/discord-46.png"], [64, 64, "art/icons/discord-64.png"]],
   camera: [[24, 32, "art/icons/camera-24.png"], [46, 64, "art/icons/camera-46.png"], [64, 64, "art/icons/camera-64.png"]],
   photos: [[24, 32, "art/icons/photos-24.png"], [46, 64, "art/icons/photos-46.png"], [64, 64, "art/icons/photos-64.png"]],
-  /** The finish alone, over the tint of an app that ships no icon. */
+  /** The finish alone, over an app's own icon or the tint of one that ships none. */
   plain: [[24, 32, "art/icons/plain-24.png"], [46, 64, "art/icons/plain-46.png"], [64, 64, "art/icons/plain-64.png"]],
 };
 
@@ -198,48 +198,77 @@ export interface TileProps {
   x: number;
   y: number;
   size: number;
-  /** A baked icon; without one the tile is the tint gradient and letters. */
+  /** A baked icon of Home's own. */
   art?: IconArt;
+  /** An app's own icon for a tile `size` px wide (home/app-icon.ts), or null
+   *  when its package carries none. */
+  picture?: (size: number) => TilePicture | null;
+  /** The tint of an app whose package carries no icon. */
   from?: string;
   to?: string;
-  letters?: string;
   /** Darkened while pressed. */
   dim?: Accessor<boolean>;
 }
 
-/** An iOS 6 icon: a baked picture, or a tint gradient with letters under the
- *  same baked gloss, rim and shadow; a darkening wash while pressed. */
+/** An app's own icon: a registered texture of side `texture` with the
+ *  `icon`-sided picture in its middle, cut to the tile's rounded square. */
+export interface TilePicture {
+  src: string;
+  icon: number;
+  texture: number;
+}
+
+/** An iOS 6 icon: a baked picture, an app's own icon under the baked gloss,
+ *  rim and shadow, or for an app without one, the tint gradient and the
+ *  four-square applet glyph under them; a darkening wash while pressed.
+ *  Never an app's initials. */
 export function Tile(props: TileProps) {
   const r = Math.round(props.size * ICON_RADIUS);
+  const square = (texture: number, icon: number, src: string) => {
+    const scale = props.size / icon;
+    const pad = ((texture - icon) / 2) * scale;
+    return <Image class="absolute" src={src} style={{ insetL: props.x - pad, insetT: props.y - pad, width: texture * scale, height: texture * scale }} />;
+  };
   const finish = (art: IconArt | "plain") => {
     const [icon, tex, src] = variant(art, props.size);
-    const scale = props.size / icon;
-    const pad = ((tex - icon) / 2) * scale;
-    return <Image class="absolute" src={src} style={{ insetL: props.x - pad, insetT: props.y - pad, width: tex * scale, height: tex * scale }} />;
+    return square(tex, icon, src);
   };
-  const letterSlot = props.size >= 40 ? "large" : "small";
+  const packaged = () => props.picture?.(props.size) ?? null;
+  // The glyph: two by two rounded squares, 0.2 of the side each.
+  const cell = Math.round(props.size * 0.2), gap = Math.max(2, Math.round(props.size * 0.08));
+  const glyph = (column: number, row: number) => (
+    <View
+      class="absolute bg-[#ffffffd9]"
+      style={{
+        insetL: props.x + (props.size - 2 * cell - gap) / 2 + column * (cell + gap),
+        insetT: props.y + (props.size - 2 * cell - gap) / 2 + row * (cell + gap),
+        width: cell, height: cell, radius: Math.max(1, Math.round(cell * 0.3)),
+      }}
+    />
+  );
   return (
     <>
       <Show when={props.art} fallback={
-        <>
-          <View
-            class="absolute"
-            style={{ insetL: props.x, insetT: props.y, width: props.size, height: props.size, radius: r, gradDir: 1, gradFrom: props.from ?? "#a9b0b9", gradTo: props.to ?? "#5b636d" }}
-          />
-          <Text
-            class={letterSlot === "large" ? "absolute text-xl text-[#00000040] font-bold text-center" : "absolute text-sm text-[#00000040] font-bold text-center"}
-            style={{ insetL: props.x, insetT: props.y + (letterSlot === "large" ? props.size / 2 - 12 + 1 : props.size / 2 - 9 + 1), width: props.size }}
-          >
-            {props.letters ?? ""}
-          </Text>
-          <Text
-            class={letterSlot === "large" ? "absolute text-xl text-white font-bold text-center" : "absolute text-sm text-white font-bold text-center"}
-            style={{ insetL: props.x, insetT: props.y + (letterSlot === "large" ? props.size / 2 - 12 : props.size / 2 - 9), width: props.size }}
-          >
-            {props.letters ?? ""}
-          </Text>
-          {finish("plain")}
-        </>
+        <Show when={packaged()} fallback={
+          <>
+            <View
+              class="absolute"
+              style={{ insetL: props.x, insetT: props.y, width: props.size, height: props.size, radius: r, gradDir: 1, gradFrom: props.from ?? "#a9b0b9", gradTo: props.to ?? "#5b636d" }}
+            />
+            {glyph(0, 0)}
+            {glyph(1, 0)}
+            {glyph(0, 1)}
+            {glyph(1, 1)}
+            {finish("plain")}
+          </>
+        }>
+          {(icon) => (
+            <>
+              {square(icon().texture, icon().icon, icon().src)}
+              {finish("plain")}
+            </>
+          )}
+        </Show>
       }>
         {(art) => finish(art())}
       </Show>
@@ -253,25 +282,19 @@ export function Tile(props: TileProps) {
 
 export interface AppTint {
   art?: IconArt;
+  picture?: TileProps["picture"];
   from: string;
   to: string;
-  letters: string;
 }
 
-/** An app's icon: its baked art when Home has one, else a deterministic tint
- *  and letters. */
-export function appTint(id: string, title: string): AppTint {
+/** An app's tile without its package: Home's baked art for its own applets,
+ *  else a deterministic tint under the applet glyph. home/app-icon.ts adds
+ *  the icon an installed package carries. */
+export function appTint(id: string): AppTint {
   let hash = 0x811c9dc5;
   for (let index = 0; index < id.length; index++) hash = Math.imul(hash ^ id.charCodeAt(index), 0x01000193) >>> 0;
   const hue = hash % 360;
-  const letters = title
-    .replace(/[^A-Za-z0-9 ]/g, "")
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((word) => word[0]!.toUpperCase())
-    .join("") || "?";
-  return { art: APP_ART[id], from: hsl(hue, 0.62, 0.62), to: hsl(hue, 0.7, 0.36), letters };
+  return { art: APP_ART[id], from: hsl(hue, 0.62, 0.62), to: hsl(hue, 0.7, 0.36) };
 }
 
 function hsl(h: number, s: number, l: number): string {

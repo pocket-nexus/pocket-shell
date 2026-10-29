@@ -151,6 +151,15 @@ textures. The build reads the committed
 PNGs, so it needs no Blender. Cycles output differs a little between runs, so
 a re-render is a new set of pictures to review, not a check.
 
+**An installed app's icon comes from its own package.** A `.pocket` whose
+manifest names an `icon` carries it baked at 24, 46 and 64 px, already cut to
+the rounded square (PocketJS `docs/LAUNCHER.md`, package section 9). Home
+reads it with `appIcon` (`home/app-icon.ts`), uploads each size once and draws
+it under the `plain` finish, so an installed game has the same gloss, rim and
+shadow as Home's own icons. An app whose package carries no icon gets a tint
+from its id under a four-square applet glyph. **No tile shows an app's
+initials.**
+
 **YouTube, X and Discord** reach their services through the linked Mac:
 each applet fetches `https://companion.pocket/<service>/…`, which Pocket
 Companion answers itself (PocketJS `tools/companion/services/`). Accounts,
