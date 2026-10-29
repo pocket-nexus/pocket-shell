@@ -12,7 +12,7 @@ import type { WifiNetwork } from "@pocketjs/framework/wifi";
 import { offsetText, TIME_ZONES } from "./clock.ts";
 import { displayApi } from "./display.ts";
 import { LINK_PAIRING, LINK_STATE, sizeText, type HomeApp, type HomeSystem } from "./system.ts";
-import { appTint } from "../ui/chrome.tsx";
+import { appTile } from "./app-icon.ts";
 import type { LayerContext, NavStack, PageSpec } from "../ui/nav.tsx";
 import { SCREEN_H, SCREEN_W } from "../ui/screen.ts";
 import { tableContent, type Cell, type CellIcon, type Section } from "../ui/table.tsx";
@@ -334,7 +334,7 @@ function appsPage(env: PageEnv, _stack: NavStack, layer: LayerContext): PageSpec
             id: `apps.${app.id}`,
             label: app.title,
             detail: `${app.version ? `Version ${app.version}  ` : ""}${sizeText(app.bytes)}`,
-            tile: appTint(app.id, app.title),
+            tile: appTile(app.id, app),
             button: { id: `apps.delete.${app.id}`, label: "Delete", tone: "red" as const, run: () => remove(app) },
             run: () => remove(app),
           })),

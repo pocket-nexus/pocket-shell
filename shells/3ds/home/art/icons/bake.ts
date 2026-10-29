@@ -19,8 +19,8 @@
 // supersampled), the iOS 6 gloss (a white wash over the top half whose lower
 // edge is a shallow arc), a rim lit along the top and shaded along the
 // bottom, and, at the springboard's 46, a soft shadow below. `plain` is the
-// same finish with no picture: Home lays it over the tint gradient of an app
-// that ships no icon.
+// same finish with no picture: Home lays it over an installed app's own icon
+// (home/app-icon.ts) or over the tint and glyph of an app that ships none.
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";

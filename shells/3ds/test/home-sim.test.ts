@@ -8,7 +8,7 @@
 // POCKET_HOME_SHOTS=<dir> also writes top/bottom PNGs of each main screen.
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BTN } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
@@ -16,6 +16,7 @@ import type { LinkCatalogApp } from "../../../vendor/pocketjs/contracts/spec/lin
 import { bootConsole3ds, type Console3ds, type Console3dsOptions } from "../../../vendor/pocketjs/programs/sim/console-3ds.ts";
 import { createSimFsHost } from "../../../vendor/pocketjs/platforms/sim/fs.ts";
 import { encodePNG } from "../../../vendor/pocketjs/tools/png.ts";
+import { bakeIconSet } from "../../../vendor/pocketjs/tools/launcher-icon.ts";
 import { buildGuest } from "./build.ts";
 import { PORTRAIT, TAB5, tab5Shot } from "./tab5.ts";
 
@@ -168,6 +169,40 @@ describe("springboard", () => {
     await home.run(20);
     expect(home.launches).toEqual([]);
     expect(home.texts("auxiliary")).not.toContain("Pocket Nexus stopped");
+  });
+});
+
+describe("app icons", () => {
+  const GAME = { output: "playset-space-shooter", id: "dev.pocket-nexus.playset.space-shooter", title: "Space Shooter", version: "0.1.0", bytes: 400_000 };
+  const MANIFEST = join(import.meta.dir, "../../../vendor/pocketjs/apps/playset/space-shooter/pocket.json");
+
+  /** The springboard's pixels under the Space Shooter label, 16 px square. */
+  async function iconPixels(icon: Uint8Array | undefined): Promise<{ home: Console3ds; pixels: number[] }> {
+    const home = await boot({ apps: [...APPS, { ...GAME, ...(icon ? { icon } : {}) }] });
+    await home.run(30);
+    const [x, y, w] = home.locate("Space Shooter", "auxiliary")!;
+    const { width, rgba } = home.world.pixels("auxiliary");
+    const pixels: number[] = [];
+    // The 46 px icon sits 49 px above its label, centred on it.
+    for (let row = -8; row < 8; row++) for (let column = -8; column < 8; column++) {
+      const o = ((Math.round(y - 49 + 23) + row) * width + Math.round(x + w / 2) + column) * 4;
+      pixels.push(rgba[o]!, rgba[o + 1]!, rgba[o + 2]!);
+    }
+    return { home, pixels };
+  }
+
+  test("an installed app shows the icon its package carries; no tile shows initials", async () => {
+    const icon = await bakeIconSet(MANIFEST, JSON.parse(readFileSync(MANIFEST, "utf8")), 1);
+    const packaged = await iconPixels(icon);
+    shot(packaged.home, "icons");
+    const tinted = await iconPixels(undefined);
+    const difference = packaged.pixels.reduce((sum, value, index) => sum + Math.abs(value - tinted.pixels[index]!), 0) / packaged.pixels.length;
+    expect(difference).toBeGreaterThan(30);
+    for (const home of [packaged.home, tinted.home]) {
+      const texts = home.texts("auxiliary");
+      expect(texts).toContain("Space Shooter");
+      for (const initials of ["SS", "C", "HN", "PN"]) expect(texts).not.toContain(initials);
+    }
   });
 });
 
