@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/home/scanner.tsx — Settings > Mac > Pair a Mac: the outer camera's
-// live preview under a viewfinder (1:1 on the 3DS's touch screen; on a larger
-// surface scaled to the height under the bar, or to the width in portrait),
-// the console's QR decoder polled every frame, and the pairing handshake's
-// progress.
+// shells/3ds/home/scanner.tsx — the QR scanner: Settings > Mac > Pair a Mac,
+// and the store's Scan a Code... on a console that downloads apps by itself.
+// The outer camera's live preview under a viewfinder (1:1 on the 3DS's touch
+// screen; on a larger surface scaled to the height under the bar, or to the
+// width in portrait), the console's QR decoder polled every frame, and the
+// pairing handshake's progress.
 //
-//   scanning -> (pocketlink QR) -> connecting to <name> -> paired -> back to Mac
+//   scanning -> (pocketlink pairing QR) -> connecting to <name> -> paired -> back
+//   scanning -> (pocketlink install QR) -> the install page, in the scanner's place
 //
-// A code that is not a pairing URI leaves the scanner running with a hint.
+// Either entry takes either code: a pairing code pairs, an install code goes
+// to its confirmation page when the console can install from a code. Any
+// other code leaves the scanner running with a hint.
 
 import { createSignal, onCleanup, Show, type Accessor } from "solid-js";
 import { Image, Text, View } from "@pocketjs/framework/components";
@@ -17,7 +21,7 @@ import { isPairingUri } from "@pocketjs/framework/link";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 import { registerTexture } from "@pocketjs/framework/renderer";
 import { ClassicSpinner } from "@pocketjs/framework/classic";
-import { LINK_PAIRING, type HomeSystem } from "./system.ts";
+import { isInstallCode, LINK_PAIRING, type HomeSystem } from "./system.ts";
 import { NAV_H } from "../ui/bar.tsx";
 import type { NavStack, PageSpec } from "../ui/nav.tsx";
 import { COMPACT, SCREEN_H, SCREEN_W, TALL } from "../ui/screen.ts";
@@ -52,7 +56,21 @@ export function pairingName(uri: string): string {
 const IMAGE_W = 320;
 const IMAGE_H = 240;
 
-export function scannerPage(sys: HomeSystem, stack: NavStack, setScan: (state: ScanState) => void, scan: Accessor<ScanState>): PageSpec {
+/** Pair a Mac (Settings), or install an app from a code (the store). */
+export type ScanPurpose = "pair" | "install";
+
+const IDLE_HINT: Record<ScanPurpose, string> = {
+  pair: "Point the camera at the code on your Mac",
+  install: "Point the camera at an install code",
+};
+
+export function scannerPage(
+  sys: HomeSystem,
+  stack: NavStack,
+  setScan: (state: ScanState) => void,
+  scan: Accessor<ScanState>,
+  purpose: ScanPurpose = "pair",
+): PageSpec {
   // The preview fills the 3DS's screen behind the bar. A landscape surface
   // shows it under the bar as tall as the space there, centred, with the pill
   // over its foot; a portrait one scales it to its width, the pill below.
@@ -82,11 +100,23 @@ export function scannerPage(sys: HomeSystem, stack: NavStack, setScan: (state: S
     if (state.t === "unavailable" || leaving) return;
     if (state.t === "scanning" || state.t === "failed") {
       if (hintFrames > 0 && --hintFrames === 0 && state.t === "scanning") setScan({ t: "scanning", hint: "" });
+      if (stack.busy()) return; // a code read mid-slide waits for the stack to settle
       const code = pollQrCode();
       if (code === undefined) return;
+      if (isInstallCode(code)) {
+        if (sys.canInstallCode() && sys.offerCode(code)) {
+          // The install page takes the scanner's place, which closes the camera.
+          leaving = true;
+          stack.replace("install.code");
+          return;
+        }
+        hintFrames = 120;
+        setScan({ t: "scanning", hint: sys.canInstallCode() ? "That install code could not be read." : "This console cannot install from a code." });
+        return;
+      }
       if (!isPairingUri(code)) {
         hintFrames = 120;
-        setScan({ t: "scanning", hint: "That code is not a Pocket pairing code." });
+        setScan({ t: "scanning", hint: purpose === "pair" ? "That code is not a Pocket pairing code." : "That code is not a Pocket code." });
         return;
       }
       const name = pairingName(code);
@@ -100,7 +130,7 @@ export function scannerPage(sys: HomeSystem, stack: NavStack, setScan: (state: S
         setScan({ t: "paired", name: sys.link().companion?.name ?? state.name });
         leaving = true;
         // Back to the Mac page, unless the user already left the scanner.
-        after(1.2, () => !disposed && stack.top()?.page === "scan" && stack.pop());
+        after(1.2, () => !disposed && stack.top()?.page.startsWith("scan") && stack.pop());
       } else if (pairing === LINK_PAIRING.failed) {
         setScan({ t: "failed", name: state.name, message: sys.link().error || "The Mac refused the pairing." });
       }
@@ -111,7 +141,7 @@ export function scannerPage(sys: HomeSystem, stack: NavStack, setScan: (state: S
     const state = scan();
     switch (state.t) {
       case "scanning":
-        return state.hint || "Point the camera at the code on your Mac";
+        return state.hint || IDLE_HINT[purpose];
       case "connecting":
         return ellipsize(`Connecting to ${state.name}...`, FONT.smBold, SCREEN_W - 80);
       case "paired":
@@ -124,7 +154,7 @@ export function scannerPage(sys: HomeSystem, stack: NavStack, setScan: (state: S
   };
 
   return {
-    title: () => "Pair a Mac",
+    title: () => (purpose === "pair" ? "Pair a Mac" : "Scan a Code"),
     backLabel: "Scan",
     tint: "black",
     bare: true,
@@ -162,7 +192,7 @@ export function scannerPage(sys: HomeSystem, stack: NavStack, setScan: (state: S
           </Show>
           {/* status pill */}
           <View
-            class={scan().t === "failed" || (scan().t === "scanning" && pill() !== "Point the camera at the code on your Mac")
+            class={scan().t === "failed" || (scan().t === "scanning" && pill() !== IDLE_HINT[purpose])
               ? "absolute h-[28] rounded-[14] bg-[#b3261ee0] border border-[#ffffff50]"
               : "absolute h-[28] rounded-[14] bg-[#000000b0] border border-[#ffffff40]"}
             style={{ insetL: previewX + 12, insetT: pillY, width: SCREEN_W - 2 * previewX - 24 }}
@@ -175,7 +205,7 @@ export function scannerPage(sys: HomeSystem, stack: NavStack, setScan: (state: S
           <Text class="absolute text-sm text-white font-bold text-center" style={{ insetL: previewX + 12, insetT: pillY + 5, width: SCREEN_W - 2 * previewX - 24 }}>{pill()}</Text>
           <Show when={TALL}>
             <Text class="absolute left-[20] text-xs text-[#ffffff90] text-center" style={{ insetT: pillY + 44, width: SCREEN_W - 40 }}>
-              {"On your Mac, open Pocket Companion\nand choose Pair a Console..."}
+              {purpose === "pair" ? "On your Mac, open Pocket Companion\nand choose Pair a Console..." : "A web page that offers an app\nshows its install code."}
             </Text>
           </Show>
         </Show>

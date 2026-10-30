@@ -21,7 +21,7 @@ import { onButtonPress } from "@pocketjs/framework/lifecycle";
 import { SETTINGS_PAGES, wifiJoinPage, type PageEnv } from "./pages.tsx";
 import { scannerPage, type ScanState } from "./scanner.tsx";
 import { createSpringboard } from "./springboard.tsx";
-import { storeAppPage, storePage } from "./store.tsx";
+import { codeInstallPage, storeAppPage, storePage } from "./store.tsx";
 import { createHomeSystem } from "./system.ts";
 import { createAlerts } from "../ui/alert.tsx";
 import { Pinstripes } from "../ui/chrome.tsx";
@@ -83,6 +83,8 @@ export default function Home() {
     background: () => <Pinstripes width={SCREEN_W} height={SCREEN_H} />,
     page(id, nav, layer) {
       if (id === "scan") return scannerPage(sys, nav, setScan, scan);
+      if (id === "scan.install") return scannerPage(sys, nav, setScan, scan, "install");
+      if (id === "install.code") return codeInstallPage({ sys, press, keys }, nav, layer);
       if (id === "store") return storePage({ sys, press, keys }, nav, layer);
       if (id.startsWith("store.app:")) return storeAppPage({ sys, press, keys }, id.slice("store.app:".length), nav, layer);
       if (id.startsWith("wifi.join:")) return wifiJoinPage(env, id.slice("wifi.join:".length), nav, layer);
