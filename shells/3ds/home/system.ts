@@ -73,15 +73,16 @@ export interface Install {
 
 // ---- installs from a code ------------------------------------------------------
 //
-// A web page that offers one package shows an install URI as a QR code, and a
-// console with an HTTP client of its own (the M5Stack Tab5) fetches it with
-// link.installUri(uri). The pinned PocketJS predates that op, so Home reads it
-// from the host here: the parser is a copy of parseInstallUri in PocketJS
-// contracts/spec/link.ts ("Install URI"), the op is feature-detected on
-// globalThis.link, and progress arrives as the same install.progress,
-// install.done and error link events as a companion install. Once the pin
-// carries the op, these give way to @pocketjs/framework/link's
-// parseInstallUri, canInstallFromUri and installFromUri.
+// A web page that offers one package shows an install URI as a QR code. On a
+// console that downloads apps by itself (the M5Stack Tab5), the firmware
+// binds `globalThis.installer` into the launcher only: installUri(uri) starts
+// a download and returns a request id (-1 when the URI does not parse, there
+// is no Wi-Fi client, or a download is already running), and poll() returns
+// the install.progress, install.done and error events since the last call.
+// Home polls it every frame while an install runs. The URI format and the
+// parser below follow pocket-m5's
+// programs/m5stack-tab5/components/pocket_system/README.md, "Installs from a
+// code".
 
 export const INSTALL_SCHEME = "pocketlink://install";
 const INSTALL_URI_MAX = 400;
@@ -152,34 +153,73 @@ export function codeHost(url: string): string {
   return toAscii(authority.slice(authority.lastIndexOf("@") + 1));
 }
 
-type InstallUriOp = (uri: string) => number;
+/** The launcher's installer namespace (pocket-m5, Tab5 launcher only). */
+interface InstallerOps {
+  installUri(uri: string): number;
+  poll(): string | undefined;
+}
 
-/** The host's installUri op, when this console downloads apps by itself. */
-function installUriOp(): InstallUriOp | null {
-  const ops = linkHost() as (ReturnType<typeof linkHost> & { installUri?: unknown }) | null;
-  if (!ops || typeof ops.installUri !== "function") return null;
-  return (uri) => (ops.installUri as InstallUriOp)(uri);
+type InstallerEvent =
+  | { t: "install.progress"; id: number; app: string; received: number; bytes: number }
+  | { t: "install.done"; id: number; app: string; output: string }
+  | { t: "error"; id: number; message: string };
+
+/** globalThis.installer, when this console downloads apps by itself. */
+function installerHost(): InstallerOps | null {
+  const ns = (globalThis as { installer?: Partial<InstallerOps> }).installer;
+  if (!ns || typeof ns !== "object") return null;
+  return typeof ns.installUri === "function" && typeof ns.poll === "function" ? (ns as InstallerOps) : null;
+}
+
+interface PendingInstall {
+  progress(received: number, bytes: number): void;
+  done(output: string): void;
+  fail(message: string): void;
+}
+
+/** Installs started through the installer, by request id. */
+const pendingInstalls = new Map<number, PendingInstall>();
+
+/** Read the installer's events and hand them to their installs. Called every
+ *  frame; reads nothing while no install runs. */
+function pumpInstaller(): void {
+  if (pendingInstalls.size === 0) return;
+  const raw = installerHost()?.poll();
+  if (!raw) return;
+  let events: InstallerEvent[];
+  try {
+    events = JSON.parse(raw) as InstallerEvent[];
+  } catch {
+    return;
+  }
+  if (!Array.isArray(events)) return;
+  for (const event of events) {
+    const pending = pendingInstalls.get(event?.id);
+    if (!pending) continue;
+    if (event.t === "install.progress") pending.progress(event.received ?? 0, event.bytes ?? 0);
+    else if (event.t === "install.done") {
+      pendingInstalls.delete(event.id);
+      pending.done(event.output);
+    } else if (event.t === "error") {
+      pendingInstalls.delete(event.id);
+      pending.fail(event.message);
+    }
+  }
 }
 
 /** Download and install the package an install URI names. Resolves with the
  *  app's output name. */
 function installFromCode(uri: string, onProgress: (received: number, bytes: number) => void): Promise<string> {
-  const op = installUriOp();
-  if (!op) return Promise.reject(new Error("This console cannot download apps"));
+  const installer = installerHost();
+  if (!installer) return Promise.reject(new Error("This console cannot download apps"));
   if (!parseInstallCode(uri)) return Promise.reject(new Error("That is not an install code"));
-  const id = op(uri);
+  const id = installer.installUri(uri);
   if (id < 0) return Promise.reject(new Error("The download could not start"));
   return new Promise((resolve, reject) => {
-    const stop = onLinkEvent((event) => {
-      if (event.t === "install.progress" && event.id === id) {
-        onProgress(event.received, event.bytes);
-      } else if (event.t === "install.done" && event.id === id) {
-        stop();
-        resolve(event.output);
-      } else if (event.t === "error" && event.id === id) {
-        stop();
-        reject(new Error(event.message));
-      }
+    pendingInstalls.set(id, {
+      progress: onProgress,
+      done: resolve,
+      fail: (message) => reject(new Error(message)),
     });
   });
 }
@@ -279,8 +319,8 @@ export interface HomeSystem {
   catalogState: Accessor<CatalogState>;
   catalogError: Accessor<string>;
   installs: Accessor<Record<string, Install>>;
-  /** The console installs from an install code by itself (link.installUri);
-   *  read when drawn, so a host that gains the op is seen. */
+  /** The console installs from an install code by itself (the launcher's
+   *  globalThis.installer); read when drawn. */
   canInstallCode(): boolean;
   /** The install code last scanned, shown by the confirmation page. */
   code: Accessor<CodeOffer | null>;
@@ -371,6 +411,7 @@ export function createHomeSystem(): HomeSystem {
   const busy = () =>
     wifi()?.state === "connecting" || wifi()?.scanning === true || link().state === LINK_STATE.connecting || link().pairing === LINK_PAIRING.connecting;
   onFrame(() => {
+    pumpInstaller();
     frames++;
     if (frames % POLL_FRAMES === 0) {
       setTick(Date.now());
@@ -417,7 +458,7 @@ export function createHomeSystem(): HomeSystem {
     catalogState,
     catalogError,
     installs,
-    canInstallCode: () => installUriOp() !== null,
+    canInstallCode: () => installerHost() !== null,
     code,
     offerCode(uri) {
       const parsed = parseInstallCode(uri);

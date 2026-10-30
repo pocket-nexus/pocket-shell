@@ -7,12 +7,12 @@
 //
 // POCKET_HOME_SHOTS=<dir> also writes top/bottom PNGs of each main screen.
 
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeAll, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BTN } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
-import type { LinkCatalogApp, LinkEvent } from "../../../vendor/pocketjs/contracts/spec/link.ts";
+import type { LinkCatalogApp } from "../../../vendor/pocketjs/contracts/spec/link.ts";
 import { bootConsole3ds, type Console3ds, type Console3dsOptions } from "../../../vendor/pocketjs/programs/sim/console-3ds.ts";
 import { createSimFsHost } from "../../../vendor/pocketjs/platforms/sim/fs.ts";
 import { encodePNG } from "../../../vendor/pocketjs/tools/png.ts";
@@ -22,7 +22,7 @@ import { PORTRAIT, TAB5, tab5Shot } from "./tab5.ts";
 const OUT = mkdtempSync(join(tmpdir(), "pocket-home-"));
 let GUEST = join(OUT, "guest", "home-main");
 const SHOTS = process.env.POCKET_HOME_SHOTS;
-const GLOBALS = ["ui", "__pak", "__simHz", "frame", "link", "wifi", "camera", "net", "agent", "fs", "__pocketApp"] as const;
+const GLOBALS = ["ui", "__pak", "__simHz", "frame", "link", "wifi", "camera", "net", "agent", "fs", "__pocketApp", "installer"] as const;
 const saved = new Map(GLOBALS.map((key) => [key, (globalThis as Record<string, unknown>)[key]]));
 
 const MAC = { id: "a1b2c3d4e5f60718", name: "Evan's MacBook Pro", address: "192.168.8.120", port: 8628 };
@@ -633,24 +633,28 @@ describe("the Mac store", () => {
 const PACKAGE_SHA = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
 const INSTALL_URI = `pocketlink://install?v=1&a=dev.example.tetra&s=${PACKAGE_SHA}&n=Tetra%20Blocks&u=https://games.example.com:8443/tetra/tab5.pocket?build=7&ch=beta`;
 
-/** Give the sim's link the Tab5's installUri op: it records each URI and
- *  returns an id, and the test feeds the link events that follow. */
-function stubInstallUri(home: Console3ds): { calls: string[]; emit(event: LinkEvent): void } {
-  const ns = home.link!.ns as NonNullable<Console3ds["link"]>["ns"] & { installUri?: (uri: string) => number };
-  const poll = ns.poll;
-  const queued: LinkEvent[] = [];
-  ns.poll = () => {
-    const own = poll();
-    const events: LinkEvent[] = own ? JSON.parse(own) : [];
-    events.push(...queued.splice(0));
-    return events.length ? JSON.stringify(events) : undefined;
-  };
+type InstallerEvent =
+  | { t: "install.progress"; id: number; app: string; received: number; bytes: number }
+  | { t: "install.done"; id: number; app: string; output: string }
+  | { t: "error"; id: number; message: string };
+
+/** The Tab5 launcher's globalThis.installer: installUri records each URI and
+ *  returns an id, and the test feeds the events poll() returns. */
+function stubInstaller(): { calls: string[]; polls: () => number; emit(event: InstallerEvent): void } {
   const calls: string[] = [];
-  ns.installUri = (uri) => {
-    calls.push(uri);
-    return 41;
+  const queued: InstallerEvent[] = [];
+  let polls = 0;
+  (globalThis as Record<string, unknown>).installer = {
+    installUri(uri: string) {
+      calls.push(uri);
+      return 41;
+    },
+    poll() {
+      polls++;
+      return queued.length ? JSON.stringify(queued.splice(0)) : undefined;
+    },
   };
-  return { calls, emit: (event) => queued.push(event) };
+  return { calls, polls: () => polls, emit: (event) => queued.push(event) };
 }
 
 /** Open the store and its scanner for an install code. */
@@ -664,7 +668,11 @@ async function openCodeScanner(home: Console3ds, storeShot = ""): Promise<void> 
 }
 
 describe("installing from a code", () => {
-  test("without the host's installUri the store has no Scan a Code... row", async () => {
+  afterEach(() => {
+    delete (globalThis as Record<string, unknown>).installer;
+  });
+
+  test("without the launcher's installer the store has no Scan a Code... row", async () => {
     const home = await boot();
     await home.run(10);
     await home.tapText("Mac");
@@ -689,8 +697,10 @@ describe("installing from a code", () => {
 
   test("a scanned install code asks first, then installs with progress and opens the app", async () => {
     const home = await boot({ auxiliary: TAB5 });
-    const host = stubInstallUri(home);
+    const host = stubInstaller();
     await openCodeScanner(home, "home-code-store");
+    // Nothing is polled while no install runs.
+    expect(host.polls()).toBe(0);
     expect(home.camera!.log).toContain("open");
     expect(home.texts("auxiliary")).toContain("Scan a Code");
     tab5Shot(home, "home-code-scanner");
@@ -720,7 +730,7 @@ describe("installing from a code", () => {
     tab5Shot(home, "home-code-installing");
 
     home.apps.push({ output: "tetra-main", id: "dev.example.tetra", title: "Tetra Blocks", version: "1.0.0", bytes: 409_600 });
-    host.emit({ t: "install.done", id: 41, app: "dev.example.tetra", output: "tetra-main", hash: PACKAGE_SHA });
+    host.emit({ t: "install.done", id: 41, app: "dev.example.tetra", output: "tetra-main" });
     await home.run(2);
     expect(home.texts("auxiliary")).toContain("Installed");
     tab5Shot(home, "home-code-done");
@@ -731,7 +741,7 @@ describe("installing from a code", () => {
 
   test("a failed install shows the host's message, and Back returns to the store", async () => {
     const home = await boot({ auxiliary: TAB5 });
-    const host = stubInstallUri(home);
+    const host = stubInstaller();
     await openCodeScanner(home);
     home.camera!.show(INSTALL_URI);
     await home.run(30);
@@ -749,7 +759,7 @@ describe("installing from a code", () => {
 
   test("a pairing code scanned for an install pairs the Mac", async () => {
     const home = await boot({ auxiliary: TAB5, link: { paired: [], catalog: CATALOG } });
-    stubInstallUri(home);
+    stubInstaller();
     await openCodeScanner(home, "home-code-store-unpaired");
     home.camera!.show(PAIRING_URI);
     await home.run(2);
