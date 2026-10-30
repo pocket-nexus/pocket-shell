@@ -116,6 +116,17 @@ the repository README are this surface.
   field and Notes fill from the keys with no change in the apps; Notes also
   reads the keys on its editor page. The keyboard's firmware keeps its Ctrl
   bit set once Ctrl was pressed, so the host reads no modifier from it.
+- **Installs from a code.** The Tab5 firmware binds `globalThis.installer`
+  into the launcher, which downloads a package over Wi-Fi; where it is
+  present, the Mac store shows **Scan a Code...**. The scanner reads an
+  install URI (pocket-m5
+  `programs/m5stack-tab5/components/pocket_system/README.md`, "Installs from
+  a code"), closes the camera and shows the app's title and the server's host
+  with Install and Cancel; the download's progress, then Open or the
+  firmware's error, follow on that page. `home/system.ts` parses the URI,
+  starts the download and polls the installer every frame while it runs.
+  Either scanner entry takes either code: a pairing code pairs. The 3DS has
+  no installer and shows no row.
 - **Notes** keeps `notes/<id>.txt` and `notes/index.json` in the applet's
   `data.fs` tree, the microSD card on the Tab5 and the SD card's slot on the
   3DS; it saves a second after the last edit and when its editor closes.

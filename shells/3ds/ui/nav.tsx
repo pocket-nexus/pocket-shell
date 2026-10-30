@@ -78,6 +78,8 @@ export interface NavStack {
   top: Accessor<StackEntry | null>;
   push(page: string): void;
   pop(): void;
+  /** Put `page` in the top page's place; the page it replaces is disposed. */
+  replace(page: string): void;
   reset(page: string | null): void;
   busy: Accessor<boolean>;
   /** The top layer's touch page. */
@@ -170,6 +172,15 @@ export function createNavStack(options: NavOptions): NavStack {
       if (node && SLIDES) animate(node, "translateX", SCREEN_W, { dur: PUSH_MS, easing: "out" });
       if (under && SLIDES) animate(under, "translateX", 0, { dur: PUSH_MS, easing: "out" });
       settle(SETTLE_MS, () => setEntries(entries().filter((entry) => entry.key !== leaving.key)));
+    },
+    replace(page) {
+      if (busy()) return;
+      const list = entries();
+      if (list.length === 0) {
+        stack.push(page);
+        return;
+      }
+      setEntries([...list.slice(0, -1), { key: nextKey++, page }]);
     },
     reset(page) {
       setEntries(page ? [{ key: nextKey++, page }] : []);

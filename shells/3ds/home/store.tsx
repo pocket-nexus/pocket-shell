@@ -3,17 +3,20 @@
 // console, as an App Store list. Each row's pill reads GET, UPDATE or OPEN
 // and turns into a progress bar while the package streams in; tapping the
 // rest of a row opens the app's page (icon, version, size, description).
+// On a console that downloads apps by itself (the Tab5), a Scan a Code... row
+// above the list opens the scanner for an install code, and the install page
+// confirms and runs the install that code names.
 
 import { createMemo, For, Show, type Accessor } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { ClassicSpinner } from "@pocketjs/framework/classic";
 import type { LinkCatalogApp } from "@pocketjs/framework/link";
-import { LINK_STATE, sizeText, type HomeSystem, type Install } from "./system.ts";
+import { LINK_STATE, progressText, sizeText, type HomeSystem, type Install } from "./system.ts";
 import { appTint, Tile } from "../ui/chrome.tsx";
 import { SCREEN_W } from "../ui/screen.ts";
 import type { NavButton } from "../ui/bar.tsx";
 import type { LayerContext, NavStack, PageSpec } from "../ui/nav.tsx";
-import { tableContent } from "../ui/table.tsx";
+import { tableContent, type Section } from "../ui/table.tsx";
 import { ellipsize, FONT, wrap } from "../ui/text.ts";
 import type { Press, Target } from "../ui/touch.ts";
 import { ICONS } from "./pages.tsx";
@@ -25,6 +28,10 @@ const width = () => SCREEN_W - LEFT * 2;
 const TOP = 10;
 const PILL_W = 64;
 const FOOTER_H = 26;
+/** The Scan a Code... row and the gap under it. */
+const SCAN_ROW = 36;
+const SCAN_GAP = 12;
+const SCAN_ID = "store.scan";
 
 export type StoreAction = "get" | "update" | "open" | "installing" | "retry";
 
@@ -130,6 +137,9 @@ function StoreRow(props: { app: LinkCatalogApp; index: number; env: StoreEnv; li
   );
 }
 
+/** The empty state's button, centred (x 90 on the 3DS). */
+const EMPTY_BUTTON_X = () => (SCREEN_W - 140) / 2;
+
 function EmptyState(props: { title: string; message: string; button?: { id: string; label: string }; press: Press; spinner?: boolean }) {
   return (
     <>
@@ -150,10 +160,11 @@ function EmptyState(props: { title: string; message: string; button?: { id: stri
           <>
             <View
               class={props.press.is(button().id)
-                ? "absolute left-[90] top-[150] w-[140] h-[30] rounded-[6] border border-[#6f7680] bg-gradient-to-b from-[#9aa1ab] to-[#bfc5cc]"
-                : "absolute left-[90] top-[150] w-[140] h-[30] rounded-[6] border border-[#9aa1aa] bg-gradient-to-b from-[#ffffff] to-[#dde1e6]"}
+                ? "absolute top-[150] w-[140] h-[30] rounded-[6] border border-[#6f7680] bg-gradient-to-b from-[#9aa1ab] to-[#bfc5cc]"
+                : "absolute top-[150] w-[140] h-[30] rounded-[6] border border-[#9aa1aa] bg-gradient-to-b from-[#ffffff] to-[#dde1e6]"}
+              style={{ insetL: EMPTY_BUTTON_X() }}
             />
-            <Text class="absolute left-[90] top-[157] w-[140] text-sm text-[#385487] font-bold text-center">{button().label}</Text>
+            <Text class="absolute top-[157] w-[140] text-sm text-[#385487] font-bold text-center" style={{ insetL: EMPTY_BUTTON_X() }}>{button().label}</Text>
           </>
         )}
       </Show>
@@ -186,6 +197,12 @@ export function storePage(env: StoreEnv, stack: NavStack, layer: LayerContext): 
     return `${count} ${count === 1 ? "applet" : "applets"} offered by ${sys.link().companion?.name ?? "this Mac"}`;
   };
   const reload: NavButton = { id: "store.reload", label: "Reload", kind: "plain", run: () => sys.loadCatalog() };
+  // The Scan a Code... row, on a console that installs from a code; the
+  // list or the empty state sits `shift` px lower for it.
+  const scans = sys.canInstallCode();
+  const shift = scans ? SCAN_ROW + SCAN_GAP : 0;
+  const scanLit = () => press.is(SCAN_ID) || (env.keys() && layer.focus() === SCAN_ID);
+  const scanCode = () => stack.push("scan.install");
 
   return {
     title: () => (sys.link().state === LINK_STATE.linked ? sys.link().companion?.name ?? "Mac" : "Mac"),
@@ -193,6 +210,15 @@ export function storePage(env: StoreEnv, stack: NavStack, layer: LayerContext): 
     right: () => (mode() === "list" || mode() === "empty" ? reload : null),
     content: {
       view: () => (
+        <>
+        <Show when={scans}>
+          <View class="absolute rounded-[8] border border-[#abb1b9] bg-white" style={{ insetL: LEFT, insetT: TOP, width: width(), height: SCAN_ROW }} />
+          <View class={scanLit() ? "absolute rounded-[8] bg-gradient-to-b from-[#058cf5] to-[#015ee6]" : "hidden"} style={{ insetL: LEFT, insetT: TOP, width: width(), height: SCAN_ROW }} />
+          <Text class={scanLit() ? "absolute text-sm text-white font-bold text-center" : "absolute text-sm text-[#385487] font-bold text-center"} style={{ insetL: LEFT, insetT: TOP + 9, width: width() }}>
+            Scan a Code...
+          </Text>
+        </Show>
+        <View class="absolute left-0" style={{ insetT: shift, width: SCREEN_W, height: 0 }}>
         <Show
           when={mode() === "list"}
           fallback={
@@ -236,18 +262,24 @@ export function storePage(env: StoreEnv, stack: NavStack, layer: LayerContext): 
             </For>
           </View>
         </Show>
+        </View>
+        </>
       ),
-      height: () => (mode() === "list" ? TOP * 2 + apps().length * ROW + FOOTER_H : 200),
-      focusOrder: () => (mode() === "list" ? apps().map((app) => `store.row.${app.id}`) : emptyButton() ? [emptyButton()!.id] : []),
+      height: () => shift + (mode() === "list" ? TOP * 2 + apps().length * ROW + FOOTER_H : 200),
+      focusOrder: () => [
+        ...(scans ? [SCAN_ID] : []),
+        ...(mode() === "list" ? apps().map((app) => `store.row.${app.id}`) : emptyButton() ? [emptyButton()!.id] : []),
+      ],
       targets(top, offset, bottom) {
         const out: Target[] = [];
+        if (scans) out.push({ id: SCAN_ID, x: LEFT, y: top + TOP - offset, w: width(), h: SCAN_ROW, run: scanCode });
         if (mode() !== "list") {
           const button = emptyButton();
-          if (button) out.push({ id: button.id, x: 90, y: top + 150 - offset, w: 140, h: 30, run: button.run });
+          if (button) out.push({ id: button.id, x: EMPTY_BUTTON_X(), y: top + shift + 150 - offset, w: 140, h: 30, run: button.run });
           return out;
         }
         apps().forEach((app, index) => {
-          const y = top + TOP + index * ROW - offset;
+          const y = top + shift + TOP + index * ROW - offset;
           if (y + ROW <= top || y >= bottom) return;
           out.push({ id: `store.row.${app.id}`, x: LEFT, y, w: width(), h: ROW, run: () => details(app) });
           out.push({ id: `store.pill.${app.id}`, x: LEFT + width() - PILL_W - 14, y, w: PILL_W + 14, h: ROW, run: () => act(sys, app) });
@@ -255,10 +287,12 @@ export function storePage(env: StoreEnv, stack: NavStack, layer: LayerContext): 
         return out;
       },
       span(id) {
+        if (id === SCAN_ID) return [TOP, TOP + SCAN_ROW];
         const index = apps().findIndex((app) => `store.row.${app.id}` === id);
-        return index < 0 ? null : [TOP + index * ROW, TOP + (index + 1) * ROW];
+        return index < 0 ? null : [shift + TOP + index * ROW, shift + TOP + (index + 1) * ROW];
       },
       activate(id) {
+        if (id === SCAN_ID) return scanCode();
         const app = apps().find((entry) => `store.row.${entry.id}` === id);
         if (app) details(app);
         else emptyButton()?.run();
@@ -358,4 +392,83 @@ export function storeAppPage(env: StoreEnv, appId: string, _stack: NavStack, lay
       activate: (id) => id === buttonId && run(),
     },
   };
+}
+
+// ---- an install code's page ----------------------------------------------------------
+
+/** What a scanned install code is doing. */
+export type CodeState = "confirm" | "installing" | "done" | "failed";
+
+export function codeState(install: Install | undefined): CodeState {
+  if (!install) return "confirm";
+  if (install.error) return "failed";
+  return install.done ? "done" : "installing";
+}
+
+/** The app a scanned install code names and the server it comes from, then
+ *  Install / Cancel, the download's progress, and Open or the error. */
+export function codeInstallPage(env: StoreEnv, stack: NavStack, layer: LayerContext): PageSpec {
+  const { sys, press } = env;
+  const offer = sys.code;
+  const install = () => {
+    const current = offer();
+    return current ? sys.installs()[current.app] : undefined;
+  };
+  const state = () => codeState(install());
+  const open = () => {
+    const output = install()?.output;
+    if (!output) return;
+    sys.refresh();
+    sys.launch(output);
+  };
+  const content = tableContent({
+    sections: (): Section[] => {
+      const current = offer();
+      if (!current) return [{ cells: [{ id: "code.none", label: "No install code", tone: "muted" }] }];
+      const title = current.title || current.app;
+      const head: Section = {
+        cells: [{ id: "code.app", label: title, detail: `From ${current.host}`, tile: appTint(current.app, title) }],
+        footer: current.title ? current.app : undefined,
+      };
+      const progress = install();
+      switch (state()) {
+        case "installing":
+          return [head, { cells: [{ id: "code.progress", label: "Installing", value: progress ? progressText(progress) : "", accessory: "spinner" }] }];
+        case "done":
+          return [
+            head,
+            { cells: [{ id: "code.installed", label: "Installed", value: progress && (progress.bytes || progress.received) ? sizeText(progress.bytes || progress.received) : undefined, accessory: "check", on: true }] },
+            { cells: [{ id: "code.open", label: "Open", tone: "action", run: open }] },
+          ];
+        case "failed":
+          return [
+            head,
+            {
+              header: "Could Not Install",
+              cells: [
+                { id: "code.retry", label: "Try Again", tone: "action", run: () => sys.installCode() },
+                { id: "code.back", label: "Back", tone: "action", run: () => stack.pop() },
+              ],
+              footer: progress?.error,
+            },
+          ];
+        default:
+          return [
+            head,
+            {
+              cells: [
+                { id: "code.install", label: "Install", tone: "action", run: () => sys.installCode() },
+                { id: "code.cancel", label: "Cancel", tone: "action", run: () => stack.pop() },
+              ],
+              footer: "The app downloads from this server over Wi-Fi.",
+            },
+          ];
+      }
+    },
+    width: SCREEN_W,
+    press,
+    focus: layer.focus,
+    keys: env.keys,
+  });
+  return { title: () => "Install App", backLabel: "Install", content };
 }

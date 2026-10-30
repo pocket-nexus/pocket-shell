@@ -7,7 +7,7 @@
 //
 // POCKET_HOME_SHOTS=<dir> also writes top/bottom PNGs of each main screen.
 
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeAll, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -22,7 +22,7 @@ import { PORTRAIT, TAB5, tab5Shot } from "./tab5.ts";
 const OUT = mkdtempSync(join(tmpdir(), "pocket-home-"));
 let GUEST = join(OUT, "guest", "home-main");
 const SHOTS = process.env.POCKET_HOME_SHOTS;
-const GLOBALS = ["ui", "__pak", "__simHz", "frame", "link", "wifi", "camera", "net", "agent", "fs", "__pocketApp"] as const;
+const GLOBALS = ["ui", "__pak", "__simHz", "frame", "link", "wifi", "camera", "net", "agent", "fs", "__pocketApp", "installer"] as const;
 const saved = new Map(GLOBALS.map((key) => [key, (globalThis as Record<string, unknown>)[key]]));
 
 const MAC = { id: "a1b2c3d4e5f60718", name: "Evan's MacBook Pro", address: "192.168.8.120", port: 8628 };
@@ -627,6 +627,146 @@ describe("the Mac store", () => {
     await home.tapText("Mac Settings");
     await home.run(24);
     expect(home.texts("auxiliary")).toContain("Pair a Mac...");
+  });
+});
+
+const PACKAGE_SHA = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
+const INSTALL_URI = `pocketlink://install?v=1&a=dev.example.tetra&s=${PACKAGE_SHA}&n=Tetra%20Blocks&u=https://games.example.com:8443/tetra/tab5.pocket?build=7&ch=beta`;
+
+type InstallerEvent =
+  | { t: "install.progress"; id: number; app: string; received: number; bytes: number }
+  | { t: "install.done"; id: number; app: string; output: string }
+  | { t: "error"; id: number; message: string };
+
+/** The Tab5 launcher's globalThis.installer: installUri records each URI and
+ *  returns an id, and the test feeds the events poll() returns. */
+function stubInstaller(): { calls: string[]; polls: () => number; emit(event: InstallerEvent): void } {
+  const calls: string[] = [];
+  const queued: InstallerEvent[] = [];
+  let polls = 0;
+  (globalThis as Record<string, unknown>).installer = {
+    installUri(uri: string) {
+      calls.push(uri);
+      return 41;
+    },
+    poll() {
+      polls++;
+      return queued.length ? JSON.stringify(queued.splice(0)) : undefined;
+    },
+  };
+  return { calls, polls: () => polls, emit: (event) => queued.push(event) };
+}
+
+/** Open the store and its scanner for an install code. */
+async function openCodeScanner(home: Console3ds, storeShot = ""): Promise<void> {
+  await home.run(10);
+  await home.tapText("Mac");
+  await home.run(24);
+  if (storeShot) tab5Shot(home, storeShot);
+  await home.tapText("Scan a Code...");
+  await home.run(24);
+}
+
+describe("installing from a code", () => {
+  afterEach(() => {
+    delete (globalThis as Record<string, unknown>).installer;
+  });
+
+  test("without the launcher's installer the store has no Scan a Code... row", async () => {
+    const home = await boot();
+    await home.run(10);
+    await home.tapText("Mac");
+    await home.run(24);
+    expect(home.texts("auxiliary")).toContain("Weather");
+    expect(home.texts("auxiliary")).not.toContain("Scan a Code...");
+  });
+
+  test("on the 3DS, an install code scanned for pairing says the console cannot install from it", async () => {
+    const home = await boot({ link: { paired: [], catalog: CATALOG } });
+    await home.run(10);
+    await openSettings(home);
+    await home.tapText("Mac");
+    await home.run(24);
+    await home.tapText("Pair a Mac...");
+    await home.run(24);
+    home.camera!.show(INSTALL_URI);
+    await home.run(2);
+    expect(home.texts("auxiliary")).toContain("This console cannot install from a code.");
+    expect(home.camera!.open()).toBe(true);
+  });
+
+  test("a scanned install code asks first, then installs with progress and opens the app", async () => {
+    const home = await boot({ auxiliary: TAB5 });
+    const host = stubInstaller();
+    await openCodeScanner(home, "home-code-store");
+    // Nothing is polled while no install runs.
+    expect(host.polls()).toBe(0);
+    expect(home.camera!.log).toContain("open");
+    expect(home.texts("auxiliary")).toContain("Scan a Code");
+    tab5Shot(home, "home-code-scanner");
+
+    home.camera!.show("https://example.com/not-a-code");
+    await home.run(2);
+    expect(home.texts("auxiliary")).toContain("That code is not a Pocket code.");
+
+    home.camera!.show(INSTALL_URI);
+    await home.run(30);
+    expect(home.camera!.log).toContain("close");
+    const page = home.texts("auxiliary");
+    for (const label of ["Install App", "Install", "Tetra Blocks", "From games.example.com:8443", "Cancel"]) expect(page).toContain(label);
+    expect(host.calls).toEqual([]);
+    tab5Shot(home, "home-code-confirm");
+
+    await home.tapText("Install");
+    await home.run(2);
+    expect(host.calls).toEqual([INSTALL_URI]);
+    // The server has not said the length: received only.
+    host.emit({ t: "install.progress", id: 41, app: "dev.example.tetra", received: 12_288, bytes: 0 });
+    await home.run(2);
+    expect(home.texts("auxiliary")).toContain("12 KB");
+    host.emit({ t: "install.progress", id: 41, app: "dev.example.tetra", received: 102_400, bytes: 409_600 });
+    await home.run(2);
+    expect(home.texts("auxiliary")).toContain("100 KB of 400 KB");
+    tab5Shot(home, "home-code-installing");
+
+    home.apps.push({ output: "tetra-main", id: "dev.example.tetra", title: "Tetra Blocks", version: "1.0.0", bytes: 409_600 });
+    host.emit({ t: "install.done", id: 41, app: "dev.example.tetra", output: "tetra-main" });
+    await home.run(2);
+    expect(home.texts("auxiliary")).toContain("Installed");
+    tab5Shot(home, "home-code-done");
+    await home.tapText("Open");
+    await home.run(4);
+    expect(home.launches).toEqual(["tetra-main"]);
+  });
+
+  test("a failed install shows the host's message, and Back returns to the store", async () => {
+    const home = await boot({ auxiliary: TAB5 });
+    const host = stubInstaller();
+    await openCodeScanner(home);
+    home.camera!.show(INSTALL_URI);
+    await home.run(30);
+    await home.tapText("Install");
+    await home.run(2);
+    host.emit({ t: "error", id: 41, message: "The package does not match its code" });
+    await home.run(2);
+    const page = home.texts("auxiliary");
+    for (const label of ["Could Not Install", "Try Again", "The package does not match its code"]) expect(page.join(" ")).toContain(label);
+    tab5Shot(home, "home-code-failed");
+    await home.tapText("Back");
+    await home.run(24);
+    expect(home.texts("auxiliary")).toContain("Scan a Code...");
+  });
+
+  test("a pairing code scanned for an install pairs the Mac", async () => {
+    const home = await boot({ auxiliary: TAB5, link: { paired: [], catalog: CATALOG } });
+    stubInstaller();
+    await openCodeScanner(home, "home-code-store-unpaired");
+    home.camera!.show(PAIRING_URI);
+    await home.run(2);
+    expect(home.link!.log).toContain(`pair ${PAIRING_URI}`);
+    await home.run(140);
+    expect(home.link!.status().state).toBe("linked");
+    expect(home.texts("auxiliary")).toContain("Scan a Code...");
   });
 });
 
