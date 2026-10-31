@@ -52,6 +52,9 @@ export interface CaptionState {
  *  the theme resolves the artwork, so a theme switch re-skins every icon on
  *  screen — desktop, captions, task strip, menus — without touching state. */
 export type IconName =
+  | "studioAgent"
+  | "studioSettings"
+  | "studioGames"
   | "computer"
   | "documents"
   | "folder"
@@ -177,9 +180,33 @@ export interface ChromeMetrics {
   resizeCorner: number;
 }
 
+/** Colors of property sheets, sunken fields and progress chunks (studio.tsx). */
+export interface SheetPalette {
+  line: string;
+  face: string;
+  tabOff: string;
+  accent: string;
+  well: string;
+  wellLine: string;
+  mark: string;
+  chunk: string;
+}
+
+/** The colors a theme's thumbnail is drawn in. */
+export interface ThemePreview {
+  desk: string;
+  frame: string;
+  caption: string;
+  body: string;
+  bar: string;
+  start: string;
+}
+
 export interface DesktopTheme {
   id: ThemeId;
   label: string;
+  sheet: SheetPalette;
+  preview: ThemePreview;
   metrics: ChromeMetrics;
   fontSlot: (role: FontRole) => number;
   /** Artwork for a semantic icon at a logical size. */
@@ -334,8 +361,19 @@ export interface DesktopTheme {
 // ---------------------------------------------------------------------------
 
 /** The pixel-art set drawn for Classic (gen-icons.ts ICONS/NATIVE). */
+/** Pocket Studio's programs keep one set of art across themes. */
+function studioIcon(name: IconName, size: IconSize): string {
+  if (name === "studioAgent") return size === 32 ? "icons/studio-agent.svg" : "icons/studio-agent-16.svg";
+  if (name === "studioSettings") return size === 32 ? "icons/studio-settings.svg" : "icons/studio-settings-16.svg";
+  return size === 32 ? "icons/studio-games.svg" : "icons/studio-games-16.svg";
+}
+
 function classicIcon(name: IconName, size: IconSize): string {
   switch (name) {
+    case "studioAgent":
+    case "studioSettings":
+    case "studioGames":
+      return studioIcon(name, size);
     case "computer":
       return size === 32 ? "icons/computer.svg" : "icons/computer-16.svg";
     case "documents":
@@ -392,6 +430,10 @@ function classicIcon(name: IconName, size: IconSize): string {
  *  XP's own did. Pixel art remains only for the menu chevron and the grip. */
 function xpIcon(name: IconName, size: IconSize): string {
   switch (name) {
+    case "studioAgent":
+    case "studioSettings":
+    case "studioGames":
+      return studioIcon(name, size);
     case "computer":
       return size === 32 ? "icons/xp-computer.svg" : "icons/xp-computer-16.svg";
     case "documents":
@@ -433,6 +475,10 @@ function xpIcon(name: IconName, size: IconSize): string {
  *  display, a metal trash can, blue gel plates. */
 function aquaIcon(name: IconName, size: IconSize): string {
   switch (name) {
+    case "studioAgent":
+    case "studioSettings":
+    case "studioGames":
+      return studioIcon(name, size);
     case "computer":
       return size === 32
         ? "icons/aqua-computer.svg"
@@ -494,6 +540,24 @@ function aquaIcon(name: IconName, size: IconSize): string {
 // content wells are sunken. These are full literals because the PocketJS
 // compiler resolves the complete class table at build time.
 export const CLASSIC_THEME: DesktopTheme = {
+  sheet: {
+    line: "#808080",
+    face: "#c0c0c0",
+    tabOff: "#b4b4b4",
+    accent: "#ffffff",
+    well: "#ffffff",
+    wellLine: "#808080",
+    mark: "#000000",
+    chunk: "#000080",
+  },
+  preview: {
+    desk: "#008080",
+    frame: "#c0c0c0",
+    caption: "#000080",
+    body: "#ffffff",
+    bar: "#c0c0c0",
+    start: "#dfdfdf",
+  },
   id: "classic",
   label: "Classic 98",
   fontSlot: (role) =>
@@ -759,6 +823,24 @@ export const CLASSIC_THEME: DesktopTheme = {
 // overhangs the taskbar's left edge and its container clips the overhang, so
 // the button meets the screen edge square and curves on the right.
 export const XP_THEME: DesktopTheme = {
+  sheet: {
+    line: "#919b9c",
+    face: "#fcfcfe",
+    tabOff: "#ece9d8",
+    accent: "#ffc73c",
+    well: "#ffffff",
+    wellLine: "#7f9db9",
+    mark: "#21a121",
+    chunk: "#2dc22d",
+  },
+  preview: {
+    desk: "#3a6ea5",
+    frame: "#0a58e0",
+    caption: "#0a58e0",
+    body: "#ece9d8",
+    bar: "#245edb",
+    start: "#3c9a3c",
+  },
   id: "xp",
   label: "Windows XP",
   fontSlot: (role) => (role === "ui" ? FONT_SMOOTH : FONT_SMOOTH_B),
@@ -1113,6 +1195,24 @@ export const XP_THEME: DesktopTheme = {
 // gradient. Menus hang from the screen bar with square top
 // corners and rounded bottom ones — a rounded panel under a square patch.
 export const AQUA_THEME: DesktopTheme = {
+  sheet: {
+    line: "#a8a8a8",
+    face: "#f2f2f2",
+    tabOff: "#dcdcdc",
+    accent: "#3b82f6",
+    well: "#ffffff",
+    wellLine: "#9a9a9a",
+    mark: "#2470e0",
+    chunk: "#3b82f6",
+  },
+  preview: {
+    desk: "#4f86c6",
+    frame: "#c8c8c8",
+    caption: "#d8d8d8",
+    body: "#f4f4f4",
+    bar: "#e8e8e8",
+    start: "#3b82f6",
+  },
   id: "aqua",
   label: "Aqua",
   fontSlot: (role) => (role === "ui" ? FONT_SMOOTH : FONT_SMOOTH_B),

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://pocketjs.dev/schema/pocket-2.json",
+  "pocket": 2,
+  "id": "dev.pocket-stack.desktop.studio",
+  "title": "Pocket Studio Computer",
+  "version": "0.1.0",
+  "engine": {
+    "capabilities": {
+      "requires": [
+        "text.glyphs.baked",
+        "input.buttons"
+      ]
+    }
+  },
+  "app": {
+    "entry": "src/system-ui/main.tsx",
+    "output": "pocket-desktop-studio",
+    "framework": "solid",
+    "companions": [
+      "system-ui",
+      "pocket-studio"
+    ],
+    "viewport": {
+      "fixed": {
+        "logical": [
+          640,
+          480
+        ],
+        "presentation": "fit"
+      }
+    }
+  }
+}

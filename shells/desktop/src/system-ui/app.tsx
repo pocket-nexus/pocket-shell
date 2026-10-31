@@ -27,7 +27,25 @@ import { createState } from "./reactivity.ts";
 import { Image, View } from "@pocketjs/framework/components";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 import { virtualNow } from "@pocketjs/framework/clock";
-import { connectSvc, type CursorKind, type HostEvent } from "./svc.ts";
+import { connectSvc, hasStudioHost, type CursorKind, type HostEvent } from "./svc.ts";
+import {
+  checkHit,
+  clampGamesScroll,
+  EMPTY_STATUS,
+  gamesHit,
+  gamesPage,
+  settingsHit,
+  STUDIO_GEO,
+  StudioCheckView,
+  studioData,
+  StudioGamesView,
+  StudioPointer,
+  StudioSettingsView,
+  type SettingsTab,
+  type StudioGame,
+  type StudioStatus,
+  type StudioWinData,
+} from "./studio.tsx";
 import {
   cascadePos,
   clampMove,
@@ -175,6 +193,8 @@ const folderOf = (w: WinCtl) => w.data as FolderData;
 const pocketOf = (w: WinCtl) => w.data as PocketData;
 const aboutOf = (w: WinCtl) => w.data as AboutData;
 const shutdownOf = (w: WinCtl) => w.data as ShutdownData;
+const studioOf = (w: WinCtl) => w.data as StudioWinData;
+const isStudioWin = (w: WinCtl) => w.kind.startsWith("studio-");
 
 /** One window: raised frame, caption gradient, controls, menu bar, and the
  *  program content dispatched on the (static) window kind. Position/size
@@ -187,6 +207,7 @@ function DesktopWindow(props: {
   win: WinCtl;
   active: boolean;
   theme: DesktopTheme;
+  studio?: (w: WinCtl, theme: DesktopTheme) => unknown;
 }) {
   const w = props.win;
   return (
@@ -272,6 +293,8 @@ function DesktopWindow(props: {
             />
           ) : w.kind === "about" ? (
             <AboutView data={aboutOf(w)} theme={props.theme} />
+          ) : isStudioWin(w) ? (
+            (props.studio?.(w, props.theme) as never)
           ) : (
             <ShutdownView data={shutdownOf(w)} theme={props.theme} />
           )}
@@ -295,7 +318,15 @@ export default function App() {
   const popup = createState<{ popup: Popup; winId?: number } | null>(null);
   const popupHover = createState(-1);
   const clock = createState("--:--");
-  const themeId = createState<ThemeId>("classic");
+  // On Pocket Studio's computer the XP desktop is the product's starting look.
+  const studioHost = svc !== null && hasStudioHost();
+  const apps = studioHost ? [] : POCKET_APPS;
+  const studioStatus = createState<StudioStatus>(EMPTY_STATUS);
+  const studioGames = createState<StudioGame[]>([]);
+  const pointer = createState<{ x: number; y: number } | null>(null);
+  const pointerKind = createState<CursorKind>("default");
+  let studioThemeRead = false;
+  const themeId = createState<ThemeId>(studioHost ? "xp" : "classic");
   const theme = () => themeById(themeId());
   const metrics = () => theme().metrics;
   const uiSlot = () => theme().fontSlot("ui");
@@ -383,8 +414,9 @@ export default function App() {
   /** Keep each window's client rectangle stable while chrome metrics change.
    *  This is required for child CompositorSurfaces: their logical viewport
    *  must remain exact across a theme switch. */
-  function setTheme(nextId: ThemeId) {
+  function setTheme(nextId: ThemeId, fromHost = false) {
     if (nextId === themeId()) return;
+    if (studioHost && !fromHost) svc?.send({ t: "setting", key: "theme", value: nextId });
     const previous = metrics();
     const next = themeById(nextId).metrics;
     themeId.set(nextId);
@@ -836,6 +868,98 @@ export default function App() {
     addWin(w);
   }
 
+  function openStudioWin(
+    kind: StudioWinData["kind"],
+    title: string,
+    icon: "studioAgent" | "studioSettings" | "studioGames",
+  ): WinCtl {
+    const existing = wins().find((w) => w.kind === kind);
+    if (existing) {
+      raise(existing.id);
+      return existing;
+    }
+    const w = createWin({
+      kind,
+      title,
+      icon,
+      geo: centered(STUDIO_GEO[kind].w, STUDIO_GEO[kind].h),
+      buttons: ["close"],
+      resizable: false,
+      data: studioData(kind),
+    });
+    addWin(w);
+    return w;
+  }
+
+  const openAgentCheck = () => {
+    openStudioWin("studio-check", "Agent Check", "studioAgent");
+  };
+
+  const openStudioSettings = (tab?: SettingsTab) => {
+    const w = openStudioWin("studio-settings", "Studio Settings", "studioSettings");
+    if (tab) studioOf(w).tab.set(tab);
+  };
+
+  const openStudioGames = () => {
+    openStudioWin("studio-games", "My Games", "studioGames");
+  };
+
+  function contentSize(w: WinCtl) {
+    const g = w.geo();
+    return {
+      cw: g.w - metrics().frame * 2,
+      ch: g.h - metrics().frame - contentTop({ menuWidths: [] }, metrics()),
+    };
+  }
+
+  function studioHitAt(w: WinCtl, cx: number, cy: number): string | null {
+    const { cw, ch } = contentSize(w);
+    const d = studioOf(w);
+    if (w.kind === "studio-check") return checkHit(cw, ch, cx, cy);
+    if (w.kind === "studio-settings") return settingsHit(cw, ch, d.tab(), studioStatus().settings.provider, cx, cy);
+    return gamesHit(cw, ch, d.scroll(), studioGames().length, cx, cy);
+  }
+
+  function setSetting(key: string, value: string | boolean) {
+    const status = studioStatus();
+    studioStatus.set({ ...status, settings: { ...status.settings, [key]: value } });
+    svc?.send({ t: "setting", key, value });
+  }
+
+  function scrollGames(w: WinCtl, by: number) {
+    const { cw, ch } = contentSize(w);
+    const d = studioOf(w);
+    d.scroll.set(clampGamesScroll(d.scroll() + by, studioGames().length, cw, ch));
+  }
+
+  function openSelectedGame(w: WinCtl) {
+    const game = studioGames()[studioOf(w).selected()];
+    if (game) svc?.send({ t: "open", id: game.id });
+  }
+
+  /** A control released with the pointer still on it. */
+  function studioAct(w: WinCtl, tag: string) {
+    const settings = studioStatus().settings;
+    const [name, value] = tag.includes(":") ? tag.split(":") : [tag, ""];
+    if (name === "close") closeWin(w.id);
+    else if (name === "run") svc?.send({ t: "check" });
+    else if (name === "open") openSelectedGame(w);
+    else if (name === "tab") studioOf(w).tab.set(value as SettingsTab);
+    else if (name === "effort") setSetting(name, value!);
+    else if (name === "provider") setSetting(name, value!);
+    else if (name === "model") {
+      const claude = settings.provider === "claude-code";
+      const status = studioStatus();
+      studioStatus.set({ ...status, settings: { ...status.settings, [claude ? "claudeModel" : "codexModel"]: value! } });
+      svc?.send({ t: "setting", key: claude ? "claude_model" : "model", value: value! });
+    }
+    else if (name === "proxyOn" || name === "drift" || name === "sound") setSetting(name, !settings[name]);
+    else if (name === "theme") {
+      setSetting("theme", value!);
+      setTheme(value as ThemeId, true);
+    }
+  }
+
   function openShutdown() {
     const existing = wins().find((w) => w.kind === "shutdown");
     if (existing) return raise(existing.id);
@@ -891,6 +1015,13 @@ export default function App() {
 
   const icons: DeskIcon[] = [
     { icon: "computer", label: "My Computer", open: openMyComputer },
+    ...(studioHost
+      ? [
+          { icon: "studioAgent", label: "Agent Check", open: openAgentCheck },
+          { icon: "studioSettings", label: "Studio Settings", open: () => openStudioSettings() },
+          { icon: "studioGames", label: "My Games", open: openStudioGames },
+        ] satisfies DeskIcon[]
+      : []),
     { icon: "documents", label: "My Documents", open: openDocuments },
     { icon: "recycle", label: "Recycle Bin", open: openRecycle },
     {
@@ -901,7 +1032,7 @@ export default function App() {
       },
     },
     { icon: "mines", label: "Minesweeper", open: openMines },
-    ...POCKET_APPS.map((app): DeskIcon => ({
+    ...apps.map((app): DeskIcon => ({
       icon: "pocket",
       label: app.title,
       open: () => openPocketApp(app),
@@ -930,7 +1061,7 @@ export default function App() {
       },
     },
     { label: "Minesweeper", icon: "mines", act: openMines },
-    ...POCKET_APPS.map((app): PopupItem => ({
+    ...apps.map((app): PopupItem => ({
       label: app.title,
       icon: "pocket",
       act: () => openPocketApp(app),
@@ -968,7 +1099,7 @@ export default function App() {
     },
     { label: "Minesweeper", icon: "mines", act: openMines },
     { sep: true, label: "" },
-    ...POCKET_APPS.slice(0, 5).map((app): PopupItem => ({
+    ...apps.slice(0, 5).map((app): PopupItem => ({
       label: app.title,
       icon: "pocket",
       act: () => openPocketApp(app),
@@ -1033,7 +1164,7 @@ export default function App() {
           },
         },
         { label: "Minesweeper", icon: "mines", act: openMines },
-        ...POCKET_APPS.map((app): PopupItem => ({
+        ...apps.map((app): PopupItem => ({
           label: app.title,
           icon: "pocket",
           act: () => openPocketApp(app),
@@ -1085,11 +1216,26 @@ export default function App() {
     { label: "Shut Down...", icon: "shutdown", act: openShutdown },
   ];
 
+  const studioStartItems = (): PopupItem[] => [
+    { label: "Agent Check", icon: "studioAgent", act: openAgentCheck },
+    { label: "Studio Settings", icon: "studioSettings", act: () => openStudioSettings() },
+    { label: "My Games", icon: "studioGames", act: openStudioGames },
+    { sep: true, label: "" },
+  ];
+
   const startItems = (): PopupItem[] => {
     const style = theme().startStyle;
-    if (style === "panel") return xpStartItems();
-    if (style === "menu") return aquaStartItems();
-    return classicStartItems();
+    const items =
+      style === "panel"
+        ? xpStartItems()
+        : style === "menu"
+          ? aquaStartItems()
+          : classicStartItems();
+    if (!studioHost) return items;
+    // With no child apps, the separators around them meet.
+    return [...studioStartItems(), ...items].filter(
+      (item, i, all) => !(item.sep && all[i - 1]?.sep),
+    );
   };
 
   /** The panel rectangle both the render and hit testing read. */
@@ -1270,6 +1416,7 @@ export default function App() {
   }
 
   function sendCursor(k: CursorKind) {
+    if (studioHost) pointerKind.set(k);
     if (svc && k !== lastCursor) {
       lastCursor = k;
       svc.send({ t: "cursor", k });
@@ -1460,6 +1607,23 @@ export default function App() {
       const row = hit?.kind === "row" ? hit.i : -1;
       d.selected.set(row);
       if (row >= 0 && isDblClick(`row:${w.id}:${row}`)) d.rows()[row].open?.();
+      return;
+    }
+    if (isStudioWin(w)) {
+      const hit = studioHitAt(w, cx, cy);
+      if (!hit) return;
+      const d = studioOf(w);
+      if (hit.startsWith("row:")) {
+        const row = Number(hit.slice(4));
+        d.selected.set(row);
+        if (isDblClick(hit)) openSelectedGame(w);
+      } else if (hit.startsWith("page:")) {
+        const { cw, ch } = contentSize(w);
+        scrollGames(w, (hit === "page:up" ? -1 : 1) * gamesPage(cw, ch));
+      } else {
+        drag = { type: "dialogbtn", id: w.id, tag: hit };
+        d.armed.set(hit);
+      }
       return;
     }
     if (w.kind === "about") {
@@ -1756,13 +1920,17 @@ export default function App() {
           contentTop({ menuWidths: [] }, metrics());
         let over: string | null = null;
         if (r?.kind === "content") {
-          over =
-            w.kind === "about"
+          over = isStudioWin(w)
+            ? studioHitAt(w, r.cx, r.cy)
+            : w.kind === "about"
               ? aboutHit(cw, chh, r.cx, r.cy)
               : shutdownHit(cw, chh, r.cx, r.cy);
         }
-        const armed =
-          w.kind === "about" ? aboutOf(w).armed : shutdownOf(w).armed;
+        const armed = isStudioWin(w)
+          ? studioOf(w).armed
+          : w.kind === "about"
+            ? aboutOf(w).armed
+            : shutdownOf(w).armed;
         armed.set(over === drag.tag ? drag.tag : null);
       }
       return;
@@ -1844,12 +2012,16 @@ export default function App() {
     if (d.type === "dialogbtn") {
       const w = byId(d.id);
       if (w) {
-        const armedRef =
-          w.kind === "about" ? aboutOf(w).armed : shutdownOf(w).armed;
+        const armedRef = isStudioWin(w)
+          ? studioOf(w).armed
+          : w.kind === "about"
+            ? aboutOf(w).armed
+            : shutdownOf(w).armed;
         const armed = armedRef();
         armedRef.set(null);
         if (armed === d.tag) {
-          if (w.kind === "about") closeWin(w.id);
+          if (isStudioWin(w)) studioAct(w, d.tag);
+          else if (w.kind === "about") closeWin(w.id);
           else if (w.kind === "shutdown") {
             const choice = shutdownOf(w).choice();
             if (d.tag === "cancel") closeWin(w.id);
@@ -1916,8 +2088,19 @@ export default function App() {
       onCmd(k, ev.sh ?? false);
       return;
     }
+    if (k === "Start" && studioHost) {
+      if (popup()) closeMenus();
+      startOpen.set(!startOpen());
+      return;
+    }
     if (k === "Escape") {
       if (startOpen() || popup()) closeMenus();
+      // A console's back button closes the window on top, then leaves the desktop.
+      else if (studioHost) {
+        const top = focused();
+        if (top) closeWin(top.id);
+        else svc?.send({ t: "quit" });
+      }
       return;
     }
     const w = focused();
@@ -1977,6 +2160,9 @@ export default function App() {
       return;
     }
     if (w.kind === "about" && k === "Enter") closeWin(w.id);
+    if (w.kind === "studio-check" && k === "Enter") svc?.send({ t: "check" });
+    if (w.kind === "studio-games" && k === "Enter") openSelectedGame(w);
+    if (w.kind === "studio-settings" && k === "Enter") closeWin(w.id);
   }
 
   function padViewH(w: WinCtl): number {
@@ -2065,8 +2251,23 @@ export default function App() {
 
   function handleEvent(ev: HostEvent) {
     switch (ev.t) {
+      case "studio": {
+        const status = ev as unknown as StudioStatus;
+        studioStatus.set(status);
+        if (!studioThemeRead) {
+          studioThemeRead = true;
+          setTheme(status.settings.theme, true);
+        }
+        break;
+      }
+      case "games": {
+        studioGames.set([...(ev.reset ? [] : studioGames()), ...(ev.items ?? [])]);
+        break;
+      }
       case "hello": {
-        vp.set({ w: ev.w ?? 800, h: ev.h ?? 600 });
+        const nextW = ev.w ?? 800;
+        const nextH = ev.h ?? 600;
+        if (nextW !== vp().w || nextH !== vp().h) vp.set({ w: nextW, h: nextH });
         epoch = ev.epoch ?? 0;
         epochAt = virtualNow();
         break;
@@ -2093,6 +2294,7 @@ export default function App() {
         }
         mx = ev.x ?? mx;
         my = ev.y ?? my;
+        if (studioHost) pointer.set({ x: mx, y: my });
         const down = ev.d ?? false;
         if (down && !prevDown) onPrimaryDown(ev.sh ?? false);
         else if (!down && prevDown) {
@@ -2128,7 +2330,9 @@ export default function App() {
       }
       case "scroll": {
         const hover = hitWindows(mx, my);
-        if (hover?.win.kind === "notepad") {
+        if (hover?.win.kind === "studio-games") {
+          scrollGames(hover.win, ev.dy ?? 0);
+        } else if (hover?.win.kind === "notepad") {
           const d = padOf(hover.win);
           const contentH =
             padSegs(hover.win, metrics().frame, uiSlot()).length * PAD_LINE_H + 6;
@@ -2144,6 +2348,7 @@ export default function App() {
   }
 
   function boot() {
+    if (studioHost) return;
     openNotepad("welcome.txt - Notepad", WELCOME);
     if (!svc) {
       // Standalone (sim, goldens): a lively static arrangement.
@@ -2154,8 +2359,16 @@ export default function App() {
 
   boot();
 
+  let settingsOpenSent = false;
   onFrame(() => {
     if (svc) for (const ev of svc.poll()) handleEvent(ev);
+    if (studioHost) {
+      const open = wins().some((w) => w.kind === "studio-settings");
+      if (open !== settingsOpenSent) {
+        settingsOpenSent = open;
+        svc?.send({ t: "settings-open", on: open });
+      }
+    }
     for (const layout of layouts.values()) layout.step(metrics().frame, uiSlot());
 
     // Taskbar clock (minute precision, anchored at the hello epoch).
@@ -2204,6 +2417,17 @@ export default function App() {
 
   // ---- render -------------------------------------------------------------
 
+  const renderStudioWin = (w: WinCtl, ui: DesktopTheme) => {
+    const size = () => contentSize(w);
+    if (w.kind === "studio-check") {
+      return <StudioCheckView data={studioOf(w)} status={studioStatus()} cw={size().cw} ch={size().ch} theme={ui} />;
+    }
+    if (w.kind === "studio-settings") {
+      return <StudioSettingsView data={studioOf(w)} status={studioStatus()} cw={size().cw} ch={size().ch} theme={ui} />;
+    }
+    return <StudioGamesView data={studioOf(w)} games={studioGames()} cw={size().cw} ch={size().ch} theme={ui} />;
+  };
+
   return (
     <View class={theme().desktop}>
       {theme().desktopLayers.map((cls) => (
@@ -2221,6 +2445,7 @@ export default function App() {
           win={w}
           active={focusId() === w.id}
           theme={theme()}
+          studio={renderStudioWin}
         />
       )}</For>
       {startOpen() && metrics().startHeaderH > 0 ? (
@@ -2278,6 +2503,7 @@ export default function App() {
         buttonW={taskButtonW()}
         theme={theme()}
       />
+      {pointer() ? <StudioPointer x={pointer()!.x} y={pointer()!.y} kind={pointerKind()} /> : null}
     </View>
   );
 }

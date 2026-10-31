@@ -634,7 +634,7 @@ export const SHUTDOWN_GEO = { w: 300, h: 176 } as const;
 
 /** Dialog push button; armed = pressed face + 1px content nudge. `primary`
  *  marks the default button (Enter) — Aqua paints it as the blue gel. */
-function DialogButton(props: {
+export function DialogButton(props: {
   label: string;
   armed: boolean;
   primary?: boolean;

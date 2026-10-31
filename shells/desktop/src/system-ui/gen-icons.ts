@@ -1745,7 +1745,135 @@ const AQUA_MARKS: VectorIcon[] = [
   },
 ];
 
-for (const icon of [...AQUA_MARKS, ...NAV]) {
+// ---------------------------------------------------------------------------
+// Pocket Studio's programs and the pointer. A host with a mouse has its own
+// pointer art; Studio's console has none, so these travel with the desktop.
+// ---------------------------------------------------------------------------
+
+function gear(cx: number, cy: number, inner: number, outer: number, teeth: number): string {
+  const points: string[] = [];
+  for (let i = 0; i < teeth * 4; i++) {
+    const radius = i % 4 < 2 ? outer : inner;
+    const angle = ((i - 0.5) / (teeth * 4)) * Math.PI * 2;
+    points.push(`${(cx + Math.cos(angle) * radius).toFixed(2)} ${(cy + Math.sin(angle) * radius).toFixed(2)}`);
+  }
+  return `M${points.join("L")}Z`;
+}
+
+const TICK = "M9 16.5L14 21.5L24 9.5L27 12L14 27L6.5 19.5Z";
+
+/** The baker scans flat shapes and takes no transforms or arcs, so art is moved
+ *  by rewriting the coordinates of its M, L, C and Z commands. */
+function mapPath(d: string, at: (x: number, y: number) => [number, number]): string {
+  const tokens = d.match(/[MLCZz]|-?\d*\.?\d+/g) ?? [];
+  const fmt = (value: number) => String(Number(value.toFixed(3)));
+  let out = "";
+  let i = 0;
+  const num = () => Number(tokens[i++]);
+  let command = "";
+  while (i < tokens.length) {
+    if (/[A-Za-z]/.test(tokens[i]!)) {
+      command = tokens[i++]!;
+      out += command;
+      if (command === "Z" || command === "z") continue;
+    } else out += " ";
+    const pairs = command === "C" ? 3 : 1;
+    const points: string[] = [];
+    for (let p = 0; p < pairs; p++) {
+      const [x, y] = at(num(), num());
+      points.push(`${fmt(x)} ${fmt(y)}`);
+    }
+    out += points.join(" ");
+  }
+  return out;
+}
+
+const mapBody = (body: string, at: (x: number, y: number) => [number, number]) =>
+  body.replace(/ d="([^"]*)"/g, (_, d: string) => ` d="${mapPath(d, at)}"`);
+const moved = (dx: number, dy: number, body: string) => mapBody(body, (x, y) => [x + dx, y + dy]);
+const sized = (k: number, dx: number, dy: number, body: string) => mapBody(body, (x, y) => [x * k + dx, y * k + dy]);
+
+const AGENT_ART =
+  P(rrect(14.6, 2, 2.8, 6, 1.2), "#5a7fb0") +
+  P(rrect(13, 0.5, 6, 4, 2), "#ffc73c") +
+  P(rrect(3, 7, 26, 20, 5), "#17438f") +
+  P(rrect(4, 8, 24, 18, 4), "#3f83e6") +
+  P(rrect(5, 9, 22, 7, 3), "#7fb1f5") +
+  P(rrect(7, 13, 18, 9, 3), "#0b2452") +
+  P(rrect(10, 15.5, 4, 4, 2), "#8ff0ff") +
+  P(rrect(18, 15.5, 4, 4, 2), "#8ff0ff") +
+  P(rrect(16, 16, 15.5, 15.5, 7.75), "#14701f") +
+  P(rrect(17, 17, 13.5, 13.5, 6.75), "#34b53f") +
+  sized(0.46, 16.5, 16.5, P(TICK, "#ffffff"));
+
+const SETTINGS_ART =
+  P(rrect(2, 4, 28, 24, 3), "#31507f") +
+  P(rrect(3, 5, 26, 22, 2.4), "#e9edf4") +
+  P(rrect(3, 5, 26, 5, 2.4), "#2f74dc") +
+  P(rrect(5, 6.5, 2, 2, 1), "#ffffff") +
+  P(gear(16, 18.5, 5.8, 8, 8), "#8a5d09") +
+  P(gear(16, 18, 5.4, 7.4, 8), "#f1b52e") +
+  P(rrect(13.2, 15.2, 5.6, 5.6, 2.8), "#8a5d09") +
+  P(rrect(14, 16, 4, 4, 2), "#e9edf4");
+
+const GAMES_ART =
+  P(rrect(3, 7, 26, 18, 8), "#6d1a55") +
+  P(rrect(4, 8, 24, 16, 7), "#e24a9c") +
+  P(rrect(6, 9, 20, 5, 2.5), "#f58cc5") +
+  P(rrect(8.5, 13, 2.8, 8, 0.8), "#ffffff") +
+  P(rrect(6, 15.6, 8, 2.8, 0.8), "#ffffff") +
+  P(rrect(20, 13, 4, 4, 2), "#ffe14d") +
+  P(rrect(23, 17, 4, 4, 2), "#54e0ff");
+
+const half = (body: string) => sized(0.5, 0, 0, body);
+
+const ARROW = "M1 1L1 18L5.2 14L8 20.5L11 19.2L8.3 12.9L14 12.9Z";
+const ARROW_FACE = "M2 3.4L2 15.7L5.5 12.4L8.5 19.2L9.7 18.7L6.7 11.9L11.5 11.9Z";
+const HAND = "M7.5 1L9.5 1L10.5 2L10.5 9L12.5 9L13.5 8.5L14.5 9.5L16 9L17 10L18 10L19 11L19 17L17.5 21L16 22L10 22L8 20.5L3.5 14.5L3.5 13L5 12L6.5 13.5L6.5 2Z";
+const HAND_FACE = "M8 2L9.5 2.3L9.5 11L11 11L11 10L12.5 10L13 11L13.5 10L15 10.5L15.5 11.5L16 11L18 11.5L18 17L16.8 20.2L15.6 21L10.5 21L8.8 19.8L4.5 14L4.6 13.4L5 13.3L8 16.3Z";
+
+/** A black outline: the face stamped at the eight neighbours of its place. */
+function outlined(face: string, width = 1): string {
+  let out = "";
+  for (const [dx, dy] of [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]] as const) {
+    out += moved(dx * width, dy * width, P(face, "#000000"));
+  }
+  return out + P(face, "#ffffff");
+}
+
+const IBEAM = "M9 4L11 4L12 5L13 4L15 4L15 5.5L13 5.5L12.8 6L12.8 18L13 18.5L15 18.5L15 20L13 20L12 19L11 20L9 20L9 18.5L11 18.5L11.2 18L11.2 6L11 5.5L9 5.5Z";
+const twoWay = "M2 12L7 7L7 10.5L17 10.5L17 7L22 12L17 17L17 13.5L7 13.5L7 17Z";
+const fourWay =
+  "M12 2L15.5 5.5L13.2 5.5L13.2 10.8L18.5 10.8L18.5 8.5L22 12L18.5 15.5L18.5 13.2L13.2 13.2L13.2 18.5L15.5 18.5L12 22L8.5 18.5L10.8 18.5L10.8 13.2L5.5 13.2L5.5 15.5L2 12L5.5 8.5L5.5 10.8L10.8 10.8L10.8 5.5L8.5 5.5Z";
+const turned = (angle: number, body: string) => {
+  const cos = Math.cos((angle * Math.PI) / 180);
+  const sin = Math.sin((angle * Math.PI) / 180);
+  return mapBody(body, (x, y) => [12 + (x - 12) * cos - (y - 12) * sin, 12 + (x - 12) * sin + (y - 12) * cos]);
+};
+
+const STUDIO: VectorIcon[] = [
+  { file: "studio-agent.svg", size: 32, body: AGENT_ART },
+  { file: "studio-agent-16.svg", size: 16, body: half(AGENT_ART) },
+  { file: "studio-settings.svg", size: 32, body: SETTINGS_ART },
+  { file: "studio-settings-16.svg", size: 16, body: half(SETTINGS_ART) },
+  { file: "studio-games.svg", size: 32, body: GAMES_ART },
+  { file: "studio-games-16.svg", size: 16, body: half(GAMES_ART) },
+  { file: "studio-ok.svg", size: 16, body: P(rrect(1, 1, 14, 14, 7), "#14701f") + P(rrect(2, 2, 12, 12, 6), "#34b53f") + half(P(TICK, "#ffffff")) },
+  { file: "studio-bad.svg", size: 16, body: P(rrect(1, 1, 14, 14, 7), "#8f1414") + P(rrect(2, 2, 12, 12, 6), "#e03c31") + `<path fill="#ffffff" d="M5 4L8 7L11 4L12 5L9 8L12 11L11 12L8 9L5 12L4 11L7 8L4 5Z"/>` },
+  { file: "studio-run.svg", size: 16, body: P(rrect(1, 1, 14, 14, 7), "#9a6b00") + P(rrect(2, 2, 12, 12, 6), "#ffc73c") + `<path fill="#6b4a00" d="M7.2 3.5L8.8 3.5L8.8 7.6L11.5 9.2L10.7 10.6L7.2 8.5Z"/>` },
+  { file: "studio-wait.svg", size: 16, body: P(rrect(1, 1, 14, 14, 7), "#9aa3ad") + P(rrect(2, 2, 12, 12, 6), "#eef1f4") },
+  { file: "studio-tick.svg", size: 16, body: half(P(TICK, "#21a121")) },
+  { file: "cursor-arrow.svg", size: 32, body: moved(1.5, 1.5, P(ARROW, "#00000055")) + P(ARROW, "#000000") + P(ARROW_FACE, "#ffffff") },
+  { file: "cursor-hand.svg", size: 32, body: moved(1.2, 1.2, P(HAND, "#00000055")) + P(HAND, "#000000") + P(HAND_FACE, "#ffffff") },
+  { file: "cursor-text.svg", size: 32, body: outlined(IBEAM, 0.7) },
+  { file: "cursor-move.svg", size: 32, body: outlined(fourWay, 0.8) },
+  { file: "cursor-ew.svg", size: 32, body: outlined(twoWay, 0.8) },
+  { file: "cursor-ns.svg", size: 32, body: turned(90, outlined(twoWay, 0.8)) },
+  { file: "cursor-nwse.svg", size: 32, body: turned(45, outlined(twoWay, 0.8)) },
+  { file: "cursor-nesw.svg", size: 32, body: turned(-45, outlined(twoWay, 0.8)) },
+];
+
+for (const icon of [...AQUA_MARKS, ...NAV, ...STUDIO]) {
   const size = icon.size ?? 16;
   const w = icon.file.startsWith("xp-start") ? 128 : size;
   await Bun.write(

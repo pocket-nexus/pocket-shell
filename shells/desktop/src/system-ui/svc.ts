@@ -16,6 +16,8 @@
 //   {t:"mouse", x, y, d, sh}   primary-button pointer stream
 //   {t:"mouse", x, y, d, b:2}  right-button press/release
 //   {t:"scroll", dy}           wheel delta in logical px
+//   {t:"studio", ...}          Pocket Studio status (studio.tsx StudioStatus)
+//   {t:"games", reset, done, items}  one part of Pocket Studio's game list
 //
 // guest → host intents:
 //   {t:"quit"}                 Shut Down
@@ -24,6 +26,10 @@
 //   {t:"caret", x, y, h}       caret rect — docks the IME candidate window
 //   {t:"cursor", k}            pointer shape: default|text|pointer|move|
 //                              grabbing|ew|ns|nwse|nesw
+//   {t:"check"}                Pocket Studio: run the agent check
+//   {t:"setting", key, value}  Pocket Studio: change and persist one setting
+//   {t:"open", id}             Pocket Studio: continue a game in Make
+//   {t:"settings-open", on}    Pocket Studio: Studio Settings opened or closed
 
 import { getOps } from "@pocketjs/framework";
 
@@ -36,7 +42,9 @@ export interface HostEvent {
     | "mouse"
     | "scroll"
     | "paste"
-    | "ime";
+    | "ime"
+    | "studio"
+    | "games";
   w?: number;
   h?: number;
   epoch?: number;
@@ -57,6 +65,14 @@ export interface HostEvent {
   text?: string;
   /** IME preedit caret (char index into s), null when composition ends. */
   c?: number | null;
+  /** Pocket Studio status fields; see StudioStatus. */
+  settings?: unknown;
+  games?: number;
+  system?: unknown;
+  check?: unknown;
+  /** One part of Pocket Studio's game list. */
+  reset?: boolean;
+  items?: { id: string; title: string }[];
 }
 
 export type CursorKind =
@@ -79,7 +95,11 @@ export interface Svc {
       | { t: "copy"; text: string }
       | { t: "paste-req" }
       | { t: "caret"; x: number; y: number; h: number }
-      | { t: "cursor"; k: CursorKind },
+      | { t: "cursor"; k: CursorKind }
+      | { t: "check" }
+      | { t: "setting"; key: string; value: string | boolean }
+      | { t: "open"; id: string }
+      | { t: "settings-open"; on: boolean },
   ): void;
 }
 
@@ -109,4 +129,11 @@ export function connectSvc(): Svc | null {
       send(JSON.stringify(line));
     },
   };
+}
+
+/** True on Pocket Studio's computer: the host answers to this second companion
+ *  name, and the desktop then shows Studio's programs and no child Pocket apps. */
+export function hasStudioHost(): boolean {
+  const ops = getOps();
+  return !!ops.svcOpen?.("pocket-studio");
 }

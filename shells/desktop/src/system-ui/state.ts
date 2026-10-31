@@ -12,7 +12,15 @@ import type { Mines } from "./mines.ts";
 import type { PocketAppSpec } from "./pocket-apps.ts";
 
 export type WinKind =
-  "notepad" | "mines" | "folder" | "pocket" | "about" | "shutdown";
+  | "notepad"
+  | "mines"
+  | "folder"
+  | "pocket"
+  | "about"
+  | "shutdown"
+  | "studio-check"
+  | "studio-settings"
+  | "studio-games";
 
 export interface MenuDef {
   label: string;
