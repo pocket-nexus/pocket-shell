@@ -98,6 +98,20 @@ async function pinch(app: Console3ds, from: number, to: number, frames = 12): Pr
 
 const zoomLabel = (app: Console3ds) => app.texts("auxiliary").find((text) => / z\d+$/.test(text)) ?? "";
 
+/** A pinch as real fingers make one: the first lands and drifts for frames
+ *  before the second lands, then one lifts before the other. */
+async function staggeredPinch(app: Console3ds, from: number, to: number): Promise<void> {
+  const cx = 280, cy = 200;
+  const touch = (touches: { id: number; x: number; y: number }[]) => app.step({ touches, surface: "auxiliary" });
+  for (let frame = 0; frame < 4; frame++) await touch([{ id: 0, x: cx - from / 2, y: cy + frame }]);
+  for (let frame = 0; frame <= 12; frame++) {
+    const half = (from + (to - from) * (frame / 12)) / 2;
+    await touch([{ id: 0, x: cx - half, y: cy + 4 }, { id: 1, x: cx + half, y: cy + 4 }]);
+  }
+  for (let frame = 0; frame < 4; frame++) await touch([{ id: 1, x: cx + to / 2 + frame, y: cy + 4 }]);
+  await app.step({ touches: [], surface: "auxiliary" });
+}
+
 describe("Maps on the Tab5", () => {
   test("the saved view opens with its tiles", async () => {
     const { app, svc } = await boot();
@@ -121,6 +135,21 @@ describe("Maps on the Tab5", () => {
     await app.run(90);
     expect(zoomLabel(app)).toMatch(/z5$/);
     shot(app, "buttons");
+  });
+
+  test("fingers that land and lift apart zoom too, and the finger left behind does not throw the map", async () => {
+    const { app } = await boot();
+    await app.run(30);
+    const before = app.texts("auxiliary").join("|");
+    expect(before).toContain("z11");
+    await staggeredPinch(app, 80, 300);
+    await app.run(30);
+    const zoomed = Number(zoomLabel(app).match(/z(\d+)$/)?.[1]);
+    expect(zoomed).toBeGreaterThan(11);
+    await staggeredPinch(app, 300, 60);
+    await app.run(60);
+    expect(Number(zoomLabel(app).match(/z(\d+)$/)?.[1])).toBeLessThan(zoomed);
+    shot(app, "staggered");
   });
 
   test("two fingers spreading and squeezing zoom in and out", async () => {
