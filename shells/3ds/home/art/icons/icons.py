@@ -555,22 +555,21 @@ def homeassistant():
 
 
 def github():
-    # The cat of GitHub's mark seen as a cartoon on charcoal lacquer: a white
-    # enamel head with two pointed ears, round shoulders, a tail curling up on
-    # the left, and a dark face panel holding two pale eyes.
+    # A cat's head in white enamel on charcoal lacquer, large in the tile: a wide
+    # rounded face with two pointed ears, a dark face panel, two warm eyes and
+    # a small nose. No body: the face alone reads at the smallest size.
     plate(gradient("Charcoal lacquer", "4a5260", "171b22", 0.26, coat=0.8))
     enamel = principled("White enamel", "fbfbff", 0.2, 0.0, 0.6)
-    head = rounded_rect(1.12, 0.84, 0.36, 0.04, 0.22)
-    ear_l = [(-0.48, 0.34), (-0.46, 0.84), (-0.08, 0.56)]
-    ear_r = [(0.56, 0.34), (0.54, 0.84), (0.16, 0.56)]
-    body = rounded_rect(0.62, 0.72, 0.16, 0.04, -0.42)
-    tail = arc_band(-0.34, -0.3, 0.28, 0.13, 170, 330, 24)
-    union("Cat", [head, ear_l, ear_r, body, tail], 0.0, 0.1, enamel, 0.03)
+    head = rounded_rect(1.5, 1.14, 0.5, 0.0, -0.08)
+    ear_l = [(-0.72, 0.16), (-0.66, 0.84), (-0.14, 0.48)]
+    ear_r = [(0.72, 0.16), (0.66, 0.84), (0.14, 0.48)]
+    union("Cat", [head, ear_l, ear_r], 0.0, 0.1, enamel, 0.035)
     panel = principled("Face panel", "1d222b", 0.3, 0.0, 0.5)
-    prism("Face", rounded_rect(0.84, 0.48, 0.22, 0.04, 0.16), 0.1, 0.012, panel, 0.006)
+    prism("Face", rounded_rect(1.16, 0.72, 0.34, 0.0, -0.12), 0.1, 0.012, panel, 0.006)
     eye = principled("Eye", "f4c7a4", 0.3, 0.0, 0.5)
-    prism("Eye L", circle(0.09, -0.16, 0.16, 48), 0.112, 0.012, eye, 0.005)
-    prism("Eye R", circle(0.09, 0.24, 0.16, 48), 0.112, 0.012, eye, 0.005)
+    prism("Eye L", circle(0.13, -0.27, -0.08, 48), 0.112, 0.012, eye, 0.005)
+    prism("Eye R", circle(0.13, 0.27, -0.08, 48), 0.112, 0.012, eye, 0.005)
+    prism("Nose", [(-0.05, -0.26), (0.05, -0.26), (0.0, -0.33)], 0.112, 0.01, eye, 0.003)
 
 
 ICONS = {

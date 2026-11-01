@@ -4,7 +4,7 @@
   "id": "dev.pocket-nexus.github",
   "name": "pocket-github",
   "title": "GitHub",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "applet": {
     "version": 1,
     "services": [
