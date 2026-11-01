@@ -22,6 +22,7 @@ import type { Press, Target } from "../ui/touch.ts";
 import type { Day, Forecast, Hour, Place, Units } from "./api.ts";
 import type { WeatherModel } from "./model.ts";
 import { conditionText, skyOf, type Sky } from "./wmo.ts";
+import { yourComputer } from "../ui/companion.ts";
 
 export interface WeatherEnv {
   model: WeatherModel;
@@ -244,7 +245,7 @@ export function placesPage(env: WeatherEnv, stack: NavStack, layer: LayerContext
             ? `A change could not be saved: ${storeError.detail}`
             : places.length
               ? ""
-              : "A place is found by its name and kept on this device.",
+              : `A place is found by its name and kept on ${yourComputer()}.`,
     });
     out.push({
       header: "Units",

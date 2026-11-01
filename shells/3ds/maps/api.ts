@@ -4,7 +4,7 @@
 // @pocketjs/framework/net.
 //
 // Every request goes to https://companion.pocket/maps/... or /store/...,
-// which omarchy-pocketd answers on this device. The NET module admits two
+// which Pocket Companion on the linked Mac answers. The NET module admits two
 // requests at a time, so tiles, geocodes, the position and the saved view
 // share one queue; a geocode, a locate and the store go ahead of tiles, and
 // the tiles on screen go ahead of the ring around them. A tile arrives as an
@@ -15,7 +15,7 @@ import { createSignal } from "solid-js";
 import { getOps } from "@pocketjs/framework/host";
 import { fetch, NetError, type PocketResponse } from "@pocketjs/framework/net";
 import { companionService } from "@pocketjs/framework/link";
-import { theComputer } from "../ui/companion.ts";
+import { notLinked, theComputer } from "../ui/companion.ts";
 
 export const MAX_INFLIGHT = 2;
 /** Tiles kept as textures: 128 KiB each, the least recently drawn go first. */
@@ -220,7 +220,7 @@ export function createMapsClient(): MapsClient {
 /** The message a viewer sees for a failed request. */
 export function errorText(error: unknown): string {
   const code = error instanceof MapsError ? error.code : "";
-  if (code === "unavailable") return "omarchy-pocketd is not answering.";
+  if (code === "unavailable") return notLinked("Maps").detail;
   if (code === "timeout") return `${theComputer()} or OpenStreetMap did not answer in time.`;
   const message = error instanceof Error ? error.message : String(error);
   return message || "The request failed.";

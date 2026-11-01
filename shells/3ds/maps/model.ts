@@ -12,6 +12,7 @@
 import { createSignal, type Accessor } from "solid-js";
 import { after } from "@pocketjs/framework/clock";
 import { errorText, type MapsClient, type MapView, type Place, TILE } from "./api.ts";
+import { yourComputer } from "../ui/companion.ts";
 
 export const MIN_ZOOM = 3;
 export const MAX_ZOOM = 17;
@@ -38,7 +39,7 @@ export interface MapsModel {
   zoomBy(step: number): void;
   /** The marker of the chosen place, or null. */
   marker: Accessor<Place | null>;
-  /** Centre on where the daemon says this device is. */
+  /** Centre on where the companion says the computer is. */
   locate(): void;
   locating: Accessor<boolean>;
   query: Accessor<string>;
@@ -123,7 +124,7 @@ export function createMapsModel(client: MapsClient, options: { editQuery: () => 
       (location) => {
         setLocating(false);
         place(location.lat, location.lon, Math.max(view().zoom, LOCATE_ZOOM));
-        say(location.city ? `Near ${location.city}` : "Centred on this device's position");
+        say(location.city ? `Near ${location.city}` : `Centred on ${yourComputer()}'s position`);
         settle();
       },
       (error: unknown) => {

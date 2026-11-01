@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/homeassistant/app.tsx — Home in a window of Omarchy Pocket's shell:
-// the owner's Home Assistant, read and driven through omarchy-pocketd's
+// shells/3ds/homeassistant/app.tsx — Home Assistant on the 3DS and the Tab5:
+// the owner's Home Assistant, read and driven through Pocket Companion's
 // homeassistant service.
 //
 // The entities of the open tab as a table, the setup page where the URL and

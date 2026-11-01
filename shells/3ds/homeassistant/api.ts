@@ -3,8 +3,8 @@
 // (https://companion.pocket/homeassistant/…, PocketJS tools/companion/
 // services/homeassistant.ts) over @pocketjs/framework/net.
 //
-// The Home Assistant URL and the access token live in omarchy-pocketd's
-// store on this device; the applet sends them once, at setup, and after that
+// The Home Assistant URL and the access token live in Pocket Companion's
+// store on the linked Mac; the applet sends them once, at setup, and after that
 // asks for entity states and service calls as plain JSON. The NET module
 // admits two requests at a time: a call goes ahead of a poll.
 

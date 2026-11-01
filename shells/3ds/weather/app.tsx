@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/weather/app.tsx — Weather in a window of Omarchy Pocket's shell.
+// shells/3ds/weather/app.tsx — Weather on the 3DS and the Tab5.
 //
 // The saved places as a table, a place's forecast, and a search that adds a
 // place. The deck's keyboard types into the search field while it is open;
 // on a host whose buttons reach the applet, triangle reloads and square
 // opens the search. Open-Meteo answers the geocodes and forecasts through
-// omarchy-pocketd; the places and the units live in its store service.
+// Pocket Companion; the places and the units live in its store service.
 
 import { createEffect, createSignal } from "solid-js";
 import { AuxiliarySurface } from "@pocketjs/framework/components";

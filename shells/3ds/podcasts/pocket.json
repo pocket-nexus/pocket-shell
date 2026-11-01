@@ -4,7 +4,7 @@
   "id": "dev.pocket-nexus.podcasts",
   "name": "pocket-podcasts",
   "title": "Podcasts",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "applet": {
     "version": 1,
     "services": [
@@ -23,6 +23,7 @@
       ],
       "enhances": [
         "input.analog.left",
+        "media.playback",
         "system.agent"
       ]
     }

@@ -8,8 +8,8 @@
 // volume, and the track under the artwork scrubs. The deck's keyboard types
 // into the search field while it is open.
 //
-// Lists, artwork and the audio stream come from omarchy-pocketd's podcasts
-// service (ffmpeg on this device); the host plays the stream through
+// Lists, artwork and the audio stream come from Pocket Companion's podcasts
+// service (ffmpeg on the Mac); the host plays the stream through
 // `globalThis.media`. The episode keeps playing when the player page is
 // left: the playback object outlives the pages and the window's resize.
 

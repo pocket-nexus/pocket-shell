@@ -4,7 +4,7 @@
 // (services/store.ts) over @pocketjs/framework/net.
 //
 // Every request goes to https://companion.pocket/podcasts/... or
-// https://companion.pocket/store/..., which omarchy-pocketd answers on this
+// https://companion.pocket/store/..., which Pocket Companion answers for this
 // device. The NET module admits two requests at a time, so searches, feeds,
 // playback, the library and artwork share one queue; the first four go
 // ahead of artwork. Artwork arrives as an IMG entry (a square RGB565
@@ -186,7 +186,7 @@ export function createPodcastClient(): PodcastClient {
       return { title: value.title ?? "", author: value.author ?? "", artwork: value.artwork ?? "", episodes: Array.isArray(value.episodes) ? value.episodes : [] };
     },
     play: (audioUrl, at, durationS) =>
-      json<PlayInfo>("podcasts", `/play?url=${encodeURIComponent(audioUrl)}&at=${Math.max(0, Math.floor(at))}&duration=${Math.max(0, Math.floor(durationS))}`, 90_000),
+      json<PlayInfo>("podcasts", `/play?url=${encodeURIComponent(audioUrl)}&at=${Math.max(0, Math.floor(at))}&duration=${Math.max(0, Math.floor(durationS))}&codec=pal8`, 90_000),
     stop() {
       void request(companionService("podcasts", "/stop"), true, 10_000, 1024).catch(() => undefined);
     },

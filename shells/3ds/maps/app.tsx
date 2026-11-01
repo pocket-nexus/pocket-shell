@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/maps/app.tsx — Maps for Pocket: OpenStreetMap in a window of
-// Omarchy Pocket's shell.
+// shells/3ds/maps/app.tsx — OpenStreetMap on the 3DS and the Tab5.
 //
 // One page holds the map; a search pushes the list of places found. The
 // pad's pointer drives it: a tap presses the field and the buttons, a
@@ -9,7 +8,7 @@
 // and square opens the search field.
 //
 // Tiles, geocodes and the position come from the maps service and the saved
-// view from the store service, both in omarchy-pocketd (daemon/companion.ts).
+// view from the store service, both in Pocket Companion on the linked Mac.
 
 import { createSignal } from "solid-js";
 import { AuxiliarySurface } from "@pocketjs/framework/components";

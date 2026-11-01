@@ -15,7 +15,7 @@
 // The places and the units live in the companion's store service (PocketJS
 // tools/companion/services/store.ts) under the name `weather`:
 // GET /get?name=weather answers {value}, POST /set?name=weather with the
-// JSON document answers {ok: true}. omarchy-pocketd answers both on this
+// JSON document answers {ok: true}. Pocket Companion answers both for this
 // device.
 
 import { fetch, NetError, type PocketResponse } from "@pocketjs/framework/net";
