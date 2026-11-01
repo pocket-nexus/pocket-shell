@@ -2,18 +2,22 @@
 // shells/3ds/maps/views.tsx — the pages of Maps: the map under the bar, and the
 // list of places a search found.
 //
-// The map is a fixed pool of tile slots, COLS x ROWS of them (one more each
-// way than the window holds in 256 px tiles), each a flat placeholder with
-// an Image over it. A view change places every slot by arithmetic (jump):
-// the tile's world px less the view's top-left corner, and binds the slot's
-// Image to the tile's texture once the client has it. Tiles past the world's
-// top and bottom edges hide; the x axis wraps. The ring of tiles one beyond
-// the window is asked for behind the visible ones, and requests for tiles
-// the view left are dropped from the queue.
+// The map is two layers of tile slots, each a pool of COLS x ROWS (one more
+// each way than the window holds at the smallest a tile is drawn), after
+// pocket-map's camera. The zoom is continuous: a layer's tiles keep their
+// level's 256 px inside a world node, whose translate and scale carry the
+// view. When the zoom leaves a level's reach, what the front layer has drawn
+// moves to the back layer, which stays on screen, scaled with the view, until
+// the new level's tiles cover the window. A pinch through a level asks for
+// none of its tiles, and an unseen parent level is never fetched. Tiles past
+// the world's top and bottom edges hide; the x axis wraps. Once the view has
+// stopped, the ring of tiles one beyond the window is asked for behind the
+// visible ones; requests for tiles the view left are dropped from the queue.
 //
 // A pan is the map's hit target picked up by a drag (ui/touch.ts): the pad's
 // two-finger scroll and its Hold-and-slide both reach the applet as one
 // moving contact, and each move shifts the centre by the contact's travel.
+// Two contacts zoom about their centroid and ease to a level when they lift.
 // The controls at the right edge zoom about the centre and recentre on the
 // device's position; the field at the top opens the keyboard.
 
@@ -24,6 +28,7 @@ import { Image, Text, View } from "@pocketjs/framework/components";
 import { createGesture } from "@pocketjs/framework/gesture";
 import { getOps } from "@pocketjs/framework/host";
 import { BTN } from "@pocketjs/framework/input";
+import { onFrame } from "@pocketjs/framework/lifecycle";
 import type { NodeMirror } from "@pocketjs/framework/renderer";
 import { NAV_H } from "../ui/bar.tsx";
 import { viewHeight, type LayerContext, type NavStack, type PageContent, type PageSpec } from "../ui/nav.tsx";
@@ -44,8 +49,8 @@ export interface MapsEnv {
 
 /** Px the d-pad moves the centre a press. */
 const KEY_STEP = 96;
-/** The span ratio between zoom levels under a pinch. */
-const PINCH_STEP = 1.35;
+/** Frames a level holds still during a pinch before its tiles are asked for. */
+const LEVEL_SETTLE_FRAMES = 12;
 const FIELD_H = 26;
 /** The scale bar's longest length. */
 const SCALE_MAX_PX = 90;
@@ -61,18 +66,23 @@ let BUTTON = 28;
 let CONTROL_X = 0;
 let FIELD_W = 0;
 
+/** A level is drawn this far from its own zoom before the next takes over:
+ *  its tiles shrink to about 66% or grow to about 152%. */
+const LEVEL_REACH = 0.6;
+
 function fitSurface(): void {
   W = SCREEN_W;
   MAP_Y = NAV_H;
   MAP_H = SCREEN_H - NAV_H;
-  COLS = Math.ceil(W / TILE) + 1;
-  ROWS = Math.ceil(MAP_H / TILE) + 1;
+  const smallest = TILE * 2 ** -LEVEL_REACH;
+  COLS = Math.ceil(W / smallest) + 1;
+  ROWS = Math.ceil(MAP_H / smallest) + 1;
   BUTTON = COMPACT ? 28 : 32;
   CONTROL_X = W - BUTTON - 8;
   FIELD_W = CONTROL_X - 16;
 }
 
-// ---- the tile pool -------------------------------------------------------------------
+// ---- the tile layers ------------------------------------------------------------------
 
 interface TileSlot {
   box?: NodeMirror;
@@ -81,16 +91,44 @@ interface TileSlot {
   x: number;
   y: number;
   handle: number;
+  /** The tile bound, for keeping it from being freed. */
+  key: string;
 }
 
-/** One slot of the pool: a flat placeholder with the tile's Image over it;
- *  the painter moves the box and binds the Image. */
+/** One level's tiles: a pool of slots in a world node. Tiles stay at their
+ *  level's 256 px inside it, and the node's translate and scale carry the
+ *  view, so a pan or a pinch writes four props a frame. */
+interface TileLayer {
+  world?: NodeMirror;
+  slots: TileSlot[];
+  level: number;
+  /** The tile the world node's origin stands for. */
+  column: number;
+  row: number;
+  active: boolean;
+}
+
+const newLayer = (): TileLayer => ({
+  slots: Array.from({ length: COLS * ROWS }, () => ({ shown: false, x: 0, y: 0, handle: -1, key: "" })),
+  level: 0,
+  column: 0,
+  row: 0,
+  active: false,
+});
+
 function TileSlotView(props: { slot: TileSlot }) {
   return (
-    <View ref={(node: NodeMirror) => (props.slot.box = node)} class="absolute left-0 top-0 w-[256] h-[256] opacity-0 bg-[#e8e4dc] contain-strict">
-      <View class="absolute right-0 top-0 w-[1] h-[256] bg-[#d9d4ca]" />
-      <View class="absolute left-0 bottom-0 w-[256] h-[1] bg-[#d9d4ca]" />
+    <View ref={(node: NodeMirror) => (props.slot.box = node)} class="absolute left-0 top-0 w-[256] h-[256] opacity-0">
       <Image ref={(node: NodeMirror) => (props.slot.image = node)} class="absolute left-0 top-0 w-[256] h-[256]" />
+    </View>
+  );
+}
+
+function LayerView(props: { layer: TileLayer }) {
+  // A 1x1 box whose transform origin is its top-left corner.
+  return (
+    <View ref={(node: NodeMirror) => (props.layer.world = node)} class="absolute left-0 top-0" style={{ width: 1, height: 1, originX: -0.5, originY: -0.5 }}>
+      <For each={props.layer.slots}>{(slot) => <TileSlotView slot={slot} />}</For>
     </View>
   );
 }
@@ -102,6 +140,21 @@ function hideSlot(slot: TileSlot): void {
   if (slot.handle !== -1) {
     slot.handle = -1;
     getOps().setImage(slot.image.id, -1);
+  }
+}
+
+function showSlot(slot: TileSlot, x: number, y: number, handle: number, key: string): void {
+  if (!slot.box || !slot.image) return;
+  slot.key = key;
+  if (slot.x !== x) jump(slot.box, "translateX", (slot.x = x));
+  if (slot.y !== y) jump(slot.box, "translateY", (slot.y = y));
+  if (slot.handle !== handle) {
+    slot.handle = handle;
+    getOps().setImage(slot.image.id, handle);
+  }
+  if (!slot.shown) {
+    slot.shown = true;
+    jump(slot.box, "opacity", 1);
   }
 }
 
@@ -148,60 +201,129 @@ function Reticle(props: { x: number; y: number }) {
 export function mapPage(env: MapsEnv, _stack: NavStack): PageSpec {
   fitSurface();
   const { model, client, press } = env;
-  const slots: TileSlot[] = Array.from({ length: COLS * ROWS }, () => ({ shown: false, x: 0, y: 0, handle: -1 }));
+  const back = newLayer();
+  const front = newLayer();
   let marker: NodeMirror | undefined;
   let markerShown = false;
+  /** Frames the front level has held still, so a pinch through a level asks
+   *  for none of its tiles. */
+  let levelFrames = 0;
+
+  const onScreen = (layer: TileLayer) => layer.slots.reduce((count, slot) => count + (slot.shown ? 1 : 0), 0);
+
+  /** The front level gives way to `level`: what it has drawn moves to the back
+   *  layer and stays on screen until the new tiles cover it. The back layer
+   *  keeps its picture when the front one had less to offer, so a pinch through
+   *  two levels never blanks the map. */
+  const changeLevel = (level: number) => {
+    if (onScreen(front) >= onScreen(back) || !back.active) {
+      back.level = front.level;
+      back.column = front.column;
+      back.row = front.row;
+      back.active = front.active;
+      back.slots.forEach((slot, index) => {
+        const from = front.slots[index]!;
+        if (from.shown) showSlot(slot, from.x, from.y, from.handle, from.key);
+        else hideSlot(slot);
+      });
+    }
+    for (const slot of front.slots) hideSlot(slot);
+    front.level = level;
+    front.active = false;
+    levelFrames = 0;
+  };
+
+  /** Write a layer's transform for the view. */
+  const carry = (layer: TileLayer, lat: number, lon: number, zoom: number, nearest: boolean) => {
+    if (!layer.world) return;
+    const scale = 2 ** (zoom - layer.level);
+    const centre = toWorld(lat, lon, layer.level);
+    let dx = layer.column * TILE - centre.x;
+    // The front layer's slots follow the centre across the date line; the back
+    // layer's stay, so it takes the copy of the world nearest the view.
+    if (nearest) dx -= Math.round(dx / (TILE * 2 ** layer.level)) * (TILE * 2 ** layer.level);
+    const x = W / 2 + dx * scale;
+    const y = MAP_H / 2 + (layer.row * TILE - centre.y) * scale;
+    // At rest on the level a tile is drawn texel for texel.
+    jump(layer.world, "translateX", scale === 1 ? Math.round(x) : x);
+    jump(layer.world, "translateY", scale === 1 ? Math.round(y) : y);
+    jump(layer.world, "scaleX", scale);
+    jump(layer.world, "scaleY", scale);
+  };
 
   /** Place every slot for the view and bind the tiles the client has. */
   const place = () => {
     const { lat, lon, zoom } = model.view();
     client.tiles();
-    const n = 2 ** zoom;
-    const centre = toWorld(lat, lon, zoom);
-    const left = centre.x - W / 2;
-    const top = centre.y - MAP_H / 2;
+    if (!front.active || Math.abs(zoom - front.level) > LEVEL_REACH) {
+      const level = Math.round(zoom);
+      if (level !== front.level || !front.active) changeLevel(level);
+    }
+    const level = front.level;
+    const n = 2 ** level;
+    const scale = 2 ** (zoom - level);
+    const centre = toWorld(lat, lon, level);
+    const left = centre.x - W / 2 / scale;
+    const top = centre.y - MAP_H / 2 / scale;
     const tx0 = Math.floor(left / TILE);
     const ty0 = Math.floor(top / TILE);
+    if (!front.active) {
+      front.active = true;
+      front.column = tx0;
+      front.row = ty0;
+    }
+    const moving = model.moving();
+    const asking = !moving || levelFrames >= LEVEL_SETTLE_FRAMES;
     const keep = new Set<string>();
     let index = 0;
+    let covered = true;
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
-        const slot = slots[index++]!;
+        const slot = front.slots[index++]!;
         const tx = tx0 + c, ty = ty0 + r;
-        const sx = Math.round(tx * TILE - left), sy = Math.round(ty * TILE - top);
+        const sx = (tx * TILE - left) * scale, sy = (ty * TILE - top) * scale;
         if (ty < 0 || ty >= n || sx >= W || sy >= MAP_H) {
           hideSlot(slot);
           continue;
         }
         const wx = ((tx % n) + n) % n;
-        keep.add(tileKey(zoom, wx, ty));
-        const handle = client.tile(zoom, wx, ty);
-        if (handle < 0) client.want(zoom, wx, ty, true);
-        if (!slot.box || !slot.image) continue;
-        if (!slot.shown) {
-          slot.shown = true;
-          jump(slot.box, "opacity", 1);
+        const handle = client.tile(level, wx, ty);
+        if (asking) {
+          keep.add(tileKey(level, wx, ty));
+          if (handle < 0) client.want(level, wx, ty, true);
         }
-        if (slot.x !== sx) jump(slot.box, "translateX", (slot.x = sx));
-        if (slot.y !== sy) jump(slot.box, "translateY", (slot.y = sy));
-        if (slot.handle !== handle) {
-          slot.handle = handle;
-          getOps().setImage(slot.image.id, handle);
-        }
+        if (handle < 0) {
+          covered = false;
+          hideSlot(slot);
+        } else showSlot(slot, (tx - front.column) * TILE, (ty - front.row) * TILE, handle, tileKey(level, wx, ty));
       }
     }
-    // The ring one tile beyond the window, behind the visible tiles.
-    for (let ty = ty0 - 1; ty <= ty0 + ROWS; ty++) {
-      if (ty < 0 || ty >= n) continue;
-      for (let tx = tx0 - 1; tx <= tx0 + COLS; tx++) {
-        const wx = ((tx % n) + n) % n;
-        const key = tileKey(zoom, wx, ty);
-        if (keep.has(key)) continue;
-        keep.add(key);
-        if (!client.has(zoom, wx, ty)) client.want(zoom, wx, ty, false);
+    // The ring one tile beyond the window, once the view has stopped.
+    if (!moving) {
+      for (let ty = ty0 - 1; ty <= ty0 + ROWS; ty++) {
+        if (ty < 0 || ty >= n) continue;
+        for (let tx = tx0 - 1; tx <= tx0 + COLS; tx++) {
+          const wx = ((tx % n) + n) % n;
+          const key = tileKey(level, wx, ty);
+          if (keep.has(key)) continue;
+          keep.add(key);
+          if (!client.has(level, wx, ty)) client.want(level, wx, ty, false);
+        }
       }
     }
     client.prune(keep);
+    // The back layer goes once the front one covers the window; its tiles stay
+    // drawn (and last in line to be freed) until then.
+    if (back.active) {
+      if (covered && !moving) {
+        for (const slot of back.slots) hideSlot(slot);
+        back.active = false;
+      } else {
+        for (const slot of back.slots) if (slot.shown) client.touch(slot.key);
+      }
+    }
+    if (back.active) carry(back, lat, lon, zoom, true);
+    carry(front, lat, lon, zoom, false);
     // The marker, hidden while it is off screen.
     const pin = model.marker();
     if (!marker) return;
@@ -210,12 +332,13 @@ export function mapPage(env: MapsEnv, _stack: NavStack): PageSpec {
       return;
     }
     const at = toWorld(pin.lat, pin.lon, zoom);
+    const here = toWorld(lat, lon, zoom);
     // The nearest copy of a wrapped world.
-    let mx = at.x - left;
-    const world = n * TILE;
+    let mx = at.x - here.x + W / 2;
+    const world = TILE * 2 ** zoom;
     if (mx < -world / 2) mx += world;
     else if (mx > world / 2) mx -= world;
-    const my = at.y - top;
+    const my = at.y - here.y + MAP_H / 2;
     const on = mx > -20 && mx < W + 20 && my > -24 && my < MAP_H + 8;
     if (on) {
       jump(marker, "translateX", Math.round(mx) - 8);
@@ -224,14 +347,32 @@ export function mapPage(env: MapsEnv, _stack: NavStack): PageSpec {
     if (on !== markerShown) jump(marker, "opacity", (markerShown = on) ? 1 : 0);
   };
   onMount(() => createEffect(place));
+  onFrame(() => {
+    model.tick();
+    if (!model.moving()) return;
+    // A pinch resting on a level starts asking for its tiles.
+    if (++levelFrames === LEVEL_SETTLE_FRAMES) place();
+  });
 
   // A drag of the map target: each move shifts the centre by the travel.
   let last = { x: 0, y: 0 };
+  let afterPinch = false;
   const pan: TargetDrag = {
     start(x, y) {
       last = { x, y };
+      afterPinch = false;
     },
     move(x, y) {
+      if (model.pinching()) {
+        afterPinch = true;
+        return;
+      }
+      // The finger left behind by a pinch picks the map up from where it is.
+      if (afterPinch) {
+        afterPinch = false;
+        last = { x, y };
+        return;
+      }
       if (x === last.x && y === last.y) return;
       model.panBy(last.x - x, last.y - y);
       last = { x, y };
@@ -244,28 +385,20 @@ export function mapPage(env: MapsEnv, _stack: NavStack): PageSpec {
     model.settle();
   };
   // Two contacts spreading or squeezing (the deck's pinch, a touch screen's
-  // two fingers): a level in or out each time the span grows or shrinks by
-  // PINCH_STEP from where the last step was taken.
-  let pinchSpan = 0;
+  // two fingers): the zoom follows the span, about their centroid.
+  const fromCentre = (x: number, y: number) => ({ x: x - W / 2, y: y - (MAP_Y + MAP_H / 2) });
   const pinch = createGesture({
     surface: appletSurfaceId(),
     pinchSlop: 6,
     onPinchStart: (p) => {
-      pinchSpan = p.span;
+      const at = fromCentre(p.cx, p.cy);
+      model.pinchStart(at.x, at.y, p.span);
     },
     onPinchMove: (p) => {
-      if (pinchSpan <= 0) pinchSpan = p.span;
-      if (p.span >= pinchSpan * PINCH_STEP) {
-        model.zoomBy(1);
-        pinchSpan = p.span;
-      } else if (p.span <= pinchSpan / PINCH_STEP) {
-        model.zoomBy(-1);
-        pinchSpan = p.span;
-      }
+      const at = fromCentre(p.cx, p.cy);
+      model.pinchMove(at.x, at.y, p.span);
     },
-    onPinchEnd: () => {
-      pinchSpan = 0;
-    },
+    onPinchEnd: () => model.pinchEnd(),
   });
   onCleanup(() => pinch.dispose());
 
@@ -276,8 +409,9 @@ export function mapPage(env: MapsEnv, _stack: NavStack): PageSpec {
     { id: "map.out", y: MAP_Y + 8 + BUTTON + 6, run: () => model.zoomBy(-1) },
     { id: "map.locate", y: MAP_Y + 8 + (BUTTON + 6) * 2 + 8, run: () => model.locate() },
   ];
-  const scale = createMemo(() => scaleBar(model.view().lat, model.view().zoom));
-  const scaleText = () => `${scale().label}  z${model.view().zoom}`;
+  const shownZoom = createMemo(() => Math.round(model.view().zoom));
+  const scale = createMemo(() => scaleBar(model.view().lat, shownZoom()), undefined, { equals: (a, b) => a.px === b.px && a.label === b.label });
+  const scaleText = () => `${scale().label}  z${shownZoom()}`;
   const scaleW = () => Math.max(scale().px, Math.ceil(measure(scaleText(), FONT.xxs))) + 14;
   const attributionW = Math.ceil(measure(ATTRIBUTION, FONT.xxs)) + 10;
   const fieldText = () => {
@@ -294,8 +428,9 @@ export function mapPage(env: MapsEnv, _stack: NavStack): PageSpec {
     activateLabel: () => "",
     fixed: () => (
       <>
-        <View class="absolute left-0 overflow-hidden bg-[#aad3df]" style={{ insetT: MAP_Y, width: W, height: MAP_H }}>
-          <For each={slots}>{(slot) => <TileSlotView slot={slot} />}</For>
+        <View class="absolute left-0 overflow-hidden bg-[#e8e4dc]" style={{ insetT: MAP_Y, width: W, height: MAP_H }}>
+          <LayerView layer={back} />
+          <LayerView layer={front} />
           <View ref={(node: NodeMirror) => (marker = node)} class="absolute left-0 top-0 w-[16] h-[24] opacity-0">
             <View class="absolute left-[7] top-[10] w-[2] h-[14] bg-[#7f1d1d]" />
             <View class="absolute left-0 top-0 w-[16] h-[16] rounded-[8] border border-[#7f1d1d] bg-[#ef4444]" />

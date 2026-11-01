@@ -78,6 +78,8 @@ export interface MapsClient {
   /** The tile's texture handle, or -1 until it arrives; a drawn tile is the
    *  last to be freed. */
   tile(z: number, x: number, y: number): number;
+  /** Keep a tile that stays on screen last in line to be freed. */
+  touch(key: string): void;
   /** A tile is uploaded (no request needed). */
   has(z: number, x: number, y: number): boolean;
   /** Drop the queued (not started) requests for tiles outside `keep`. */
@@ -201,6 +203,12 @@ export function createMapsClient(): MapsClient {
       textures.delete(key);
       textures.set(key, handle);
       return handle;
+    },
+    touch(key) {
+      const handle = textures.get(key);
+      if (handle === undefined) return;
+      textures.delete(key);
+      textures.set(key, handle);
     },
     has: (z, x, y) => textures.has(tileKey(z, x, y)),
     prune(keep) {

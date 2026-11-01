@@ -10,7 +10,7 @@
 // (/locate) is the start, and without that the whole world at zoom 3.
 
 import { createSignal, type Accessor } from "solid-js";
-import { after } from "@pocketjs/framework/clock";
+import { after, virtualNow } from "@pocketjs/framework/clock";
 import { errorText, type MapsClient, type MapView, type Place, TILE } from "./api.ts";
 import { yourComputer } from "../ui/companion.ts";
 
@@ -22,6 +22,8 @@ export const MAX_LAT = 85.05112878;
 const PLACE_ZOOM = 13;
 const LOCATE_ZOOM = 11;
 const SAVE_AFTER_S = 1;
+/** A zoom step eases to its level over this long, as pocket-map's camera does. */
+const ZOOM_S = 0.18;
 const NOTICE_S = 3;
 const WORLD: MapView = { lat: 20, lon: 0, zoom: MIN_ZOOM };
 
@@ -36,7 +38,20 @@ export interface MapsModel {
   /** Move the centre by a travel in screen px at the current zoom. */
   panBy(dx: number, dy: number): void;
   /** Zoom in (+1) or out (-1) about the centre. */
+  /** One level in or out about the centre, eased. */
   zoomBy(step: number): void;
+  /** Two fingers landed: `x`, `y` is their centroid, from the map's centre. */
+  pinchStart(x: number, y: number, span: number): void;
+  /** The zoom follows the span and the place under the centroid stays under it. */
+  pinchMove(x: number, y: number, span: number): void;
+  /** The fingers left: ease to the nearest level, where a tile is drawn 1:1. */
+  pinchEnd(): void;
+  /** A pinch holds the view. */
+  pinching(): boolean;
+  /** A pinch or an eased zoom is running: the view is not where it will rest. */
+  moving: Accessor<boolean>;
+  /** Advance an eased zoom; the page calls this every frame. */
+  tick(): void;
   /** The marker of the chosen place, or null. */
   marker: Accessor<Place | null>;
   /** Centre on where the companion says the computer is. */
@@ -60,7 +75,7 @@ export interface MapsModel {
 
 // ---- Web Mercator -----------------------------------------------------------------
 
-/** The world's side in px at `zoom`. */
+/** The world's side in px at `zoom`, which may lie between two levels. */
 export const worldSize = (zoom: number): number => TILE * 2 ** zoom;
 
 /** World px of a position at `zoom`. */
@@ -106,6 +121,7 @@ export function createMapsModel(client: MapsClient, options: { editQuery: () => 
     const run = ++saveRun;
     after(SAVE_AFTER_S, () => {
       if (run !== saveRun) return;
+      if (pinch || ease) return settle();
       const now = view();
       if (saved && saved.lat === now.lat && saved.lon === now.lon && saved.zoom === now.zoom) return;
       saved = now;
@@ -114,7 +130,27 @@ export function createMapsModel(client: MapsClient, options: { editQuery: () => 
   };
 
   const place = (lat: number, lon: number, zoom: number) => {
-    setView({ lat: Math.max(-MAX_LAT, Math.min(MAX_LAT, lat)), lon: ((((lon + 180) % 360) + 360) % 360) - 180, zoom: Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Math.round(zoom))) });
+    setView({ lat: Math.max(-MAX_LAT, Math.min(MAX_LAT, lat)), lon: ((((lon + 180) % 360) + 360) % 360) - 180, zoom: Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom)) });
+  };
+
+  /** Go to `zoom` keeping the place at (x, y) from the centre where it is. */
+  const zoomAbout = (zoom: number, x: number, y: number) => {
+    const now = view();
+    const next = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
+    const centre = toWorld(now.lat, now.lon, now.zoom);
+    const k = 2 ** (next - now.zoom);
+    const moved = fromWorld((centre.x + x) * k - x, (centre.y + y) * k - y, next);
+    place(moved.lat, moved.lon, next);
+  };
+
+  const [moving, setMoving] = createSignal(false);
+  let pinch: { span: number; zoom: number; x: number; y: number } | null = null;
+  let ease: { from: number; to: number; at: number; x: number; y: number } | null = null;
+
+  const easeTo = (to: number, x: number, y: number) => {
+    const target = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, to));
+    ease = { from: view().zoom, to: target, at: virtualNow(), x, y };
+    setMoving(true);
   };
 
   const locate = () => {
@@ -123,7 +159,9 @@ export function createMapsModel(client: MapsClient, options: { editQuery: () => 
     client.locate().then(
       (location) => {
         setLocating(false);
-        place(location.lat, location.lon, Math.max(view().zoom, LOCATE_ZOOM));
+        ease = null;
+        setMoving(false);
+        place(location.lat, location.lon, Math.max(Math.round(view().zoom), LOCATE_ZOOM));
         say(location.city ? `Near ${location.city}` : `Centred on ${yourComputer()}'s position`);
         settle();
       },
@@ -144,10 +182,43 @@ export function createMapsModel(client: MapsClient, options: { editQuery: () => 
     },
     zoomBy(step) {
       const now = view();
-      const zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, now.zoom + step));
-      if (zoom === now.zoom) return;
-      place(now.lat, now.lon, zoom);
-      settle();
+      // A press during an eased step goes on from where that step is going.
+      easeTo((ease ? ease.to : Math.round(now.zoom)) + step, 0, 0);
+    },
+    pinchStart(x, y, span) {
+      ease = null;
+      pinch = { span, zoom: view().zoom, x, y };
+      setMoving(true);
+    },
+    pinchMove(x, y, span) {
+      if (!pinch || span <= 0) return;
+      zoomAbout(pinch.zoom + Math.log2(span / pinch.span), x, y);
+      // The centroid's own travel pans.
+      const now = view();
+      const centre = toWorld(now.lat, now.lon, now.zoom);
+      const moved = fromWorld(centre.x + pinch.x - x, centre.y + pinch.y - y, now.zoom);
+      place(moved.lat, moved.lon, now.zoom);
+      pinch.x = x;
+      pinch.y = y;
+    },
+    pinchEnd() {
+      if (!pinch) return;
+      const { x, y } = pinch;
+      pinch = null;
+      easeTo(Math.round(view().zoom), x, y);
+    },
+    pinching: () => pinch !== null,
+    moving,
+    tick() {
+      if (!ease) return;
+      const t = Math.min(1, (virtualNow() - ease.at) / ZOOM_S);
+      const eased = 1 - (1 - t) ** 3;
+      zoomAbout(t >= 1 ? ease.to : ease.from + (ease.to - ease.from) * eased, ease.x, ease.y);
+      if (t >= 1) {
+        ease = null;
+        setMoving(false);
+        settle();
+      }
     },
     marker,
     locate,
@@ -168,7 +239,9 @@ export function createMapsModel(client: MapsClient, options: { editQuery: () => 
     editQuery: () => options.editQuery(),
     choose(found) {
       setMarker(found);
-      place(found.lat, found.lon, Math.max(view().zoom, PLACE_ZOOM));
+      ease = null;
+      setMoving(false);
+      place(found.lat, found.lon, Math.max(Math.round(view().zoom), PLACE_ZOOM));
       settle();
     },
     notice,
@@ -179,7 +252,7 @@ export function createMapsModel(client: MapsClient, options: { editQuery: () => 
         (stored) => {
           if (stored) {
             saved = stored;
-            place(stored.lat, stored.lon, stored.zoom);
+            place(stored.lat, stored.lon, Math.round(stored.zoom));
           } else locate();
         },
         () => locate(),

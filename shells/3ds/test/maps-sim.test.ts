@@ -35,19 +35,36 @@ afterAll(() => {
   rmSync(OUT, { recursive: true, force: true });
 });
 
-const TILE = encodeImageEntry(
-  { width: 256, height: 256, rgba: new Uint8Array(256 * 256 * 4).map((_, i) => (i % 4 === 3 ? 255 : 200 + ((i >> 10) % 40))) },
-  PSM.PSM_5650,
-  IMG_FLAG_LINEAR,
-);
+/** A tile whose level shows in its hue, with a grid and a dark edge, so a
+ *  frame tells which level drew each place and where the tiles meet. */
+const tiles = new Map<string, Uint8Array>();
+function tile(z: number, x: number, y: number): Uint8Array {
+  const key = `${z}/${x}/${y}`;
+  const found = tiles.get(key);
+  if (found) return found;
+  const rgba = new Uint8Array(256 * 256 * 4);
+  const hue = [[90, 150, 230], [230, 130, 90], [100, 200, 120], [200, 110, 210]][z % 4]!;
+  for (let py = 0; py < 256; py++) {
+    for (let px = 0; px < 256; px++) {
+      const o = (py * 256 + px) * 4;
+      const line = px % 32 === 0 || py % 32 === 0;
+      const edge = px === 0 || py === 0;
+      const k = edge ? 0.2 : line ? 0.65 : 1;
+      rgba[o] = hue[0]! * k; rgba[o + 1] = hue[1]! * k; rgba[o + 2] = hue[2]! * k; rgba[o + 3] = 255;
+    }
+  }
+  const entry = encodeImageEntry({ width: 256, height: 256, rgba }, PSM.PSM_5650, IMG_FLAG_LINEAR);
+  tiles.set(key, entry);
+  return entry;
+}
 
 interface Service {
   routes: Readonly<Record<string, SimNetRoute>>;
-  tiles: string[];
+  asked: string[];
 }
 
 function service(): Service {
-  const tiles: string[] = [];
+  const asked: string[] = [];
   const json = (value: unknown) => ({ status: 200, headers: { "content-type": "application/json" }, body: JSON.stringify(value) });
   const answer = (request: SimNetRequest) => {
     const url = new URL(request.url);
@@ -61,8 +78,8 @@ function service(): Service {
       case "/maps/geocode":
         return json({ items: [] });
       case "/maps/tile":
-        tiles.push(`${url.searchParams.get("z")}/${url.searchParams.get("x")}/${url.searchParams.get("y")}`);
-        return { status: 200, headers: { "content-type": "application/x-pocket-img" }, body: TILE };
+        asked.push(`${url.searchParams.get("z")}/${url.searchParams.get("x")}/${url.searchParams.get("y")}`);
+        return { status: 200, headers: { "content-type": "application/x-pocket-img" }, body: tile(Number(url.searchParams.get("z")), Number(url.searchParams.get("x")), Number(url.searchParams.get("y"))) };
       default:
         return { status: 404, body: "{}" };
     }
@@ -70,7 +87,7 @@ function service(): Service {
   const routes = new Proxy({} as Record<string, SimNetRoute>, {
     get: (_, key) => (typeof key === "string" && key.startsWith("https://companion.pocket/") ? answer : undefined),
   });
-  return { routes, tiles };
+  return { routes, asked };
 }
 
 async function boot(): Promise<{ app: Console3ds; svc: Service }> {
@@ -116,8 +133,34 @@ describe("Maps on the Tab5", () => {
   test("the saved view opens with its tiles", async () => {
     const { app, svc } = await boot();
     expect(zoomLabel(app)).toMatch(/z11$/);
-    expect(svc.tiles.some((tile) => tile.startsWith("11/"))).toBe(true);
+    expect(svc.asked.some((key) => key.startsWith("11/"))).toBe(true);
     shot(app, "open");
+  });
+
+  test("a pinch through levels keeps the map on screen: no frame shows bare placeholder, and no new level is asked for on the way", async () => {
+    const { app, svc } = await boot();
+    await app.run(120);
+    const asked = svc.asked.length;
+    const cx = 296, cy = 36 + 158;
+    const bare: number[] = [];
+    const shots = [0, 4, 8, 12, 16, 20];
+    const FRAMES = 20;
+    for (let frame = 0; frame <= FRAMES; frame++) {
+      const half = (50 * 2 ** ((frame / FRAMES) * 2.2)) / 2; // 2.2 levels of span in under a second
+      await app.step({ touches: [{ id: 1, x: cx - half, y: cy }, { id: 2, x: cx + half, y: cy }], surface: "auxiliary" });
+      const { width, rgba } = app.world.pixels("auxiliary");
+      const o = (cy * width + cx) * 4;
+      if (rgba[o] === 0xe8 && rgba[o + 1] === 0xe4 && rgba[o + 2] === 0xdc) bare.push(frame);
+      if (shots.includes(frame)) shot(app, `through-${frame}`);
+    }
+    expect(bare).toEqual([]);
+    expect(svc.asked.length - asked).toBeLessThanOrEqual(4); // what was already on its way
+    await app.step({ touches: [], surface: "auxiliary" });
+    await app.run(90);
+    expect(zoomLabel(app)).toMatch(/z13$/);
+    expect(svc.asked.some((key) => key.startsWith("13/"))).toBe(true);
+    expect(svc.asked.some((key) => key.startsWith("12/"))).toBe(false);
+    shot(app, "through-rest");
   });
 
   test("the zoom buttons step through the levels while tiles arrive", async () => {
