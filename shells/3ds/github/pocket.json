@@ -1,0 +1,64 @@
+{
+  "$schema": "https://pocketjs.dev/schema/pocket-2.json",
+  "pocket": 2,
+  "id": "dev.pocket-nexus.github",
+  "name": "pocket-github",
+  "title": "GitHub",
+  "version": "0.1.4",
+  "applet": {
+    "version": 1,
+    "services": [
+      "store",
+      "images",
+      "glyphs"
+    ],
+    "hosts": [
+      "api.github.com",
+      "github.com",
+      "avatars.githubusercontent.com"
+    ]
+  },
+  "engine": {
+    "capabilities": {
+      "requires": [
+        "text.glyphs.baked",
+        "input.buttons",
+        "display.auxiliary",
+        "input.touch.auxiliary",
+        "net.http"
+      ],
+      "enhances": [
+        "input.analog.left",
+        "system.agent"
+      ]
+    }
+  },
+  "app": {
+    "entry": "github/main.tsx",
+    "output": "github-main",
+    "framework": "solid",
+    "surfaces": {
+      "auxiliary": {
+        "adaptive": {
+          "min": [
+            320,
+            240
+          ],
+          "max": [
+            640,
+            720
+          ]
+        }
+      }
+    },
+    "viewport": {
+      "fixed": {
+        "logical": [
+          400,
+          240
+        ],
+        "presentation": "native"
+      }
+    }
+  }
+}

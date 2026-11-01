@@ -65,7 +65,7 @@ export interface PageSpec {
   /** Keys the page handles before the stack (true = consumed). */
   key?: (pressed: number) => boolean;
   /** Bar tint (default iOS 6 blue; black over the camera). */
-  tint?: "blue" | "black" | "orange";
+  tint?: "blue" | "black" | "orange" | "flat";
   /** Drawn in the bar instead of the title. */
   titleView?: () => JSX.Element;
   /** No page background (options.background): fixed content paints its own,
@@ -106,6 +106,9 @@ export interface LayerContext {
   /** The d-pad focus id (drawn while keys mode is on). */
   focus: Accessor<string>;
   setFocus(id: string): void;
+  /** This page is on top or next under it. A page further down can let go of
+   *  its nodes: it cannot be seen, and it draws them again on the way back. */
+  near: Accessor<boolean>;
   /** The content scroll offset (for windowing long lists). */
   offset: Accessor<number>;
   /** Scroll content so [top, bottom) is in view; a span taller than the
@@ -264,7 +267,11 @@ function LayerView(props: {
     else if (bottom + 8 > offset + VIEW_H) scroller.chaseTo(Math.min(bottom + 8 - VIEW_H, maxOffset()));
   };
   const scrollBy = (delta: number) => scroller.chaseTo(Math.max(0, Math.min(maxOffset(), scroller.intent() + delta)));
-  const spec = props.options.page(props.entry.page, props.stack, { focus, setFocus, offset: scroller.offset, reveal, scrollBy });
+  const near = createMemo(() => {
+    const list = props.stack.entries();
+    return list.length - list.findIndex((entry) => entry.key === props.entry.key) <= 2;
+  });
+  const spec = props.options.page(props.entry.page, props.stack, { focus, setFocus, near, offset: scroller.offset, reveal, scrollBy });
   contentRef = spec.content;
   VIEW_H = viewHeight(spec.inset);
   const content = spec.content;

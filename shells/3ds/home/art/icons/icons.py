@@ -554,9 +554,28 @@ def homeassistant():
     prism("Window", rounded_rect(0.34, 0.34, 0.05, 0.0, -0.2), 0.1, 0.012, glow, 0.008)
 
 
+def github():
+    # The cat of GitHub's mark seen as a cartoon on charcoal lacquer: a white
+    # enamel head with two pointed ears, round shoulders, a tail curling up on
+    # the left, and a dark face panel holding two pale eyes.
+    plate(gradient("Charcoal lacquer", "4a5260", "171b22", 0.26, coat=0.8))
+    enamel = principled("White enamel", "fbfbff", 0.2, 0.0, 0.6)
+    head = rounded_rect(1.12, 0.84, 0.36, 0.04, 0.22)
+    ear_l = [(-0.48, 0.34), (-0.46, 0.84), (-0.08, 0.56)]
+    ear_r = [(0.56, 0.34), (0.54, 0.84), (0.16, 0.56)]
+    body = rounded_rect(0.62, 0.72, 0.16, 0.04, -0.42)
+    tail = arc_band(-0.34, -0.3, 0.28, 0.13, 170, 330, 24)
+    union("Cat", [head, ear_l, ear_r, body, tail], 0.0, 0.1, enamel, 0.03)
+    panel = principled("Face panel", "1d222b", 0.3, 0.0, 0.5)
+    prism("Face", rounded_rect(0.84, 0.48, 0.22, 0.04, 0.16), 0.1, 0.012, panel, 0.006)
+    eye = principled("Eye", "f4c7a4", 0.3, 0.0, 0.5)
+    prism("Eye L", circle(0.09, -0.16, 0.16, 48), 0.112, 0.012, eye, 0.005)
+    prism("Eye R", circle(0.09, 0.24, 0.16, 48), 0.112, 0.012, eye, 0.005)
+
+
 ICONS = {
     "settings": settings, "mac": mac, "hn": hn, "wifi": wifi, "apps": apps, "youtube": youtube, "x": x, "discord": discord, "camera": camera, "photos": photos,
-    "weather": weather, "podcasts": podcasts, "maps": maps, "homeassistant": homeassistant,
+    "weather": weather, "podcasts": podcasts, "maps": maps, "homeassistant": homeassistant, "github": github,
 }
 
 only = [name for name in options.only.split(",") if name]
