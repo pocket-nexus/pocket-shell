@@ -793,4 +793,18 @@ describe("on the Tab5's 592x360 surface", () => {
     await unpaired.run(24);
     tab5Shot(unpaired, "home-scanner");
   });
+
+  test("while it looks for the Mac, the store's Mac Settings button sits in the middle and opens the Mac page", async () => {
+    const searching = await tall({ link: { paired: [MAC], linked: null, catalog: CATALOG } });
+    await searching.run(10);
+    await searching.tapText("Mac");
+    await searching.run(24);
+    expect(searching.texts("auxiliary")).toContain("Looking for Your Mac");
+    const [x, , w] = searching.locate("Mac Settings")!;
+    expect(Math.abs(x + w / 2 - TAB5[0] / 2)).toBeLessThanOrEqual(2);
+    tab5Shot(searching, "home-store-searching");
+    await searching.tapText("Mac Settings");
+    await searching.run(24);
+    expect(searching.texts("auxiliary")).toContain("Pair Another Mac...");
+  });
 });

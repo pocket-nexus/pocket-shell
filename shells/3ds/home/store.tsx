@@ -130,6 +130,10 @@ function StoreRow(props: { app: LinkCatalogApp; index: number; env: StoreEnv; li
   );
 }
 
+/** The empty state's button, centred on the surface (320 on the 3DS, 592 on the Tab5). */
+const EMPTY_BUTTON = { y: 150, w: 140, h: 30 };
+const emptyButtonX = () => (SCREEN_W - EMPTY_BUTTON.w) / 2;
+
 function EmptyState(props: { title: string; message: string; button?: { id: string; label: string }; press: Press; spinner?: boolean }) {
   return (
     <>
@@ -150,10 +154,11 @@ function EmptyState(props: { title: string; message: string; button?: { id: stri
           <>
             <View
               class={props.press.is(button().id)
-                ? "absolute left-[90] top-[150] w-[140] h-[30] rounded-[6] border border-[#6f7680] bg-gradient-to-b from-[#9aa1ab] to-[#bfc5cc]"
-                : "absolute left-[90] top-[150] w-[140] h-[30] rounded-[6] border border-[#9aa1aa] bg-gradient-to-b from-[#ffffff] to-[#dde1e6]"}
+                ? "absolute top-[150] w-[140] h-[30] rounded-[6] border border-[#6f7680] bg-gradient-to-b from-[#9aa1ab] to-[#bfc5cc]"
+                : "absolute top-[150] w-[140] h-[30] rounded-[6] border border-[#9aa1aa] bg-gradient-to-b from-[#ffffff] to-[#dde1e6]"}
+              style={{ insetL: emptyButtonX() }}
             />
-            <Text class="absolute left-[90] top-[157] w-[140] text-sm text-[#385487] font-bold text-center">{button().label}</Text>
+            <Text class="absolute top-[157] w-[140] text-sm text-[#385487] font-bold text-center" style={{ insetL: emptyButtonX() }}>{button().label}</Text>
           </>
         )}
       </Show>
@@ -243,7 +248,7 @@ export function storePage(env: StoreEnv, stack: NavStack, layer: LayerContext): 
         const out: Target[] = [];
         if (mode() !== "list") {
           const button = emptyButton();
-          if (button) out.push({ id: button.id, x: 90, y: top + 150 - offset, w: 140, h: 30, run: button.run });
+          if (button) out.push({ id: button.id, x: emptyButtonX(), y: top + EMPTY_BUTTON.y - offset, w: EMPTY_BUTTON.w, h: EMPTY_BUTTON.h, run: button.run });
           return out;
         }
         apps().forEach((app, index) => {
