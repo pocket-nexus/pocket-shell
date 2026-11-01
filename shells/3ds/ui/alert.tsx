@@ -3,10 +3,11 @@
 // glass box with a white rim, an embossed title, a message and two buttons.
 // While it is up it owns the touch screen and the A/B buttons.
 
-import { createSignal, For, Show, type Accessor } from "solid-js";
+import { createEffect, createSignal, For, Show, type Accessor } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { BTN } from "@pocketjs/framework/input";
-import { SCREEN_H, SCREEN_W } from "./screen.ts";
+import { overrideLegend } from "./legend.tsx";
+import { appletTouch, SCREEN_H, SCREEN_W } from "./screen.ts";
 import { FONT, wrap } from "./text.ts";
 import type { Press, Target, TouchPage } from "./touch.ts";
 
@@ -31,6 +32,17 @@ export interface Alerts {
 export function createAlerts(press: Press): Alerts {
   const X = (SCREEN_W - W) / 2;
   const [current, setCurrent] = createSignal<AlertSpec | null>(null);
+  if (!appletTouch()) {
+    createEffect(() =>
+      overrideLegend(current()
+        ? [
+            { button: "dpad-h", label: "Choose" },
+            { button: "circle", label: "Select" },
+            { button: "cross", label: "Cancel" },
+          ]
+        : null),
+    );
+  }
   const [choice, setChoice] = createSignal(0);
   const lines = () => {
     const alert = current();

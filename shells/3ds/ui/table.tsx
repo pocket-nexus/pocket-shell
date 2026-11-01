@@ -205,7 +205,7 @@ function CellView(props: { placed: PlacedCell; width: number; lit: Accessor<bool
       <Show when={value}>
         <Text
           class={props.lit() ? "absolute text-sm text-white text-right" : "absolute text-sm text-[#385487] text-right"}
-          style={{ insetL: groupW - right - valueW, insetT: textTop, width: valueW }}
+          style={{ insetL: groupW - right - valueW, insetT: y + (h - 18) / 2, width: valueW }}
         >
           {value}
         </Text>
