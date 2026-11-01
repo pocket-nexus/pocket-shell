@@ -55,6 +55,10 @@ const ICONS: Record<string, number[]> = {
   discord: [24, 46, 64],
   camera: [24, 46, 64],
   photos: [24, 46, 64],
+  weather: [24, 46, 64],
+  podcasts: [24, 46, 64],
+  maps: [24, 46, 64],
+  homeassistant: [24, 46, 64],
 };
 
 const RENDERS = resolve(process.argv[2] ?? ".pocket-build/home-icons/render");

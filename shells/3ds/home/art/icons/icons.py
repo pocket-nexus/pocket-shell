@@ -240,7 +240,29 @@ def prism(name, outer, z, depth, mat, bevel=0.02, holes=()):
     bm.to_mesh(mesh)
     bm.free()
     obj = link(bpy.data.objects.new(name, mesh))
-    return finish(obj, mat, bevel)
+    return finish(obj, mat, bevel) if mat else obj
+
+
+def union(name, outlines, z, depth, mat, bevel=0.02):
+    """One solid of several overlapping outlines, extruded alike. Separate
+    prisms would put coplanar top faces over each other, which Cycles shades
+    with dark self-shadow patches; the boolean union leaves one top face, and
+    the bevel then runs along the outline of the whole."""
+    parts = [prism(f"{name} {index}", outline, z, depth, None) for index, outline in enumerate(outlines)]
+    whole = parts[0]
+    for part in parts[1:]:
+        merge = whole.modifiers.new("Union", "BOOLEAN")
+        merge.operation = "UNION"
+        merge.solver = "EXACT"
+        merge.object = part
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    mesh = bpy.data.meshes.new_from_object(whole.evaluated_get(depsgraph))
+    whole.modifiers.clear()
+    whole.data = mesh
+    whole.name = name
+    for part in parts[1:]:
+        bpy.data.objects.remove(part)
+    return finish(whole, mat, bevel)
 
 
 def rounded_rect(w, h, r, x=0.0, y=0.0, steps=10, angle=0.0):
@@ -465,7 +487,77 @@ def discord():
     prism("Ear R", rounded_rect(0.3, 0.3, 0.1, 0.42, 0.33, angle=math.radians(-20)), 0.0, 0.1, enamel, 0.03)
 
 
-ICONS = {"settings": settings, "mac": mac, "hn": hn, "wifi": wifi, "apps": apps, "youtube": youtube, "x": x, "discord": discord, "camera": camera, "photos": photos}
+def weather():
+    # A sun half behind a cloud on a clear-sky gradient, after iOS 6's
+    # Weather: an orange-yellow disc toward the top left, and a white cloud
+    # of three puffs on a flat base, one solid, in front of it, raised higher
+    # so it casts its shadow on the sun.
+    plate(gradient("Sky lacquer", "8fd6ff", "2079dc", 0.26, coat=0.7))
+    sun = gradient("Sun", "ffe75c", "ff9d14", 0.3, coat=0.6, lo=-0.1, hi=0.82)
+    prism("Sun", circle(0.42, -0.22, 0.28), 0.0, 0.07, sun, 0.03)
+    cloud = gradient("Cloud", "ffffff", "dfe8f2", 0.24, coat=0.5, lo=-0.62, hi=0.3)
+    puffs = [rounded_rect(1.26, 0.46, 0.23, 0.1, -0.36), circle(0.27, -0.28, -0.2), circle(0.38, 0.1, -0.04), circle(0.25, 0.44, -0.22)]
+    union("Cloud", puffs, 0.08, 0.1, cloud, 0.035)
+
+
+def podcasts():
+    # The broadcast microphone in white enamel on purple lacquer, as iOS 6's
+    # Podcasts: a round head, two rings open at the bottom around it, and a
+    # tapered stem down through the openings.
+    plate(gradient("Purple lacquer", "d08cf8", "6d22c0", 0.24, coat=0.8))
+    enamel = principled("White enamel", "fbfbff", 0.2, 0.0, 0.6)
+    cx, cy = 0.0, 0.16
+    prism("Head", circle(0.19, cx, cy), 0.0, 0.1, enamel, 0.035)
+    prism("Inner ring", arc_band(cx, cy, 0.41, 0.12, -48, 228, 40), 0.0, 0.08, enamel, 0.025)
+    prism("Outer ring", arc_band(cx, cy, 0.66, 0.12, -38, 218, 48), 0.0, 0.08, enamel, 0.025)
+    prism("Stem", [(-0.1, cy - 0.3), (0.1, cy - 0.3), (0.075, -0.74), (-0.075, -0.74)], 0.0, 0.1, enamel, 0.03)
+
+
+def teardrop(r, x, y, tip):
+    """A map pin's outline: a circle of radius r at (x, y) drawn out to a
+    point `tip` below its centre."""
+    half = math.asin(r / tip)
+    start = -math.pi / 2 + half
+    points = [(x + r * math.cos(start + (math.tau - 2 * half) * k / 48), y + r * math.sin(start + (math.tau - 2 * half) * k / 48)) for k in range(49)]
+    return points + [(x, y - tip)]
+
+
+def maps():
+    # A piece of street map seen from above, after iOS 6's Maps: pale land
+    # with a green park and blue water, a yellow main road edged in white and
+    # a white side street, and a red pin standing over the crossing.
+    plate(gradient("Land", "f4f1e4", "d9d5c0", 0.5, coat=0.3))
+    prism("Park", rounded_rect(1.1, 0.9, 0.14, -0.72, 0.62, angle=math.radians(-8)), 0.0, 0.02, principled("Park", "8fd36a", 0.55, 0.0, 0.3), 0.008)
+    prism("Water", [(0.2, -1.7), (1.7, -1.7), (1.7, 0.1), (1.18, -0.06), (0.86, -0.42), (0.52, -0.6), (0.3, -0.98)], 0.0, 0.015, principled("Water", "6ec0f5", 0.2, 0.0, 0.6), 0.006)
+    white = principled("Road white", "ffffff", 0.4, 0.0, 0.3)
+    cx, cy = 0.12, -0.16
+    prism("Side street", bar(cx, cy, 3.6, 0.14, math.radians(-62)), 0.02, 0.012, white, 0.004)
+    prism("Main road edge", bar(cx, cy, 3.6, 0.3, math.radians(24)), 0.02, 0.016, white, 0.004)
+    prism("Main road", bar(cx, cy, 3.6, 0.2, math.radians(24)), 0.036, 0.008, principled("Road yellow", "ffc531", 0.4, 0.0, 0.3), 0.003)
+    # The pin's point stands on the crossing.
+    red = gradient("Pin red", "ff6a52", "c8160c", 0.22, coat=0.9, lo=cy + 0.3, hi=cy + 0.9)
+    prism("Pin", teardrop(0.27, cx, cy + 0.66, 0.66), 0.12, 0.12, red, 0.04)
+    prism("Pin dot", circle(0.1, cx, cy + 0.66), 0.24, 0.02, principled("Pin dot", "ffffff", 0.2, 0.0, 0.6), 0.008)
+
+
+def homeassistant():
+    # A house in white enamel on Home Assistant's blue, its roof a raised
+    # chevron that catches the light along the ridge and one window lit warm
+    # yellow: a home whose lights answer.
+    plate(gradient("HA blue lacquer", "6fd8ff", "1488d4", 0.24, coat=0.8))
+    enamel = principled("White enamel", "fbfbff", 0.2, 0.0, 0.6)
+    prism("House", [(-0.5, -0.66), (0.5, -0.66), (0.5, 0.06), (0.0, 0.5), (-0.5, 0.06)], 0.0, 0.1, enamel, 0.03)
+    roof = [(-0.78, 0.0), (0.0, 0.7), (0.78, 0.0), (0.66, -0.12), (0.0, 0.48), (-0.66, -0.12)]
+    prism("Roof", roof, 0.1, 0.06, enamel, 0.025)
+    prism("Chimney", rounded_rect(0.14, 0.28, 0.02, 0.38, 0.5), 0.0, 0.12, enamel, 0.02)
+    glow = emissive_gradient("Window light", "ffe066", "ffad1f", 1.2, lo=-0.4, hi=0.0)
+    prism("Window", rounded_rect(0.34, 0.34, 0.05, 0.0, -0.2), 0.1, 0.012, glow, 0.008)
+
+
+ICONS = {
+    "settings": settings, "mac": mac, "hn": hn, "wifi": wifi, "apps": apps, "youtube": youtube, "x": x, "discord": discord, "camera": camera, "photos": photos,
+    "weather": weather, "podcasts": podcasts, "maps": maps, "homeassistant": homeassistant,
+}
 
 only = [name for name in options.only.split(",") if name]
 for name, build in ICONS.items():

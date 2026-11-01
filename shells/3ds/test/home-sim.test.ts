@@ -655,6 +655,10 @@ describe("on the Tab5's 592x360 surface", () => {
     { output: "youtube-main", id: "dev.pocket-nexus.youtube", title: "YouTube", version: "0.1.0", bytes: 90_000 },
     { output: "x-main", id: "dev.pocket-nexus.x", title: "X", version: "0.1.0", bytes: 90_000 },
     { output: "discord-main", id: "dev.pocket-nexus.discord", title: "Discord", version: "0.1.0", bytes: 90_000 },
+    { output: "weather-main", id: "dev.pocket-nexus.weather", title: "Weather", version: "0.1.0", bytes: 90_000 },
+    { output: "podcasts-main", id: "dev.pocket-nexus.podcasts", title: "Podcasts", version: "0.1.0", bytes: 90_000 },
+    { output: "maps-main", id: "dev.pocket-nexus.maps", title: "Maps", version: "0.1.0", bytes: 90_000 },
+    { output: "homeassistant-main", id: "dev.pocket-nexus.homeassistant", title: "Home Assistant", version: "0.1.0", bytes: 90_000 },
   ];
   const tall = (options: Partial<Console3dsOptions> = {}) => boot({ apps: PHONE_APPS, auxiliary: TAB5, ...options });
   const portrait = (options: Partial<Console3dsOptions> = {}) => boot({ apps: PHONE_APPS, auxiliary: PORTRAIT, ...options });
@@ -664,7 +668,7 @@ describe("on the Tab5's 592x360 surface", () => {
     await home.run(30);
     tab5Shot(home, "home-springboard");
     const bottom = home.texts("auxiliary");
-    for (const label of ["Hacker News", "YouTube", "Discord", "Settings", "Mac", "Camera", "Photos", "9:41 AM"]) expect(bottom).toContain(label);
+    for (const label of ["Hacker News", "YouTube", "Discord", "Weather", "Podcasts", "Maps", "Home Assistant", "Settings", "Mac", "Camera", "Photos", "9:41 AM"]) expect(bottom).toContain(label);
     // Six columns: the sixth applet shares the first row; the dock sits at
     // the bottom of the surface, the clock at its right edge.
     expect(home.locate("Discord")![1]).toBeLessThan(100);

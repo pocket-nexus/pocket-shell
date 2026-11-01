@@ -124,5 +124,41 @@
   },
   "art/icons/photos-64.png": {
     "linear": true
+  },
+  "art/icons/weather-24.png": {
+    "linear": true
+  },
+  "art/icons/weather-46.png": {
+    "linear": true
+  },
+  "art/icons/weather-64.png": {
+    "linear": true
+  },
+  "art/icons/podcasts-24.png": {
+    "linear": true
+  },
+  "art/icons/podcasts-46.png": {
+    "linear": true
+  },
+  "art/icons/podcasts-64.png": {
+    "linear": true
+  },
+  "art/icons/maps-24.png": {
+    "linear": true
+  },
+  "art/icons/maps-46.png": {
+    "linear": true
+  },
+  "art/icons/maps-64.png": {
+    "linear": true
+  },
+  "art/icons/homeassistant-24.png": {
+    "linear": true
+  },
+  "art/icons/homeassistant-46.png": {
+    "linear": true
+  },
+  "art/icons/homeassistant-64.png": {
+    "linear": true
   }
 }
