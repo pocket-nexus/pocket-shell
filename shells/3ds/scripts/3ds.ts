@@ -13,15 +13,15 @@
 import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { build3ds } from "../../../vendor/pocketjs/tools/3ds.ts";
-import { isShellApp, LAUNCHER, writePlan } from "./apps.ts";
-import { DIST_3DS, PROJECT_ROOT, VENDOR } from "./paths.ts";
+import { isShellApp, LAUNCHER, projectRoot, writePlan } from "./apps.ts";
+import { DIST_3DS, VENDOR } from "./paths.ts";
 
 const args = process.argv.slice(2);
 const app = isShellApp(args[0]) ? args.shift()! : LAUNCHER;
 if (args.includes("--cia")) throw new Error("pocket-shell 3ds: the console takes .3dsx files only");
-const plan = writePlan(app as typeof LAUNCHER);
+const plan = writePlan(app);
 
-await build3ds([`--plan=${plan.path}`, `--project-root=${PROJECT_ROOT}`, ...args]);
+await build3ds([`--plan=${plan.path}`, `--project-root=${projectRoot(app)}`, ...args]);
 
 mkdirSync(DIST_3DS, { recursive: true });
 for (const extension of ["pocket", "3dsx"]) {
