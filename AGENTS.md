@@ -9,11 +9,12 @@ The repository holds **three shells**, and a change belongs
 to one of them:
 
 - `shells/3ds/` — Pocket Shell, the launcher, and the **Pocket Applets** it
-  ships with (Hacker News, YouTube, X, Discord, Camera, Photos, Notes), over
-  one iOS 6 kit in `ui/`. **Its platforms are the Nintendo 3DS and the M5Stack
-  Tab5**: on the 3DS two screens of fixed size, a resistive panel with one
-  contact, a d-pad and shoulder buttons; on the Tab5 one 640x360 touch
-  surface, a host-drawn home ball and a keyboard. Each program reads its
+  ships with (Hacker News, YouTube, X, Discord, GitHub, Camera, Photos,
+  Notes), over one iOS 6 kit in `ui/` (GitHub also over `kit/`). **Its
+  platforms are the Nintendo 3DS and the M5Stack Tab5**: on the 3DS two
+  screens of fixed size, a resistive panel with one contact, a d-pad and
+  shoulder buttons; on the Tab5 one 640x360 touch surface, a host-drawn home
+  ball and a keyboard. Each program reads its
   surface size at start (`ui/screen.ts`) and lays out by size class. Every
   applet draws on the touch surface and declares `system.agent`; the 3DS's
   top screen and the L+R agent overlay belong to the PocketJS host and

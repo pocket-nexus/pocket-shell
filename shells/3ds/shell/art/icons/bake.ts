@@ -55,6 +55,7 @@ const ICONS: Record<string, number[]> = {
   discord: [24, 46, 64],
   camera: [24, 46, 64],
   photos: [24, 46, 64],
+  github: [24, 46, 64],
 };
 
 const RENDERS = resolve(process.argv[2] ?? ".pocket-build/shell-icons/render");

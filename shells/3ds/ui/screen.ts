@@ -26,6 +26,10 @@ export let COMPACT = true;
 /** A portrait surface: the phone layouts. */
 export let TALL = false;
 
+/** The button legend's strip along the bottom of a surface without touch
+ *  (ui/legend.tsx). Programs lay out in the SCREEN_H above it. */
+export const LEGEND_H = 22;
+
 export function readScreen(): void {
   const viewport = auxiliaryViewport();
   if (!viewport) return;
@@ -40,4 +44,10 @@ export function readScreen(): void {
  *  target. */
 export function appletTouch(): boolean {
   return hasFeature("input.touch.auxiliary");
+}
+
+/** The surface a program's gestures and system keyboard belong to: the
+ *  auxiliary surface on every 3DS-layout host (a 3DS, a Tab5). */
+export function appletSurfaceId(): "primary" | "auxiliary" {
+  return "auxiliary";
 }

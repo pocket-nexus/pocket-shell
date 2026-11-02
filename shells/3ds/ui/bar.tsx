@@ -9,7 +9,7 @@
 
 import { createEffect, onMount, Show, type Accessor, type JSX } from "solid-js";
 import { jump } from "@pocketjs/framework/animation";
-import { Text, View, type NodeMirror } from "@pocketjs/framework/components";
+import { Image, Text, View, type NodeMirror } from "@pocketjs/framework/components";
 import { ellipsize, FONT, measure } from "./text.ts";
 import type { Press, Target } from "./touch.ts";
 
@@ -200,15 +200,53 @@ export interface NavBarProps {
   left?: NavButton | null;
   right?: NavButton | null;
   press: Press;
-  /** Bar tint: iOS 6 blue (default), black translucent (camera), orange. */
-  tint?: "blue" | "black" | "orange";
+  /** Bar tint: iOS 6 blue (default), black translucent (camera), orange, or the kit's flat bar. */
+  tint?: "blue" | "black" | "orange" | "flat";
   /** Drawn instead of the title (a segmented control). */
   titleView?: () => JSX.Element;
+}
+
+/** The kit names its back icon, so an app without the kit bakes no image for it. */
+let flatBack = "";
+export const setFlatBackIcon = (src: string) => {
+  flatBack = src;
+};
+
+/** The bar of the kit (applets/kit): one flat colour, a hairline under it, the
+ *  title in the middle and text buttons at the sides. */
+function FlatBar(props: NavBarProps) {
+  const leftW = props.left ? Math.min(barButtonWidth(props.left), Math.round(props.width * 0.26) + 22) + 10 : 10;
+  const side = Math.max(leftW, props.right ? barButtonWidth(props.right) + 10 : 10);
+  const titleW = props.width - side * 2;
+  const title = () => ellipsize(props.title(), FONT.smBold, titleW);
+  const button = (bar: NavButton, x: number) => (
+    <Text class="absolute text-sm font-bold" style={{ insetL: x, insetT: 10, textColor: props.press.is(bar.id) ? "#8b949e" : "#58a6ff" }}>
+      {bar.label}
+    </Text>
+  );
+  return (
+    <View class="absolute left-0 top-0 h-[36] bg-[#161b22]" style={{ width: props.width }}>
+      <View class="absolute left-0 right-0 bottom-0 h-[1] bg-[#30363d]" />
+      <Show when={props.titleView} fallback={<Text class="absolute text-sm text-[#e6edf3] font-bold text-center" style={{ insetL: side, insetT: 10, width: titleW }}>{title()}</Text>}>
+        {(view) => view()()}
+      </Show>
+      <Show when={props.left}>
+        {(left) => (
+          <>
+            <Image class="absolute w-[16] h-[16]" src={flatBack} style={{ insetL: 3, insetT: 10 }} />
+            {button(measure(left().label, FONT.smBold) > props.width * 0.26 ? { ...left(), label: "Back" } : left(), 19)}
+          </>
+        )}
+      </Show>
+      <Show when={props.right}>{(right) => button(right(), props.width - measure(right().label, FONT.smBold) - 12)}</Show>
+    </View>
+  );
 }
 
 /** The 36 px navigation bar: two-band gloss, highlight and shadow lines, an
  *  embossed centered title, an arrow back button and an optional right button. */
 export function NavBar(props: NavBarProps) {
+  if (props.tint === "flat") return <FlatBar {...props} />;
   const leftW = props.left ? barButtonWidth(props.left) + 14 : 10;
   const rightW = props.right ? barButtonWidth(props.right) + 14 : 10;
   const side = Math.max(leftW, rightW);

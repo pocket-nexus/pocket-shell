@@ -41,6 +41,7 @@ applet: it pairs, installs and switches, which applets cannot.
 | Camera | `camera/` | `dev.pocket-nexus.camera`, `camera-main` | the same |
 | Photos | `photos/` | `dev.pocket-nexus.photos`, `photos-main` | the same |
 | Notes | `notes/` | `dev.pocket-nexus.notes`, `notes-main` | the same |
+| GitHub | `github/` | `dev.pocket-nexus.github`, `github-main` | the same |
 
 `ui/` is the iOS 6 kit the launcher and the applets build on at the 3DS's 0.82 scale: the
 navigation stack and bar, grouped tables, alerts, text fitting, a slot pool
@@ -160,7 +161,11 @@ two-icon dock. Labels are bold 10 px (`text-2xs`), so "Hacker News" and
 `shell/art/icons/icons.py` models Settings, Hacker News, Wi-Fi and Apps in
 Blender as lit objects on lacquer or metal plates, and Mac as a two-tone
 lacquer face after the Finder (a raised profile line, enamel eyes and
-smile), with few large shapes so they hold at 46 and 24 px. Pocket Nexus is the face "O" of the Pocket
+smile), with few large shapes so they hold at 46 and 24 px. GitHub is a
+cat's head in white enamel on charcoal lacquer; a shape made of overlapping
+outlines (its head and ears) is one boolean union before its bevel, since
+separate prisms with coplanar tops render with dark self-shadow patches.
+Pocket Nexus is the face "O" of the Pocket
 Nexus wordmark, drawn by the wordmark's own code (PocketJS
 `apps/nexus/art/draw.js`, run in headless Chrome by `shell/art/icons/nexus.ts`).
 `shell/art/icons/bake.ts` gives all of them one finish (the rounded mask, the
@@ -194,6 +199,14 @@ a pushed applet can reach its service; any other request gets 403.
   `bun tools/companion.ts service discord token <token>`, and `service
   discord status` prints the invite link. Setup and controls:
   [docs/DISCORD.md](docs/DISCORD.md).
+
+**GitHub** is built from `kit/`, a design system in which a page is rows
+and the kit draws them (`kit/platform.tsx` is what it takes from this
+shell): the inbox, pull requests, issues, repositories, code, diffs,
+reviews, merging, Actions, releases, gists and search, on GitHub's REST API
+with ETags and the Link header's pages. Its token is kept by the
+companion's `store` service, avatars come through `images`, and text in any
+script through `glyphs`. Its 16 px marks are geometry in `kit/icons.gen.ts`.
 
 **Hacker News** lists Top, New, Best, Ask and Show and opens a thread with
 the story and every comment in full. Its requests go to

@@ -7,6 +7,7 @@
 
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { checkApplet, formatAppletDiagnostics } from "../../../vendor/pocketjs/tools/applet-check.ts";
 import { APPS, appContract, LAUNCHER } from "../scripts/apps.ts";
 import { PROJECT_ROOT } from "../scripts/paths.ts";
@@ -27,6 +28,14 @@ describe("Pocket Applets", () => {
       const manifest = JSON.parse(readFileSync(appContract(app), "utf8"));
       const network = [...manifest.engine.capabilities.requires, ...(manifest.engine.capabilities.enhances ?? [])].includes("net.http");
       expect([app, manifest.domains?.worker ?? null]).toEqual([app, network ? NET_WORKER : null]);
+    }
+  });
+
+  test("an applet's package icon is its launcher icon at 128 px", () => {
+    for (const app of APPLETS) {
+      const icon = (JSON.parse(readFileSync(appContract(app), "utf8")) as { icon?: string }).icon;
+      if (!icon) continue;
+      expect([app, readFileSync(resolve(PROJECT_ROOT, app, icon)).equals(readFileSync(resolve(PROJECT_ROOT, `shell/art/icons/${app}-64@2x.png`)))]).toEqual([app, true]);
     }
   });
 

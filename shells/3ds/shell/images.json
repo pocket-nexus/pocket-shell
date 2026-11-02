@@ -124,5 +124,14 @@
   },
   "art/icons/photos-64.png": {
     "linear": true
+  },
+  "art/icons/github-24.png": {
+    "linear": true
+  },
+  "art/icons/github-46.png": {
+    "linear": true
+  },
+  "art/icons/github-64.png": {
+    "linear": true
   }
 }
