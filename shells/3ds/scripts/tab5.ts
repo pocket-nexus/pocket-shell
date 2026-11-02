@@ -76,5 +76,15 @@ export async function buildTab5(app: string): Promise<string> {
 if (import.meta.main) {
   const named = process.argv.slice(2);
   for (const app of named) if (!isShellApp(app)) throw new Error(`pocket-shell tab5: no app named ${app}`);
-  for (const app of named.length > 0 ? named : APPS) await buildTab5(app);
+  // Every app is built and checked; the failures are listed together.
+  const failed: string[] = [];
+  for (const app of named.length > 0 ? named : APPS) {
+    try {
+      await buildTab5(app);
+    } catch (error) {
+      failed.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+  for (const message of failed) console.error(message);
+  if (failed.length > 0) process.exit(1);
 }
