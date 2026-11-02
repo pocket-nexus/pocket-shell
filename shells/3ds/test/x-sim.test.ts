@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/test/x-sim.test.ts — the X app headless on the wasm core with the
-// 3DS geometry and the companion's x service as fixture NET routes
-// (test/x-fixture.ts): the timeline with reposts, quotes and avatars, paging
+// 3DS geometry and the companion's x service as fixture routes of the sims'
+// worker (test/x-fixture.ts, test/net-fake.ts): the timeline with reposts, quotes and avatars, paging
 // by cursor, the For You list, a post's thread and a reply's, the signed-out
 // state. The app draws nothing on the top screen.
 //
@@ -12,7 +12,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BTN } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
-import { bootConsole3ds, type Console3ds, type Console3dsOptions } from "../../../vendor/pocketjs/programs/sim/console-3ds.ts";
+import type { Console3ds, Console3dsOptions } from "../../../vendor/pocketjs/programs/sim/console-3ds.ts";
+import { bootWithNet, type NetConsole } from "./net-fake.ts";
 import { encodePNG } from "../../../vendor/pocketjs/tools/png.ts";
 import { buildGuest } from "./build.ts";
 import { CJK_NAME, X_SERVICE, xRoutes, type XCalls } from "./x-fixture.ts";
@@ -21,7 +22,7 @@ import { PORTRAIT, TAB5, tab5Shot } from "./tab5.ts";
 const OUT = mkdtempSync(join(tmpdir(), "pocket-x-"));
 let GUEST = join(OUT, "guest", "x-main");
 const SHOTS = process.env.POCKET_X_SHOTS;
-const GLOBALS = ["ui", "__pak", "__simHz", "frame", "link", "wifi", "camera", "net", "__pocketApp"] as const;
+const GLOBALS = ["ui", "__pak", "__simHz", "frame", "link", "wifi", "camera", "net", "__pocketWorkerChannels", "__pocketApp"] as const;
 const saved = new Map(GLOBALS.map((key) => [key, (globalThis as Record<string, unknown>)[key]]));
 
 beforeAll(() => {
@@ -34,9 +35,9 @@ afterAll(() => {
   rmSync(OUT, { recursive: true, force: true });
 });
 
-function boot(options: Partial<Console3dsOptions> & { signedOut?: boolean; calls?: XCalls } = {}): Promise<Console3ds> {
+function boot(options: Partial<Console3dsOptions> & { signedOut?: boolean; calls?: XCalls } = {}): Promise<NetConsole> {
   const { signedOut, calls, ...rest } = options;
-  return bootConsole3ds({ js: `${GUEST}.js`, pak: `${GUEST}.pak`, current: "x-main", link: null, wifi: null, camera: false, net: xRoutes({ signedOut, calls }), ...rest });
+  return bootWithNet({ js: `${GUEST}.js`, pak: `${GUEST}.pak`, current: "x-main", link: null, wifi: null, camera: false, ...rest }, xRoutes({ signedOut, calls }));
 }
 
 const newCalls = (): XCalls => ({ actions: [], replies: [], glyphs: [] });
@@ -47,20 +48,12 @@ function shot(x: Console3ds, name: string): void {
   writeFileSync(join(SHOTS, `x-${name}.png`), encodePNG(rgba, width, height));
 }
 
-const started = (x: Console3ds) => x.net!.log.filter((line) => line.startsWith("start ")).map((line) => line.split(" ")[3]!);
+const started = (x: NetConsole) => x.net!.log.filter((line) => line.startsWith("start ")).map((line) => line.split(" ")[3]!);
 
-function peakInflight(x: Console3ds): number {
-  let open = 0;
-  let peak = 0;
-  for (const line of x.net!.log) {
-    if (line.startsWith("start ")) peak = Math.max(peak, ++open);
-    else if (line.startsWith("poll ")) open -= (JSON.parse(line.slice(5)) as unknown[]).length;
-  }
-  return peak;
-}
+const peakInflight = (x: NetConsole) => x.net!.peak();
 
 /** Drag slowly (no fling) until `text` is on the bottom screen. */
-async function scrollTo(x: Console3ds, text: string): Promise<[number, number, number, number]> {
+async function scrollTo(x: NetConsole, text: string): Promise<[number, number, number, number]> {
   for (let step = 0; step < 30; step++) {
     const at = x.locate(text);
     if (at && at[1] > 40 && at[1] < 200) return at;

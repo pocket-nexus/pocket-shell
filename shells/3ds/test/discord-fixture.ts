@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/test/discord-fixture.ts — the companion's discord service as NET
-// routes for the Discord sim tests (platforms/sim/net.ts): servers, channels, a
+// shells/3ds/test/discord-fixture.ts — the companion's discord service as
+// routes of the sims' worker (test/net-fake.ts) for the Discord sim tests: servers, channels, a
 // channel's pages, the live poll, sending and pictures. Every name and
 // message is invented for the fixture.
 
 import { GLYPH_SERVICE, glyphRoute } from "./x-fixture.ts";
-import type { SimNetRequest, SimNetResponse, SimNetRoute } from "../../../vendor/pocketjs/platforms/sim/net.ts";
+import type { NetAnswer, NetRequest, NetRoute } from "./net-fake.ts";
 
 export const DISCORD = "https://companion.pocket/discord";
 
@@ -29,7 +29,7 @@ const PEOPLE = [
 ];
 
 export interface DiscordFixture {
-  routes: Readonly<Record<string, SimNetRoute>>;
+  routes: Readonly<Record<string, NetRoute>>;
   /** Discord is not set up on the Mac: every data endpoint answers 409. */
   setup: boolean;
   /** Messages of #general, oldest first. */
@@ -92,8 +92,8 @@ export function discordFixture(options: { setup?: boolean; history?: number } = 
     glyphs: [],
     polls: 0,
   };
-  const json = (status: number, value: unknown, delayTicks = 1): SimNetResponse => ({ status, headers: { "content-type": "application/json" }, body: JSON.stringify(value), delayTicks });
-  const handle = (request: SimNetRequest): SimNetResponse => {
+  const json = (status: number, value: unknown, delayTicks = 1): NetAnswer => ({ status, headers: { "content-type": "application/json" }, body: JSON.stringify(value), delayTicks });
+  const handle = (request: NetRequest): NetAnswer => {
     const url = new URL(request.url);
     const path = url.pathname.replace(/^\/discord/, "");
     if (path.startsWith("/avatar/") || path.startsWith("/icon/")) return { status: 200, body: picture() };
@@ -137,7 +137,7 @@ export function discordFixture(options: { setup?: boolean; history?: number } = 
     return json(404, { error: `no route ${path}` });
   };
   const glyphs = glyphRoute(fixture.glyphs);
-  fixture.routes = new Proxy({} as Record<string, SimNetRoute>, {
+  fixture.routes = new Proxy({} as Record<string, NetRoute>, {
     get: (_, key) => (typeof key === "string" && key.startsWith(DISCORD) ? handle : key === GLYPH_SERVICE ? glyphs : undefined),
   });
   return fixture;

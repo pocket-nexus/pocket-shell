@@ -152,7 +152,7 @@ export function StatusBar(props: StatusBarProps) {
 /** Icons rendered in Blender (art/icons/icons.py) and finished by
  *  art/icons/bake.ts: the picture, the gloss, the rim and, at 46, the drop
  *  shadow are all in the texture. */
-export type IconArt = "settings" | "mac" | "wifi" | "apps" | "hn" | "nexus" | "youtube" | "x" | "discord" | "camera" | "photos";
+export type IconArt = "settings" | "mac" | "wifi" | "apps" | "hn" | "nexus" | "youtube" | "x" | "discord" | "camera" | "photos" | "github";
 
 /** Corner radius as a fraction of the side (art/icons/bake.ts ICON_RADIUS). */
 const ICON_RADIUS = 0.2;
@@ -172,7 +172,8 @@ const ART: Record<IconArt | "plain", readonly Variant[]> = {
   discord: [[24, 32, "art/icons/discord-24.png"], [46, 64, "art/icons/discord-46.png"], [64, 64, "art/icons/discord-64.png"]],
   camera: [[24, 32, "art/icons/camera-24.png"], [46, 64, "art/icons/camera-46.png"], [64, 64, "art/icons/camera-64.png"]],
   photos: [[24, 32, "art/icons/photos-24.png"], [46, 64, "art/icons/photos-46.png"], [64, 64, "art/icons/photos-64.png"]],
-  /** The finish alone, over an app's own icon or the tint of one that ships none. */
+  github: [[24, 32, "art/icons/github-24.png"], [46, 64, "art/icons/github-46.png"], [64, 64, "art/icons/github-64.png"]],
+  /** The finish alone, over the tint and glyph of an app that ships no icon. */
   plain: [[24, 32, "art/icons/plain-24.png"], [46, 64, "art/icons/plain-46.png"], [64, 64, "art/icons/plain-64.png"]],
 };
 
@@ -192,48 +193,33 @@ const APP_ART: Record<string, IconArt> = {
   "dev.pocket-nexus.discord": "discord",
   "dev.pocket-nexus.camera": "camera",
   "dev.pocket-nexus.photos": "photos",
+  "dev.pocket-nexus.github": "github",
 };
 
 export interface TileProps {
   x: number;
   y: number;
   size: number;
-  /** A baked icon of Home's own. */
+  /** A baked icon of the launcher's own. */
   art?: IconArt;
-  /** An app's own icon for a tile `size` px wide (home/app-icon.ts), or null
-   *  when its package carries none. */
-  picture?: (size: number) => TilePicture | null;
-  /** The tint of an app whose package carries no icon. */
+  /** The tint of an app that ships no icon. */
   from?: string;
   to?: string;
   /** Darkened while pressed. */
   dim?: Accessor<boolean>;
 }
 
-/** An app's own icon: a registered texture of side `texture` with the
- *  `icon`-sided picture in its middle, cut to the tile's rounded square. */
-export interface TilePicture {
-  src: string;
-  icon: number;
-  texture: number;
-}
-
-/** An iOS 6 icon: a baked picture, an app's own icon under the baked gloss,
- *  rim and shadow, or for an app without one, the tint gradient and the
- *  four-square applet glyph under them; a darkening wash while pressed.
- *  Never an app's initials. */
+/** An iOS 6 icon: a baked picture, or for an app without one, the tint
+ *  gradient and the four-square applet glyph under the same baked gloss, rim
+ *  and shadow; a darkening wash while pressed. Never an app's initials. */
 export function Tile(props: TileProps) {
   const r = Math.round(props.size * ICON_RADIUS);
-  const square = (texture: number, icon: number, src: string) => {
-    const scale = props.size / icon;
-    const pad = ((texture - icon) / 2) * scale;
-    return <Image class="absolute" src={src} style={{ insetL: props.x - pad, insetT: props.y - pad, width: texture * scale, height: texture * scale }} />;
-  };
   const finish = (art: IconArt | "plain") => {
     const [icon, tex, src] = variant(art, props.size);
-    return square(tex, icon, src);
+    const scale = props.size / icon;
+    const pad = ((tex - icon) / 2) * scale;
+    return <Image class="absolute" src={src} style={{ insetL: props.x - pad, insetT: props.y - pad, width: tex * scale, height: tex * scale }} />;
   };
-  const packaged = () => props.picture?.(props.size) ?? null;
   // The glyph: two by two rounded squares, 0.2 of the side each.
   const cell = Math.round(props.size * 0.2), gap = Math.max(2, Math.round(props.size * 0.08));
   const glyph = (column: number, row: number) => (
@@ -249,26 +235,17 @@ export function Tile(props: TileProps) {
   return (
     <>
       <Show when={props.art} fallback={
-        <Show when={packaged()} fallback={
-          <>
-            <View
-              class="absolute"
-              style={{ insetL: props.x, insetT: props.y, width: props.size, height: props.size, radius: r, gradDir: 1, gradFrom: props.from ?? "#a9b0b9", gradTo: props.to ?? "#5b636d" }}
-            />
-            {glyph(0, 0)}
-            {glyph(1, 0)}
-            {glyph(0, 1)}
-            {glyph(1, 1)}
-            {finish("plain")}
-          </>
-        }>
-          {(icon) => (
-            <>
-              {square(icon().texture, icon().icon, icon().src)}
-              {finish("plain")}
-            </>
-          )}
-        </Show>
+        <>
+          <View
+            class="absolute"
+            style={{ insetL: props.x, insetT: props.y, width: props.size, height: props.size, radius: r, gradDir: 1, gradFrom: props.from ?? "#a9b0b9", gradTo: props.to ?? "#5b636d" }}
+          />
+          {glyph(0, 0)}
+          {glyph(1, 0)}
+          {glyph(0, 1)}
+          {glyph(1, 1)}
+          {finish("plain")}
+        </>
       }>
         {(art) => finish(art())}
       </Show>
@@ -282,14 +259,12 @@ export function Tile(props: TileProps) {
 
 export interface AppTint {
   art?: IconArt;
-  picture?: TileProps["picture"];
   from: string;
   to: string;
 }
 
-/** An app's tile without its package: Home's baked art for its own applets,
- *  else a deterministic tint under the applet glyph. home/app-icon.ts adds
- *  the icon an installed package carries. */
+/** An app's icon: the launcher's baked art for its own applets, else a
+ *  deterministic tint of its id under the applet glyph. */
 export function appTint(id: string): AppTint {
   let hash = 0x811c9dc5;
   for (let index = 0; index < id.length; index++) hash = Math.imul(hash ^ id.charCodeAt(index), 0x01000193) >>> 0;

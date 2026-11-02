@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/test/discord-sim.test.ts — the Discord app headless on the wasm
-// core with the 3DS geometry and the companion's discord service as NET
-// routes (test/discord-fixture.ts): setup, servers, channels, a channel's
+// core with the 3DS geometry and the companion's discord service as routes
+// of the sims' worker (test/discord-fixture.ts, test/net-fake.ts): setup, servers, channels, a channel's
 // messages newest at the bottom, the live poll, earlier pages and sending
 // with the system keyboard. The app draws nothing on the top screen.
 //
@@ -12,7 +12,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BTN } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
-import { bootConsole3ds, type Console3ds } from "../../../vendor/pocketjs/programs/sim/console-3ds.ts";
+import type { Console3ds } from "../../../vendor/pocketjs/programs/sim/console-3ds.ts";
+import { bootWithNet, type NetConsole } from "./net-fake.ts";
 import { encodePNG } from "../../../vendor/pocketjs/tools/png.ts";
 import { buildGuest } from "./build.ts";
 import { discordFixture, type DiscordFixture } from "./discord-fixture.ts";
@@ -21,7 +22,7 @@ import { PORTRAIT, TAB5, tab5Shot } from "./tab5.ts";
 const OUT = mkdtempSync(join(tmpdir(), "pocket-discord-"));
 let GUEST = join(OUT, "guest", "discord-main");
 const SHOTS = process.env.POCKET_DISCORD_SHOTS;
-const GLOBALS = ["ui", "__pak", "__simHz", "frame", "link", "wifi", "camera", "net", "__pocketApp"] as const;
+const GLOBALS = ["ui", "__pak", "__simHz", "frame", "link", "wifi", "camera", "net", "__pocketWorkerChannels", "__pocketApp"] as const;
 const saved = new Map(GLOBALS.map((key) => [key, (globalThis as Record<string, unknown>)[key]]));
 
 beforeAll(() => {
@@ -34,8 +35,8 @@ afterAll(() => {
   rmSync(OUT, { recursive: true, force: true });
 });
 
-async function boot(fixture: DiscordFixture, auxiliary?: [number, number]): Promise<Console3ds> {
-  const app = await bootConsole3ds({ js: `${GUEST}.js`, pak: `${GUEST}.pak`, current: "discord-main", link: null, wifi: null, camera: false, net: fixture.routes, auxiliary });
+async function boot(fixture: DiscordFixture, auxiliary?: [number, number]): Promise<NetConsole> {
+  const app = await bootWithNet({ js: `${GUEST}.js`, pak: `${GUEST}.pak`, current: "discord-main", link: null, wifi: null, camera: false, auxiliary }, fixture.routes);
   await app.run(30);
   return app;
 }
@@ -46,13 +47,13 @@ function shot(app: Console3ds, name: string): void {
   writeFileSync(join(SHOTS, `discord-${name}.png`), encodePNG(rgba, width, height));
 }
 
-const started = (app: Console3ds) => app.net!.log.filter((line) => line.startsWith("start ")).map((line) => line.split(" ")[3]!);
+const started = (app: NetConsole) => app.net!.log.filter((line) => line.startsWith("start ")).map((line) => line.split(" ")[3]!);
 const visible = (app: Console3ds, text: string) => {
   const box = app.locate(text);
   return box !== null && box[1] >= 36 && box[1] + box[3] <= 240;
 };
 
-async function openGeneral(fixture: DiscordFixture): Promise<Console3ds> {
+async function openGeneral(fixture: DiscordFixture): Promise<NetConsole> {
   const app = await boot(fixture);
   await app.tapText("Pocket Lab");
   await app.run(40);
