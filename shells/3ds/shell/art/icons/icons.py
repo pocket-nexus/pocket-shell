@@ -240,7 +240,29 @@ def prism(name, outer, z, depth, mat, bevel=0.02, holes=()):
     bm.to_mesh(mesh)
     bm.free()
     obj = link(bpy.data.objects.new(name, mesh))
-    return finish(obj, mat, bevel)
+    return finish(obj, mat, bevel) if mat else obj
+
+
+def union(name, outlines, z, depth, mat, bevel=0.02):
+    """One solid of several overlapping outlines, extruded alike. Separate
+    prisms would put coplanar top faces over each other, which Cycles shades
+    with dark self-shadow patches; the boolean union leaves one top face, and
+    the bevel then runs along the outline of the whole."""
+    parts = [prism(f"{name} {index}", outline, z, depth, None) for index, outline in enumerate(outlines)]
+    whole = parts[0]
+    for part in parts[1:]:
+        merge = whole.modifiers.new("Union", "BOOLEAN")
+        merge.operation = "UNION"
+        merge.solver = "EXACT"
+        merge.object = part
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    mesh = bpy.data.meshes.new_from_object(whole.evaluated_get(depsgraph))
+    whole.modifiers.clear()
+    whole.data = mesh
+    whole.name = name
+    for part in parts[1:]:
+        bpy.data.objects.remove(part)
+    return finish(whole, mat, bevel)
 
 
 def rounded_rect(w, h, r, x=0.0, y=0.0, steps=10, angle=0.0):
@@ -465,7 +487,28 @@ def discord():
     prism("Ear R", rounded_rect(0.3, 0.3, 0.1, 0.42, 0.33, angle=math.radians(-20)), 0.0, 0.1, enamel, 0.03)
 
 
-ICONS = {"settings": settings, "mac": mac, "hn": hn, "wifi": wifi, "apps": apps, "youtube": youtube, "x": x, "discord": discord, "camera": camera, "photos": photos}
+def github():
+    # A cat's head in white enamel on charcoal lacquer, large in the tile: a wide
+    # rounded face with two pointed ears, a dark face panel, two warm eyes and
+    # a small nose. No body: the face alone reads at the smallest size.
+    plate(gradient("Charcoal lacquer", "4a5260", "171b22", 0.26, coat=0.8))
+    enamel = principled("White enamel", "fbfbff", 0.2, 0.0, 0.6)
+    head = rounded_rect(1.5, 1.14, 0.5, 0.0, -0.08)
+    ear_l = [(-0.72, 0.16), (-0.66, 0.84), (-0.14, 0.48)]
+    ear_r = [(0.72, 0.16), (0.66, 0.84), (0.14, 0.48)]
+    union("Cat", [head, ear_l, ear_r], 0.0, 0.1, enamel, 0.035)
+    panel = principled("Face panel", "1d222b", 0.3, 0.0, 0.5)
+    prism("Face", rounded_rect(1.16, 0.72, 0.34, 0.0, -0.12), 0.1, 0.012, panel, 0.006)
+    eye = principled("Eye", "f4c7a4", 0.3, 0.0, 0.5)
+    prism("Eye L", circle(0.13, -0.27, -0.08, 48), 0.112, 0.012, eye, 0.005)
+    prism("Eye R", circle(0.13, 0.27, -0.08, 48), 0.112, 0.012, eye, 0.005)
+    prism("Nose", [(-0.05, -0.26), (0.05, -0.26), (0.0, -0.33)], 0.112, 0.01, eye, 0.003)
+
+
+ICONS = {
+    "settings": settings, "mac": mac, "hn": hn, "wifi": wifi, "apps": apps, "youtube": youtube, "x": x, "discord": discord, "camera": camera, "photos": photos,
+    "github": github,
+}
 
 only = [name for name in options.only.split(",") if name]
 for name, build in ICONS.items():

@@ -2,5 +2,9 @@
 // @title Hacker News
 import HackerNews from "./app.tsx";
 import { mount } from "@pocketjs/framework/solid";
+import { readScreen } from "../ui/screen.ts";
 
-mount(() => <HackerNews />);
+mount(() => {
+  readScreen();
+  return <HackerNews />;
+});

@@ -7,7 +7,7 @@ import {
 } from "node:fs";
 import { basename, resolve } from "node:path";
 import { buildDesktopSystem } from "./build-system.ts";
-import { buildDesktopHost, ROOT } from "./system-plan.ts";
+import { POCKETJS_ROOT, ROOT } from "./system-plan.ts";
 
 async function run(command: string[], cwd = ROOT, env = process.env): Promise<void> {
   const child = Bun.spawn(command, {
@@ -39,7 +39,22 @@ const receipt = await buildDesktopSystem({
   dist: artifactDir,
   planDir,
 });
-const binary = await buildDesktopHost("linux-app");
+const manifest = resolve(POCKETJS_ROOT, "programs/desktop/Cargo.toml");
+// The host compiles in the exported linux-app profile; a build without one
+// stops at startup.
+const profileDir = resolve(ROOT, ".pocket-build/linux-app-profile");
+await run(
+  [process.execPath, resolve(POCKETJS_ROOT, "tools/pocket.ts"), "host", "export", "--target", "linux-app", "--out", profileDir],
+  POCKETJS_ROOT,
+);
+await run(["cargo", "build", "--release", "--locked", "--manifest-path", manifest], ROOT, {
+  ...process.env,
+  POCKETJS_PROFILE_RS: resolve(profileDir, "pocket_profile.rs"),
+});
+const binary = resolve(
+  POCKETJS_ROOT,
+  "target/release/pocket-desktop-host",
+);
 
 if (packageArchive) {
   const bundle = resolve(outputRoot, "PocketDesktop");

@@ -3,8 +3,11 @@
 // of up to PER_PAGE icons and a dock of up to DOCK_MAX, as iOS SpringBoard
 // keeps them, and where that order is kept between boots.
 //
-// An icon is a key: "dock:settings" and "dock:mac" for Home's own pages,
-// "app:<output>" for an installed applet. The model is pure (tests import it
+// A page holds PER_PAGE icons on the 3DS; a taller surface holds more, and
+// the functions that fill pages take the page size.
+//
+// An icon is a key: "dock:settings" and "dock:mac" for the launcher's own
+// pages, "app:<output>" for an installed applet. The model is pure (tests import it
 // directly); the springboard holds the live copy in a signal.
 //
 // A saved layout is reconciled against what is installed on every read:
@@ -13,8 +16,8 @@
 // dock while it has room, everything else to the first page with room).
 //
 // Storage is the fs module (contracts/spec/fs.ts, capability data.fs, an
-// enhancement in shell/pocket.json): one small JSON file in Home's data root.
-// A host without it keeps the order for the session only.
+// enhancement in shell/pocket.json): one small JSON file in the launcher's
+// data root. A host without it keeps the order for the session only.
 
 import { existsSync, readFileSync, writeFileSync } from "@pocketjs/framework/fs";
 
@@ -41,7 +44,7 @@ export type Place = { at: "grid"; page: number; slot: number } | { at: "dock"; s
 export const appKey = (output: string) => `app:${output}`;
 
 /** The layout for `keys` (every icon there is) from a saved one, if any. */
-export function reconcile(saved: HomeLayout | null, keys: readonly string[]): HomeLayout {
+export function reconcile(saved: HomeLayout | null, keys: readonly string[], perPage = PER_PAGE): HomeLayout {
   const valid = new Set(keys);
   const placed = new Set<string>();
   const keep = (key: string) => {
@@ -50,9 +53,9 @@ export function reconcile(saved: HomeLayout | null, keys: readonly string[]): Ho
     return true;
   };
   const dock = (saved?.dock ?? []).filter(keep).slice(0, DOCK_MAX);
-  const pages = (saved?.pages ?? []).map((page) => page.filter(keep).slice(0, PER_PAGE)).filter((page) => page.length > 0);
-  // Home's own pages and the dock's applets go to the dock while it has
-  // room, in their default order; everything else fills pages in install
+  const pages = (saved?.pages ?? []).map((page) => page.filter(keep).slice(0, perPage)).filter((page) => page.length > 0);
+  // The launcher's own pages and the dock's applets go to the dock while it
+  // has room, in their default order; everything else fills pages in install
   // order.
   for (const key of DEFAULT_DOCK) {
     if (!valid.has(key) || placed.has(key) || dock.length >= DOCK_MAX) continue;
@@ -64,7 +67,7 @@ export function reconcile(saved: HomeLayout | null, keys: readonly string[]): Ho
   for (const key of keys) {
     if (placed.has(key)) continue;
     placed.add(key);
-    const open = pages.find((page) => page.length < PER_PAGE);
+    const open = pages.find((page) => page.length < perPage);
     if (open) open.push(key);
     else pages.push([key]);
   }
@@ -92,7 +95,7 @@ export function lift(layout: HomeLayout, key: string): HomeLayout {
  *  its last icon on to the next page, as SpringBoard does; a full dock takes
  *  nothing and the result is null. A page index one past the last opens a
  *  new page. */
-export function drop(lifted: HomeLayout, key: string, place: Place): HomeLayout | null {
+export function drop(lifted: HomeLayout, key: string, place: Place, perPage = PER_PAGE): HomeLayout | null {
   const pages = lifted.pages.map((page) => [...page]);
   const dock = [...lifted.dock];
   if (place.at === "dock") {
@@ -106,7 +109,7 @@ export function drop(lifted: HomeLayout, key: string, place: Place): HomeLayout 
     if (page >= pages.length) pages.push([]);
     const list = pages[page]!;
     list.splice(page === place.page ? Math.max(0, Math.min(place.slot, list.length)) : 0, 0, carry);
-    carry = list.length > PER_PAGE ? list.pop() : undefined;
+    carry = list.length > perPage ? list.pop() : undefined;
   }
   return { pages, dock };
 }

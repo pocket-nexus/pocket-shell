@@ -78,7 +78,7 @@
     "linear": true
   },
   "art/stripes.svg": {
-    "linear": true
+    "psm": 0
   },
   "art/icons/youtube-24.png": {
     "linear": true
@@ -123,6 +123,15 @@
     "linear": true
   },
   "art/icons/photos-64.png": {
+    "linear": true
+  },
+  "art/icons/github-24.png": {
+    "linear": true
+  },
+  "art/icons/github-46.png": {
+    "linear": true
+  },
+  "art/icons/github-64.png": {
     "linear": true
   }
 }

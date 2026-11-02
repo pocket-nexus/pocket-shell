@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/shell/system.ts — Home's view of the console: installed apps (the
+// shells/3ds/shell/system.ts — the launcher's view of the console: installed apps (the
 // launcher's app table), the Pocket Link, the Wi-Fi radio, the linked Mac's
 // catalog and installs in flight, and the clock.
 //
@@ -26,7 +26,17 @@ import {
   type LinkCatalogApp,
   type LinkStatus,
 } from "@pocketjs/framework/link";
-import { connectSavedNetwork, setWifiEnabled, wifiHost, wifiStatus, type WifiStatus } from "@pocketjs/framework/wifi";
+import {
+  connectSavedNetwork,
+  forgetNetwork,
+  joinNetwork,
+  scanNetworks,
+  setWifiEnabled,
+  wifiCanJoin,
+  wifiHost,
+  wifiStatus,
+  type WifiStatus,
+} from "@pocketjs/framework/wifi";
 import { DEFAULT_OFFSET } from "./clock.ts";
 import { toAscii } from "../ui/text.ts";
 
@@ -34,7 +44,7 @@ const POLL_FRAMES = 30;
 /** While something is changing (a connection, a pairing), poll faster. */
 const BUSY_POLL_FRAMES = 6;
 
-export interface HomeApp {
+export interface ShellApp {
   output: string;
   id: string;
   title: string;
@@ -42,8 +52,8 @@ export interface HomeApp {
   bytes: number;
 }
 
-export interface HomeTable {
-  apps: HomeApp[];
+export interface ShellTable {
+  apps: ShellApp[];
   current: string;
   resume: string | null;
   launcher: string;
@@ -63,12 +73,12 @@ const sameJson = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
 
 /** The 3DS app table as the host writes it, every field kept (the framework's
  *  appTable() keeps only apps/current/resume). Runtime strings fold to ASCII. */
-export function readAppTable(): HomeTable {
-  const empty: HomeTable = { apps: [], current: "", resume: null, launcher: "", lastError: null };
+export function readAppTable(): ShellTable {
+  const empty: ShellTable = { apps: [], current: "", resume: null, launcher: "", lastError: null };
   const raw = getOps().appTable?.();
   if (!raw) return empty;
   try {
-    const parsed = JSON.parse(raw) as Partial<HomeTable> & { apps?: Partial<HomeApp>[] };
+    const parsed = JSON.parse(raw) as Partial<ShellTable> & { apps?: Partial<ShellApp>[] };
     return {
       apps: (parsed.apps ?? [])
         .filter((app) => typeof app.output === "string" && app.output !== parsed.launcher)
@@ -97,8 +107,8 @@ function readLink(): LinkStatus {
     paired: status.paired.map((entry) => ({ ...entry, name: toAscii(entry.name) })),
     device: { ...status.device, name: toAscii(status.device.name), model: toAscii(status.device.model) },
     error: toAscii(status.error),
-    // The clock moves on every read; Home keeps it apart as a skew (below) so
-    // an unchanged link stays equal and nothing redraws for it.
+    // The clock moves on every read; the launcher keeps it apart as a skew
+    // (below) so an unchanged link stays equal and nothing redraws for it.
     clock: null,
   };
 }
@@ -118,20 +128,24 @@ function readWifi(): WifiStatus | null {
     ssid: toAscii(status.ssid),
     saved: status.saved.map((entry) => ({ ...entry, ssid: toAscii(entry.ssid) })),
     error: toAscii(status.error),
+    ...(status.networks ? { networks: status.networks.map((network) => ({ ...network, ssid: toAscii(network.ssid) })) } : {}),
   };
 }
 
-export interface HomeSystem {
+export interface ShellSystem {
   now: Accessor<number>;
   offset: Accessor<number>;
   /** True while the time comes from the paired Mac's clock. */
   macClock: Accessor<boolean>;
   setOffset(minutes: number): void;
-  table: Accessor<HomeTable>;
+  table: Accessor<ShellTable>;
   link: Accessor<LinkStatus>;
   hasLink: boolean;
   wifi: Accessor<WifiStatus | null>;
   hasWifi: boolean;
+  /** The host lets the launcher scan for, join and forget networks (a console
+   *  whose launcher is its settings); otherwise it uses the saved slots only. */
+  canJoin: boolean;
   catalog: Accessor<LinkCatalogApp[]>;
   catalogState: Accessor<CatalogState>;
   catalogError: Accessor<string>;
@@ -139,17 +153,20 @@ export interface HomeSystem {
   refresh(): void;
   loadCatalog(): void;
   install(app: LinkCatalogApp): void;
-  remove(app: HomeApp): boolean;
+  remove(app: ShellApp): boolean;
   launch(output: string): boolean;
   pair(uri: string): boolean;
   forget(id: string): boolean;
   setWifi(on: boolean): void;
   connect(slot: number): void;
+  scan(): void;
+  join(ssid: string, passphrase: string): void;
+  forgetNetwork(slot: number): void;
   /** True once since the link last became "linked". */
   linked: Accessor<boolean>;
 }
 
-export function createHomeSystem(): HomeSystem {
+export function createShellSystem(): ShellSystem {
   // Wall time: the paired Mac's clock once one has linked (the 3DS clock is
   // often unset), otherwise the console's own clock, which reads local time
   // as if it were UTC; the Time Zone page shifts only that fallback.
@@ -165,6 +182,7 @@ export function createHomeSystem(): HomeSystem {
   const [installs, setInstalls] = createSignal<Record<string, Install>>({});
   const hasLink = linkHost() !== null;
   const hasWifi = wifiHost() !== null;
+  const canJoin = wifiCanJoin();
 
   const refresh = () => {
     setLink(readLink());
@@ -184,7 +202,7 @@ export function createHomeSystem(): HomeSystem {
     requestCatalog().then(
       (apps) => {
         if (request !== catalogRequest) return;
-        // Home never offers itself: the launcher is the .3dsx, not a catalog app.
+        // The launcher never offers itself: it is the .3dsx, not a catalog app.
         const launcher = table().launcher;
         setCatalog(apps
           .filter((app) => app.output !== launcher)
@@ -212,7 +230,7 @@ export function createHomeSystem(): HomeSystem {
 
   let frames = 0;
   const busy = () =>
-    wifi()?.state === "connecting" || link().state === LINK_STATE.connecting || link().pairing === LINK_PAIRING.connecting;
+    wifi()?.state === "connecting" || wifi()?.scanning === true || link().state === LINK_STATE.connecting || link().pairing === LINK_PAIRING.connecting;
   onFrame(() => {
     frames++;
     if (frames % POLL_FRAMES === 0) {
@@ -255,6 +273,7 @@ export function createHomeSystem(): HomeSystem {
     hasLink,
     wifi,
     hasWifi,
+    canJoin,
     catalog,
     catalogState,
     catalogError,
@@ -299,6 +318,18 @@ export function createHomeSystem(): HomeSystem {
     },
     connect(slot) {
       connectSavedNetwork(slot);
+      refresh();
+    },
+    scan() {
+      scanNetworks();
+      refresh();
+    },
+    join(ssid, passphrase) {
+      joinNetwork(ssid, passphrase);
+      refresh();
+    },
+    forgetNetwork(slot) {
+      forgetNetwork(slot);
       refresh();
     },
     linked,

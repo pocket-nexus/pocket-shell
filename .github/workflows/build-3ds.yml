@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/*3ds.yml'
+      - '.bun-version'
       - 'scripts/**'
       - 'shells/3ds/**'
       - 'vendor/pocketjs'
@@ -29,7 +30,7 @@ jobs:
           submodules: true
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.14
+          bun-version-file: .bun-version
       - name: Install dependencies
         run: bun run setup
       - name: Test release version and artifact checks
@@ -43,9 +44,9 @@ jobs:
           bun scripts/release-3ds.ts prepare "$version"
           echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Install the runtime's pinned Rust toolchain
-        working-directory: vendor/pocketjs
         run: |
-          rustup toolchain install "$(bun -e 'import { BUILD_STD_NIGHTLY } from "./tools/build/toolchains/rust.ts"; console.log(BUILD_STD_NIGHTLY)')" --profile minimal --component rust-src
+          nightly="$(bun -e 'import { BUILD_STD_NIGHTLY } from "./vendor/pocketjs/tools/build/toolchains/rust.ts"; console.log(BUILD_STD_NIGHTLY)')"
+          rustup toolchain install "$nightly" --profile minimal --component rust-src
       - name: Pull the runtime's pinned devkitARM image
         run: |
           image=$(bun -e 'import { THREE_DS_CONTAINER_IMAGE } from "./vendor/pocketjs/tools/3ds-toolchain.ts"; console.log(THREE_DS_CONTAINER_IMAGE)')

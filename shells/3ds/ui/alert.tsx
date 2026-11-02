@@ -6,6 +6,7 @@
 import { createSignal, For, Show, type Accessor } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { BTN } from "@pocketjs/framework/input";
+import { SCREEN_H, SCREEN_W } from "./screen.ts";
 import { FONT, wrap } from "./text.ts";
 import type { Press, Target, TouchPage } from "./touch.ts";
 
@@ -18,7 +19,6 @@ export interface AlertSpec {
 }
 
 const W = 252;
-const X = (320 - W) / 2;
 
 export interface Alerts {
   current: Accessor<AlertSpec | null>;
@@ -29,6 +29,7 @@ export interface Alerts {
 }
 
 export function createAlerts(press: Press): Alerts {
+  const X = (SCREEN_W - W) / 2;
   const [current, setCurrent] = createSignal<AlertSpec | null>(null);
   const [choice, setChoice] = createSignal(0);
   const lines = () => {
@@ -40,7 +41,7 @@ export function createAlerts(press: Press): Alerts {
     return alert ? wrap(alert.title, FONT.smBold, W - 24, 2) : [];
   };
   const height = () => 18 + titleLines().length * 18 + lines().length * 15 + 12 + 30 + 12;
-  const top = () => Math.round((240 - height()) / 2);
+  const top = () => Math.round((SCREEN_H - height()) / 2);
   const buttonY = () => top() + height() - 42;
   const close = () => setCurrent(null);
   const confirm = () => {
@@ -77,7 +78,7 @@ export function createAlerts(press: Press): Alerts {
     view: () => (
       <Show when={current()}>
         {(alert) => (
-          <View class="absolute left-0 top-0 w-[320] h-[240] bg-[#00000080]">
+          <View class="absolute left-0 top-0 bg-[#00000080]" style={{ width: SCREEN_W, height: SCREEN_H }}>
             <View
               class="absolute rounded-[10] border-[#e8edf5] border-2 bg-gradient-to-b from-[#3a4f7ef0] via-[#1f3466f0] to-[#14254ff0] shadow-lg"
               style={{ insetL: X, insetT: top(), width: W, height: height() }}

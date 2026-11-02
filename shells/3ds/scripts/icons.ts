@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// bun run icons [--only hn,mac] — re-render Home's icons in Blender and bake
-// them into the textures the build reads (shell/art/icons/*.png).
+// bun run icons [--only hn,mac] — re-render the launcher's icons in Blender
+// and bake them into the textures the build reads (shell/art/icons/*.png).
 //
 // shell/art/icons/icons.py models and renders each icon at 512 px into
 // .pocket-build/shell-icons/render, and shell/art/icons/nexus.ts draws Pocket

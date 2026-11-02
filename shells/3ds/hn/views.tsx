@@ -13,7 +13,9 @@ import { Text, View } from "@pocketjs/framework/components";
 import { ClassicSpinner } from "@pocketjs/framework/classic";
 import type { NodeMirror } from "@pocketjs/framework/renderer";
 import { BTN } from "@pocketjs/framework/input";
-import type { LayerContext, NavStack, PageContent, PageSpec } from "../ui/nav.tsx";
+import { barButtonWidth, type NavButton } from "../ui/bar.tsx";
+import { viewHeight, type LayerContext, type NavStack, type PageContent, type PageSpec } from "../ui/nav.tsx";
+import { COMPACT, SCREEN_W } from "../ui/screen.ts";
 import { ellipsize, FONT, toAscii, wrap } from "../ui/text.ts";
 import { createSlotPool, paintText, type SlotPool } from "../ui/slots.ts";
 import type { Press, Target } from "../ui/touch.ts";
@@ -21,12 +23,9 @@ import { FEEDS, type Item } from "./api.ts";
 import { ageText, domainOf, htmlToText } from "./html.ts";
 import { flattenThread, MAX_COMMENTS, type HnModel } from "./model.ts";
 
-const W = 320;
-const VIEW_H = 204;
 const OVERSCAN = 80;
 const TITLE_X = 32;
 const BUBBLE_W = 36;
-const TITLE_W = W - TITLE_X - BUBBLE_W - 14;
 const TITLE_LINE = 17;
 const META_H = 15;
 const MORE_H = 44;
@@ -43,10 +42,34 @@ export interface HnEnv {
 /** A rect is in the mounted band around the visible content. */
 const NO_ROWS: never[] = [];
 
-// ---- the segmented control -------------------------------------------------------
+// ---- sizes ------------------------------------------------------------------------
+
+/** On a surface larger than the 3DS's, the bar keeps room for a Reload
+ *  button right of the segmented control: the touch path for X's reload. */
+const RELOAD: NavButton = { id: "feed.reload", label: "Reload", kind: "plain", run: () => {} };
 
 const SEG_X = 8;
-const SEG_W = (W - SEG_X * 2) / FEEDS.length;
+// Sized to the surface by fitSurface(), which each page calls first.
+let W = 320;
+let VIEW_H = 204;
+let TITLE_W = 0;
+let SEG_W = 0;
+let HEADER_W = 0;
+
+function fitSurface(): void {
+  W = SCREEN_W;
+  VIEW_H = viewHeight();
+  TITLE_W = W - TITLE_X - BUBBLE_W - 14;
+  SEG_W = (W - SEG_X * 2 - (COMPACT ? 0 : barButtonWidth(RELOAD) + 10)) / FEEDS.length;
+  HEADER_W = W - HEADER_X * 2;
+}
+
+/** The bar's Reload button on a surface larger than the 3DS's. */
+function reloadButton(run: () => void): (() => NavButton) | undefined {
+  return COMPACT ? undefined : () => ({ ...RELOAD, run });
+}
+
+// ---- the segmented control -------------------------------------------------------
 
 export function segmentTargets(env: HnEnv): Target[] {
   return FEEDS.map((feed, index) => ({
@@ -63,7 +86,7 @@ export function Segments(props: { env: HnEnv }) {
   const { model, press } = props.env;
   return (
     <>
-      <View class="absolute left-[8] top-[5] w-[304] h-[26] rounded-[5] border border-[#9a3d00] bg-gradient-to-b from-[#ffa45e] via-[#ef7420] to-[#df620c]" />
+      <View class="absolute left-[8] top-[5] h-[26] rounded-[5] border border-[#9a3d00] bg-gradient-to-b from-[#ffa45e] via-[#ef7420] to-[#df620c]" style={{ width: SEG_W * FEEDS.length }} />
       <For each={FEEDS}>
         {(feed, index) => (
           <>
@@ -246,7 +269,7 @@ function StorySlot(props: { pool: SlotPool<StoryRow>; slot: number; lit: (id: nu
     }));
   });
   return (
-    <View ref={box} class="absolute left-0 top-0 w-[320] h-[46] opacity-0 contain-strict">
+    <View ref={box} class="absolute left-0 top-0 h-[46] opacity-0 contain-strict" style={{ width: W }}>
       <View ref={wash} class="absolute inset-0 opacity-0 bg-gradient-to-b from-[#058cf5] to-[#015ee6]" />
       <View class="absolute left-[32] right-0 bottom-0 h-[1] bg-[#e0e0e0]" />
       <Text ref={rank} class="absolute left-0 top-[8] w-[26] text-xs text-[#a0a6ae] font-bold text-right">{" "}</Text>
@@ -270,23 +293,24 @@ function Centered(props: { title: string; detail: string; spinner?: boolean; but
   return (
     <>
       <Show when={props.spinner}>
-        <View class="absolute left-[149] top-[40]">
+        <View class="absolute top-[40]" style={{ insetL: W / 2 - 11 }}>
           <ClassicSpinner size={22} color={"#8a9099"} />
         </View>
       </Show>
-      <Text class="absolute left-0 top-[74] w-[320] text-base text-[#4c566c] font-bold text-center">{props.title}</Text>
+      <Text class="absolute left-0 top-[74] text-base text-[#4c566c] font-bold text-center" style={{ width: W }}>{props.title}</Text>
       <For each={lines()}>
-        {(line, index) => <Text class="absolute left-[30] w-[260] text-xs text-[#6d7584] text-center" style={{ insetT: 98 + index() * 15 }}>{line}</Text>}
+        {(line, index) => <Text class="absolute w-[260] text-xs text-[#6d7584] text-center" style={{ insetL: (W - 260) / 2, insetT: 98 + index() * 15 }}>{line}</Text>}
       </For>
       <Show when={props.button}>
         {(button) => (
           <>
             <View
               class={props.press.is(button().id)
-                ? "absolute left-[100] top-[160] w-[120] h-[30] rounded-[6] border border-[#6f7680] bg-gradient-to-b from-[#9aa1ab] to-[#bfc5cc]"
-                : "absolute left-[100] top-[160] w-[120] h-[30] rounded-[6] border border-[#9aa1aa] bg-gradient-to-b from-[#ffffff] to-[#dde1e6]"}
+                ? "absolute top-[160] w-[120] h-[30] rounded-[6] border border-[#6f7680] bg-gradient-to-b from-[#9aa1ab] to-[#bfc5cc]"
+                : "absolute top-[160] w-[120] h-[30] rounded-[6] border border-[#9aa1aa] bg-gradient-to-b from-[#ffffff] to-[#dde1e6]"}
+              style={{ insetL: (W - 120) / 2 }}
             />
-            <Text class="absolute left-[100] top-[167] w-[120] text-sm text-[#d65a00] font-bold text-center">{button().label}</Text>
+            <Text class="absolute top-[167] w-[120] text-sm text-[#d65a00] font-bold text-center" style={{ insetL: (W - 120) / 2 }}>{button().label}</Text>
           </>
         )}
       </Show>
@@ -295,6 +319,7 @@ function Centered(props: { title: string; detail: string; spinner?: boolean; but
 }
 
 export function listPage(env: HnEnv, stack: NavStack, layer: LayerContext): PageSpec {
+  fitSurface();
   const { model, press } = env;
   const layout = createMemo(() => storyRows(env));
   const listed = () => model.state().status === "ready" && model.state().ids.length > 0;
@@ -339,10 +364,10 @@ export function listPage(env: HnEnv, stack: NavStack, layer: LayerContext): Page
               : <Centered title="Loading" detail="Fetching the front page through your Mac." spinner press={press} />}
         </Show>
         <Show when={listed() && model.state().shown < model.state().ids.length}>
-          <View class="absolute left-[118]" style={{ insetT: layout().height - MORE_H + 13 }}>
+          <View class="absolute" style={{ insetL: W / 2 - 42, insetT: layout().height - MORE_H + 13 }}>
             <ClassicSpinner size={18} color={"#8a9099"} />
           </View>
-          <Text class="absolute left-[144] text-sm text-[#8a9099] font-bold" style={{ insetT: layout().height - MORE_H + 13 }}>Loading...</Text>
+          <Text class="absolute text-sm text-[#8a9099] font-bold" style={{ insetL: W / 2 - 16, insetT: layout().height - MORE_H + 13 }}>Loading...</Text>
         </Show>
       </>
     ),
@@ -350,7 +375,7 @@ export function listPage(env: HnEnv, stack: NavStack, layer: LayerContext): Page
     focusOrder: () => keys().order,
     targets(top, offset, bottom) {
       const state = model.state();
-      if (state.status === "error") return [{ id: "feed.retry", x: 100, y: top + 160 - offset, w: 120, h: 30, run: () => model.reload() }];
+      if (state.status === "error") return [{ id: "feed.retry", x: (W - 120) / 2, y: top + 160 - offset, w: 120, h: 30, run: () => model.reload() }];
       const out: Target[] = [];
       for (const row of layout().rows) {
         const y = top + row.y - offset;
@@ -376,6 +401,7 @@ export function listPage(env: HnEnv, stack: NavStack, layer: LayerContext): Page
     tint: "orange",
     bare: "white",
     titleView: () => <Segments env={env} />,
+    right: reloadButton(() => model.reload()),
     fixedTargets: () => segmentTargets(env),
     content,
     key(pressed) {
@@ -399,7 +425,6 @@ const ROW_PAD = 7;
 const COMMENT_MIN_H = ROW_PAD + AUTHOR_H + BODY_LINE + ROW_PAD;
 const INDENT = 11;
 const HEADER_X = 12;
-const HEADER_W = W - HEADER_X * 2;
 const HEADER_TITLE_LINE = 19;
 const HEADER_TEXT_LINE = 17;
 
@@ -598,7 +623,7 @@ function CommentSlot(props: { pool: SlotPool<CommentRow>; slot: number; lit: (id
     }));
   });
   return (
-    <View ref={box} class="absolute left-0 top-0 w-[320] h-[45] opacity-0 contain-strict">
+    <View ref={box} class="absolute left-0 top-0 h-[45] opacity-0 contain-strict" style={{ width: W }}>
       <View ref={wash} class="absolute inset-0 opacity-0 bg-gradient-to-b from-[#058cf5] to-[#015ee6]" />
       <View ref={frame} class="absolute left-[10] top-0 right-0 bottom-0">
         <View class="absolute left-0 right-0 bottom-0 h-[1] bg-[#e6e6e6]" />
@@ -617,8 +642,8 @@ function Header(props: { header: Accessor<StoryHeader> }) {
   const header = props.header;
   return (
     <>
-      <View class="absolute left-0 top-0 w-[320] bg-[#f6f6ef]" style={{ height: header().h }} />
-      <View class="absolute left-0 w-[320] h-[1] bg-[#e2dccb]" style={{ insetT: header().h - 1 }} />
+      <View class="absolute left-0 top-0 bg-[#f6f6ef]" style={{ width: W, height: header().h }} />
+      <View class="absolute left-0 h-[1] bg-[#e2dccb]" style={{ insetT: header().h - 1, width: W }} />
       <Text class="absolute left-[12] top-[8] text-base text-black font-bold leading-[19]">{header().title}</Text>
       <Show when={header().site}>
         <Text class="absolute left-[12] text-xs text-[#ff6600] font-bold" style={{ insetT: header().siteY }}>{header().site}</Text>
@@ -632,6 +657,7 @@ function Header(props: { header: Accessor<StoryHeader> }) {
 }
 
 export function commentsPage(env: HnEnv, _stack: NavStack, layer: LayerContext): PageSpec {
+  fitSurface();
   const { model } = env;
   const layout = createMemo(() => threadRows(env));
   const header = createMemo(() => layout().header);
@@ -652,11 +678,11 @@ export function commentsPage(env: HnEnv, _stack: NavStack, layer: LayerContext):
         <For each={pool.slots}>{(slot) => <CommentSlot pool={pool} slot={slot} lit={lit} />}</For>
         <Show when={layout().footer}>
           <Show when={model.thread()?.pending}>
-            <View class="absolute left-[92]" style={{ insetT: layout().height - 32 }}>
+            <View class="absolute" style={{ insetL: W / 2 - 68, insetT: layout().height - 32 }}>
               <ClassicSpinner size={16} color={"#8a9099"} />
             </View>
           </Show>
-          <Text class="absolute left-0 w-[320] text-xs text-[#8a9099] font-bold text-center" style={{ insetT: layout().height - 31 }}>{layout().footer}</Text>
+          <Text class="absolute left-0 text-xs text-[#8a9099] font-bold text-center" style={{ insetT: layout().height - 31, width: W }}>{layout().footer}</Text>
         </Show>
       </>
     ),
@@ -687,6 +713,10 @@ export function commentsPage(env: HnEnv, _stack: NavStack, layer: LayerContext):
     },
     tint: "orange",
     bare: "white",
+    right: reloadButton(() => {
+      const thread = model.thread();
+      if (thread) model.openThread(thread.story);
+    }),
     content,
     key(pressed) {
       if (pressed & (BTN.LTRIGGER | BTN.RTRIGGER)) {

@@ -8,7 +8,7 @@
 //
 //   bun run 3ds                  -> dist/3ds/pocket-shell.3dsx (the launcher)
 //   bun run 3ds --pocket-only    -> dist/3ds/pocket-shell.pocket (hot push)
-//   bun run 3ds hn --pocket-only -> dist/3ds/hn-main.pocket (installed by Home)
+//   bun run 3ds hn --pocket-only -> dist/3ds/hn-main.pocket (the launcher installs it)
 
 import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import { basename, resolve } from "node:path";

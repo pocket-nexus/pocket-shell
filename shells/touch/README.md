@@ -180,7 +180,7 @@ Build the diagnostic SIS with the pinned PocketJS toolchain and install it
 before profiling:
 
 ```sh
-bun vendor/pocketjs/tools/symbian.ts build app --manifest shells/touch/pocket.json \
+bun vendor/pocketjs/tools/symbian.ts build app --manifest shells/touch/pocket.app.json \
   --project-root shells/touch --outdir .pocket-build/validation/touch/e7-performance \
   --sis-version 0.3.68 --frame-rate 60 --perf-trace
 ```

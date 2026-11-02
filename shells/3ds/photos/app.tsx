@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/photos/app.tsx — Photos: the console's Camera Roll, every JPEG
 // under sdmc:/DCIM (Camera's and the console's own camera application's),
-// newest first, as an iOS 6 grid of square thumbnails; a photo full screen,
+// newest first, as an iOS 6 grid of square thumbnails (four columns on the
+// 3DS, as many as fit on a wider surface, centred); a photo full screen,
 // swiped left and right; delete with a confirmation.
 //
 // The host decodes on a worker (camera.photo, @pocketjs/framework/camera):
@@ -30,13 +31,11 @@ import { onButtonPress, onFrame } from "@pocketjs/framework/lifecycle";
 import { registerTexture, type NodeMirror } from "@pocketjs/framework/renderer";
 import { createAlerts } from "../ui/alert.tsx";
 import { NAV_H } from "../ui/bar.tsx";
-import { createNavStack, type LayerContext, type NavStack, type PageContent, type PageSpec } from "../ui/nav.tsx";
+import { createNavStack, viewHeight, type LayerContext, type NavStack, type PageContent, type PageSpec } from "../ui/nav.tsx";
+import { COMPACT, SCREEN_H, SCREEN_W } from "../ui/screen.ts";
 import { createSlotPool, type PlacedRow, type SlotPool } from "../ui/slots.ts";
 import { createPress, createTouchRouter, type Press, type Target } from "../ui/touch.ts";
 
-const W = 320;
-const VIEW_H = 240 - NAV_H;
-const COLUMNS = 4;
 /** A cell is the 78 px thumbnail and a 2 px gap; rows start 2 px down. */
 const CELL = 80;
 const THUMB = 78;
@@ -47,8 +46,24 @@ const THUMBS_KEPT = 48;
 const MAX_IN_FLIGHT = 6;
 const ALL_BUTTONS = 0xffff;
 const SWIPE = 60;
-/** The full view under the bar: 240 px of photo in the 204 px below it. */
-const FIT = VIEW_H / 240;
+
+// Sized to the surface by fitSurface(), which the app and each page call
+// first.
+let W = 320;
+let VIEW_H = 204;
+let COLUMNS = 4;
+/** The grid's left edge: the columns centred on the surface. */
+let GRID_X = 0;
+/** The full view under the bar: 240 px of photo in the space below it. */
+let FIT = 1;
+
+function fitSurface(): void {
+  W = SCREEN_W;
+  VIEW_H = viewHeight();
+  COLUMNS = Math.floor(W / CELL);
+  GRID_X = (W - COLUMNS * CELL) / 2;
+  FIT = Math.min(VIEW_H / 240, W / 320);
+}
 
 interface Thumb {
   handle: number;
@@ -206,7 +221,7 @@ function GridSlot(props: { pool: SlotPool<GridRow>; slot: number; env: PhotosEnv
   let row: GridRow | null = null;
   let y = -1;
   let used = -1;
-  const shown: number[] = [-2, -2, -2, -2];
+  const shown: number[] = Array.from({ length: COLUMNS }, () => -2);
   const paintImages = () => {
     for (let column = 0; column < COLUMNS; column += 1) {
       const name = row?.names[column];
@@ -241,12 +256,12 @@ function GridSlot(props: { pool: SlotPool<GridRow>; slot: number; env: PhotosEnv
       paintImages();
     });
   });
-  const cells = [0, 1, 2, 3];
+  const cells = Array.from({ length: COLUMNS }, (_, column) => column);
   return (
-    <View ref={(node: NodeMirror) => { box = node; jump(node, "opacity", 0); }} class="absolute left-0 top-0 w-[320] h-[80]">
+    <View ref={(node: NodeMirror) => { box = node; jump(node, "opacity", 0); }} class="absolute left-0 top-0 h-[80]" style={{ width: W }}>
       <For each={cells}>
         {(column) => (
-          <View ref={(node: NodeMirror) => (cellBoxes[column] = node)} class="absolute w-[78] h-[78] bg-[#d9dce1] overflow-hidden" style={{ insetL: 2 + column * CELL, insetT: 0 }}>
+          <View ref={(node: NodeMirror) => (cellBoxes[column] = node)} class="absolute w-[78] h-[78] bg-[#d9dce1] overflow-hidden" style={{ insetL: GRID_X + 2 + column * CELL, insetT: 0 }}>
             <Image ref={(node: NodeMirror) => (images[column] = node)} class="absolute left-0 top-0 w-[128] h-[128]" />
             <View class={props.lit(rowIndex() + column) ? "absolute left-0 top-0 w-[78] h-[78] bg-[#00000060]" : "absolute left-0 top-0 w-[78] h-[78] bg-[#00000000]"} />
           </View>
@@ -257,6 +272,7 @@ function GridSlot(props: { pool: SlotPool<GridRow>; slot: number; env: PhotosEnv
 }
 
 function gridPage(env: PhotosEnv, stack: NavStack, layer: LayerContext): PageSpec {
+  fitSurface();
   const { model, press } = env;
   const layout = createMemo(() => {
     const list = model.photos();
@@ -289,11 +305,11 @@ function gridPage(env: PhotosEnv, stack: NavStack, layer: LayerContext): PageSpe
       <>
         <For each={pool.slots}>{(slot) => <GridSlot pool={pool} slot={slot} env={env} lit={lit} />}</For>
         <Show when={model.photos().length === 0}>
-          <Text class="absolute left-0 top-[64] w-[320] text-lg text-[#7a8088] font-bold text-center">No Photos</Text>
-          <Text class="absolute left-0 top-[92] w-[320] text-sm text-[#8a9099] text-center">Photos you take with Camera appear here.</Text>
+          <Text class="absolute left-0 top-[64] text-lg text-[#7a8088] font-bold text-center" style={{ width: W }}>No Photos</Text>
+          <Text class="absolute left-0 top-[92] text-sm text-[#8a9099] text-center" style={{ width: W }}>Photos you take with Camera appear here.</Text>
         </Show>
         <Show when={model.photos().length > 0}>
-          <Text class="absolute left-0 w-[320] text-sm text-[#7a8088] text-center" style={{ insetT: layout().height - 24 }}>
+          <Text class="absolute left-0 text-sm text-[#7a8088] text-center" style={{ insetT: layout().height - 24, width: W }}>
             {`${model.photos().length} ${model.photos().length === 1 ? "Photo" : "Photos"}`}
           </Text>
         </Show>
@@ -308,7 +324,7 @@ function gridPage(env: PhotosEnv, stack: NavStack, layer: LayerContext): PageSpe
         if (y + row.h <= top || y >= bottom) continue;
         row.names.forEach((_, column) => {
           const index = row.index + column;
-          out.push({ id: `photo.${index}`, x: 2 + column * CELL, y, w: THUMB, h: THUMB, run: () => open(index) });
+          out.push({ id: `photo.${index}`, x: GRID_X + 2 + column * CELL, y, w: THUMB, h: THUMB, run: () => open(index) });
         });
       }
       return out;
@@ -328,6 +344,8 @@ function gridPage(env: PhotosEnv, stack: NavStack, layer: LayerContext): PageSpe
     backLabel: "Camera Roll",
     tint: "black",
     bare: "white",
+    // The touch path for X's reload on a surface larger than the 3DS's.
+    right: COMPACT ? undefined : () => ({ id: "photos.reload", label: "Reload", kind: "plain", run: () => model.reload() }),
     content,
     key(pressed) {
       if (pressed & BTN.TRIANGLE) {
@@ -342,6 +360,7 @@ function gridPage(env: PhotosEnv, stack: NavStack, layer: LayerContext): PageSpe
 // ---- one photo --------------------------------------------------------------------
 
 function photoPage(env: PhotosEnv, stack: NavStack): PageSpec {
+  fitSurface();
   const { model } = env;
   const name = () => model.photos()[env.current()]?.name ?? null;
   let image: NodeMirror | undefined;
@@ -390,16 +409,16 @@ function photoPage(env: PhotosEnv, stack: NavStack): PageSpec {
     right: () => (name() ? { id: "photo.delete", label: "Delete", kind: "plain", run: remove } : null),
     fixed: () => (
       <>
-        <View class="absolute left-0 top-0 w-[320] h-[240] bg-black" />
-        <View ref={(node: NodeMirror) => (image = node)} class="absolute left-0 top-0 w-[320] h-[240]">
+        <View class="absolute left-0 top-0 bg-black" style={{ width: W, height: SCREEN_H }} />
+        <View ref={(node: NodeMirror) => (image = node)} class="absolute left-0 top-0" style={{ width: W, height: SCREEN_H }}>
           <Show
             when={model.full()?.name === name() ? model.full() : null}
             keyed
-            fallback={<Text class="absolute left-0 top-[132] w-[320] text-sm text-[#8a9099] text-center">Loading...</Text>}
+            fallback={<Text class="absolute left-0 text-sm text-[#8a9099] text-center" style={{ insetT: NAV_H + VIEW_H / 2 - 6, width: W }}>Loading...</Text>}
           >
             {(full) => (
               /* The host fits the photo to 320x240 in a 512x256 texture; drawn at
-                 FIT of that size it fills the 204 px under the bar, centred. */
+                 FIT of that size it fills the space under the bar, centred. */
               <View class="absolute overflow-hidden" style={{ insetL: (W - 320 * FIT) / 2, insetT: NAV_H, width: 320 * FIT, height: 240 * FIT }}>
                 <Image class="absolute left-0 top-0" src={full.key} style={{ width: 512 * FIT, height: 256 * FIT }} />
               </View>
@@ -408,7 +427,7 @@ function photoPage(env: PhotosEnv, stack: NavStack): PageSpec {
         </View>
       </>
     ),
-    fixedTargets: () => [{ id: "photo.view", x: 0, y: NAV_H, w: W, h: 240 - NAV_H, drag }],
+    fixedTargets: () => [{ id: "photo.view", x: 0, y: NAV_H, w: W, h: VIEW_H, drag }],
     key(pressed) {
       if (pressed & BTN.LEFT) step(-1);
       else if (pressed & BTN.RIGHT) step(1);
@@ -420,6 +439,7 @@ function photoPage(env: PhotosEnv, stack: NavStack): PageSpec {
 }
 
 export default function Photos() {
+  fitSurface();
   const press = createPress();
   const [keys, setKeys] = createSignal(false);
   const [current, setCurrent] = createSignal(0);
