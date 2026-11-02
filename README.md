@@ -49,7 +49,7 @@ describe that tree.
 
 ```text
 shells/
-  3ds/       shell (the launcher), the applets (hn, youtube, x, discord, camera, photos, notes) and ui, scripts, test, media, manifests
+  3ds/       shell (the launcher), the applets (hn, youtube, x, discord, github, camera, photos, notes), ui and kit, scripts, test, media, manifests
   touch/     src (gesture model and mock apps), scripts, test, manifest
   desktop/   src/system-ui, scripts, test, assets, docs, preview, site, manifests
 scripts/     setup, desktop command dispatch, repository paths and process helpers
@@ -64,8 +64,9 @@ runtime APIs come from `@pocketjs/framework/*`.
 
 ## Development
 
-Run commands from the repository root. Bun, Rust and the
-`wasm32-unknown-unknown` Rust target are required for the complete check.
+Run commands from the repository root. Bun (the version in `.bun-version`,
+which the pinned PocketJS runs on), Rust and the `wasm32-unknown-unknown`
+Rust target are required for the complete check.
 Native targets have additional requirements in their shell's README.
 
 ```sh

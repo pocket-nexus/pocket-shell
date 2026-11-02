@@ -8,12 +8,22 @@
 // second time, which also guarantees one copy of Solid — two would give the
 // app a reactive graph the framework does not own.
 
-import { existsSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { ROOT, VENDOR } from "./paths.ts";
 
 if (!existsSync(resolve(VENDOR, "package.json"))) {
   throw new Error("Pocket Shell setup: initialize vendor/pocketjs first (git submodule update --init)");
+}
+// The pinned PocketJS names the Bun it runs on (an older Bun cannot load a
+// host config), and .bun-version here, the one CI installs, names the same.
+const bun = readFileSync(resolve(ROOT, ".bun-version"), "utf8").trim();
+const pinned = readFileSync(resolve(VENDOR, ".bun-version"), "utf8").trim();
+if (bun !== pinned) {
+  throw new Error(`Pocket Shell setup: .bun-version says Bun ${bun}; vendor/pocketjs runs on Bun ${pinned}`);
+}
+if (Bun.version !== bun) {
+  throw new Error(`Pocket Shell setup: this checkout runs on Bun ${bun} (.bun-version); this is Bun ${Bun.version}`);
 }
 
 const links = new Map<string, string>([

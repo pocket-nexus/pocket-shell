@@ -152,7 +152,7 @@ export function StatusBar(props: StatusBarProps) {
 /** Icons rendered in Blender (art/icons/icons.py) and finished by
  *  art/icons/bake.ts: the picture, the gloss, the rim and, at 46, the drop
  *  shadow are all in the texture. */
-export type IconArt = "settings" | "mac" | "wifi" | "apps" | "hn" | "nexus" | "youtube" | "x" | "discord" | "camera" | "photos";
+export type IconArt = "settings" | "mac" | "wifi" | "apps" | "hn" | "nexus" | "youtube" | "x" | "discord" | "camera" | "photos" | "github";
 
 /** Corner radius as a fraction of the side (art/icons/bake.ts ICON_RADIUS). */
 const ICON_RADIUS = 0.2;
@@ -172,6 +172,7 @@ const ART: Record<IconArt | "plain", readonly Variant[]> = {
   discord: [[24, 32, "art/icons/discord-24.png"], [46, 64, "art/icons/discord-46.png"], [64, 64, "art/icons/discord-64.png"]],
   camera: [[24, 32, "art/icons/camera-24.png"], [46, 64, "art/icons/camera-46.png"], [64, 64, "art/icons/camera-64.png"]],
   photos: [[24, 32, "art/icons/photos-24.png"], [46, 64, "art/icons/photos-46.png"], [64, 64, "art/icons/photos-64.png"]],
+  github: [[24, 32, "art/icons/github-24.png"], [46, 64, "art/icons/github-46.png"], [64, 64, "art/icons/github-64.png"]],
   /** The finish alone, over the tint of an app that ships no icon. */
   plain: [[24, 32, "art/icons/plain-24.png"], [46, 64, "art/icons/plain-46.png"], [64, 64, "art/icons/plain-64.png"]],
 };
@@ -192,6 +193,7 @@ const APP_ART: Record<string, IconArt> = {
   "dev.pocket-nexus.discord": "discord",
   "dev.pocket-nexus.camera": "camera",
   "dev.pocket-nexus.photos": "photos",
+  "dev.pocket-nexus.github": "github",
 };
 
 export interface TileProps {

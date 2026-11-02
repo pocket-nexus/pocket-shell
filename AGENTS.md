@@ -9,11 +9,12 @@ The repository holds **three shells**, and a change belongs
 to one of them:
 
 - `shells/3ds/` — Pocket Shell, the launcher, and the **Pocket Applets** it
-  ships with (Hacker News, YouTube, X, Discord, Camera, Photos, Notes), over
-  one iOS 6 kit in `ui/`. **Its platforms are the Nintendo 3DS and the M5Stack
-  Tab5**: on the 3DS two screens of fixed size, a resistive panel with one
-  contact, a d-pad and shoulder buttons; on the Tab5 one 640x360 touch
-  surface, a host-drawn home ball and a keyboard. Each program reads its
+  ships with (Hacker News, YouTube, X, Discord, GitHub, Camera, Photos,
+  Notes), over one iOS 6 kit in `ui/` (GitHub also over `kit/`). **Its
+  platforms are the Nintendo 3DS and the M5Stack Tab5**: on the 3DS two
+  screens of fixed size, a resistive panel with one contact, a d-pad and
+  shoulder buttons; on the Tab5 one 640x360 touch surface, a host-drawn home
+  ball and a keyboard. Each program reads its
   surface size at start (`ui/screen.ts`) and lays out by size class. Every
   applet draws on the touch surface and declares `system.agent`; the 3DS's
   top screen and the L+R agent overlay belong to the PocketJS host and
@@ -47,15 +48,19 @@ fonts retain their own licenses. See `LICENSING.md`.
   Themes must not determine package identity or native host behavior.
 - Prose states the mechanism and the reason. No slogans, no imported
   architecture jargon, no empty intensifiers.
-- Every program the launcher runs is a **Pocket Applet**: its manifest declares
-  `applet` (services, hosts, store) and meets the applet rules in PocketJS
-  `docs/APPLETS.md` — one 320×240 touch surface, a capability allowlist,
-  declared network destinations, no native code, no `eval`, size budgets. The
-  PocketJS build refuses a broken applet; `test/applets.test.ts` checks every
-  one. The launcher (`shell/`) declares no `applet`.
-- A manifest entry is relative to `shells/3ds/`, the build's project root;
-  `shells/3ds/scripts/apps.ts` lists the launcher and the applets and resolves their
-  plans.
+- Every program the launcher runs is a **Pocket Applet**: its app contract
+  (`pocket.app.json`) declares `applet` (summary, services, store) and meets
+  the applet rules in PocketJS `docs/APPLETS.md` — one 320×240 touch
+  surface, a capability allowlist, declared companion services, no native
+  code, no `eval`, size budgets. The PocketJS build refuses a broken applet;
+  `test/applets.test.ts` checks every one. The launcher (`shell/`) declares
+  no `applet`.
+- An app contract's entry is relative to `shells/3ds/`, the build's project
+  root; `shells/3ds/scripts/apps.ts` lists the launcher and the applets and
+  resolves their plans.
+- A Tab5 package is built against pocket-m5's host config and must be
+  admitted by its host contract (`bun run tab5` checks with PocketJS's
+  admission); the profile hash only orders variants.
 - Lone L and R presses reach an applet six frames late (the host waits for
   the L+R chord), so do not bind frequent actions to them.
 

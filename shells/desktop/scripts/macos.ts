@@ -23,7 +23,7 @@ const manifest = resolve(POCKETJS_ROOT, "programs/desktop/Cargo.toml");
 // stops at startup.
 const profileDir = resolve(ROOT, ".pocket-build/macos-app-profile");
 const exportCode = await run(
-  [process.execPath, resolve(POCKETJS_ROOT, "tools/pocket.ts"), "profile", "export", "--target", "macos-app", "--out", profileDir],
+  [process.execPath, resolve(POCKETJS_ROOT, "tools/pocket.ts"), "host", "export", "--target", "macos-app", "--out", profileDir],
   process.env,
   POCKETJS_ROOT,
 );

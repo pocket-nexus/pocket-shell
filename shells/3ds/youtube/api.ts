@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/youtube/api.ts — the companion's youtube service
-// (tools/companion/services/youtube.ts in PocketJS) over @pocketjs/framework/net.
+// (tools/companion/services/youtube.ts in PocketJS) through the applet's
+// worker (ui/net.ts).
 //
 // Every request goes to https://companion.pocket/youtube/..., which the
-// linked Mac answers with yt-dlp and ffmpeg. The NET module admits two
+// linked Mac answers with yt-dlp and ffmpeg. The host's http node runs two
 // requests at a time, so lists, playback and thumbnails share one queue;
 // lists and playback go ahead of thumbnails. A thumbnail arrives as an IMG
 // entry (128x64 RGB565) and becomes a texture here; the newest
@@ -11,8 +12,7 @@
 
 import { createSignal } from "solid-js";
 import { getOps } from "@pocketjs/framework/host";
-import { companionService } from "@pocketjs/framework/link";
-import { fetch, NetError, type PocketResponse } from "@pocketjs/framework/net";
+import { companionService, fetch, NetError, type NetResponse } from "../ui/net.ts";
 export const MAX_INFLIGHT = 2;
 export const THUMB_TEXTURES = 40;
 
@@ -47,7 +47,7 @@ export const TOPICS: readonly { id: Topic; label: string }[] = [
   { id: "news", label: "News" },
 ];
 
-/** A failed request: the NET code, or "service" for an error the Mac sent. */
+/** A failed request: the transport's code, or "service" for an error the Mac sent. */
 export class YtError extends Error {
   readonly code: string;
   constructor(code: string, message: string) {
@@ -61,7 +61,7 @@ interface Task {
   urgent: boolean;
   timeoutMs: number;
   maxBytes: number;
-  resolve: (response: PocketResponse) => void;
+  resolve: (response: NetResponse) => void;
   reject: (error: YtError) => void;
 }
 
@@ -115,7 +115,7 @@ export function createYtClient(): YtClient {
   };
 
   const request = (path: string, urgent: boolean, timeoutMs: number, maxBytes: number) =>
-    new Promise<PocketResponse>((resolve, reject) => {
+    new Promise<NetResponse>((resolve, reject) => {
       const task: Task = { path, urgent, timeoutMs, maxBytes, resolve, reject };
       if (urgent) {
         const at = queue.findIndex((queued) => !queued.urgent);

@@ -21,12 +21,12 @@ which took **30.4k tokens**.
 
 ## The launcher and the applets
 
-An applet is a Pocket app that declares the manifest section `applet` and
-meets the applet rules (PocketJS
+An applet is a Pocket app whose app contract (`pocket.app.json`) declares
+the section `applet` and meets the applet rules (PocketJS
 [APPLETS.md](../../vendor/pocketjs/docs/APPLETS.md)): one touch surface
-that admits 320×240, the agent enhanced, an allowlist of capabilities, every network
-destination declared (`applet.services`, `applet.hosts`), no native code and
-no code evaluation, bundle and pak budgets. The PocketJS build refuses an
+that admits 320×240, the agent enhanced, an allowlist of capabilities, the
+companion services it reaches declared (`applet.services`), no native code
+and no code evaluation, bundle and pak budgets. The PocketJS build refuses an
 applet that breaks a rule, and `bun run check:3ds` runs the rules over every
 applet here (`test/applets.test.ts`). The launcher is an app, not an
 applet: it pairs, installs and switches, which applets cannot.
@@ -41,10 +41,24 @@ applet: it pairs, installs and switches, which applets cannot.
 | Camera | `camera/` | `dev.pocket-nexus.camera`, `camera-main` | the same |
 | Photos | `photos/` | `dev.pocket-nexus.photos`, `photos-main` | the same |
 | Notes | `notes/` | `dev.pocket-nexus.notes`, `notes-main` | the same |
+| GitHub | `github/` | `dev.pocket-nexus.github`, `github-main` | the same |
 
 `ui/` is the iOS 6 kit the launcher and the applets build on at the 3DS's 0.82 scale: the
 navigation stack and bar, grouped tables, alerts, text fitting, a slot pool
 for long lists and one stylus router per screen.
+
+**An applet's network is its worker.** The UI realm has no network: an
+applet that declares `net.http` declares the worker in `ui/net-worker.ts`
+(`domains.worker`: one `http` node and a ring each way, the same in every
+app contract), and `ui/net.ts` gives its UI a `fetch` over those rings
+(records in `ui/net-wire.ts`). The host's node runs two requests at once and
+the worker holds the rest. One request's descriptor (URL, method, headers
+and body as JSON) is at most **1020 bytes**: a longer post or reply is
+refused with `invalid_request`, and a glyph atlas is asked for in parts that
+`ui/glyphs.ts` merges into one atlas before it loads. On the 3DS the node
+rides the Pocket Link to the Mac; on the Tab5 it is the firmware's HTTP over
+Wi-Fi, which resolves `companion.pocket` like any other host name. The sims
+answer the worker's records from fixture routes (`test/net-fake.ts`).
 
 ### Surfaces
 
@@ -84,17 +98,24 @@ check:3ds` also writes each program's 592×360 and 360×592 screens.
 
 ### The M5Stack Tab5
 
-The Tab5 target is pocket-m5's `programs/m5stack-tab5` with the profile
-`tab5-home` (`home.runtime-config.ts`): an ESP32-P4 whose 1280x720 panel
+The Tab5 target is pocket-m5's `programs/m5stack-tab5` with the host
+contract `tab5-home` (`pocket.host.json`, which its `pocket.host.config.ts`
+names): an ESP32-P4 whose 1280x720 panel
 shows the auxiliary surface at **640x360 logical, presented at 2x**, turned
 onto the portrait panel. The firmware embeds Pocket Shell as its launcher,
-keeps the installed applets on the microSD card and boots one runtime per app; the applets
-install from the Mac's catalog as on the 3DS. The six pictures at the top of
+keeps the installed applets on the microSD card and boots one runtime per
+app; the applets install from the Mac's catalog as on the 3DS. The six pictures at the top of
 the repository README are this surface.
 
-- `bun run tab5 [app…]` compiles each app against the Tab5 runtime config
-  into `dist/tab5/<output>.pocket`, so its profile hash matches the
-  firmware's. The config is read from a
+- `bun run tab5 [app…]` compiles each app against the Tab5 host config
+  into `dist/tab5/<output>.pocket` and refuses a package the host contract
+  does not admit. The check is PocketJS's admission
+  (`contracts/spec/admission.ts`), the rules the firmware applies when it
+  opens a package: the binding generation, raster density, animation class,
+  viewport, presentation and auxiliary surface match, the tick rate is a
+  whole multiple of a host cadence (an applet's 60 Hz runs two core ticks
+  per 30 Hz frame on the Tab5), and every enabled feature is a host
+  capability. The host config is read from a
   [pocket-m5](https://github.com/pocket-nexus/pocket-m5) checkout:
   `POCKET_M5_ROOT` when set, else `../pocket-m5` beside this repository.
   `bun run offer` builds both the 3DS and the Tab5 package of
@@ -140,7 +161,11 @@ two-icon dock. Labels are bold 10 px (`text-2xs`), so "Hacker News" and
 `shell/art/icons/icons.py` models Settings, Hacker News, Wi-Fi and Apps in
 Blender as lit objects on lacquer or metal plates, and Mac as a two-tone
 lacquer face after the Finder (a raised profile line, enamel eyes and
-smile), with few large shapes so they hold at 46 and 24 px. Pocket Nexus is the face "O" of the Pocket
+smile), with few large shapes so they hold at 46 and 24 px. GitHub is a
+cat's head in white enamel on charcoal lacquer; a shape made of overlapping
+outlines (its head and ears) is one boolean union before its bevel, since
+separate prisms with coplanar tops render with dark self-shadow patches.
+Pocket Nexus is the face "O" of the Pocket
 Nexus wordmark, drawn by the wordmark's own code (PocketJS
 `apps/nexus/art/draw.js`, run in headless Chrome by `shell/art/icons/nexus.ts`).
 `shell/art/icons/bake.ts` gives all of them one finish (the rounded mask, the
@@ -175,9 +200,18 @@ a pushed applet can reach its service; any other request gets 403.
   discord status` prints the invite link. Setup and controls:
   [docs/DISCORD.md](docs/DISCORD.md).
 
+**GitHub** is built from `kit/`, a design system in which a page is rows
+and the kit draws them (`kit/platform.tsx` is what it takes from this
+shell): the inbox, pull requests, issues, repositories, code, diffs,
+reviews, merging, Actions, releases, gists and search, on GitHub's REST API
+with ETags and the Link header's pages. Its token is kept by the
+companion's `store` service, avatars come through `images`, and text in any
+script through `glyphs`. Its 16 px marks are geometry in `kit/icons.gen.ts`.
+
 **Hacker News** lists Top, New, Best, Ask and Show and opens a thread with
-the story and every comment in full. Its requests go through
-`@pocketjs/framework/net`, which on the 3DS rides the Pocket Link to the Mac.
+the story and every comment in full. Its requests go to
+`hacker-news.firebaseio.com` through the applet's worker, which on the 3DS
+rides the Pocket Link to the Mac.
 
 ## The agent
 

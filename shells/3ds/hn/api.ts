@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/hn/api.ts — the Hacker News Firebase API over @pocketjs/framework/net.
+// shells/3ds/hn/api.ts — the Hacker News Firebase API through the applet's
+// worker (ui/net.ts).
 //
 // A feed is one id list (/v0/topstories.json); every story and comment is
-// one more request (/v0/item/<id>.json). The NET module admits at most
-// NET_MAX_INFLIGHT (2) requests at a time, so every request goes through one
+// one more request (/v0/item/<id>.json). The host's http node runs two
+// requests at a time (MAX_INFLIGHT), so every request goes through one
 // queue that starts the next as a slot frees. Comment fetches jump the queue
 // ahead of story prefetches, so the thread on screen fills first. Items are
 // kept in memory for the life of the app.
 
-import { fetch, NetError } from "@pocketjs/framework/net";
+import { fetch, NetError } from "../ui/net.ts";
 
 export const API = "https://hacker-news.firebaseio.com/v0";
 export const MAX_INFLIGHT = 2;
@@ -38,7 +39,7 @@ export interface Item {
   dead?: boolean;
 }
 
-/** A failed request, with the NET error code when there is one. */
+/** A failed request, with the transport's error code when there is one. */
 export class HnError extends Error {
   readonly code: string;
   constructor(code: string, message: string) {

@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/discord/api.ts — the companion's discord service
 // (https://companion.pocket/discord/…, PocketJS tools/companion/services/
-// discord.ts) over @pocketjs/framework/net.
+// discord.ts) through the applet's worker (ui/net.ts).
 //
 // The bot and its token live on the Mac; the console asks the companion for
 // servers, channels and messages and gets plain JSON, and for avatars and
-// server icons as IMG entries it uploads as textures. The NET module admits
-// two requests at a time: pages go first, pictures after them, and the live
+// server icons as IMG entries it uploads as textures. The host's http node
+// runs two requests at a time: pages go first, pictures after them, and the live
 // poll of an open channel takes one slot for up to POLL_WAIT_S seconds.
 
-import { fetch, NetError } from "@pocketjs/framework/net";
-import { companionService } from "@pocketjs/framework/link";
+import { companionService, fetch, NetError } from "../ui/net.ts";
 import { GLYPH_ATLAS_URL } from "../ui/glyphs.ts";
 
 export const MAX_INFLIGHT = 2;
@@ -42,7 +41,7 @@ export interface Message {
   system: boolean;
 }
 
-/** A failed request: the NET error code, "setup" when Discord is not set up
+/** A failed request: the transport's error code, "setup" when Discord is not set up
  *  on the Mac, or "http". */
 export class DiscordError extends Error {
   readonly code: string;

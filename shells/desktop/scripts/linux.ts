@@ -44,7 +44,7 @@ const manifest = resolve(POCKETJS_ROOT, "programs/desktop/Cargo.toml");
 // stops at startup.
 const profileDir = resolve(ROOT, ".pocket-build/linux-app-profile");
 await run(
-  [process.execPath, resolve(POCKETJS_ROOT, "tools/pocket.ts"), "profile", "export", "--target", "linux-app", "--out", profileDir],
+  [process.execPath, resolve(POCKETJS_ROOT, "tools/pocket.ts"), "host", "export", "--target", "linux-app", "--out", profileDir],
   POCKETJS_ROOT,
 );
 await run(["cargo", "build", "--release", "--locked", "--manifest-path", manifest], ROOT, {

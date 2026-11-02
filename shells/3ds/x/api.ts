@@ -5,11 +5,10 @@
 // The Mac holds the X session; the console asks for a page of the timeline,
 // a thread or an avatar and gets compact JSON (an avatar: a 32x32 IMG entry
 // the console uploads as a texture), and likes, reposts and replies through
-// it. Requests share one queue of at most
-// MAX_INFLIGHT, the NET module's limit; avatars wait behind pages.
+// it. Requests share one queue of at most MAX_INFLIGHT, the requests the
+// host's http node runs at once; avatars wait behind pages.
 
-import { fetch, NetError } from "@pocketjs/framework/net";
-import { companionService } from "@pocketjs/framework/link";
+import { companionService, fetch, NetError } from "../ui/net.ts";
 import { GLYPH_ATLAS_URL } from "../ui/glyphs.ts";
 
 export const MAX_INFLIGHT = 2;
