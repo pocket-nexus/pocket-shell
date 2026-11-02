@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/maps/api.ts — the companion's maps and store services
-// (tools/companion/services/maps.ts and store.ts in PocketJS) over
-// @pocketjs/framework/net.
+// (tools/companion/services/maps.ts and store.ts in PocketJS) through the
+// applet's worker (ui/net.ts).
 //
 // Every request goes to https://companion.pocket/maps/... or /store/...,
-// which Pocket Companion on the linked Mac answers. The NET module admits two
-// requests at a time, so tiles, geocodes, the position and the saved view
+// which Pocket Companion on the linked Mac answers. The host's http node
+// runs two requests at a time, so tiles, geocodes, the position and the saved view
 // share one queue; a geocode, a locate and the store go ahead of tiles, and
 // the tiles on screen go ahead of the ring around them. A tile arrives as an
 // IMG entry (256x256 RGB565) and becomes a texture here; the newest
@@ -13,8 +13,7 @@
 
 import { createSignal } from "solid-js";
 import { getOps } from "@pocketjs/framework/host";
-import { fetch, NetError, type PocketResponse } from "@pocketjs/framework/net";
-import { companionService } from "@pocketjs/framework/link";
+import { companionService, fetch, NetError, type NetResponse } from "../ui/net.ts";
 import { notLinked, theComputer } from "../ui/companion.ts";
 
 export const MAX_INFLIGHT = 2;
@@ -43,7 +42,7 @@ export interface MapView {
   zoom: number;
 }
 
-/** A failed request: the NET code, or "service" for an error the daemon sent. */
+/** A failed request: the transport's code, or "service" for an error the daemon sent. */
 export class MapsError extends Error {
   readonly code: string;
   constructor(code: string, message: string) {
@@ -62,7 +61,7 @@ interface Task {
   body?: string;
   timeoutMs: number;
   maxBytes: number;
-  resolve: (response: PocketResponse) => void;
+  resolve: (response: NetResponse) => void;
   reject: (error: MapsError) => void;
 }
 
@@ -133,7 +132,7 @@ export function createMapsClient(): MapsClient {
 
   const RANK = { first: 0, visible: 1, ring: 2 } as const;
   const request = (url: string, options: { rank: Task["rank"]; tile?: string; body?: string; timeoutMs?: number; maxBytes?: number }) =>
-    new Promise<PocketResponse>((resolve, reject) => {
+    new Promise<NetResponse>((resolve, reject) => {
       const task: Task = {
         url,
         rank: options.rank,

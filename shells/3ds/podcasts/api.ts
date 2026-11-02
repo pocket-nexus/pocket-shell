@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/podcasts/api.ts — the companion's podcasts service
 // (tools/companion/services/podcasts.ts in PocketJS) and its store service
-// (services/store.ts) over @pocketjs/framework/net.
+// (services/store.ts) through the applet's worker (ui/net.ts).
 //
 // Every request goes to https://companion.pocket/podcasts/... or
 // https://companion.pocket/store/..., which Pocket Companion answers for this
-// device. The NET module admits two requests at a time, so searches, feeds,
+// device. The host's http node runs two requests at a time, so searches, feeds,
 // playback, the library and artwork share one queue; the first four go
 // ahead of artwork. Artwork arrives as an IMG entry (a square RGB565
 // picture, 128 for a row or 256 for a page) and becomes a texture here; the
@@ -13,8 +13,8 @@
 
 import { createSignal } from "solid-js";
 import { getOps } from "@pocketjs/framework/host";
-import { fetch, NetError, type PocketResponse } from "@pocketjs/framework/net";
-import { companionService } from "@pocketjs/framework/link";
+import { companionService, fetch, NetError, requestBytes, type NetResponse } from "../ui/net.ts";
+import { loadDocument, saveDocument, type StoreRequests } from "../ui/store.ts";
 import { theComputer } from "../ui/companion.ts";
 
 export const MAX_INFLIGHT = 2;
@@ -69,7 +69,7 @@ export interface Library {
   positions: Record<string, number>;
 }
 
-/** A failed request: the NET code, or "service" for an error the daemon sent. */
+/** A failed request: the transport's code, or "service" for an error the daemon sent. */
 export class PodcastError extends Error {
   readonly code: string;
   constructor(code: string, message: string) {
@@ -84,7 +84,7 @@ interface Task {
   timeoutMs: number;
   maxBytes: number;
   body?: string;
-  resolve: (response: PocketResponse) => void;
+  resolve: (response: NetResponse) => void;
   reject: (error: PodcastError) => void;
 }
 
@@ -164,7 +164,7 @@ export function createPodcastClient(): PodcastClient {
   };
 
   const request = (url: string, urgent: boolean, timeoutMs: number, maxBytes: number, body?: string) =>
-    new Promise<PocketResponse>((resolve, reject) => {
+    new Promise<NetResponse>((resolve, reject) => {
       const task: Task = { url, urgent, timeoutMs, maxBytes, body, resolve, reject };
       if (urgent) {
         const at = queue.findIndex((queued) => !queued.urgent);
@@ -175,6 +175,17 @@ export function createPodcastClient(): PodcastClient {
 
   const json = async <T>(service: string, path: string, timeoutMs = 60_000, body?: string): Promise<T> =>
     JSON.parse(await (await request(service === "store" ? companionService("store", path) : companionService("podcasts", path), true, timeoutMs, 256 * 1024, body)).text()) as T;
+
+  // The library is one store document, in parts when it outgrows a request
+  // (ui/store.ts).
+  const store: StoreRequests = {
+    get: async (name) => (await json<{ value?: unknown }>("store", `/get?name=${name}`, 20_000)).value ?? null,
+    set: async (name, body) => {
+      await json<unknown>("store", `/set?name=${name}`, 20_000, body);
+    },
+    bytes: (name, body) =>
+      requestBytes(companionService("store", `/set?name=${name}`), { method: "POST", headers: { "content-type": "application/json" }, body, timeoutMs: 20_000, maxBytes: 256 * 1024 }),
+  };
 
   return {
     search: async (query) => {
@@ -190,10 +201,8 @@ export function createPodcastClient(): PodcastClient {
     stop() {
       void request(companionService("podcasts", "/stop"), true, 10_000, 1024).catch(() => undefined);
     },
-    library: async () => readLibrary((await json<{ value?: unknown }>("store", `/get?name=${LIBRARY_NAME}`, 20_000)).value),
-    save: async (library) => {
-      await json<unknown>("store", `/set?name=${LIBRARY_NAME}`, 20_000, JSON.stringify(library));
-    },
+    library: async () => readLibrary(await loadDocument(store, LIBRARY_NAME)),
+    save: (library) => saveDocument(store, LIBRARY_NAME, library),
     want(url, size) {
       const key = `${size}:${url}`;
       if (!url || asked.has(key)) return;

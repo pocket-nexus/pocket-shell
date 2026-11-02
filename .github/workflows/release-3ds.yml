@@ -29,7 +29,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.14
+          bun-version-file: .bun-version
       - name: Reserve the release date
         id: version
         env:
@@ -87,7 +87,7 @@ jobs:
             "$GITHUB_SHA" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >> "$RUNNER_TEMP/release-notes.md"
           tag="v$RELEASE_VERSION"
           gh release create "$tag" ./*.3dsx SHA256SUMS build-info.json \
-            --target "$GITHUB_SHA" --title "Pocket Home $tag" \
+            --target "$GITHUB_SHA" --title "Pocket Shell $tag" \
             --notes-file "$RUNNER_TEMP/release-notes.md" --draft
           gh release edit "$tag" --draft=false --latest
           gh release view "$tag" --json url --jq .url >> "$GITHUB_STEP_SUMMARY"

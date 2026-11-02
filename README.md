@@ -1,8 +1,8 @@
 # Pocket Shell
 
-Pocket Shell is **Pocket Home** and its **Pocket Applets**: a launcher and
-a set of apps built on [PocketJS](https://github.com/pocket-nexus/pocketjs)
-that run from one set of packages on the Nintendo 3DS's touch screen and on
+Pocket Shell is a launcher and its **Pocket Applets**, a set of apps built
+on [PocketJS](https://github.com/pocket-nexus/pocketjs) that run from one
+set of packages on the Nintendo 3DS's touch screen and on
 the M5Stack Tab5's landscape panel.
 
 | Home | Hacker News | Notes |
@@ -15,7 +15,7 @@ the M5Stack Tab5's landscape panel.
 
 | Home on the 3DS | Notes on the 3DS |
 | --- | --- |
-| ![Pocket Home on the 3DS touch screen with Claude's room on the top screen](shells/3ds/media/hw/home.png) | ![The Notes list at 320x240](shells/3ds/media/notes-list.png) |
+| ![The home screen on the 3DS touch screen with Claude's room on the top screen](shells/3ds/media/hw/home.png) | ![The Notes list at 320x240](shells/3ds/media/notes-list.png) |
 
 The Tab5 pictures are the device's framebuffer at its logical **640x360**
 (the panel shows it at 2x); the 3DS Home picture is a capture from the
@@ -31,7 +31,7 @@ explored one way of operating a small computer; what each taught is in
 
 | Shell | Modality explored | Source and documentation |
 | --- | --- | --- |
-| Pocket Home on the 3DS and the Tab5 | A touch-screen launcher with installed applets; on the 3DS, Claude's room on the top screen and L+R to talk or type; on the Tab5, a floating home ball and a keyboard | [shells/3ds](shells/3ds/README.md) |
+| Pocket Shell on the 3DS and the Tab5 | A touch-screen launcher with installed applets; on the 3DS, Claude's room on the top screen and L+R to talk or type; on the Tab5, a floating home ball and a keyboard | [shells/3ds](shells/3ds/README.md) |
 | Touch navigation | Full-screen gestures over sixteen mock apps on the iPod touch 4 and the Nokia E7 | [shells/touch](shells/touch/README.md) |
 | Desktop OS | Windows, a pointer and a keyboard, with Classic 98, XP and Aqua themes on macOS and Linux and a browser preview; the shell Pocket Studio uses | [shells/desktop](shells/desktop/README.md) |
 | The Omarchy-style 3DS shell and the iPod touch 4 remote (archived) | Tiling windows on the top screen with shoulder chords and a deck on the touch screen; a handheld that mirrors and controls a Linux desktop | branch [`archive/3ds-omarchy-ipod-remote`](https://github.com/pocket-nexus/pocket-shell/tree/archive/3ds-omarchy-ipod-remote) |
@@ -49,7 +49,7 @@ describe that tree.
 
 ```text
 shells/
-  3ds/       home, the applets (hn, youtube, x, discord, camera, photos, notes) and ui, scripts, test, media, manifests
+  3ds/       shell (the launcher), the applets (hn, youtube, x, discord, github, camera, photos, notes), ui and kit, scripts, test, media, manifests
   touch/     src (gesture model and mock apps), scripts, test, manifest
   desktop/   src/system-ui, scripts, test, assets, docs, preview, site, manifests
 scripts/     setup, desktop command dispatch, repository paths and process helpers
@@ -64,8 +64,9 @@ runtime APIs come from `@pocketjs/framework/*`.
 
 ## Development
 
-Run commands from the repository root. Bun, Rust and the
-`wasm32-unknown-unknown` Rust target are required for the complete check.
+Run commands from the repository root. Bun (the version in `.bun-version`,
+which the pinned PocketJS runs on), Rust and the `wasm32-unknown-unknown`
+Rust target are required for the complete check.
 Native targets have additional requirements in their shell's README.
 
 ```sh
@@ -92,10 +93,10 @@ Desktop outputs are in `shells/desktop/dist/`. Use `bun run desktop --help`
 to list its commands, including captures, benchmarks and the text companion.
 
 ```sh
-bun run deploy --host <console-ip> # build Home's .3dsx, install it over the wire and restart into it
-bun run push [hn] --host <console-ip>  # rebuild and hot-push Home (or install Hacker News)
+bun run deploy --host <console-ip> # build Pocket Shell's .3dsx, install it over the wire and restart into it
+bun run push [hn] --host <console-ip>  # rebuild and hot-push the launcher (or install Hacker News)
 bun run offer                    # offer the applets (3DS and Tab5 packages) through the running Pocket Companion
-bun run tab5 [app…]              # build Home and the applets for the M5Stack Tab5 into dist/tab5
+bun run tab5 [app…]              # build the launcher and the applets for the M5Stack Tab5 into dist/tab5
 bun run shot --host <console-ip>  # capture both console screens
 bun run 3ds                      # full console binary in dist/3ds
 bun run touch guest

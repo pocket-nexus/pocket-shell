@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/homeassistant/api.ts — the companion's homeassistant service
 // (https://companion.pocket/homeassistant/…, PocketJS tools/companion/
-// services/homeassistant.ts) over @pocketjs/framework/net.
+// services/homeassistant.ts) through the applet's worker (ui/net.ts).
 //
 // The Home Assistant URL and the access token live in Pocket Companion's
 // store on the linked Mac; the applet sends them once, at setup, and after that
-// asks for entity states and service calls as plain JSON. The NET module
-// admits two requests at a time: a call goes ahead of a poll.
+// asks for entity states and service calls as plain JSON. The host's http
+// node runs two requests at a time: a call goes ahead of a poll.
 
-import { fetch, NetError } from "@pocketjs/framework/net";
-import { companionService } from "@pocketjs/framework/link";
+import { companionService, fetch, NetError } from "../ui/net.ts";
 import { notLinked, theComputer } from "../ui/companion.ts";
 
 export const MAX_INFLIGHT = 2;
@@ -63,7 +62,7 @@ export const TABS: readonly Tab[] = [
 /** Every domain a tab lists: the states request asks for these alone. */
 export const DOMAINS: readonly string[] = TABS.flatMap((tab) => tab.domains);
 
-/** A failed request: the NET error code, "setup" when Home Assistant is not
+/** A failed request: the transport's error code, "setup" when Home Assistant is not
  *  set up on this device (or refused the token), or "http". */
 export class HaError extends Error {
   readonly code: string;

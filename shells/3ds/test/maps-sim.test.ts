@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Maps in the simulator on the Tab5's 592x360 surface: the companion's maps
-// and store services are NET routes (every https://companion.pocket/maps/...
+// shells/3ds/test/maps-sim.test.ts — Maps in the simulator on the Tab5's
+// 592x360 surface: the companion's maps and store services are routes of the
+// applet's worker (test/net-fake.ts; every https://companion.pocket/maps/...
 // and /store/... URL), a tile is a 256x256 RGB565 IMG entry. Zooming with the
 // buttons and with two fingers must keep the app running and the tiles
 // drawn, however fast the levels change.
@@ -13,15 +14,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { IMG_FLAG_LINEAR, PSM } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
 import { encodeImageEntry } from "../../../vendor/pocketjs/framework/compiler/pak.ts";
-import { bootConsole3ds, type Console3ds } from "../../../vendor/pocketjs/programs/sim/console-3ds.ts";
-import type { SimNetRequest, SimNetRoute } from "../../../vendor/pocketjs/platforms/sim/net.ts";
+import type { Console3ds } from "../../../vendor/pocketjs/programs/sim/console-3ds.ts";
 import { encodePNG } from "../../../vendor/pocketjs/tools/png.ts";
 import { TAB5 } from "./tab5.ts";
 import { buildGuest } from "./build.ts";
+import { bootWithNet, type NetConsole, type NetRequest, type NetRoutes } from "./net-fake.ts";
 
 const OUT = mkdtempSync(join(tmpdir(), "pocket-maps-"));
 const SHOTS = process.env.POCKET_MAPS_SHOTS;
-const GLOBALS = ["ui", "__pak", "__simHz", "frame", "link", "wifi", "camera", "net", "media", "__pocketApp"] as const;
+const GLOBALS = ["ui", "__pak", "__simHz", "frame", "link", "wifi", "camera", "net", "__pocketWorkerChannels", "media", "__pocketApp"] as const;
 const saved = new Map(GLOBALS.map((key) => [key, (globalThis as Record<string, unknown>)[key]]));
 let GUEST = "";
 
@@ -59,14 +60,14 @@ function tile(z: number, x: number, y: number): Uint8Array {
 }
 
 interface Service {
-  routes: Readonly<Record<string, SimNetRoute>>;
+  routes: NetRoutes;
   asked: string[];
 }
 
 function service(): Service {
   const asked: string[] = [];
   const json = (value: unknown) => ({ status: 200, headers: { "content-type": "application/json" }, body: JSON.stringify(value) });
-  const answer = (request: SimNetRequest) => {
+  const answer = (request: NetRequest) => {
     const url = new URL(request.url);
     switch (url.pathname) {
       case "/store/get":
@@ -84,15 +85,15 @@ function service(): Service {
         return { status: 404, body: "{}" };
     }
   };
-  const routes = new Proxy({} as Record<string, SimNetRoute>, {
+  const routes = new Proxy({} as NetRoutes, {
     get: (_, key) => (typeof key === "string" && key.startsWith("https://companion.pocket/") ? answer : undefined),
   });
   return { routes, asked };
 }
 
-async function boot(): Promise<{ app: Console3ds; svc: Service }> {
+async function boot(): Promise<{ app: NetConsole; svc: Service }> {
   const svc = service();
-  const app = await bootConsole3ds({ js: `${GUEST}.js`, pak: `${GUEST}.pak`, current: "maps-main", link: null, wifi: null, camera: false, net: svc.routes, auxiliary: TAB5 });
+  const app = await bootWithNet({ js: `${GUEST}.js`, pak: `${GUEST}.pak`, current: "maps-main", link: null, wifi: null, camera: false, auxiliary: TAB5 }, svc.routes);
   await app.run(60);
   return { app, svc };
 }

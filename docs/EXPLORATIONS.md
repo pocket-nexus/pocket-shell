@@ -69,9 +69,9 @@ services more than its screen. The pairing and the link stayed; they became
 the Pocket Link, over which the 3DS and the Tab5 install applets and reach
 the web through a paired Mac.
 
-## A launcher with installed applets: Pocket Home on the 3DS
+## A launcher with installed applets: Pocket Shell on the 3DS
 
-`shells/3ds/`, on `main`. Pocket Home is the console's launcher on the touch
+`shells/3ds/`, on `main`. Pocket Shell is the console's launcher on the touch
 screen: a springboard of installed applets, Settings (Wi-Fi, pairing a Mac
 by QR code, the Mac's app catalog) and a clock set from the Mac over the
 Pocket Link. Every applet draws on the touch screen and declares
@@ -118,5 +118,5 @@ What it taught: one source lays out for a stylus console and a keyboard
 tablet when the surface is read at run time and the host's own controls
 (the ball, the keyboard) arrive as the same input the framework already
 models. The repaint display without a compositor needed its own animation
-class, so Home keeps two sets of transitions and the pinstripes tile a
+class, so the launcher keeps two sets of transitions and the pinstripes tile a
 texture the PPA copies; both are in PocketJS now.

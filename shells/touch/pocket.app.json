@@ -1,0 +1,46 @@
+{
+  "$schema": "https://pocketjs.dev/schema/pocket-2.json",
+  "pocket": 2,
+  "id": "dev.pocket-nexus.fluid",
+  "title": "Pocket Shell Touch",
+  "version": "0.1.0",
+  "engine": {
+    "capabilities": {
+      "requires": [
+        "input.touch",
+        "text.glyphs.baked"
+      ],
+      "enhances": [
+        "display.viewport.live"
+      ]
+    }
+  },
+  "app": {
+    "entry": "src/main.tsx",
+    "output": "pocketshell-touch",
+    "framework": "solid",
+    "viewport": {
+      "fixed": {
+        "logical": [
+          320,
+          480
+        ],
+        "presentation": "native"
+      },
+      "dynamic": {
+        "default": [
+          360,
+          640
+        ],
+        "min": [
+          320,
+          320
+        ],
+        "max": [
+          640,
+          640
+        ]
+      }
+    }
+  }
+}

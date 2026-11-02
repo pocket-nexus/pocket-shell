@@ -28,11 +28,17 @@
     }
   },
   "include": [
-    "home",
+    "shell",
     "hn",
     "youtube",
     "x",
     "discord",
+    "github",
+    "weather",
+    "podcasts",
+    "maps",
+    "homeassistant",
+    "kit",
     "ui",
     "scripts",
     "test"

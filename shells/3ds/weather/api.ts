@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/weather/api.ts — Open-Meteo over @pocketjs/framework/net, and the
-// companion's store service for the saved places.
+// shells/3ds/weather/api.ts — Open-Meteo through the applet's worker
+// (ui/net.ts), and the companion's store service for the saved places.
 //
 // Geocoding (geocoding-api.open-meteo.com) answers a name with up to eight
 // places; the forecast API (api.open-meteo.com) answers a place's
 // coordinates with the current conditions, seven days of hours and seven
 // days of highs, lows, sunrise and sunset, every time in the place's own
-// zone. Neither needs a key. The NET module admits at most MAX_INFLIGHT (2)
+// zone. Neither needs a key. The host's http node runs MAX_INFLIGHT (2)
 // requests at a time, so every request goes through one queue; the forecast
 // for the page on screen and the store's requests jump the queue ahead of
 // the list's refreshes. Temperatures arrive in Celsius and wind in km/h; the
@@ -16,10 +16,10 @@
 // tools/companion/services/store.ts) under the name `weather`:
 // GET /get?name=weather answers {value}, POST /set?name=weather with the
 // JSON document answers {ok: true}. Pocket Companion answers both for this
-// device.
+// device. A document longer than one request goes in parts (ui/store.ts).
 
-import { fetch, NetError, type PocketResponse } from "@pocketjs/framework/net";
-import { companionService } from "@pocketjs/framework/link";
+import { companionService, fetch, NetError, requestBytes, type NetResponse } from "../ui/net.ts";
+import { loadDocument, saveDocument, type StoreRequests } from "../ui/store.ts";
 import { notLinked, theComputer } from "../ui/companion.ts";
 
 export const GEOCODING_API = "https://geocoding-api.open-meteo.com/v1/search";
@@ -87,7 +87,7 @@ export interface Forecast {
   daily: Day[];
 }
 
-/** A failed request, with the NET error code when there is one; "http" for
+/** A failed request, with the transport's error code when there is one; "http" for
  *  a refused request, "protocol" for an answer not in the expected shape. */
 export class WeatherError extends Error {
   readonly code: string;
@@ -103,7 +103,7 @@ interface Task {
   body?: string;
   timeoutMs: number;
   maxBytes: number;
-  resolve: (response: PocketResponse) => void;
+  resolve: (response: NetResponse) => void;
   reject: (error: WeatherError) => void;
 }
 
@@ -267,8 +267,8 @@ export function createWeatherClient(): WeatherClient {
     }
   };
 
-  const request = (task: Omit<Task, "resolve" | "reject">, urgent: boolean): Promise<PocketResponse> =>
-    new Promise<PocketResponse>((resolve, reject) => {
+  const request = (task: Omit<Task, "resolve" | "reject">, urgent: boolean): Promise<NetResponse> =>
+    new Promise<NetResponse>((resolve, reject) => {
       const queued: Task = { ...task, resolve, reject };
       if (urgent) queue.unshift(queued);
       else queue.push(queued);
@@ -284,21 +284,25 @@ export function createWeatherClient(): WeatherClient {
     }
   };
 
+  const setRequest = (name: string, body: string) => ({ url: companionService("store", `/set?name=${name}`), method: "POST" as const, body, timeoutMs: 10_000, maxBytes: 4096 });
+  const store: StoreRequests = {
+    get: async (name) => (await json<{ value?: unknown }>({ url: companionService("store", `/get?name=${name}`), timeoutMs: 10_000, maxBytes: 64 * 1024 }, true)).value ?? null,
+    async set(name, body) {
+      const answer = await json<{ ok?: unknown }>(setRequest(name, body), true);
+      if (answer.ok !== true) throw new WeatherError("protocol", "The store did not confirm the save.");
+    },
+    bytes: (name, body) => {
+      const { url, ...task } = setRequest(name, body);
+      return requestBytes(url, { ...task, headers: { "content-type": "application/json" } });
+    },
+  };
+
   return {
     geocode: async (query) => parsePlaces(await json<unknown>({ url: geocodeUrl(query), timeoutMs: 20_000, maxBytes: 64 * 1024 }, true)),
     // Seven days of hours in three columns is about 25 KB of JSON.
     forecast: async (place, urgent = false) => parseForecast(await json<unknown>({ url: forecastUrl(place), timeoutMs: 20_000, maxBytes: 256 * 1024 }, urgent)),
-    async loadSaved() {
-      const body = await json<{ value?: unknown }>({ url: companionService("store", `/get?name=${STORE_NAME}`), timeoutMs: 10_000, maxBytes: 64 * 1024 }, true);
-      return parseSaved(body.value);
-    },
-    async save(saved) {
-      const body = await json<{ ok?: unknown }>(
-        { url: companionService("store", `/set?name=${STORE_NAME}`), method: "POST", body: JSON.stringify(saved), timeoutMs: 10_000, maxBytes: 4096 },
-        true,
-      );
-      if (body.ok !== true) throw new WeatherError("protocol", "The store did not confirm the save.");
-    },
+    loadSaved: async () => parseSaved(await loadDocument(store, STORE_NAME)),
+    save: (saved) => saveDocument(store, STORE_NAME, saved),
     inflight: () => running,
   };
 }

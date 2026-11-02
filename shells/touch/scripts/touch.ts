@@ -8,7 +8,7 @@ import { passThrough } from "../../../scripts/run.ts";
 import { PLAN_DIR, ROOT, VENDOR } from "./paths.ts";
 
 const DESCRIPTOR = resolve(ROOT, "ipodtouch4.json");
-const MANIFEST = resolve(ROOT, "pocket.json");
+const MANIFEST = resolve(ROOT, "pocket.app.json");
 
 /** Bundle the guest alone into the submodule's dist, under the manifest's
  *  output name: that is where the headless sim looks for a bundle it did not

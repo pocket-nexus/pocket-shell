@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// src/system-ui/animation-theme.ts — the animation theme pocket.json names
+// src/system-ui/animation-theme.ts — the animation theme pocket.app.json names
 // in `app.theme`. The Notepad caret reuses the note app's square-wave
 // blink: 500 ms on, 500 ms off, hard edges. Long constant segments keep
 // the DrawList byte-stable between edges so the demand-rendering host

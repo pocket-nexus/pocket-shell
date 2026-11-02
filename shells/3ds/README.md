@@ -1,6 +1,6 @@
 # Pocket Shell on the 3DS and the M5Stack Tab5
 
-This shell is **Pocket Home**, the console's launcher, and the **Pocket
+This shell is **Pocket Shell**, the console's launcher, and the **Pocket
 Applets** it ships with, built once for the Nintendo 3DS and the M5Stack
 Tab5. On the 3DS every applet draws on the touch screen and nowhere else.
 The top screen belongs to the system: for each applet (each declares the
@@ -13,38 +13,58 @@ see [The M5Stack Tab5](#the-m5stack-tab5).
 
 | Home | L+R | The agent at work | The reply |
 | --- | --- | --- | --- |
-| ![Home on the touch screen, Claude's room with the Pocket3D screensaver on the top screen](media/hw/home.png) | ![The choice between Talk and Type](media/hw/ask.png) | ![The agent opens a Hacker News thread under a banner](media/hw/acting.png) | ![The reply card with Talk and Type for the next request](media/hw/reply.png) |
+| ![The home screen on the touch screen, Claude's room with the Pocket3D screensaver on the top screen](media/hw/home.png) | ![The choice between Talk and Type](media/hw/ask.png) | ![The agent opens a Hacker News thread under a banner](media/hw/acting.png) | ![The reply card with Talk and Type for the next request](media/hw/reply.png) |
 
 These are screenshots from an Old 3DS. The third and fourth come from one
 typed request ("Open Hacker News and tell me what the top story is about"),
 which took **30.4k tokens**.
 
-## Home and the applets
+## The launcher and the applets
 
-An applet is a Pocket app that declares the manifest section `applet` and
-meets the applet rules (PocketJS
+An applet is a Pocket app whose app contract (`pocket.app.json`) declares
+the section `applet` and meets the applet rules (PocketJS
 [APPLETS.md](../../vendor/pocketjs/docs/APPLETS.md)): one touch surface
-that admits 320×240, the agent enhanced, an allowlist of capabilities, every network
-destination declared (`applet.services`, `applet.hosts`), no native code and
-no code evaluation, bundle and pak budgets. The PocketJS build refuses an
+that admits 320×240, the agent enhanced, an allowlist of capabilities, the
+companion services it reaches declared (`applet.services`), no native code
+and no code evaluation, bundle and pak budgets. The PocketJS build refuses an
 applet that breaks a rule, and `bun run check:3ds` runs the rules over every
-applet here (`test/applets.test.ts`). Home is the launcher and an app: it
-pairs, installs and switches, which applets cannot.
+applet here (`test/applets.test.ts`). The launcher is an app, not an
+applet: it pairs, installs and switches, which applets cannot.
 
 | Program | Directory | Package | Reaches the console |
 | --- | --- | --- | --- |
-| Pocket Home | `home/` | `dev.pocket-nexus.home`, `home-main` | embedded in the `.3dsx`; the launcher |
-| Hacker News | `hn/` | `dev.pocket-nexus.hn`, `hn-main` | installed through Home from the linked Mac, or pushed |
+| Pocket Shell | `shell/` | `dev.pocket-nexus.shell`, `pocket-shell` | embedded in the `.3dsx`; the launcher |
+| Hacker News | `hn/` | `dev.pocket-nexus.hn`, `hn-main` | installed through the launcher from the linked Mac, or pushed |
 | YouTube | `youtube/` | `dev.pocket-nexus.youtube`, `youtube-main` | the same |
 | X | `x/` | `dev.pocket-nexus.x`, `x-main` | the same |
 | Discord | `discord/` | `dev.pocket-nexus.discord`, `discord-main` | the same |
 | Camera | `camera/` | `dev.pocket-nexus.camera`, `camera-main` | the same |
 | Photos | `photos/` | `dev.pocket-nexus.photos`, `photos-main` | the same |
 | Notes | `notes/` | `dev.pocket-nexus.notes`, `notes-main` | the same |
+| GitHub | `github/` | `dev.pocket-nexus.github`, `github-main` | the same |
+| Weather | `weather/` | `dev.pocket-nexus.weather`, `weather-main` | the same |
+| Podcasts | `podcasts/` | `dev.pocket-nexus.podcasts`, `podcasts-main` | the same |
+| Maps | `maps/` | `dev.pocket-nexus.maps`, `maps-main` | the same |
+| Home Assistant | `homeassistant/` | `dev.pocket-nexus.homeassistant`, `homeassistant-main` | the same |
 
-`ui/` is the iOS 6 kit Home and the applets build on at the 3DS's 0.82 scale: the
+`ui/` is the iOS 6 kit the launcher and the applets build on at the 3DS's 0.82 scale: the
 navigation stack and bar, grouped tables, alerts, text fitting, a slot pool
 for long lists and one stylus router per screen.
+
+**An applet's network is its worker.** The UI realm has no network: an
+applet that declares `net.http` declares the worker in `ui/net-worker.ts`
+(`domains.worker`: one `http` node and a ring each way, the same in every
+app contract), and `ui/net.ts` gives its UI a `fetch` over those rings
+(records in `ui/net-wire.ts`). The host's node runs two requests at once and
+the worker holds the rest. One request's descriptor (URL, method, headers
+and body as JSON) is at most **1020 bytes**: a longer post or reply is
+refused with `invalid_request`, a glyph atlas is asked for in parts that
+`ui/glyphs.ts` merges into one atlas before it loads, and a document in the
+companion's `store` service longer than one request is saved in parts
+(`ui/store.ts`). On the 3DS the node
+rides the Pocket Link to the Mac; on the Tab5 it is the firmware's HTTP over
+Wi-Fi, which resolves `companion.pocket` like any other host name. The sims
+answer the worker's records from fixture routes (`test/net-fake.ts`).
 
 ### Surfaces
 
@@ -78,24 +98,30 @@ On a surface larger than the 3DS's:
   forgets saved networks on a host whose launcher is its settings
   (`wifiCanJoin()`); the 3DS keeps its saved-slot page.
 
-Icons ship an `@2x` texture beside each 1x one (`home/art/icons/bake.ts`), so
+Icons ship an `@2x` texture beside each 1x one (`shell/art/icons/bake.ts`), so
 a density-2 build draws them texel for texel. `POCKET_TAB5_SHOTS=<dir> bun run
 check:3ds` also writes each program's 592×360 and 360×592 screens.
 
 ### The M5Stack Tab5
 
-The Tab5 target is pocket-m5's `programs/m5stack-tab5` with the profile
-`tab5-home` (`home.runtime-config.ts`): an ESP32-P4 whose 1280x720 panel
+The Tab5 target is pocket-m5's `programs/m5stack-tab5` with the host
+contract `tab5-home` (`pocket.host.json`, which its `pocket.host.config.ts`
+names): an ESP32-P4 whose 1280x720 panel
 shows the auxiliary surface at **640x360 logical, presented at 2x**, turned
-onto the portrait panel. The firmware embeds Pocket Home as its launcher
-(`-DPOCKETJS_TAB5_HOME_PACKAGE=<home-main.pocket>`), keeps the installed
-applets on the microSD card and boots one runtime per app; the applets
-install from the Mac's catalog as on the 3DS. The six pictures at the top of
+onto the portrait panel. The firmware embeds Pocket Shell as its launcher,
+keeps the installed applets on the microSD card and boots one runtime per
+app; the applets install from the Mac's catalog as on the 3DS. The six pictures at the top of
 the repository README are this surface.
 
-- `bun run tab5 [app…]` compiles each app against the Tab5 runtime config
-  into `dist/tab5/<output>.pocket`, so its profile hash matches the
-  firmware's. The config is read from a
+- `bun run tab5 [app…]` compiles each app against the Tab5 host config
+  into `dist/tab5/<output>.pocket` and refuses a package the host contract
+  does not admit. The check is PocketJS's admission
+  (`contracts/spec/admission.ts`), the rules the firmware applies when it
+  opens a package: the binding generation, raster density, animation class,
+  viewport, presentation and auxiliary surface match, the tick rate is a
+  whole multiple of a host cadence (an applet's 60 Hz runs two core ticks
+  per 30 Hz frame on the Tab5), and every enabled feature is a host
+  capability. The host config is read from a
   [pocket-m5](https://github.com/pocket-nexus/pocket-m5) checkout:
   `POCKET_M5_ROOT` when set, else `../pocket-m5` beside this repository.
   `bun run offer` builds both the 3DS and the Tab5 package of
@@ -120,11 +146,11 @@ the repository README are this surface.
   `data.fs` tree, the microSD card on the Tab5 and the SD card's slot on the
   3DS; it saves a second after the last edit and when its editor closes.
 - The Tab5 is a repaint display without a compositor, so its animation class
-  is `repaint`: Home keeps a flat wallpaper, cuts where the 3DS zooms and
+  is `repaint`: the launcher keeps a flat wallpaper, cuts where the 3DS zooms and
   wiggles, and its navigation stack cuts where the 3DS slides.
 
-**Home** is the springboard, Settings (Wi-Fi, Mac pairing by QR code, the
-Mac's app catalog) and the clock, which reads the Mac's time over the Pocket
+**The launcher** is the springboard (the home screen), Settings (Wi-Fi, Mac
+pairing by QR code, the Mac's app catalog) and the clock, which reads the Mac's time over the Pocket
 Link. The springboard holds **four columns by two rows a page** above a
 two-icon dock. Labels are bold 10 px (`text-2xs`), so "Hacker News" and
 "Pocket Nexus" fit their 80 px cells; a longer name ends in "...".
@@ -138,19 +164,20 @@ two-icon dock. Labels are bold 10 px (`text-2xs`), so "Hacker News" and
 - Page dots above the dock follow the drag.
 
 **Icons are rendered at 512 px and finished at their size.**
-`home/art/icons/icons.py` models Settings, Hacker News, Wi-Fi and Apps in
+`shell/art/icons/icons.py` models Settings, Hacker News, Wi-Fi and Apps in
 Blender as lit objects on lacquer or metal plates, and Mac as a two-tone
 lacquer face after the Finder (a raised profile line, enamel eyes and
 smile), with few large shapes so they hold at 46 and 24 px. The applets
 get their own: Weather a sun behind a cloud on sky blue, Podcasts the
 broadcast microphone on purple, Maps a street map under a red pin, Home
-Assistant a house with one lit window on its blue. A shape made of
-overlapping outlines (the cloud) is one boolean union before its bevel:
+Assistant a house with one lit window on its blue, GitHub a cat's head in
+white enamel on charcoal lacquer. A shape made of overlapping outlines (the
+cloud, the cat's head and ears) is one boolean union before its bevel, since
 separate prisms with coplanar tops render with dark self-shadow patches.
 Pocket Nexus is the face "O" of the Pocket
 Nexus wordmark, drawn by the wordmark's own code (PocketJS
-`apps/nexus/art/draw.js`, run in headless Chrome by `home/art/icons/nexus.ts`).
-`home/art/icons/bake.ts` gives all of them one finish (the rounded mask, the
+`apps/nexus/art/draw.js`, run in headless Chrome by `shell/art/icons/nexus.ts`).
+`shell/art/icons/bake.ts` gives all of them one finish (the rounded mask, the
 iOS 6 gloss, a lit top rim, a shaded bottom rim and, at 46 px, a drop
 shadow), sharpens them after the downsample and writes 24, 46 and 64 px
 textures. The build reads the committed
@@ -182,9 +209,18 @@ a pushed applet can reach its service; any other request gets 403.
   discord status` prints the invite link. Setup and controls:
   [docs/DISCORD.md](docs/DISCORD.md).
 
+**GitHub** is built from `kit/`, a design system in which a page is rows
+and the kit draws them (`kit/platform.tsx` is what it takes from this
+shell): the inbox, pull requests, issues, repositories, code, diffs,
+reviews, merging, Actions, releases, gists and search, on GitHub's REST API
+with ETags and the Link header's pages. Its token is kept by the
+companion's `store` service, avatars come through `images`, and text in any
+script through `glyphs`. Its 16 px marks are geometry in `kit/icons.gen.ts`.
+
 **Hacker News** lists Top, New, Best, Ask and Show and opens a thread with
-the story and every comment in full. Its requests go through
-`@pocketjs/framework/net`, which on the 3DS rides the Pocket Link to the Mac.
+the story and every comment in full. Its requests go to
+`hacker-news.firebaseio.com` through the applet's worker, which on the 3DS
+rides the Pocket Link to the Mac.
 
 ## The agent
 
@@ -206,21 +242,21 @@ applets in the companion's catalog.
 Run from the repository root.
 
 ```sh
-bun run deploy --host <console-ip>      # build home-main.3dsx, install it over the wire, restart into it
-bun run push --host <console-ip>        # rebuild Home's package and hot-push it
+bun run deploy --host <console-ip>      # build pocket-shell.3dsx, install it over the wire, restart into it
+bun run push --host <console-ip>        # rebuild the launcher's package and hot-push it
 bun run push hn --host <console-ip>     # rebuild Hacker News, install it into its slot and start it
 bun run offer [--3ds|--tab5]            # build the applets' 3DS and Tab5 packages and offer them through the companion
 bun run shot --host <console-ip>        # one screenshot of both screens
-bun run 3ds [home|hn] [--pocket-only]   # build into dist/3ds
+bun run 3ds [shell|hn] [--pocket-only]  # build into dist/3ds
 bun run tab5 [app…]                     # build packages for the M5Stack Tab5 into dist/tab5
-bun run --cwd shells/3ds icons          # re-render and re-bake Home's icons (macOS, Blender 5)
-bun run check:3ds                       # typecheck, the Home and Hacker News sims, unit tests
+bun run --cwd shells/3ds icons          # re-render and re-bake the launcher's icons (macOS, Blender 5)
+bun run check:3ds                       # typecheck, the launcher's and the applets' sims, unit tests
 ```
 
-A change under `home/`, `hn/` or `ui/` reaches a console with `push`. A
+A change under `shell/`, `hn/` or `ui/` reaches a console with `push`. A
 change in the runtime (`vendor/pocketjs/products/3ds`) needs `deploy`. Pairing
 needs ftpd once: `bun run pair --host <console-ip>`. The `.3dsx` is the only
 console format.
 
-Home's recovery state is in `/pocketjs/runtime/apps/<slot>/`, where the slot
-is the first 16 hex digits of the SHA-256 of `dev.pocket-nexus.home`.
+The launcher's recovery state is in `/pocketjs/runtime/apps/<slot>/`, where
+the slot is the first 16 hex digits of the SHA-256 of `dev.pocket-nexus.shell`.

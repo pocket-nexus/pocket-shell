@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// GitHub in the simulator on the Tab5's 592x360 surface, with api.github.com and
-// the companion's services as NET routes: signed out, the tabs, a repository
-// and an issue, and a failed request.
+// shells/3ds/test/github-sim.test.ts — GitHub in the simulator on the Tab5's
+// 592x360 surface, with api.github.com and the companion's services as routes
+// of the applet's worker (test/net-fake.ts): signed out, the tabs, a
+// repository and an issue, and a failed request.
 //
 // POCKET_GITHUB_SHOTS=<dir> writes PNGs.
 
@@ -9,15 +10,15 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { bootConsole3ds, type Console3ds } from "../../../vendor/pocketjs/programs/sim/console-3ds.ts";
-import type { SimNetRequest, SimNetRoute } from "../../../vendor/pocketjs/platforms/sim/net.ts";
+import type { Console3ds } from "../../../vendor/pocketjs/programs/sim/console-3ds.ts";
 import { encodePNG } from "../../../vendor/pocketjs/tools/png.ts";
 import { buildGuest } from "./build.ts";
+import { bootWithNet, type NetConsole, type NetRequest, type NetRoutes } from "./net-fake.ts";
 import { TAB5 } from "./tab5.ts";
 
 const OUT = mkdtempSync(join(tmpdir(), "pocket-github-"));
 const SHOTS = process.env.POCKET_GITHUB_SHOTS;
-const GLOBALS = ["ui", "__pak", "__simHz", "frame", "link", "wifi", "camera", "net", "media", "__pocketApp"] as const;
+const GLOBALS = ["ui", "__pak", "__simHz", "frame", "link", "wifi", "camera", "net", "__pocketWorkerChannels", "media", "__pocketApp"] as const;
 const saved = new Map(GLOBALS.map((key) => [key, (globalThis as Record<string, unknown>)[key]]));
 let GUEST = "";
 
@@ -39,9 +40,9 @@ const NOTE = { id: "1", unread: true, reason: "review_requested", updated_at: is
 
 const json = (value: unknown, status = 200, headers: Record<string, string> = {}) => ({ status, headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(value) });
 
-function routes(options: { signedIn: boolean; failing?: RegExp }): { net: Readonly<Record<string, SimNetRoute>>; asked: string[] } {
+function routes(options: { signedIn: boolean; failing?: RegExp }): { net: NetRoutes; asked: string[] } {
   const asked: string[] = [];
-  const answer = (request: SimNetRequest) => {
+  const answer = (request: NetRequest) => {
     const url = new URL(request.url);
     asked.push(`${request.method ?? "GET"} ${url.host}${url.pathname}`);
     if (url.host === "companion.pocket") {
@@ -61,15 +62,15 @@ function routes(options: { signedIn: boolean; failing?: RegExp }): { net: Readon
     if (path.startsWith("/user/starred")) return json({}, 404);
     return json({ message: "Not Found" }, 404);
   };
-  const net = new Proxy({} as Record<string, SimNetRoute>, {
+  const net = new Proxy({} as NetRoutes, {
     get: (_, key) => (typeof key === "string" && key.startsWith("https://") ? answer : undefined),
   });
   return { net, asked };
 }
 
-async function boot(options: { signedIn: boolean; failing?: RegExp }): Promise<{ app: Console3ds; asked: string[] }> {
+async function boot(options: { signedIn: boolean; failing?: RegExp }): Promise<{ app: NetConsole; asked: string[] }> {
   const { net, asked } = routes(options);
-  const app = await bootConsole3ds({ js: `${GUEST}.js`, pak: `${GUEST}.pak`, current: "github-main", link: null, wifi: null, camera: false, net, auxiliary: TAB5 });
+  const app = await bootWithNet({ js: `${GUEST}.js`, pak: `${GUEST}.pak`, current: "github-main", link: null, wifi: null, camera: false, auxiliary: TAB5 }, net);
   await app.run(60);
   return { app, asked };
 }

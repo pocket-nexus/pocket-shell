@@ -1,6 +1,8 @@
 #!/usr/bin/env bun
-// bun applets/kit/icons.gen.ts — writes applets/ui/art/kit/*.svg and
-// applets/kit/icons.ts. Icons are geometry on a 16 px grid, in the colours the
+// bun shells/3ds/kit/icons.gen.ts — writes github/art/kit/*.svg, the
+// github/images.json that declares them, and kit/icons.ts. An image path is
+// relative to the app contract of the app that draws it, so the icons sit
+// in the one app built on the kit. Icons are geometry on a 16 px grid, in the colours the
 // table asks for, so a new icon is one entry here and no hand-drawn file. The
 // SVG baker fills paths and has no arcs or strokes: circles are beziers, lines
 // are quads.
@@ -69,7 +71,8 @@ const ICONS: Record<string, { shapes: string[]; colors: (keyof typeof T)[] }> = 
 };
 
 const root = resolve(import.meta.dir, "..");
-const art = join(root, "ui", "art", "kit");
+const app = join(root, "github");
+const art = join(app, "art", "kit");
 mkdirSync(art, { recursive: true });
 for (const file of readdirSync(art)) rmSync(join(art, file));
 const rows: string[] = [];
@@ -93,4 +96,7 @@ export type IconName = keyof typeof ICONS;
 /** An icon in one of the colours it comes in: \`ICONS["pr-open"].green\`. */
 export type IconSrc = { [K in IconName]: (typeof ICONS)[K][keyof (typeof ICONS)[K]] }[IconName];
 `);
+// Every icon is a declared input of the app's build, at the default sampling.
+const images = Object.fromEntries(readdirSync(art).sort().map((file) => [`art/kit/${file}`, { linear: false }]));
+writeFileSync(join(app, "images.json"), `${JSON.stringify(images, null, 2)}\n`);
 console.log(`${rows.length} icons, ${readdirSync(art).length} files`);

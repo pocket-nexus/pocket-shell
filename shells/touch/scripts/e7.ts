@@ -7,7 +7,7 @@ import { resolveSymbianE7BuildPlan } from '../../../vendor/pocketjs/tools/symbia
 import { pocketNexusCacheRoot } from '../../../vendor/pocketjs/tools/targets/cache.ts';
 import { withArtifactLock } from '../../../vendor/pocketjs/tools/targets/lock.ts';
 
-const manifest = resolve(ROOT, 'pocket.json');
+const manifest = resolve(ROOT, 'pocket.app.json');
 const plan = resolveSymbianE7BuildPlan(await Bun.file(manifest).json());
 const identity = symbianPackageIdentity(plan);
 const output = resolve(ROOT, '../../.pocket-build/symbian/touch');
