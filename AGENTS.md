@@ -8,7 +8,7 @@ first, and this repository moves its pin.
 The repository holds **three shells**, and a change belongs
 to one of them:
 
-- `shells/3ds/` — Pocket Home, the launcher, and the **Pocket Applets** it
+- `shells/3ds/` — Pocket Shell, the launcher, and the **Pocket Applets** it
   ships with (Hacker News, YouTube, X, Discord, Camera, Photos, Notes), over
   one iOS 6 kit in `ui/`. **Its platforms are the Nintendo 3DS and the M5Stack
   Tab5**: on the 3DS two screens of fixed size, a resistive panel with one
@@ -47,14 +47,14 @@ fonts retain their own licenses. See `LICENSING.md`.
   Themes must not determine package identity or native host behavior.
 - Prose states the mechanism and the reason. No slogans, no imported
   architecture jargon, no empty intensifiers.
-- Every program Home runs is a **Pocket Applet**: its manifest declares
+- Every program the launcher runs is a **Pocket Applet**: its manifest declares
   `applet` (services, hosts, store) and meets the applet rules in PocketJS
   `docs/APPLETS.md` — one 320×240 touch surface, a capability allowlist,
   declared network destinations, no native code, no `eval`, size budgets. The
   PocketJS build refuses a broken applet; `test/applets.test.ts` checks every
-  one. Home is the launcher and declares no `applet`.
+  one. The launcher (`shell/`) declares no `applet`.
 - A manifest entry is relative to `shells/3ds/`, the build's project root;
-  `shells/3ds/scripts/apps.ts` lists Home and the applets and resolves their
+  `shells/3ds/scripts/apps.ts` lists the launcher and the applets and resolves their
   plans.
 - Lone L and R presses reach an applet six frames late (the host waits for
   the L+R chord), so do not bind frequent actions to them.
@@ -70,7 +70,7 @@ documentation or tests. New validation runs stay in ignored artifact folders.
 
 ```sh
 bun run check                        # typecheck + all three shells' unit and sim tests
-bun run push --host <console-ip>     # rebuild Home's package and hot-push it
+bun run push --host <console-ip>     # rebuild the launcher's package and hot-push it
 bun run push hn --host <console-ip>  # rebuild Hacker News, install it into its slot and start it
 bun run deploy --host <console-ip>   # rebuild the .3dsx, install it over the wire, restart into it
 bun run shot --host <console-ip>     # a screenshot of both screens
@@ -93,7 +93,7 @@ bun run check:desktop          # or check:3ds / check:touch
 Run these commands from the repository root. Each shell also has its own
 package.json; desktop artifacts land in `shells/desktop/dist/`.
 
-Changes under `shells/3ds/home`, `hn` or `ui` are hot pushes, and an
+Changes under `shells/3ds/shell`, `hn` or `ui` are hot pushes, and an
 accepted push persists on the card for that app. A change under
 `vendor/pocketjs/products/3ds` is native: `bun run deploy` writes the new
 `.3dsx` to `sdmc:/3ds/` through the running Runtime and restarts into it, and

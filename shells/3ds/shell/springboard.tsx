@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/home/springboard.tsx — the Home screen on the touch screen: the
+// shells/3ds/shell/springboard.tsx — the Home screen on the touch screen: the
 // status bar (carrier, Wi-Fi, time), pages of glossy icons over the
 // wallpaper, page dots and the glass dock (Settings, Camera, Photos, Mac).
 //
@@ -8,13 +8,14 @@
 // page, and on release settles on the page the drag or the flick points to.
 // The D-pad pages at the grid's left and right edges.
 //
-// Where each icon sits comes from layout.ts (pages and dock, kept in Home's
-// data). Holding an icon (or Y) starts edit mode: icons wiggle, applets get
-// a delete badge, and an icon held and moved is picked up. While it follows
-// the stylus the others make room for it, sliding to their new places from
-// their old ones; holding it at the left or right edge turns the page (one
-// past the last opens a new page), and the dock takes it while it has fewer
-// than four icons. START, B, Done or a tap on the wallpaper ends edit mode.
+// Where each icon sits comes from layout.ts (pages and dock, kept in the
+// launcher's data). Holding an icon (or Y) starts edit mode: icons wiggle,
+// applets get a delete badge, and an icon held and moved is picked up. While
+// it follows the stylus the others make room for it, sliding to their new
+// places from their old ones; holding it at the left or right edge turns the
+// page (one past the last opens a new page), and the dock takes it while it
+// has fewer than four icons. START, B, Done or a tap on the wallpaper ends
+// edit mode.
 //
 // The grid is four columns of two rows on the 3DS's 320x240. A larger
 // surface fits as many columns of about 96 px (at least four) and rows of at
@@ -23,8 +24,9 @@
 // Board metrics are read once per boot.
 //
 // Installed applets come from the launcher's app table. Tapping one zooms
-// the screen and asks the host to switch to it; Home boots again after every
-// switch, and its board zooms back from where the launch zoom ended. An
+// the screen and asks the host to switch to it; the launcher boots again
+// after every switch, and its board zooms back from where the launch zoom
+// ended. An
 // applet the host interrupted, or one that stopped with an error, is
 // announced by an iOS 6 banner that slides over the status bar.
 
@@ -55,7 +57,7 @@ import {
   type Place,
 } from "./layout.ts";
 import { ICONS } from "./pages.tsx";
-import { type HomeApp, type HomeSystem } from "./system.ts";
+import { type ShellApp, type ShellSystem } from "./system.ts";
 import { appTint, StatusBar, Tile, Wallpaper, type TileProps } from "../ui/chrome.tsx";
 import { COMPACT, SCREEN_H, SCREEN_W, TALL } from "../ui/screen.ts";
 import { ellipsize, FONT } from "../ui/text.ts";
@@ -134,7 +136,7 @@ function boardMetrics(): Board {
 }
 
 export interface SpringboardEnv {
-  sys: HomeSystem;
+  sys: ShellSystem;
   press: Press;
   keys: Accessor<boolean>;
   setKeys(on: boolean): void;
@@ -154,14 +156,14 @@ export interface Springboard {
 
 /** The banner over the status bar: an applet to go back to, or one that stopped. */
 interface Banner {
-  app: HomeApp | null;
+  app: ShellApp | null;
   title: string;
   line: string;
   /** Tapping the banner: go back to the applet, or dismiss. */
   resume: boolean;
 }
 
-function bannerFor(sys: HomeSystem): Banner | null {
+function bannerFor(sys: ShellSystem): Banner | null {
   const table = sys.table();
   if (table.lastError) {
     const failed = table.apps.find((app) => app.output === table.lastError!.output) ?? null;
@@ -172,14 +174,14 @@ function bannerFor(sys: HomeSystem): Banner | null {
   return null;
 }
 
-/** The board's scale at the end of the launch zoom and the start of Home's
- *  own arrival. */
+/** The board's scale at the end of the launch zoom and the start of the
+ *  launcher's own arrival. */
 const LAUNCH_SCALE = 1.6;
 const LAUNCH_MS = 260;
 const ARRIVE_MS = 300;
-/** The board zooms out behind a launched applet, and back in when Home
- *  arrives, on a composited target. A repaint target cuts: a scale tween
- *  over the board repaints the whole surface every frame. */
+/** The board zooms out behind a launched applet, and back in when the
+ *  launcher arrives, on a composited target. A repaint target cuts: a scale
+ *  tween over the board repaints the whole surface every frame. */
 const ZOOMS = animationClass === "composited";
 /** Icons in edit mode rock between -2 and 2 degrees on a composited
  *  target. A repaint target repaints every icon on each rock, so its icons
@@ -262,7 +264,7 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
     return out;
   });
 
-  const appFor = (key: string): HomeApp | null => (key.startsWith("app:") ? apps().find((app) => appKey(app.output) === key) ?? null : null);
+  const appFor = (key: string): ShellApp | null => (key.startsWith("app:") ? apps().find((app) => appKey(app.output) === key) ?? null : null);
   const titleFor = (key: string) => (key === SETTINGS_KEY ? "Settings" : key === MAC_KEY ? "Mac" : appFor(key)?.title ?? "");
   const tileFor = (key: string): Omit<TileProps, "x" | "y" | "size"> => {
     if (key === SETTINGS_KEY) return { art: ICONS.general.art };
@@ -441,7 +443,7 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
 
   // ---- launching, deleting -------------------------------------------------------
 
-  const launch = (app: HomeApp) => {
+  const launch = (app: ShellApp) => {
     if (launching()) return;
     setLaunching(app.output);
     if (ZOOMS && boardNode) {
@@ -470,7 +472,7 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
     }
   };
 
-  const remove = (app: HomeApp) =>
+  const remove = (app: ShellApp) =>
     env.confirm(`Delete "${app.title}"?`, "Deleting this applet also deletes its data.", "Delete", () => {
       sys.remove(app);
       if (apps().length === 0) setEditing(false);
@@ -571,7 +573,7 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
   const carried = createMemo(() => carry()?.key ?? "");
   const iconProps = { env, board, focus, editing, wiggle, spots, titleFor, tileFor, appFor, carried };
 
-  /** The board as Home boots: back from the launch zoom, while the host's
+  /** The board as the launcher boots: back from the launch zoom, while the host's
    *  switch transition fades its scrim away. */
   const arrive = (node: NodeMirror) => {
     boardNode = node;
@@ -726,7 +728,7 @@ function HomeIcon(props: {
   spots: Accessor<Map<string, Spot>>;
   titleFor(key: string): string;
   tileFor(key: string): Omit<TileProps, "x" | "y" | "size">;
-  appFor(key: string): HomeApp | null;
+  appFor(key: string): ShellApp | null;
   carried: Accessor<string>;
 }) {
   const key = props.iconKey;

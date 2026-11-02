@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/home/layout.ts — where each icon sits on the Home screen: pages
+// shells/3ds/shell/layout.ts — where each icon sits on the Home screen: pages
 // of up to PER_PAGE icons and a dock of up to DOCK_MAX, as iOS SpringBoard
 // keeps them, and where that order is kept between boots.
 //
 // A page holds PER_PAGE icons on the 3DS; a taller surface holds more, and
 // the functions that fill pages take the page size.
 //
-// An icon is a key: "dock:settings" and "dock:mac" for Home's own pages,
-// "app:<output>" for an installed applet. The model is pure (tests import it
+// An icon is a key: "dock:settings" and "dock:mac" for the launcher's own
+// pages, "app:<output>" for an installed applet. The model is pure (tests import it
 // directly); the springboard holds the live copy in a signal.
 //
 // A saved layout is reconciled against what is installed on every read:
@@ -16,8 +16,8 @@
 // dock while it has room, everything else to the first page with room).
 //
 // Storage is the fs module (contracts/spec/fs.ts, capability data.fs, an
-// enhancement in home/pocket.json): one small JSON file in Home's data root.
-// A host without it keeps the order for the session only.
+// enhancement in shell/pocket.json): one small JSON file in the launcher's
+// data root. A host without it keeps the order for the session only.
 
 import { existsSync, readFileSync, writeFileSync } from "@pocketjs/framework/fs";
 
@@ -54,8 +54,8 @@ export function reconcile(saved: HomeLayout | null, keys: readonly string[], per
   };
   const dock = (saved?.dock ?? []).filter(keep).slice(0, DOCK_MAX);
   const pages = (saved?.pages ?? []).map((page) => page.filter(keep).slice(0, perPage)).filter((page) => page.length > 0);
-  // Home's own pages and the dock's applets go to the dock while it has
-  // room, in their default order; everything else fills pages in install
+  // The launcher's own pages and the dock's applets go to the dock while it
+  // has room, in their default order; everything else fills pages in install
   // order.
   for (const key of DEFAULT_DOCK) {
     if (!valid.has(key) || placed.has(key) || dock.length >= DOCK_MAX) continue;

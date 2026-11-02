@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // The shell's apps and their resolved build plans.
 //
-// Home is the launcher: the console binary embeds it, and every other app is
-// a package the launcher installs from the linked Mac. Each manifest's entry
+// Pocket Shell is the launcher: the console binary embeds it, and every other
+// app is a package the launcher installs from the linked Mac. Each manifest's entry
 // is relative to this shell's directory, which is the build's project root.
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -10,13 +10,13 @@ import { resolve } from "node:path";
 import { resolve3dsBuildPlan } from "../../../vendor/pocketjs/tools/3ds-profile.ts";
 import { PLAN_DIR, PROJECT_ROOT } from "./paths.ts";
 
-/** Every directory here with a pocket.json is an app, Home first. */
+/** Every directory here with a pocket.json is an app, the launcher first. */
 export const APPS: readonly string[] = readdirSync(PROJECT_ROOT, { withFileTypes: true })
   .filter((entry) => entry.isDirectory() && existsSync(resolve(PROJECT_ROOT, entry.name, "pocket.json")))
   .map((entry) => entry.name)
-  .sort((a, b) => (a === "home" ? -1 : b === "home" ? 1 : a.localeCompare(b)));
+  .sort((a, b) => (a === "shell" ? -1 : b === "shell" ? 1 : a.localeCompare(b)));
 export type ShellApp = string;
-export const LAUNCHER: ShellApp = "home";
+export const LAUNCHER: ShellApp = "shell";
 
 export function isShellApp(name: string | undefined): name is ShellApp {
   return APPS.includes(name ?? "");

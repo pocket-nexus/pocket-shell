@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Author Pocket Home's icons in Blender and render each one orthographically.
+"""Author Pocket Shell's icons in Blender and render each one orthographically.
 
   /Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup \
-    --python shells/3ds/home/art/icons/icons.py -- --out .pocket-build/home-icons/render [--only hn,mac]
+    --python shells/3ds/shell/art/icons/icons.py -- --out .pocket-build/shell-icons/render [--only hn,mac]
 
 (`bun run icons` in shells/3ds runs this, nexus.ts for Pocket Nexus's
 letter and the bake.)

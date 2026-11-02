@@ -258,7 +258,7 @@ export interface AppTint {
   letters: string;
 }
 
-/** An app's icon: its baked art when Home has one, else a deterministic tint
+/** An app's icon: its baked art when the launcher has one, else a deterministic tint
  *  and letters. */
 export function appTint(id: string, title: string): AppTint {
   let hash = 0x811c9dc5;

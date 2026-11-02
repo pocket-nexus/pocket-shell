@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/home/pages.tsx — the Settings pages: the root list (with the
+// shells/3ds/shell/pages.tsx — the Settings pages: the root list (with the
 // Dual Screen switch), Wi-Fi, Mac, Applets, General, About and Time Zone. Each page is section data over the
 // live system state; the grouped table draws it and the navigation stack
 // scrolls, focuses and pushes it.
@@ -11,14 +11,14 @@ import { createOsk, Osk, oskHeight } from "@pocketjs/framework/osk";
 import type { WifiNetwork } from "@pocketjs/framework/wifi";
 import { offsetText, TIME_ZONES } from "./clock.ts";
 import { displayApi } from "./display.ts";
-import { LINK_PAIRING, LINK_STATE, sizeText, type HomeApp, type HomeSystem } from "./system.ts";
+import { LINK_PAIRING, LINK_STATE, sizeText, type ShellApp, type ShellSystem } from "./system.ts";
 import { appTint } from "../ui/chrome.tsx";
 import type { LayerContext, NavStack, PageSpec } from "../ui/nav.tsx";
 import { SCREEN_H, SCREEN_W } from "../ui/screen.ts";
 import { tableContent, type Cell, type CellIcon, type Section } from "../ui/table.tsx";
 import type { Press } from "../ui/touch.ts";
 
-export const HOME_VERSION = "0.1.0";
+export const SHELL_VERSION = "0.1.0";
 
 export const ICONS = {
   wifi: { art: "wifi" },
@@ -28,7 +28,7 @@ export const ICONS = {
 } satisfies Record<string, CellIcon>;
 
 export interface PageEnv {
-  sys: HomeSystem;
+  sys: ShellSystem;
   press: Press;
   keys: Accessor<boolean>;
   /** Confirm a destructive action in an alert. */
@@ -36,7 +36,7 @@ export interface PageEnv {
 }
 
 /** One line for the Wi-Fi row and the status bar. */
-export function wifiSummary(sys: HomeSystem): string {
+export function wifiSummary(sys: ShellSystem): string {
   const wifi = sys.wifi();
   if (!wifi) return "Unavailable";
   if (wifi.state === "off") return "Off";
@@ -46,7 +46,7 @@ export function wifiSummary(sys: HomeSystem): string {
 }
 
 /** One line for the Mac row. */
-export function linkSummary(sys: HomeSystem): string {
+export function linkSummary(sys: ShellSystem): string {
   const link = sys.link();
   if (!sys.hasLink) return "Unavailable";
   if (link.state === LINK_STATE.linked) return link.companion?.name ?? "Linked";
@@ -317,7 +317,7 @@ function macPage(env: PageEnv, stack: NavStack, layer: LayerContext): PageSpec {
 
 function appsPage(env: PageEnv, _stack: NavStack, layer: LayerContext): PageSpec {
   const { sys } = env;
-  const remove = (app: HomeApp) =>
+  const remove = (app: ShellApp) =>
     env.confirm(`Delete "${app.title}"?`, "Deleting this applet also deletes its data.", "Delete", () => sys.remove(app));
   return {
     title: () => "Applets",
@@ -402,7 +402,7 @@ function aboutPage(env: PageEnv, _stack: NavStack, layer: LayerContext): PageSpe
         {
           cells: [
             { id: "about.apps", label: "Applets", value: String(sys.table().apps.length) },
-            { id: "about.home", label: "Home", value: HOME_VERSION },
+            { id: "about.shell", label: "Pocket Shell", value: SHELL_VERSION },
             { id: "about.runtime", label: "Runtime", value: runtimeText() },
           ],
         },
@@ -416,7 +416,7 @@ function timezonePage(env: PageEnv, _stack: NavStack, layer: LayerContext): Page
   const content = table(env, layer, () => sys.macClock() ? [
       {
         cells: [{ id: `tz.${sys.offset()}`, label: offsetText(sys.offset()), value: "From the Mac", accessory: "check" as const, on: true }],
-        footer: "Home shows the paired Mac's time and time zone. The console's own clock is not used.",
+        footer: "Pocket Shell shows the paired Mac's time and time zone. The console's own clock is not used.",
       },
     ] : [
       {
@@ -429,7 +429,7 @@ function timezonePage(env: PageEnv, _stack: NavStack, layer: LayerContext): Page
           on: sys.offset() === zone.offset,
           run: () => sys.setOffset(zone.offset),
         })),
-        footer: "No Mac has linked since the console started, so Home shows the console's clock. Pair a Mac to take its time.",
+        footer: "No Mac has linked since the console started, so Pocket Shell shows the console's clock. Pair a Mac to take its time.",
       },
     ]);
   // Open on the zone in use.

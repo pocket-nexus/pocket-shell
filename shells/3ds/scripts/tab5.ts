@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // bun run tab5 [app…] — build packages for the M5Stack Tab5 (ESP-IDF).
 //
-// The Tab5 program in pocket-m5 (programs/m5stack-tab5, app "home") embeds
-// Home and installs the applets from the linked Mac, like the 3DS. Every
+// The Tab5 program in pocket-m5 (programs/m5stack-tab5) embeds Pocket Shell
+// and installs the applets from the linked Mac, like the 3DS. Every
 // package compiles against that program's runtime config, so its profile
 // hash matches the firmware's. The config is read from a pocket-m5 checkout:
 // POCKET_M5_ROOT when set, else ../pocket-m5 beside this repository. Outputs
