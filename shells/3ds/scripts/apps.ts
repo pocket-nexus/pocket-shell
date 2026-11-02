@@ -2,17 +2,24 @@
 // The shell's apps and their resolved build plans.
 //
 // Pocket Shell is the launcher: the console binary embeds it, and every other
-// app is a package the launcher installs from the linked Mac. Each manifest's entry
-// is relative to this shell's directory, which is the build's project root.
+// app is a package the launcher installs from the linked Mac. Each app
+// contract's entry is relative to this shell's directory, which is the
+// build's project root.
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { readPocketManifest } from "../../../vendor/pocketjs/framework/src/manifest/load.ts";
 import { resolve3dsBuildPlan } from "../../../vendor/pocketjs/tools/3ds-profile.ts";
 import { PLAN_DIR, PROJECT_ROOT } from "./paths.ts";
 
-/** Every directory here with a pocket.json is an app, the launcher first. */
+/** `app`'s app contract. */
+export function appContract(app: string): string {
+  return resolve(PROJECT_ROOT, app, "pocket.app.json");
+}
+
+/** Every directory here with a pocket.app.json is an app, the launcher first. */
 export const APPS: readonly string[] = readdirSync(PROJECT_ROOT, { withFileTypes: true })
-  .filter((entry) => entry.isDirectory() && existsSync(resolve(PROJECT_ROOT, entry.name, "pocket.json")))
+  .filter((entry) => entry.isDirectory() && existsSync(appContract(entry.name)))
   .map((entry) => entry.name)
   .sort((a, b) => (a === "shell" ? -1 : b === "shell" ? 1 : a.localeCompare(b)));
 export type ShellApp = string;
@@ -22,11 +29,10 @@ export function isShellApp(name: string | undefined): name is ShellApp {
   return APPS.includes(name ?? "");
 }
 
-/** Resolve `app`'s manifest against the 3ds-dev profile and write the plan
- *  the vendored toolchain reads. */
+/** Resolve `app`'s app contract against the 3ds-dev host contract and write
+ *  the plan the vendored toolchain reads. */
 export function writePlan(app: ShellApp): { path: string; output: string } {
-  const manifest = JSON.parse(readFileSync(resolve(PROJECT_ROOT, app, "pocket.json"), "utf8"));
-  const plan = resolve3dsBuildPlan(manifest);
+  const plan = resolve3dsBuildPlan(readPocketManifest(appContract(app)).manifest);
   mkdirSync(PLAN_DIR, { recursive: true });
   const path = resolve(PLAN_DIR, `${plan.app.output}.3ds.plan.json`);
   writeFileSync(path, `${JSON.stringify(plan, null, 2)}\n`);

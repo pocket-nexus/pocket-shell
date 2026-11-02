@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 
 const root = resolve(import.meta.dir, "..");
 // The release is the console binary, which embeds Pocket Shell, the launcher.
-const manifestPath = "shells/3ds/shell/pocket.json";
+const manifestPath = "shells/3ds/shell/pocket.app.json";
 const binaryName = "pocket-shell";
 const product = "pocket-shell";
 

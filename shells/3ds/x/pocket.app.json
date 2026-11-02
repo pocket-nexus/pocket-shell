@@ -2,7 +2,6 @@
   "$schema": "https://pocketjs.dev/schema/pocket-2.json",
   "pocket": 2,
   "id": "dev.pocket-nexus.x",
-  "name": "pocket-x",
   "title": "X",
   "version": "0.1.0",
   "applet": {

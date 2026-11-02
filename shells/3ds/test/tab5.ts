@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/test/tab5.ts — the surfaces larger than the 3DS's that the sims
-// also run each program on: the M5Stack Tab5's 592x360 landscape surface
-// (home.host.json in PocketJS's m5stack-tab5 example) and a 360x592 portrait
-// one. POCKET_TAB5_SHOTS=<dir> writes their PNGs, one logical pixel per
-// pixel (half the Tab5 panel's size).
+// also run each program on: a 592x360 landscape surface and a 360x592
+// portrait one (the Tab5 firmware presents 640x360). POCKET_TAB5_SHOTS=<dir>
+// writes their PNGs, one logical pixel per pixel.
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";

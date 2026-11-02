@@ -1,15 +1,11 @@
 {
   "$schema": "https://pocketjs.dev/schema/pocket-2.json",
   "pocket": 2,
-  "id": "dev.pocket-nexus.hn",
-  "name": "pocket-hn",
-  "title": "Hacker News",
+  "id": "dev.pocket-nexus.camera",
+  "title": "Camera",
   "version": "0.1.0",
   "applet": {
-    "version": 1,
-    "hosts": [
-      "hacker-news.firebaseio.com"
-    ]
+    "version": 1
   },
   "engine": {
     "capabilities": {
@@ -18,17 +14,16 @@
         "input.buttons",
         "display.auxiliary",
         "input.touch.auxiliary",
-        "net.http"
+        "camera.photo"
       ],
       "enhances": [
-        "input.analog.left",
         "system.agent"
       ]
     }
   },
   "app": {
-    "entry": "hn/main.tsx",
-    "output": "hn-main",
+    "entry": "camera/main.tsx",
+    "output": "camera-main",
     "framework": "solid",
     "surfaces": {
       "auxiliary": {

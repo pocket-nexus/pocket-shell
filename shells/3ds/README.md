@@ -21,12 +21,12 @@ which took **30.4k tokens**.
 
 ## The launcher and the applets
 
-An applet is a Pocket app that declares the manifest section `applet` and
-meets the applet rules (PocketJS
+An applet is a Pocket app whose app contract (`pocket.app.json`) declares
+the section `applet` and meets the applet rules (PocketJS
 [APPLETS.md](../../vendor/pocketjs/docs/APPLETS.md)): one touch surface
-that admits 320×240, the agent enhanced, an allowlist of capabilities, every network
-destination declared (`applet.services`, `applet.hosts`), no native code and
-no code evaluation, bundle and pak budgets. The PocketJS build refuses an
+that admits 320×240, the agent enhanced, an allowlist of capabilities, the
+companion services it reaches declared (`applet.services`), no native code
+and no code evaluation, bundle and pak budgets. The PocketJS build refuses an
 applet that breaks a rule, and `bun run check:3ds` runs the rules over every
 applet here (`test/applets.test.ts`). The launcher is an app, not an
 applet: it pairs, installs and switches, which applets cannot.
@@ -84,17 +84,24 @@ check:3ds` also writes each program's 592×360 and 360×592 screens.
 
 ### The M5Stack Tab5
 
-The Tab5 target is pocket-m5's `programs/m5stack-tab5` with the profile
-`tab5-home` (`home.runtime-config.ts`): an ESP32-P4 whose 1280x720 panel
+The Tab5 target is pocket-m5's `programs/m5stack-tab5` with the host
+contract `tab5-home` (`pocket.host.json`, which its `pocket.host.config.ts`
+names): an ESP32-P4 whose 1280x720 panel
 shows the auxiliary surface at **640x360 logical, presented at 2x**, turned
 onto the portrait panel. The firmware embeds Pocket Shell as its launcher,
-keeps the installed applets on the microSD card and boots one runtime per app; the applets
-install from the Mac's catalog as on the 3DS. The six pictures at the top of
+keeps the installed applets on the microSD card and boots one runtime per
+app; the applets install from the Mac's catalog as on the 3DS. The six pictures at the top of
 the repository README are this surface.
 
-- `bun run tab5 [app…]` compiles each app against the Tab5 runtime config
-  into `dist/tab5/<output>.pocket`, so its profile hash matches the
-  firmware's. The config is read from a
+- `bun run tab5 [app…]` compiles each app against the Tab5 host config
+  into `dist/tab5/<output>.pocket` and refuses a package the host contract
+  does not admit. The check is PocketJS's admission
+  (`contracts/spec/admission.ts`), the rules the firmware applies when it
+  opens a package: the binding generation, raster density, animation class,
+  viewport, presentation and auxiliary surface match, the tick rate is a
+  whole multiple of a host cadence (an applet's 60 Hz runs two core ticks
+  per 30 Hz frame on the Tab5), and every enabled feature is a host
+  capability. The host config is read from a
   [pocket-m5](https://github.com/pocket-nexus/pocket-m5) checkout:
   `POCKET_M5_ROOT` when set, else `../pocket-m5` beside this repository.
   `bun run offer` builds both the 3DS and the Tab5 package of

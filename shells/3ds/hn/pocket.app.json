@@ -1,15 +1,11 @@
 {
   "$schema": "https://pocketjs.dev/schema/pocket-2.json",
   "pocket": 2,
-  "id": "dev.pocket-nexus.notes",
-  "name": "pocket-notes",
-  "title": "Notes",
+  "id": "dev.pocket-nexus.hn",
+  "title": "Hacker News",
   "version": "0.1.0",
   "applet": {
-    "version": 1,
-    "store": {
-      "maxBytes": 4194304
-    }
+    "version": 1
   },
   "engine": {
     "capabilities": {
@@ -18,39 +14,29 @@
         "input.buttons",
         "display.auxiliary",
         "input.touch.auxiliary",
-        "data.fs"
+        "net.http"
       ],
       "enhances": [
-        "input.text",
         "input.analog.left",
         "system.agent"
       ]
     }
   },
   "app": {
-    "entry": "notes/main.tsx",
-    "output": "notes-main",
+    "entry": "hn/main.tsx",
+    "output": "hn-main",
     "framework": "solid",
     "surfaces": {
       "auxiliary": {
         "adaptive": {
-          "min": [
-            320,
-            240
-          ],
-          "max": [
-            640,
-            720
-          ]
+          "min": [320, 240],
+          "max": [640, 720]
         }
       }
     },
     "viewport": {
       "fixed": {
-        "logical": [
-          400,
-          240
-        ],
+        "logical": [400, 240],
         "presentation": "native"
       }
     }

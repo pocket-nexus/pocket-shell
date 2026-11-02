@@ -64,8 +64,9 @@ runtime APIs come from `@pocketjs/framework/*`.
 
 ## Development
 
-Run commands from the repository root. Bun, Rust and the
-`wasm32-unknown-unknown` Rust target are required for the complete check.
+Run commands from the repository root. Bun (the version in `.bun-version`,
+which the pinned PocketJS runs on), Rust and the `wasm32-unknown-unknown`
+Rust target are required for the complete check.
 Native targets have additional requirements in their shell's README.
 
 ```sh

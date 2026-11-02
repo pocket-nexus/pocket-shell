@@ -1,14 +1,14 @@
 {
   "$schema": "https://pocketjs.dev/schema/pocket-2.json",
   "pocket": 2,
-  "id": "dev.pocket-nexus.youtube",
-  "name": "pocket-youtube",
-  "title": "YouTube",
+  "id": "dev.pocket-nexus.discord",
+  "title": "Discord",
   "version": "0.1.0",
   "applet": {
     "version": 1,
     "services": [
-      "youtube"
+      "discord",
+      "glyphs"
     ]
   },
   "engine": {
@@ -22,14 +22,13 @@
       ],
       "enhances": [
         "input.analog.left",
-        "media.playback",
         "system.agent"
       ]
     }
   },
   "app": {
-    "entry": "youtube/main.tsx",
-    "output": "youtube-main",
+    "entry": "discord/main.tsx",
+    "output": "discord-main",
     "framework": "solid",
     "surfaces": {
       "auxiliary": {
