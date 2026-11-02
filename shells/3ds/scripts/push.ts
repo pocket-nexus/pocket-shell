@@ -13,7 +13,7 @@ import { DIST_3DS, ROOT, VENDOR } from "./paths.ts";
 
 const args = process.argv.slice(2);
 const app = isShellApp(args[0]) ? args.shift()! : LAUNCHER;
-const { output } = writePlan(app as typeof LAUNCHER);
+const { output } = writePlan(app);
 
 await plantDeviceKeys();
 await passThrough($`bun ${resolve(import.meta.dir, "3ds.ts")} ${app} --pocket-only`.cwd(ROOT));
