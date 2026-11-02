@@ -9,8 +9,8 @@
 // draft and closes it.
 //
 // The X session lives on the linked Mac (Pocket Companion's x service); the
-// console asks it for pages over @pocketjs/framework/net. Text in any script
-// draws from glyph atlases the Mac renders (ui/glyphs.ts).
+// console asks it for pages through the applet's worker (ui/net.ts). Text
+// in any script draws from glyph atlases the Mac renders (ui/glyphs.ts).
 
 import { createSignal, For, Show } from "solid-js";
 import { AuxiliarySurface, Text, View } from "@pocketjs/framework/components";

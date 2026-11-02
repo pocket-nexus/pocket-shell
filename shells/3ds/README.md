@@ -46,6 +46,19 @@ applet: it pairs, installs and switches, which applets cannot.
 navigation stack and bar, grouped tables, alerts, text fitting, a slot pool
 for long lists and one stylus router per screen.
 
+**An applet's network is its worker.** The UI realm has no network: an
+applet that declares `net.http` declares the worker in `ui/net-worker.ts`
+(`domains.worker`: one `http` node and a ring each way, the same in every
+app contract), and `ui/net.ts` gives its UI a `fetch` over those rings
+(records in `ui/net-wire.ts`). The host's node runs two requests at once and
+the worker holds the rest. One request's descriptor (URL, method, headers
+and body as JSON) is at most **1020 bytes**: a longer post or reply is
+refused with `invalid_request`, and a glyph atlas is asked for in parts that
+`ui/glyphs.ts` merges into one atlas before it loads. On the 3DS the node
+rides the Pocket Link to the Mac; on the Tab5 it is the firmware's HTTP over
+Wi-Fi, which resolves `companion.pocket` like any other host name. The sims
+answer the worker's records from fixture routes (`test/net-fake.ts`).
+
 ### Surfaces
 
 Every manifest declares an adaptive surface, `app.surfaces.auxiliary.adaptive`
@@ -183,8 +196,9 @@ a pushed applet can reach its service; any other request gets 403.
   [docs/DISCORD.md](docs/DISCORD.md).
 
 **Hacker News** lists Top, New, Best, Ask and Show and opens a thread with
-the story and every comment in full. Its requests go through
-`@pocketjs/framework/net`, which on the 3DS rides the Pocket Link to the Mac.
+the story and every comment in full. Its requests go to
+`hacker-news.firebaseio.com` through the applet's worker, which on the 3DS
+rides the Pocket Link to the Mac.
 
 ## The agent
 
