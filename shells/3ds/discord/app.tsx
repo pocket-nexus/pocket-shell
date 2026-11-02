@@ -7,8 +7,8 @@
 // "system.agent"). X (or Write) opens the composer over the channel with the
 // system keyboard; START sends, B keeps the draft and closes it.
 //
-// Every request goes to the companion's discord service through
-// @pocketjs/framework/net; the console never holds the bot's token.
+// Every request goes to the companion's discord service through the
+// applet's worker (ui/net.ts); the console never holds the bot's token.
 
 import { createEffect, createSignal, For, Show } from "solid-js";
 import { AppletSurface } from "@pocketjs/framework/applet";

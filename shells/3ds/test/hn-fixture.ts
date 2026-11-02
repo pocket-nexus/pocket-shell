@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/test/hn-fixture.ts — a deterministic Hacker News for the HN sim tests:
-// feeds, stories and a comment thread as NET routes (platforms/sim/net.ts).
+// feeds, stories and a comment thread as routes of the sims' worker
+// (test/net-fake.ts).
 // Every title, name and comment is invented for the fixture.
 
-import type { SimNetRoute } from "../../../vendor/pocketjs/platforms/sim/net.ts";
+import type { NetRoute } from "./net-fake.ts";
 
 export const HN_API = "https://hacker-news.firebaseio.com/v0";
 /** 2026-10-19T01:41:00Z, the console sim's default boot epoch. */
@@ -83,10 +84,10 @@ export function hnFixture(options: { stories?: number } = {}): { items: Map<numb
   return { items, top };
 }
 
-/** NET routes serving the fixture; `failFeeds` answers every feed with `code`. */
-export function hnRoutes(options: { stories?: number; failFeeds?: string } = {}): Record<string, SimNetRoute> {
+/** Routes serving the fixture; `failFeeds` answers every feed with `code`. */
+export function hnRoutes(options: { stories?: number; failFeeds?: string } = {}): Record<string, NetRoute> {
   const { items, top } = hnFixture(options);
-  const routes: Record<string, SimNetRoute> = {};
+  const routes: Record<string, NetRoute> = {};
   for (const feed of ["topstories", "newstories", "beststories", "askstories", "showstories"]) {
     const ids = feed === "topstories" ? top : feed === "askstories" ? top.filter((id) => items.get(id)!.title!.startsWith("Ask HN")) : [...top].reverse();
     routes[`${HN_API}/${feed}.json`] = options.failFeeds

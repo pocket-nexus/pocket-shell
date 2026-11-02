@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/hn/api.ts — the Hacker News Firebase API over @pocketjs/framework/net.
+// shells/3ds/hn/api.ts — the Hacker News Firebase API through the applet's
+// worker (ui/net.ts).
 //
 // A feed is one id list (/v0/topstories.json); every story and comment is
-// one more request (/v0/item/<id>.json). The NET module admits at most
-// NET_MAX_INFLIGHT (2) requests at a time, so every request goes through one
+// one more request (/v0/item/<id>.json). The host's http node runs two
+// requests at a time (MAX_INFLIGHT), so every request goes through one
 // queue that starts the next as a slot frees. Comment fetches jump the queue
 // ahead of story prefetches, so the thread on screen fills first. Items are
 // kept in memory for the life of the app.
 
-import { fetch, NetError } from "@pocketjs/framework/net";
-import { notLinked, theComputer } from "../ui/companion.ts";
+import { fetch, NetError } from "../ui/net.ts";
 
 export const API = "https://hacker-news.firebaseio.com/v0";
 export const MAX_INFLIGHT = 2;
@@ -39,7 +39,7 @@ export interface Item {
   dead?: boolean;
 }
 
-/** A failed request, with the NET error code when there is one. */
+/** A failed request, with the transport's error code when there is one. */
 export class HnError extends Error {
   readonly code: string;
   constructor(code: string, message: string) {
@@ -142,9 +142,9 @@ export function createHnClient(): HnClient {
 export function errorText(error: unknown): { title: string; detail: string } {
   const code = error instanceof HnError ? error.code : "";
   if (code === "unavailable") {
-    return notLinked("Hacker News");
+    return { title: "Not linked to a Mac", detail: "Hacker News loads through your Mac. Pair one in Settings > Mac and open Pocket Companion." };
   }
-  if (code === "timeout") return { title: "The request timed out", detail: `${theComputer()} or the network did not answer in time.` };
+  if (code === "timeout") return { title: "The request timed out", detail: "The Mac or the network did not answer in time." };
   const message = error instanceof Error ? error.message : String(error);
   return { title: "Could not load", detail: message || "The request failed." };
 }

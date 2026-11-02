@@ -29,12 +29,19 @@ for (const path of tracked.filter((path) => path.endsWith(".md"))) {
 const sourceInputs = new Set([
   "shells/desktop/assets/fonts/W95FA.otf",
 ]);
-// Each 3DS app's pictures (Home's Blender-baked icons, X's action icons):
-// the images.json beside an app's manifest names what its build reads.
+// Each 3DS app's pictures (the launcher's Blender-baked icons, X's action
+// icons): the images.json beside an app's manifest names what its build reads,
+// and the app contract names its package icon.
 for (const app of readdirSync(resolve(ROOT, "shells/3ds"), { withFileTypes: true })) {
+  if (!app.isDirectory()) continue;
   const manifest = resolve(ROOT, "shells/3ds", app.name, "images.json");
-  if (!app.isDirectory() || !existsSync(manifest)) continue;
-  for (const key of Object.keys(JSON.parse(readFileSync(manifest, "utf8")))) sourceInputs.add(`shells/3ds/${app.name}/${key}`);
+  if (existsSync(manifest)) {
+    for (const key of Object.keys(JSON.parse(readFileSync(manifest, "utf8")))) sourceInputs.add(`shells/3ds/${app.name}/${key}`);
+  }
+  // An app contract's icon is the package's cover picture.
+  const contract = resolve(ROOT, "shells/3ds", app.name, "pocket.app.json");
+  const icon = existsSync(contract) ? (JSON.parse(readFileSync(contract, "utf8")) as { icon?: string }).icon : undefined;
+  if (icon) sourceInputs.add(relative(ROOT, resolve(dirname(contract), icon)));
 }
 const touchImages = JSON.parse(readFileSync(resolve(ROOT, "shells/touch/src/images.json"), "utf8"));
 for (const key of Object.keys(touchImages)) sourceInputs.add(`shells/touch/src/${key}`);

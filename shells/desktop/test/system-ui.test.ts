@@ -321,7 +321,7 @@ describe("Pocket app desktop catalog", () => {
   test("rejects duplicate artifact outputs before any package build", async () => {
     const packages = await packageInputs();
     const hero = packages.find(
-      (entry) => entry.source === "vendor/pocketjs/apps/hero/pocket.json",
+      (entry) => entry.source === "vendor/pocketjs/apps/hero/pocket.app.json",
     )!;
     (hero.manifest as any).app.output = "settings-main";
     const result = validateAndResolveSystemPlan(system, {
@@ -342,7 +342,7 @@ describe("Pocket app desktop catalog", () => {
         (packageId) => packageId !== "dev.pocket-nexus.hero",
       );
     const packages = (await packageInputs()).filter(
-      (entry) => entry.source !== "vendor/pocketjs/apps/hero/pocket.json",
+      (entry) => entry.source !== "vendor/pocketjs/apps/hero/pocket.app.json",
     );
     const result = validateAndResolveSystemPlan(available, {
       target: "macos-app",
@@ -370,7 +370,7 @@ describe("Pocket app desktop catalog", () => {
     const missing = validateAndResolveSystemPlan(missingSystemUI, {
       target: "macos-app",
       packages: (await packageInputs()).filter(
-        (entry) => entry.source !== "shells/desktop/pocket.json",
+        (entry) => entry.source !== "shells/desktop/pocket.app.json",
       ),
     });
     expect(missing.ok).toBe(false);
@@ -399,7 +399,7 @@ describe("Pocket app desktop catalog", () => {
   test("grants compositor surfaces only to the System UI role", async () => {
     const required = await packageInputs();
     const requiredHero = required.find(
-      (entry) => entry.source === "vendor/pocketjs/apps/hero/pocket.json",
+      (entry) => entry.source === "vendor/pocketjs/apps/hero/pocket.app.json",
     )!;
     (requiredHero.manifest as any).engine.capabilities.requires.push(
       "ui.compositor-surfaces",
@@ -417,7 +417,7 @@ describe("Pocket app desktop catalog", () => {
 
     const enhanced = await packageInputs();
     const enhancedHero = enhanced.find(
-      (entry) => entry.source === "vendor/pocketjs/apps/hero/pocket.json",
+      (entry) => entry.source === "vendor/pocketjs/apps/hero/pocket.app.json",
     )!;
     (enhancedHero.manifest as any).engine.capabilities.enhances.push(
       "ui.compositor-surfaces",
@@ -438,7 +438,7 @@ describe("Pocket app desktop catalog", () => {
   test("requires a hard compositor-surface dependency from System UI", async () => {
     const packages = await packageInputs();
     const shell = packages.find(
-      (entry) => entry.source === "shells/desktop/pocket.json",
+      (entry) => entry.source === "shells/desktop/pocket.app.json",
     )!;
     const capabilities = (shell.manifest as any).engine.capabilities;
     capabilities.requires = capabilities.requires.filter(
@@ -460,7 +460,7 @@ describe("Pocket app desktop catalog", () => {
   test("rejects child companions until an AppInstance adapter exists", async () => {
     const packages = await packageInputs();
     const hero = packages.find(
-      (entry) => entry.source === "vendor/pocketjs/apps/hero/pocket.json",
+      (entry) => entry.source === "vendor/pocketjs/apps/hero/pocket.app.json",
     )!;
     (hero.manifest as any).app.companions = ["note"];
     const result = validateAndResolveSystemPlan(system, {

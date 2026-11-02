@@ -7,8 +7,8 @@
 // "system.agent"). L and R change the feed on the story list and page
 // through a thread.
 //
-// Every request rides @pocketjs/framework/net, which on the 3DS goes through
-// the linked Mac, two at a time.
+// Every request goes through the applet's worker (ui/net.ts), which on the
+// 3DS rides the Pocket Link to the linked Mac, two at a time.
 
 import { createSignal } from "solid-js";
 import { AppletSurface } from "@pocketjs/framework/applet";

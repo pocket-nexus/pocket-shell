@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/test/x-fixture.ts — a deterministic X for the X sim tests: the
-// companion's x service (https://companion.pocket/x/) as NET routes
-// (platforms/sim/net.ts), in the JSON shape PocketJS tools/companion/services/x.ts
+// companion's x service (https://companion.pocket/x/) as routes of the sims'
+// worker (test/net-fake.ts), in the JSON shape PocketJS tools/companion/services/x.ts
 // answers. Every name and post is invented for the fixture.
 
 import { readFileSync } from "node:fs";
@@ -10,7 +10,7 @@ import opentype from "opentype.js";
 import { bakeSlot } from "../../../vendor/pocketjs/framework/compiler/bake-font.ts";
 import { encodeImageEntry } from "../../../vendor/pocketjs/framework/compiler/pak.ts";
 import { PSM } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
-import type { SimNetResponse, SimNetRoute } from "../../../vendor/pocketjs/platforms/sim/net.ts";
+import type { NetAnswer, NetRoute } from "./net-fake.ts";
 import type { Post } from "../x/api.ts";
 
 export const X_SERVICE = "https://companion.pocket/x";
@@ -73,7 +73,7 @@ let fonts: { regular: opentype.Font; bold: opentype.Font; cjk: opentype.Font } |
 
 /** The companion's glyphs service, baked like the build bakes: Inter for
  *  Latin with the Noto CJK demo subset behind it (no CoreText in a test). */
-export function glyphRoute(calls: { px: number; bold: boolean; slot: number; text: string }[] = []): SimNetRoute {
+export function glyphRoute(calls: { px: number; bold: boolean; slot: number; text: string }[] = []): NetRoute {
   return (request) => {
     const body = JSON.parse(new TextDecoder().decode(request.body)) as { px: number; bold: boolean; slot: number; text: string };
     calls.push(body);
@@ -99,15 +99,15 @@ export interface XCalls {
 /** Liking this post fails, as when X refuses an action. */
 export const REFUSED_LIKE = "1005";
 
-/** NET routes serving the fixture; `signedOut` answers like a Mac with no X session. */
-export function xRoutes(options: { signedOut?: boolean; calls?: XCalls } = {}): Record<string, SimNetRoute> {
-  const json = (value: unknown, status = 200): SimNetResponse => ({ status, headers: { "content-type": "application/json" }, body: JSON.stringify(value), delayTicks: 3 });
+/** Routes serving the fixture; `signedOut` answers like a Mac with no X session. */
+export function xRoutes(options: { signedOut?: boolean; calls?: XCalls } = {}): Record<string, NetRoute> {
+  const json = (value: unknown, status = 200): NetAnswer => ({ status, headers: { "content-type": "application/json" }, body: JSON.stringify(value), delayTicks: 3 });
   if (options.signedOut) {
     const refused = json({ error: "signed-out", message: "Not signed in to X on the Mac. Run: bun tools/companion.ts service x login" }, 401);
     return { [`${X_SERVICE}/timeline?kind=following`]: refused, [`${X_SERVICE}/timeline?kind=foryou`]: refused };
   }
   const first = xPosts(1);
-  const routes: Record<string, SimNetRoute> = {
+  const routes: Record<string, NetRoute> = {
     [`${X_SERVICE}/timeline?kind=following`]: json({ posts: first, cursor: "PAGE-2" }),
     [`${X_SERVICE}/timeline?kind=following&cursor=PAGE-2`]: json({ posts: xPosts(2), cursor: null }),
     [`${X_SERVICE}/timeline?kind=foryou`]: json({ posts: [...first].reverse(), cursor: null }),

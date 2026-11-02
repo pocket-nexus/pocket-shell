@@ -1,42 +1,96 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// bun run psp [--skip-eboot] — build Home and the applets for the PSP: one
-// multi-app EBOOT with Home as app 0 (the launcher) and every other program
-// whose manifest serves the PSP's full screen (the applet full-screen
-// presentation, contracts/spec/applet.ts). Programs that only serve a touch
-// surface (Camera, Photos) do not resolve for the PSP and are left out.
+// bun run psp [--skip-eboot] — build Pocket Shell for the PSP: one EBOOT with
+// the launcher as app 0 and, embedded after it, every applet whose app
+// contract resolves for the PSP's full screen (the applet full-screen
+// presentation, PocketJS contracts/spec/applet.ts).
 //
-// Each program resolves against the stock psp profile, builds with the
-// vendored toolchain, and is packed as dist/psp/packages/<output>.pocket; the
-// EBOOT embeds the packages (docs/LAUNCHER.md). Over PSPLINK the PRX runs from
-// the share the tethered computer serves, the same share its companion
-// answers the PSP's net requests in (docs/POCKET-LINK.md "USB carrier").
+// Each app resolves against PocketJS's psp host contract
+// (hosts/psp/pocket.host.json, which programs/psp/pocket.host.config.ts
+// names), compiles into dist/psp/packages/<output>.pocket and must be
+// admitted by that contract, the check the EBOOT build makes again. An app
+// that does not resolve is left out with the resolver's reasons: Camera,
+// Photos and Notes serve the touch surface only, and the network applets
+// declare a worker with an http node, which the PSP host does not run
+// (it provides neither runtime.worker nor net.http). The EBOOT links with
+// PocketJS's tools/psp.ts and needs its toolchain (`pocket target add psp`);
+// --skip-eboot stops after the packages.
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { encodePocketPackage } from "../../../vendor/pocketjs/contracts/spec/pocket-package.ts";
-import { canonicalJson, type ResolvedBuildPlan } from "../../../vendor/pocketjs/framework/src/manifest/plan.ts";
+import { admissionHost, describeRejection, selectVariant } from "../../../vendor/pocketjs/contracts/spec/admission.ts";
+import { decodePocketPackage } from "../../../vendor/pocketjs/contracts/spec/pocket-package.ts";
+import { readPocketManifest } from "../../../vendor/pocketjs/framework/src/manifest/load.ts";
+import type { ResolvedBuildPlan } from "../../../vendor/pocketjs/framework/src/manifest/plan.ts";
 import { validateAndResolveBuildPlan } from "../../../vendor/pocketjs/framework/src/manifest/resolve.ts";
-import { makeVariant } from "../../../vendor/pocketjs/tools/pocket-pack.ts";
-import { APPS, LAUNCHER } from "./apps.ts";
+import { hashPocketProfile } from "../../../vendor/pocketjs/framework/src/profile.ts";
+import { POCKET_PROFILES } from "../../../vendor/pocketjs/hosts/index.ts";
+import { profileRegistry } from "../../../vendor/pocketjs/tools/profile-resolver.ts";
+import { APPS, appContract, LAUNCHER } from "./apps.ts";
 import { DIST_PSP, PLAN_DIR_PSP, PROJECT_ROOT, VENDOR } from "./paths.ts";
 
+export const PSP_HOST_CONFIG = resolve(VENDOR, "programs/psp/pocket.host.config.ts");
 /** The PRX tools/psp.ts links, which PSPLINK starts from the share. */
 export const PSP_PRX = resolve(VENDOR, "programs/psp/target/mipsel-sony-psp/release/pocketjs-psp.prx");
-export const PSP_EBOOT = resolve(VENDOR, "programs/psp/target/mipsel-sony-psp/release/EBOOT.PBP");
 
-/** `app`'s plan for the psp profile, or the reasons it does not resolve. */
+/** The psp host contract (hosts/psp/pocket.host.json), as PocketJS reads
+ *  its built-in hosts: the file alone is refused, its id being a command's. */
+const pspProfile = () => POCKET_PROFILES["psp"];
+
+/** `app`'s plan for the PSP, or the reasons it does not resolve. */
 export function resolvePsp(app: string): { plan: ResolvedBuildPlan } | { reasons: string } {
-  const manifest = JSON.parse(readFileSync(resolve(PROJECT_ROOT, app, "pocket.json"), "utf8"));
-  const resolution = validateAndResolveBuildPlan(manifest, { target: "psp" });
+  const profile = pspProfile();
+  const resolution = validateAndResolveBuildPlan(readPocketManifest(appContract(app)).manifest, { target: profile.id }, profileRegistry(profile));
   if (!resolution.ok) return { reasons: resolution.diagnostics.map((item) => `${item.path || "/"}: ${item.message}`).join("; ") };
   return { plan: resolution.plan };
 }
 
-function writePlan(plan: ResolvedBuildPlan): string {
-  mkdirSync(PLAN_DIR_PSP, { recursive: true });
-  const path = resolve(PLAN_DIR_PSP, `${plan.app.output}.psp.plan.json`);
-  writeFileSync(path, `${JSON.stringify(plan, null, 2)}\n`);
-  return path;
+/** The apps the PSP build carries: the launcher first, then every applet
+ *  that resolves for the PSP, with the reasons for the ones left out. */
+export function pspApps(): { apps: string[]; left: { app: string; reasons: string }[] } {
+  const apps: string[] = [];
+  const left: { app: string; reasons: string }[] = [];
+  for (const app of APPS) {
+    const resolved = resolvePsp(app);
+    if ("plan" in resolved) apps.push(app);
+    else if (app === LAUNCHER) throw new Error(`pocket-shell psp: the launcher does not resolve for the PSP: ${resolved.reasons}`);
+    else left.push({ app, reasons: resolved.reasons });
+  }
+  return { apps, left };
+}
+
+/** Compile `app` into `<outdir>/packages/<output>.pocket` against the psp host
+ *  config and check that the psp host contract admits it. */
+export async function buildPspPackage(app: string, outdir = DIST_PSP): Promise<{ path: string; plan: ResolvedBuildPlan }> {
+  const resolved = resolvePsp(app);
+  if ("reasons" in resolved) throw new Error(`pocket-shell psp: ${app} does not resolve for the PSP: ${resolved.reasons}`);
+  const output = resolve(outdir, "packages", `${resolved.plan.app.output}.pocket`);
+  mkdirSync(resolve(outdir, "packages"), { recursive: true });
+  const child = Bun.spawn(
+    [
+      process.execPath,
+      resolve(VENDOR, "tools/cli/bin.mjs"),
+      "compile",
+      "--manifest",
+      appContract(app),
+      "--project-root",
+      PROJECT_ROOT,
+      "--host-config",
+      PSP_HOST_CONFIG,
+      "--outdir",
+      resolve(outdir, "build"),
+      "--plan-dir",
+      PLAN_DIR_PSP,
+      "--output",
+      output,
+    ],
+    { cwd: PROJECT_ROOT, stdout: "pipe", stderr: "pipe", env: { ...process.env, POCKETJS_FRAMEWORK_ROOT: VENDOR } },
+  );
+  const [stdout, stderr] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text()]);
+  if ((await child.exited) !== 0) throw new Error(`pocket-shell psp: building ${app} failed\n${stdout}${stderr}`);
+  const profile = pspProfile();
+  const admission = selectVariant(decodePocketPackage(new Uint8Array(readFileSync(output))), admissionHost(profile, hashPocketProfile(profile)));
+  if (!admission.ok) throw new Error(`pocket-shell psp: the PSP does not admit ${output}: ${describeRejection(admission)}`);
+  return { path: output, plan: resolved.plan };
 }
 
 async function run(argv: string[]): Promise<void> {
@@ -44,51 +98,31 @@ async function run(argv: string[]): Promise<void> {
   if ((await child.exited) !== 0) throw new Error(`pocket-shell psp: ${argv.slice(1, 3).join(" ")} failed`);
 }
 
-/** Build and pack one program; returns its registry row. */
-async function buildPackage(app: string, plan: ResolvedBuildPlan): Promise<string> {
-  const planPath = writePlan(plan);
-  await run([process.execPath, "tools/build.ts", `--plan=${planPath}`, `--project-root=${PROJECT_ROOT}`, `--outdir=${DIST_PSP}`]);
-  const js = new Uint8Array(readFileSync(resolve(DIST_PSP, `${plan.app.output}.js`)));
-  const pak = new Uint8Array(readFileSync(resolve(DIST_PSP, `${plan.app.output}.pak`)));
-  const variant = makeVariant({
-    target: "psp",
-    hostAbi: plan.target.hostAbi,
-    planJson: canonicalJson(plan),
-    identity: { output: plan.app.output, id: plan.app.id, title: plan.app.title },
-    js,
-    pak,
-  });
-  mkdirSync(resolve(DIST_PSP, "packages"), { recursive: true });
-  const manifest = new Uint8Array(readFileSync(resolve(PROJECT_ROOT, app, "pocket.json")));
-  writeFileSync(resolve(DIST_PSP, "packages", `${plan.app.output}.pocket`), encodePocketPackage({ manifest, variants: [variant] }));
-  console.log(`pocket-shell psp: ${app} -> ${plan.app.output} (presentation ${plan.presentation?.id}, js ${js.length} B, pak ${pak.length} B)`);
-  return `${plan.app.output}\t${plan.app.id}\t${plan.app.title}`;
-}
-
 export async function buildPsp(options: { eboot?: boolean } = {}): Promise<void> {
-  const launcher = resolvePsp(LAUNCHER);
-  if ("reasons" in launcher) throw new Error(`pocket-shell psp: ${LAUNCHER} does not resolve for the PSP: ${launcher.reasons}`);
-  await buildPackage(LAUNCHER, launcher.plan);
+  rmSync(resolve(DIST_PSP, "packages"), { recursive: true, force: true });
+  const { apps, left } = pspApps();
+  for (const { app, reasons } of left) console.log(`pocket-shell psp: ${app} left out (${reasons})`);
   const rows: string[] = [];
-  for (const app of APPS) {
-    if (app === LAUNCHER) continue;
-    const resolved = resolvePsp(app);
-    if ("reasons" in resolved) {
-      console.log(`pocket-shell psp: ${app} left out (${resolved.reasons})`);
-      continue;
-    }
-    rows.push(await buildPackage(app, resolved.plan));
+  let launcher = "";
+  for (const app of apps) {
+    const { path, plan } = await buildPspPackage(app);
+    console.log(`pocket-shell psp: ${app} -> ${path} (presentation ${plan.presentation?.id})`);
+    if (app === LAUNCHER) launcher = path;
+    else rows.push(`${plan.app.output}\t${plan.app.id}\t${plan.app.title}`);
   }
-  const registry = resolve(DIST_PSP, "launcher-registry.tsv");
-  writeFileSync(registry, `${rows.join("\n")}\n`);
   if (options.eboot === false) return;
+  // A registry embeds one package per line after the launcher; with no
+  // applets the EBOOT is a table of one.
+  const registry = resolve(DIST_PSP, "launcher-registry.tsv");
+  if (rows.length > 0) writeFileSync(registry, `${rows.join("\n")}\n`);
+  else rmSync(registry, { force: true });
   await run([
     process.execPath,
     "tools/psp.ts",
-    `--pocket=${resolve(DIST_PSP, "packages", `${launcher.plan.app.output}.pocket`)}`,
+    `--pocket=${launcher}`,
     `--project-root=${PROJECT_ROOT}`,
     `--outdir=${DIST_PSP}`,
-    `--launcher-registry=${registry}`,
+    ...(rows.length > 0 ? [`--launcher-registry=${registry}`] : []),
     "--release",
   ]);
   console.log(`pocket-shell psp: ${PSP_PRX}`);

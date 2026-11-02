@@ -30,7 +30,6 @@ import { ellipsize, FONT, toAscii, wrap } from "../ui/text.ts";
 import type { Press, Target } from "../ui/touch.ts";
 import { durationText, TOPICS, viewsText, type Codec, type PlayInfo, type Video, type YtClient } from "./api.ts";
 import type { YtModel } from "./model.ts";
-import { yourComputer } from "../ui/companion.ts";
 
 /** The player's prompt to act: the confirm button on a 3DS's small layout
  *  and on a screen with no touch (○ on a PSP), a tap on a touch surface. */
@@ -277,7 +276,7 @@ export function listPage(env: YtEnv, stack: NavStack, layer: LayerContext): Page
               ? <Centered title="Search YouTube" detail={appletTouch() ? "Tap the field above and type what to look for." : `Press ${glyph("circle")} on the field above and type what to look for.`} press={press} top={top()} />
               : model.state().status === "ready"
                 ? <Centered title="No Videos" detail="Nothing came back for this list." press={press} top={top()} />
-                : <Centered title="Loading" detail={`Asking YouTube through ${yourComputer()}.`} spinner press={press} top={top()} />}
+                : <Centered title="Loading" detail="Asking YouTube through your Mac." spinner press={press} top={top()} />}
         </Show>
       </>
     ),
@@ -491,7 +490,7 @@ export function playerPage(env: YtEnv, stack: NavStack): PageSpec {
   if (media) start(0);
   else {
     setPhase("error");
-    setError("This console's runtime has no media player. Update Pocket Home on the console.");
+    setError("This console's runtime has no media player. Update Pocket Shell on the console.");
   }
 
   /** The picture's box: H.264 fills the texture, PAL8 its top-left corner. */

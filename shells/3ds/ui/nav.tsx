@@ -18,7 +18,14 @@ import { createScroller } from "@pocketjs/framework/kinetics";
 import { NAV_H, NavBar, navTargets, type NavButton } from "./bar.tsx";
 import { setLegend, type LegendEntry } from "./legend.tsx";
 import { appletTouch, SCREEN_H, SCREEN_W } from "./screen.ts";
+import { keep } from "./keep.ts";
 import type { Press, Target, TouchPage } from "./touch.ts";
+
+/** What a restored stack is rebuilt from: page ids and each layer's offset. */
+interface NavRecord {
+  pages: string[];
+  scrolls: number[];
+}
 
 const PUSH_MS = 300;
 /** A push slides the new page in over the page below, which slides a third
@@ -58,7 +65,7 @@ export interface PageSpec {
   /** Keys the page handles before the stack (true = consumed). */
   key?: (pressed: number) => boolean;
   /** Bar tint (default iOS 6 blue; black over the camera). */
-  tint?: "blue" | "black" | "orange";
+  tint?: "blue" | "black" | "orange" | "flat";
   /** Drawn in the bar instead of the title. */
   titleView?: () => JSX.Element;
   /** No page background (options.background): fixed content paints its own,
@@ -99,6 +106,9 @@ export interface LayerContext {
   /** The d-pad focus id (drawn while keys mode is on). */
   focus: Accessor<string>;
   setFocus(id: string): void;
+  /** This page is on top or next under it. A page further down can let go of
+   *  its nodes: it cannot be seen, and it draws them again on the way back. */
+  near: Accessor<boolean>;
   /** The content scroll offset (for windowing long lists). */
   offset: Accessor<number>;
   /** Scroll content so [top, bottom) is in view; a span taller than the
@@ -115,6 +125,9 @@ interface Layer {
 }
 
 export interface NavOptions {
+  /** A name under which the stack's pages and scroll positions outlive a
+   *  remount (ui/keep.ts): the same pages come back at the same offsets. */
+  restore?: string;
   press: Press;
   keys: Accessor<boolean>;
   setKeys(on: boolean): void;
@@ -133,7 +146,16 @@ export interface NavOptions {
 
 export function createNavStack(options: NavOptions): NavStack {
   let nextKey = 1;
-  const [entries, setEntries] = createSignal<readonly StackEntry[]>([]);
+  const record = options.restore ? keep<NavRecord>(`nav:${options.restore}`, () => ({ pages: [], scrolls: [] })) : null;
+  const [entries, setEntries] = createSignal<readonly StackEntry[]>(record ? record.pages.map((page) => ({ key: nextKey++, page })) : []);
+  // the record follows the stack: its pages now, its offsets as the layers scroll
+  if (record) createEffect(() => (record.pages = entries().map((entry) => entry.page)));
+  const scrollOf = (entry: StackEntry): number => (record ? record.scrolls[entries().findIndex((e) => e.key === entry.key)] ?? 0 : 0);
+  const scrolled = (entry: StackEntry, offset: number) => {
+    if (!record) return;
+    const at = entries().findIndex((e) => e.key === entry.key);
+    if (at >= 0) record.scrolls[at] = offset;
+  };
   const [busy, setBusy] = createSignal(false);
   const layers = new Map<number, Layer>();
   const nodes = new Map<number, NodeMirror>();
@@ -200,6 +222,8 @@ export function createNavStack(options: NavOptions): NavStack {
             first={index() === 0}
             stack={stack}
             options={options}
+            initialOffset={scrollOf(entry)}
+            scrolled={(offset) => scrolled(entry, offset)}
             register={(layer, node, setHidden) => {
               layers.set(entry.key, layer);
               nodes.set(entry.key, node);
@@ -223,6 +247,10 @@ function LayerView(props: {
   first: boolean;
   stack: NavStack;
   options: NavOptions;
+  /** the offset a restored layer starts at */
+  initialOffset: number;
+  /** the layer's offset, as it changes */
+  scrolled(offset: number): void;
   register(layer: Layer, node: NodeMirror, setHidden: (on: boolean) => void): void;
 }) {
   const [focus, setFocus] = createSignal("");
@@ -239,7 +267,11 @@ function LayerView(props: {
     else if (bottom + 8 > offset + VIEW_H) scroller.chaseTo(Math.min(bottom + 8 - VIEW_H, maxOffset()));
   };
   const scrollBy = (delta: number) => scroller.chaseTo(Math.max(0, Math.min(maxOffset(), scroller.intent() + delta)));
-  const spec = props.options.page(props.entry.page, props.stack, { focus, setFocus, offset: scroller.offset, reveal, scrollBy });
+  const near = createMemo(() => {
+    const list = props.stack.entries();
+    return list.length - list.findIndex((entry) => entry.key === props.entry.key) <= 2;
+  });
+  const spec = props.options.page(props.entry.page, props.stack, { focus, setFocus, near, offset: scroller.offset, reveal, scrollBy });
   contentRef = spec.content;
   VIEW_H = viewHeight(spec.inset);
   const content = spec.content;
@@ -249,10 +281,14 @@ function LayerView(props: {
   // offset reran a Solid effect on every scrolled frame.
   let canvas: NodeMirror | undefined;
   let canvasY = 0;
+  if (props.initialOffset > 0) onMount(() => scroller.scrollTo(props.initialOffset, { immediate: true }));
   onFrame(() => {
     scroller.step();
     const y = -scroller.offset();
-    if (canvas && y !== canvasY) jump(canvas, "translateY", (canvasY = y));
+    if (canvas && y !== canvasY) {
+      jump(canvas, "translateY", (canvasY = y));
+      props.scrolled(-y);
+    }
     if (!isTop() || !content) return;
     const nub = analogY();
     if (nub !== 0) scroller.nudge(nub * 8);

@@ -1,27 +1,28 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/test/hn-sim.test.ts — the Hacker News mini-app (apps/hn) headless on the
-// wasm core with the 3DS geometry and a fixture-routed NET module
-// (platforms/sim/net.ts, tests/hn-fixture.ts): the story list, paging, feeds,
+// wasm core with the 3DS geometry and the applet's worker answering from
+// fixture routes (test/net-fake.ts, test/hn-fixture.ts): the story list, paging, feeds,
 // a story's thread (the story and every comment in full) with collapse, and
 // the error states. The app draws nothing on the top screen.
 //
-// POCKET_HOME_SHOTS=<dir> also writes top/bottom PNGs of the list and thread.
+// POCKET_SHELL_SHOTS=<dir> also writes top/bottom PNGs of the list and thread.
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BTN } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
-import { bootConsole3ds, type Console3ds, type Console3dsOptions } from "../../../vendor/pocketjs/programs/sim/console-3ds.ts";
+import type { Console3ds, Console3dsOptions } from "../../../vendor/pocketjs/programs/sim/console-3ds.ts";
 import { encodePNG } from "../../../vendor/pocketjs/tools/png.ts";
 import { buildGuest } from "./build.ts";
 import { HN_API, hnRoutes } from "./hn-fixture.ts";
+import { bootWithNet, type NetConsole, type NetRoutes } from "./net-fake.ts";
 import { PORTRAIT, TAB5, tab5Shot } from "./tab5.ts";
 
 const OUT = mkdtempSync(join(tmpdir(), "pocket-hn-"));
 let GUEST = join(OUT, "guest", "hn-main");
-const SHOTS = process.env.POCKET_HOME_SHOTS;
-const GLOBALS = ["ui", "__pak", "__simHz", "frame", "link", "wifi", "camera", "net", "__pocketApp"] as const;
+const SHOTS = process.env.POCKET_SHELL_SHOTS;
+const GLOBALS = ["ui", "__pak", "__simHz", "frame", "link", "wifi", "camera", "net", "__pocketWorkerChannels", "__pocketApp"] as const;
 const saved = new Map(GLOBALS.map((key) => [key, (globalThis as Record<string, unknown>)[key]]));
 
 beforeAll(() => {
@@ -34,8 +35,9 @@ afterAll(() => {
   rmSync(OUT, { recursive: true, force: true });
 });
 
-function boot(options: Partial<Console3dsOptions> = {}): Promise<Console3ds> {
-  return bootConsole3ds({ js: `${GUEST}.js`, pak: `${GUEST}.pak`, current: "hn-main", link: null, wifi: null, camera: false, net: hnRoutes(), ...options });
+function boot(options: Partial<Console3dsOptions> & { net?: NetRoutes } = {}): Promise<NetConsole> {
+  const { net, ...rest } = options;
+  return bootWithNet({ js: `${GUEST}.js`, pak: `${GUEST}.pak`, current: "hn-main", link: null, wifi: null, camera: false, ...rest }, "net" in options ? net : hnRoutes());
 }
 
 function shot(console3ds: Console3ds, name: string): void {
@@ -46,22 +48,14 @@ function shot(console3ds: Console3ds, name: string): void {
   }
 }
 
-/** Requests the NET fake started, in order. */
-const started = (hn: Console3ds) => hn.net!.log.filter((line) => line.startsWith("start ")).map((line) => line.split(" ")[3]!);
+/** Requests the worker's node started, in order. */
+const started = (hn: NetConsole) => hn.net!.log.filter((line) => line.startsWith("start ")).map((line) => line.split(" ")[3]!);
 
-/** The most requests the NET fake ever held at once. */
-function peakInflight(hn: Console3ds): number {
-  let open = 0;
-  let peak = 0;
-  for (const line of hn.net!.log) {
-    if (line.startsWith("start ")) peak = Math.max(peak, ++open);
-    else if (line.startsWith("poll ")) open -= (JSON.parse(line.slice(5)) as unknown[]).length;
-  }
-  return peak;
-}
+/** The most requests the applet had out at once. */
+const peakInflight = (hn: NetConsole) => hn.net!.peak();
 
 /** Every text of the thread in reading order: R pages down until the end. */
-async function readThread(hn: Console3ds): Promise<string> {
+async function readThread(hn: NetConsole): Promise<string> {
   const seen: string[] = [];
   let last = "";
   for (let page = 0; page < 12; page++) {
@@ -229,7 +223,7 @@ describe("errors", () => {
     expect(started(hn).length).toBe(before + 1);
   });
 
-  test("a console without the NET module reports it the same way", async () => {
+  test("a console whose host runs no worker reports it the same way", async () => {
     const hn = await boot({ net: undefined });
     await hn.run(10);
     expect(hn.texts("auxiliary")).toContain("Not linked to a Mac");

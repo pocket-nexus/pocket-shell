@@ -5,13 +5,11 @@
 // The Mac holds the X session; the console asks for a page of the timeline,
 // a thread or an avatar and gets compact JSON (an avatar: a 32x32 IMG entry
 // the console uploads as a texture), and likes, reposts and replies through
-// it. Requests share one queue of at most
-// MAX_INFLIGHT, the NET module's limit; avatars wait behind pages.
+// it. Requests share one queue of at most MAX_INFLIGHT, the requests the
+// host's http node runs at once; avatars wait behind pages.
 
-import { fetch, NetError } from "@pocketjs/framework/net";
-import { companionService } from "@pocketjs/framework/link";
+import { companionService, fetch, NetError } from "../ui/net.ts";
 import { GLYPH_ATLAS_URL } from "../ui/glyphs.ts";
-import { notLinked, theComputer, yourComputer } from "../ui/companion.ts";
 
 export const MAX_INFLIGHT = 2;
 /** A first request can wait while the Mac reads x.com's client. */
@@ -121,7 +119,7 @@ export function createXClient(): XClient {
           try {
             body = await response.json();
           } catch {
-            task.reject(new XError("api", `${theComputer()} answered ${response.status} without JSON.`));
+            task.reject(new XError("api", `The Mac answered ${response.status} without JSON.`));
             return;
           }
           if (!response.ok) task.reject(new XError(body.error === "signed-out" ? "signed-out" : "api", body.message ?? `HTTP ${response.status}`));
@@ -173,12 +171,12 @@ export function createXClient(): XClient {
 export function errorText(error: unknown): { title: string; detail: string } {
   const code = error instanceof XError ? error.code : "";
   if (code === "signed-out") {
-    return { title: "Not signed in to X", detail: `Sign in on ${yourComputer()}: bun tools/companion.ts service x login` };
+    return { title: "Not signed in to X", detail: "Sign in on your Mac: bun tools/companion.ts service x login" };
   }
   if (code === "unavailable") {
-    return notLinked("X");
+    return { title: "Not linked to a Mac", detail: "X loads through your Mac. Pair one in Settings > Mac and open Pocket Companion." };
   }
-  if (code === "timeout") return { title: "The request timed out", detail: `${theComputer()} or X did not answer in time.` };
+  if (code === "timeout") return { title: "The request timed out", detail: "The Mac or X did not answer in time." };
   const message = error instanceof Error ? error.message : String(error);
   return { title: "Could not load X", detail: message || "The request failed." };
 }
