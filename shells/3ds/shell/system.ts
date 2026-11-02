@@ -107,8 +107,8 @@ function readLink(): LinkStatus {
     paired: status.paired.map((entry) => ({ ...entry, name: toAscii(entry.name) })),
     device: { ...status.device, name: toAscii(status.device.name), model: toAscii(status.device.model) },
     error: toAscii(status.error),
-    // The clock moves on every read; the launcher keeps it apart as a skew (below) so
-    // an unchanged link stays equal and nothing redraws for it.
+    // The clock moves on every read; the launcher keeps it apart as a skew
+    // (below) so an unchanged link stays equal and nothing redraws for it.
     clock: null,
   };
 }

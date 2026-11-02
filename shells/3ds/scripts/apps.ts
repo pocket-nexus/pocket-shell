@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // The shell's apps and their resolved build plans.
 //
-// Pocket Shell is the launcher: the console binary embeds it, and every other app is
-// a package the launcher installs from the linked Mac. Each manifest's entry
+// Pocket Shell is the launcher: the console binary embeds it, and every other
+// app is a package the launcher installs from the linked Mac. Each manifest's entry
 // is relative to this shell's directory, which is the build's project root.
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/test/shell-clock.test.ts — the launcher's clock arithmetic (shells/3ds/shell/clock.ts):
+// shells/3ds/test/shell-clock.test.ts — the launcher's clock arithmetic
+// (shells/3ds/shell/clock.ts):
 // civil fields from Date.now() with a fixed UTC offset, never from Date's own
 // local-time breakdown (broken on the 3DS host's QuickJS).
 

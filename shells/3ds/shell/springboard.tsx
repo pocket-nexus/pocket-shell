@@ -9,12 +9,13 @@
 // The D-pad pages at the grid's left and right edges.
 //
 // Where each icon sits comes from layout.ts (pages and dock, kept in the
-// launcher's data). Holding an icon (or Y) starts edit mode: icons wiggle, applets get
-// a delete badge, and an icon held and moved is picked up. While it follows
-// the stylus the others make room for it, sliding to their new places from
-// their old ones; holding it at the left or right edge turns the page (one
-// past the last opens a new page), and the dock takes it while it has fewer
-// than four icons. START, B, Done or a tap on the wallpaper ends edit mode.
+// launcher's data). Holding an icon (or Y) starts edit mode: icons wiggle,
+// applets get a delete badge, and an icon held and moved is picked up. While
+// it follows the stylus the others make room for it, sliding to their new
+// places from their old ones; holding it at the left or right edge turns the
+// page (one past the last opens a new page), and the dock takes it while it
+// has fewer than four icons. START, B, Done or a tap on the wallpaper ends
+// edit mode.
 //
 // The grid is four columns of two rows on the 3DS's 320x240. A larger
 // surface fits as many columns of about 96 px (at least four) and rows of at
@@ -23,8 +24,9 @@
 // Board metrics are read once per boot.
 //
 // Installed applets come from the launcher's app table. Tapping one zooms
-// the screen and asks the host to switch to it; the launcher boots again after every
-// switch, and its board zooms back from where the launch zoom ended. An
+// the screen and asks the host to switch to it; the launcher boots again
+// after every switch, and its board zooms back from where the launch zoom
+// ended. An
 // applet the host interrupted, or one that stopped with an error, is
 // announced by an iOS 6 banner that slides over the status bar.
 
@@ -178,8 +180,8 @@ const LAUNCH_SCALE = 1.6;
 const LAUNCH_MS = 260;
 const ARRIVE_MS = 300;
 /** The board zooms out behind a launched applet, and back in when the
- *  launcher arrives, on a composited target. A repaint target cuts: a scale tween
- *  over the board repaints the whole surface every frame. */
+ *  launcher arrives, on a composited target. A repaint target cuts: a scale
+ *  tween over the board repaints the whole surface every frame. */
 const ZOOMS = animationClass === "composited";
 /** Icons in edit mode rock between -2 and 2 degrees on a composited
  *  target. A repaint target repaints every icon on each rock, so its icons
