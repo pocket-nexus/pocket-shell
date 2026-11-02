@@ -5,7 +5,7 @@
 // a story's thread (the story and every comment in full) with collapse, and
 // the error states. The app draws nothing on the top screen.
 //
-// POCKET_HOME_SHOTS=<dir> also writes top/bottom PNGs of the list and thread.
+// POCKET_SHELL_SHOTS=<dir> also writes top/bottom PNGs of the list and thread.
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -20,7 +20,7 @@ import { PORTRAIT, TAB5, tab5Shot } from "./tab5.ts";
 
 const OUT = mkdtempSync(join(tmpdir(), "pocket-hn-"));
 let GUEST = join(OUT, "guest", "hn-main");
-const SHOTS = process.env.POCKET_HOME_SHOTS;
+const SHOTS = process.env.POCKET_SHELL_SHOTS;
 const GLOBALS = ["ui", "__pak", "__simHz", "frame", "link", "wifi", "camera", "net", "__pocketApp"] as const;
 const saved = new Map(GLOBALS.map((key) => [key, (globalThis as Record<string, unknown>)[key]]));
 

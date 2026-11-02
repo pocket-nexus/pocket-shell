@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/home/store.tsx — the Mac: the apps the linked Mac offers this
+// shells/3ds/shell/store.tsx — the Mac: the apps the linked Mac offers this
 // console, as an App Store list. Each row's pill reads GET, UPDATE or OPEN
 // and turns into a progress bar while the package streams in; tapping the
 // rest of a row opens the app's page (icon, version, size, description).
@@ -8,7 +8,7 @@ import { createMemo, For, Show, type Accessor } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { ClassicSpinner } from "@pocketjs/framework/classic";
 import type { LinkCatalogApp } from "@pocketjs/framework/link";
-import { LINK_STATE, sizeText, type HomeSystem, type Install } from "./system.ts";
+import { LINK_STATE, sizeText, type ShellSystem, type Install } from "./system.ts";
 import { appTint, Tile } from "../ui/chrome.tsx";
 import { SCREEN_W } from "../ui/screen.ts";
 import type { NavButton } from "../ui/bar.tsx";
@@ -38,13 +38,13 @@ export function storeAction(app: LinkCatalogApp, installed: readonly { id: strin
 }
 
 export interface StoreEnv {
-  sys: HomeSystem;
+  sys: ShellSystem;
   press: Press;
   keys: Accessor<boolean>;
 }
 
 /** Start what an app's pill offers: open it, or install it. */
-function act(sys: HomeSystem, app: LinkCatalogApp): void {
+function act(sys: ShellSystem, app: LinkCatalogApp): void {
   const action = storeAction(app, sys.table().apps, sys.installs()[app.id]);
   if (action === "open") sys.launch(app.output);
   else if (action !== "installing") sys.install(app);
@@ -53,7 +53,7 @@ function act(sys: HomeSystem, app: LinkCatalogApp): void {
 const PILL_LABEL: Record<StoreAction, string> = { get: "GET", update: "UPDATE", open: "OPEN", installing: "", retry: "RETRY" };
 
 /** An app's GET / UPDATE / OPEN / RETRY pill, or its progress bar while it installs. */
-function Pill(props: { app: LinkCatalogApp; sys: HomeSystem; press: Press; id: string; x: number; y: number; w: number }) {
+function Pill(props: { app: LinkCatalogApp; sys: ShellSystem; press: Press; id: string; x: number; y: number; w: number }) {
   const { sys, app } = props;
   const action = () => storeAction(app, sys.table().apps, sys.installs()[app.id]);
   const install = () => sys.installs()[app.id];

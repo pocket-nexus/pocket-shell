@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/home/app.tsx — Pocket Home, the 3DS system launcher.
+// shells/3ds/shell/app.tsx — Pocket Shell, the system launcher.
 //
 // The touch screen holds the Home screen; Settings and the Mac store open
 // over it with a zoom, each as a navigation stack. The top screen belongs to
-// the system (capability "system.agent"), so Home draws nothing there.
+// the system (capability "system.agent"), so the launcher draws nothing there.
 //
 // Input: the stylus goes through one router that asks the visible layer for
 // its targets; the buttons go to the alert, then the open stack, then the
@@ -22,7 +22,7 @@ import { SETTINGS_PAGES, wifiJoinPage, type PageEnv } from "./pages.tsx";
 import { scannerPage, type ScanState } from "./scanner.tsx";
 import { createSpringboard } from "./springboard.tsx";
 import { storeAppPage, storePage } from "./store.tsx";
-import { createHomeSystem } from "./system.ts";
+import { createShellSystem } from "./system.ts";
 import { createAlerts } from "../ui/alert.tsx";
 import { Pinstripes } from "../ui/chrome.tsx";
 import { createNavStack } from "../ui/nav.tsx";
@@ -47,8 +47,8 @@ function AppFrame(props: { onReady(node: NodeMirror): void; children: JSX.Elemen
   );
 }
 
-export default function Home() {
-  const sys = createHomeSystem();
+export default function Shell() {
+  const sys = createShellSystem();
   const press = createPress();
   const [keys, setKeys] = createSignal(false);
   const alerts = createAlerts(press);

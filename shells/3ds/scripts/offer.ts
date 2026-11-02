@@ -3,7 +3,7 @@
 // packages into dist/3ds/apps/ and point the running Pocket Companion at that
 // folder. Each app gets a 3DS package (<output>.pocket) and a Tab5 package
 // (<output>.tab5.pocket); the companion lists to each console the files with
-// a variant for its target. Home's store then lists them, and an install or
+// a variant for its target. The launcher's store then lists them, and an install or
 // update goes over the Pocket Link.
 
 import { copyFileSync, mkdirSync, renameSync } from "node:fs";

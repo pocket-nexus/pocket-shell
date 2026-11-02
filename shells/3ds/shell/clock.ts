@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/home/clock.ts — wall-clock fields from Date.now() arithmetic alone.
+// shells/3ds/shell/clock.ts — wall-clock fields from Date.now() arithmetic alone.
 //
 // The 3DS host's QuickJS breaks down local time incorrectly
 // (Date.prototype.getHours/getMinutes/getDay), and the console reports no
-// time zone, so Home never asks Date for fields: it adds its own UTC offset
+// time zone, so the launcher never asks Date for fields: it adds its own UTC offset
 // to the epoch and converts days to a civil date with Howard Hinnant's
 // days-to-civil algorithm (proleptic Gregorian, exact for every int day).
 

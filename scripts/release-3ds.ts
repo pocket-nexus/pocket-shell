@@ -5,10 +5,10 @@ import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const root = resolve(import.meta.dir, "..");
-// The release is the console binary, which embeds Home, the launcher.
-const manifestPath = "shells/3ds/home/pocket.json";
-const binaryName = "home-main";
-const product = "pocket-home";
+// The release is the console binary, which embeds Pocket Shell, the launcher.
+const manifestPath = "shells/3ds/shell/pocket.json";
+const binaryName = "pocket-shell";
+const product = "pocket-shell";
 
 export function releaseVersion(timestamp: string): string {
   const date = new Date(timestamp);

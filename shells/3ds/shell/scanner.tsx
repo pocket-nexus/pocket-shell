@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/home/scanner.tsx — Settings > Mac > Pair a Mac: the outer camera's
+// shells/3ds/shell/scanner.tsx — Settings > Mac > Pair a Mac: the outer camera's
 // live preview under a viewfinder (1:1 on the 3DS's touch screen; on a larger
 // surface scaled to the height under the bar, or to the width in portrait),
 // the console's QR decoder polled every frame, and the pairing handshake's
@@ -17,7 +17,7 @@ import { isPairingUri } from "@pocketjs/framework/link";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 import { registerTexture } from "@pocketjs/framework/renderer";
 import { ClassicSpinner } from "@pocketjs/framework/classic";
-import { LINK_PAIRING, type HomeSystem } from "./system.ts";
+import { LINK_PAIRING, type ShellSystem } from "./system.ts";
 import { NAV_H } from "../ui/bar.tsx";
 import type { NavStack, PageSpec } from "../ui/nav.tsx";
 import { COMPACT, SCREEN_H, SCREEN_W, TALL } from "../ui/screen.ts";
@@ -52,7 +52,7 @@ export function pairingName(uri: string): string {
 const IMAGE_W = 320;
 const IMAGE_H = 240;
 
-export function scannerPage(sys: HomeSystem, stack: NavStack, setScan: (state: ScanState) => void, scan: Accessor<ScanState>): PageSpec {
+export function scannerPage(sys: ShellSystem, stack: NavStack, setScan: (state: ScanState) => void, scan: Accessor<ScanState>): PageSpec {
   // The preview fills the 3DS's screen behind the bar. A landscape surface
   // shows it under the bar as tall as the space there, centred, with the pill
   // over its foot; a portrait one scales it to its width, the pill below.

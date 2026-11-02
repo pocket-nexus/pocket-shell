@@ -29,7 +29,7 @@ for (const path of tracked.filter((path) => path.endsWith(".md"))) {
 const sourceInputs = new Set([
   "shells/desktop/assets/fonts/W95FA.otf",
 ]);
-// Each 3DS app's pictures (Home's Blender-baked icons, X's action icons):
+// Each 3DS app's pictures (the launcher's Blender-baked icons, X's action icons):
 // the images.json beside an app's manifest names what its build reads.
 for (const app of readdirSync(resolve(ROOT, "shells/3ds"), { withFileTypes: true })) {
   const manifest = resolve(ROOT, "shells/3ds", app.name, "images.json");
