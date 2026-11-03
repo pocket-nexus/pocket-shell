@@ -214,6 +214,11 @@ textures. The build reads the committed
 PNGs, so it needs no Blender. Cycles output differs a little between runs, so
 a re-render is a new set of pictures to review, not a check.
 
+**An app without baked art gets a glyph.** Its tile is a tint from its id
+under a four-square applet glyph and the `plain` finish, so it has the same
+gloss, rim and shadow as the baked icons (`ui/chrome.tsx` `appTint`). **No
+tile shows an app's initials.**
+
 **YouTube, X and Discord** reach their services through the linked Mac:
 each applet fetches `https://companion.pocket/<service>/…`, which Pocket
 Companion answers itself (PocketJS `tools/companion/services/`). Accounts,
