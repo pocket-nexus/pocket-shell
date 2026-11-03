@@ -216,10 +216,10 @@ export function storePage(env: StoreEnv, stack: NavStack, layer: LayerContext): 
               message={{
                 unavailable: "This console's runtime has no Pocket Link.",
                 unpaired: "Pair a Mac in Settings > Mac to install\nthe applets it offers this console.",
-                searching: `Open Pocket Companion on ${sys.link().companion?.name ?? "your Mac"}.\nThe console links when it hears the Mac.`,
+                searching: `Open Pocket Hub on ${sys.link().companion?.name ?? "your Mac"}.\nThe console links when it hears the Mac.`,
                 loading: "Asking the Mac for its applets...",
                 error: sys.catalogError() || "The Mac did not answer.",
-                empty: "Add a Pocket applet to Pocket Companion\non the Mac and it appears here.",
+                empty: "Add a Pocket applet to Pocket Hub\non the Mac and it appears here.",
                 list: "",
               }[mode()]}
               button={emptyButton()}

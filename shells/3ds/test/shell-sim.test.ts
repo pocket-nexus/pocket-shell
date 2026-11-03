@@ -550,7 +550,7 @@ describe("pairing a Mac", () => {
     expect(home.texts("auxiliary")).toContain("Not Paired");
     await home.tapText("Mac");
     await home.run(24);
-    expect(home.texts("auxiliary").join(" ")).toContain("On your Mac, open Pocket Companion and choose Pair a Console...");
+    expect(home.texts("auxiliary").join(" ")).toContain("On your Mac, open Pocket Hub and choose Pair a Console...");
     await home.tapText("Pair a Mac...");
     await home.run(24);
     expect(home.camera!.log).toContain("open");

@@ -80,7 +80,7 @@ describe("the PSP build", () => {
       const texts = shell.texts();
       expect(texts).toContain("Status");
       expect(texts).toContain(linked ? "Linked" : "Searching");
-      expect(texts.join(" ")).toContain(linked ? "Linked to CardputerZero over USB." : "Run Pocket Companion there with --usb on the share.");
+      expect(texts.join(" ")).toContain(linked ? "Linked to CardputerZero over USB." : "Run Pocket Hub there with --usb on the share.");
     }
   }, 120_000);
 });

@@ -150,10 +150,7 @@ changed there since), keeps the installed applets on its `apps` flash
 partition and their data on the microSD card, and boots one runtime per
 app; the applets install from the Mac's catalog as on the 3DS. The six
 pictures at the top of the repository README are this surface. pocket-m5's
-releases are the firmware: Pocket Studio offers the latest at
-[studio.pocket.nexus/apps/shell](https://studio.pocket.nexus/apps/shell),
-and [the install guide](https://studio.pocket.nexus/docs/install/#tab5)
-shows how to write it with esptool and pair it with Pocket Companion.
+releases are the firmware.
 
 - `bun run tab5 [app…]` compiles each app against the Tab5 host config
   into `dist/tab5/<output>.pocket` and refuses a package the host contract
@@ -169,11 +166,11 @@ shows how to write it with esptool and pair it with Pocket Companion.
   `../pocket-m5` beside this repository. The launcher's package from here
   replaces pocket-m5's in a firmware built with
   `-DPOCKETJS_TAB5_SHELL_PACKAGE=<package.pocket>`.
-- The Pocket Companion app carries the applets and offers them to a paired
-  Tab5 or 3DS. `bun run offer` builds both the 3DS and the Tab5 package of
-  every applet into `dist/3ds/apps/` and points the running Pocket Companion
-  at them, and the companion lists to each console the files with a variant
-  for its target.
+- The Pocket Hub app carries the applets and offers them to a paired Tab5
+  or 3DS. `bun run offer` builds both the 3DS and the Tab5 package of every
+  applet into `dist/3ds/apps/` and points the running Pocket Hub at them,
+  and the companion lists to each console the files with a variant for its
+  target.
 - The Tab5 has no buttons. The firmware paints a **floating home ball** over
   the picture: a tap sends SELECT (back to Home, or the launcher summoned
   from an app), a finger that moves at once drags the ball inside the
@@ -239,7 +236,7 @@ tile shows an app's initials.**
 
 **YouTube, X and Discord** reach their services through the linked Mac:
 each applet fetches `https://companion.pocket/<service>/…`, which Pocket
-Companion answers itself (PocketJS `tools/companion/services/`). Accounts,
+Hub answers itself (PocketJS `tools/companion/services/`). Accounts,
 tokens and tools stay on the Mac; the console never holds them. The
 companion answers a service only for an app in its catalog whose manifest
 lists that service in `applet.services`, so `bun run offer` comes before
@@ -247,18 +244,18 @@ a pushed applet can reach its service; any other request gets 403.
 
 - **YouTube** lists topic feeds and search results from yt-dlp, with
   thumbnails the companion renders into textures. The Mac needs yt-dlp and
-  ffmpeg: Pocket Companion's YouTube page downloads them, or `brew install
+  ffmpeg: Pocket Hub's YouTube page downloads them, or `brew install
   yt-dlp ffmpeg`. A New 3DS plays H.264 through its hardware decoder; an **Old 3DS plays 240×136 at about 12 fps**
   in PAL8 (a fixed 252-colour cube, only changed pixels sent), with sound,
   at 58 to 215 KB/s. Sound needs the console's DSP firmware once: Rosalina
   menu (L + Down + SELECT) > Miscellaneous options > Dump DSP firmware.
 - **X** reads the Following and For You timelines and threads through the
-  session of an account signed in on the Mac: Pocket Companion's X page, or
+  session of an account signed in on the Mac: Pocket Hub's X page, or
   `bun tools/companion.ts service x login`, opens a sign-in window there.
   It uses x.com's web API, which X changes without notice. Setup and controls: [docs/X.md](../../vendor/applets/docs/X.md).
 - **Discord** reads and sends in the servers a bot is in: create a bot in
   the Discord developer portal, turn on its Message Content intent, then
-  give the token to Pocket Companion's Discord page or to `bun
+  give the token to Pocket Hub's Discord page or to `bun
   tools/companion.ts service discord token <token>`, and `service discord
   status` prints the invite link. Setup and controls:
   [docs/DISCORD.md](../../vendor/applets/docs/DISCORD.md).
@@ -286,11 +283,10 @@ shows the touch screen or the agent's own copy of an applet, and the PocketJS
 mark as a screensaver while it rests. A pill in the
 bottom-right corner reads "L+R Ask Claude" while the mascot is idle.
 
-The agent needs **Pocket Companion** on the Mac, signed in to Codex (its
-Assistant page signs in). Get the app at
-[studio.pocket.nexus/apps/companion](https://studio.pocket.nexus/apps/companion),
-or in a PocketJS checkout run `bun tools/companion.ts serve` or build the
-menu bar app with `bun run companion:app`. The app carries the applets;
+The agent needs **Pocket Hub** on the Mac, signed in to Codex (its
+Assistant page signs in). Pocket Hub is not released yet; in a PocketJS
+checkout, `bun tools/companion.ts serve` runs it, or `bun run
+companion:app` builds the menu bar app. The app carries the applets;
 `bun run offer` puts the ones built here in the companion's catalog.
 
 ## Commands

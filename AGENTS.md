@@ -87,7 +87,7 @@ bun run push --host <console-ip>     # rebuild the launcher's package and hot-pu
 bun run push hn --host <console-ip>  # rebuild Hacker News, install it into its slot and start it
 bun run deploy --host <console-ip>   # rebuild the .3dsx, install it over the wire, restart into it
 bun run shot --host <console-ip>     # a screenshot of both screens
-bun run offer                        # offer the applets' 3DS and Tab5 packages through the running Pocket Companion
+bun run offer                        # offer the applets' 3DS and Tab5 packages through the running Pocket Hub
 bun run tab5                         # the launcher and the applets as Tab5 packages in dist/tab5
 bun run psp                          # the PSP EBOOT in dist/psp
 bun run 3ds                          # the full .3dsx in dist/3ds
