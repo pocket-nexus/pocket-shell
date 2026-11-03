@@ -27,44 +27,37 @@ the section `applet` and meets the applet rules (PocketJS
 that admits 320×240, the agent enhanced, an allowlist of capabilities, the
 companion services it reaches declared (`applet.services`), no native code
 and no code evaluation, bundle and pak budgets. The PocketJS build refuses an
-applet that breaks a rule, and `bun run check:3ds` runs the rules over every
-applet here (`test/applets.test.ts`). The launcher is an app, not an
-applet: it pairs, installs and switches, which applets cannot.
+applet that breaks a rule. The launcher is an app, not an applet: it pairs,
+installs and switches, which applets cannot.
+
+**The applets live in [pocket-nexus/applets](https://github.com/pocket-nexus/applets)**,
+a submodule here at `vendor/applets`: one source that builds for the 3DS, the
+Tab5 and Omarchy Pocket, with its own rules, sims and sample data (`bun run
+check` there), and the store at applets.pocket.nexus. The scripts here build
+the launcher from `shell/` and every applet the submodule has for a console
+from `vendor/applets` (its own project root), with this repository's PocketJS.
 
 | Program | Directory | Package | Reaches the console |
 | --- | --- | --- | --- |
 | Pocket Shell | `shell/` | `dev.pocket-nexus.shell`, `pocket-shell` | embedded in the `.3dsx`; the launcher |
-| Hacker News | `hn/` | `dev.pocket-nexus.hn`, `hn-main` | installed through the launcher from the linked Mac, or pushed |
-| YouTube | `youtube/` | `dev.pocket-nexus.youtube`, `youtube-main` | the same |
-| X | `x/` | `dev.pocket-nexus.x`, `x-main` | the same |
-| Discord | `discord/` | `dev.pocket-nexus.discord`, `discord-main` | the same |
-| Camera | `camera/` | `dev.pocket-nexus.camera`, `camera-main` | the same |
-| Photos | `photos/` | `dev.pocket-nexus.photos`, `photos-main` | the same |
-| Notes | `notes/` | `dev.pocket-nexus.notes`, `notes-main` | the same |
-| GitHub | `github/` | `dev.pocket-nexus.github`, `github-main` | the same |
-| Weather | `weather/` | `dev.pocket-nexus.weather`, `weather-main` | the same |
-| Podcasts | `podcasts/` | `dev.pocket-nexus.podcasts`, `podcasts-main` | the same |
-| Maps | `maps/` | `dev.pocket-nexus.maps`, `maps-main` | the same |
-| Home Assistant | `homeassistant/` | `dev.pocket-nexus.homeassistant`, `homeassistant-main` | the same |
+| Hacker News, YouTube, X, Discord, GitHub, Weather, Podcasts, Maps, Home, Camera, Photos, Notes | `vendor/applets/<name>/` | `dev.pocket-nexus.<name>`, `<name>-main` | installed through the launcher from the linked Mac, or pushed |
 
-`ui/` is the iOS 6 kit the launcher and the applets build on at the 3DS's 0.82 scale: the
-navigation stack and bar, grouped tables, alerts, text fitting, a slot pool
-for long lists and one stylus router per screen.
+`ui/` (a link to `vendor/applets/ui`) is the iOS 6 kit the launcher and the
+applets build on at the 3DS's 0.82 scale: the navigation stack and bar,
+grouped tables, alerts, text fitting, a slot pool for long lists and one
+stylus router per screen.
 
 **An applet's network is its worker.** The UI realm has no network: an
-applet that declares `net.http` declares the worker in `ui/net-worker.ts`
-(`domains.worker`: one `http` node and a ring each way, the same in every
-app contract), and `ui/net.ts` gives its UI a `fetch` over those rings
-(records in `ui/net-wire.ts`). The host's node runs two requests at once and
+applet that declares `net.http` declares the worker in `lib/net-worker.ts`
+of pocket-nexus/applets (`domains.worker`: one `http` node and a ring each
+way, the same in every app contract), and `lib/net.ts` gives its UI a `fetch`
+over those rings (records in `lib/net-wire.ts`). The host's node runs two requests at once and
 the worker holds the rest. One request's descriptor (URL, method, headers
 and body as JSON) is at most **1020 bytes**: a longer post or reply is
-refused with `invalid_request`, a glyph atlas is asked for in parts that
-`ui/glyphs.ts` merges into one atlas before it loads, and a document in the
-companion's `store` service longer than one request is saved in parts
-(`ui/store.ts`). On the 3DS the node
+refused with `invalid_request`, and a glyph atlas is asked for in parts that
+`ui/glyphs.ts` merges into one atlas before it loads. On the 3DS the node
 rides the Pocket Link to the Mac; on the Tab5 it is the firmware's HTTP over
-Wi-Fi, which resolves `companion.pocket` like any other host name. The sims
-answer the worker's records from fixture routes (`test/net-fake.ts`).
+Wi-Fi, which resolves `companion.pocket` like any other host name.
 
 ### Surfaces
 
@@ -202,16 +195,16 @@ a pushed applet can reach its service; any other request gets 403.
 - **X** reads the Following and For You timelines and threads through the
   session of an account signed in on the Mac: `bun tools/companion.ts
   service x login` opens a sign-in window there. It uses x.com's web API,
-  which X changes without notice. Setup and controls: [docs/X.md](docs/X.md).
+  which X changes without notice. Setup and controls: [docs/X.md](../../vendor/applets/docs/X.md).
 - **Discord** reads and sends in the servers a bot is in: create a bot in
   the Discord developer portal, turn on its Message Content intent, then
   `bun tools/companion.ts service discord token <token>`, and `service
   discord status` prints the invite link. Setup and controls:
-  [docs/DISCORD.md](docs/DISCORD.md).
+  [docs/DISCORD.md](../../vendor/applets/docs/DISCORD.md).
 
-**GitHub** is built from `kit/`, a design system in which a page is rows
-and the kit draws them (`kit/platform.tsx` is what it takes from this
-shell): the inbox, pull requests, issues, repositories, code, diffs,
+**GitHub** is built from the applets' `kit/`, a design system in which a page is rows
+and the kit draws them (`kit/platform.tsx` is what it takes from the device,
+the same on every device): the inbox, pull requests, issues, repositories, code, diffs,
 reviews, merging, Actions, releases, gists and search, on GitHub's REST API
 with ETags and the Link header's pages. Its token is kept by the
 companion's `store` service, avatars come through `images`, and text in any
@@ -253,7 +246,7 @@ bun run --cwd shells/3ds icons          # re-render and re-bake the launcher's i
 bun run check:3ds                       # typecheck, the launcher's and the applets' sims, unit tests
 ```
 
-A change under `shell/`, `hn/` or `ui/` reaches a console with `push`. A
+A change under `shell/` or `vendor/applets` reaches a console with `push`. A
 change in the runtime (`vendor/pocketjs/products/3ds`) needs `deploy`. Pairing
 needs ftpd once: `bun run pair --host <console-ip>`. The `.3dsx` is the only
 console format.

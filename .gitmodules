@@ -2,3 +2,6 @@
 	path = vendor/pocketjs
 	url = https://github.com/pocket-nexus/pocketjs.git
 	branch = main
+[submodule "vendor/applets"]
+	path = vendor/applets
+	url = https://github.com/pocket-nexus/applets.git
