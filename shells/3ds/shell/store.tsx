@@ -99,7 +99,7 @@ function StoreRow(props: { app: LinkCatalogApp; index: number; env: StoreEnv; li
   const { sys, press } = props.env;
   const app = props.app;
   const y = props.index * ROW;
-  const tint = appTint(app.id, app.title);
+  const tint = appTint(app.id);
   const action = () => storeAction(app, sys.table().apps, sys.installs()[app.id]);
   const install = () => sys.installs()[app.id];
   const meta = () => {
@@ -329,7 +329,7 @@ export function storeAppPage(env: StoreEnv, appId: string, _stack: NavStack, lay
           fallback={<Text class="absolute left-0 top-[80] text-sm text-[#4c566c] font-bold text-center" style={{ width: SCREEN_W }}>The Mac no longer offers this app.</Text>}
         >
           {(current) => {
-            const tint = appTint(current().id, current().title);
+            const tint = appTint(current().id);
             return (
               <>
                 <Tile x={12} y={12} size={DETAIL_ICON} {...tint} />

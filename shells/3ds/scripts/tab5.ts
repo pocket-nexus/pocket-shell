@@ -19,8 +19,8 @@ import { resolve } from "node:path";
 import { admissionHost, describeRejection, selectVariant, type VariantSelection } from "../../../vendor/pocketjs/contracts/spec/admission.ts";
 import { decodePocketPackage } from "../../../vendor/pocketjs/contracts/spec/pocket-package.ts";
 import { hashPocketProfile, readPocketProfile } from "../../../vendor/pocketjs/framework/src/profile.ts";
-import { APPS, appContract, isShellApp } from "./apps.ts";
-import { DIST_TAB5, PLAN_DIR_TAB5 as PLAN_DIR, PROJECT_ROOT, ROOT, VENDOR } from "./paths.ts";
+import { APPS, appContract, isShellApp, projectRoot } from "./apps.ts";
+import { DIST_TAB5, PLAN_DIR_TAB5 as PLAN_DIR, ROOT, VENDOR } from "./paths.ts";
 
 export const POCKET_M5_ROOT = process.env.POCKET_M5_ROOT ?? resolve(ROOT, "../pocket-m5");
 export const TAB5_PROGRAM = resolve(POCKET_M5_ROOT, "programs/m5stack-tab5");
@@ -54,7 +54,7 @@ export async function buildTab5(app: string): Promise<string> {
       "--manifest",
       manifestPath,
       "--project-root",
-      PROJECT_ROOT,
+      projectRoot(app),
       "--host-config",
       TAB5_HOST_CONFIG,
       "--outdir",
@@ -64,7 +64,7 @@ export async function buildTab5(app: string): Promise<string> {
       "--output",
       output,
     ],
-    { cwd: PROJECT_ROOT, stdout: "inherit", stderr: "inherit", env: { ...process.env, POCKETJS_FRAMEWORK_ROOT: VENDOR } },
+    { cwd: projectRoot(app), stdout: "inherit", stderr: "inherit", env: { ...process.env, POCKETJS_FRAMEWORK_ROOT: VENDOR } },
   );
   if ((await child.exited) !== 0) throw new Error(`pocket-shell tab5: building ${app} failed`);
   const admission = tab5Admission(output);

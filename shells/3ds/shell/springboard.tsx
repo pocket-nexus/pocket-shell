@@ -270,7 +270,7 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
     if (key === SETTINGS_KEY) return { art: ICONS.general.art };
     if (key === MAC_KEY) return { art: ICONS.mac.art };
     const app = appFor(key);
-    return app ? appTint(app.id, app.title) : {};
+    return app ? appTint(app.id) : {};
   };
 
   // ---- banner -------------------------------------------------------------------
@@ -659,7 +659,7 @@ export function createSpringboard(env: SpringboardEnv): Springboard {
               when={current().app}
               fallback={<Tile x={7} y={6} size={24} art={ICONS.general.art} />}
             >
-              {(app) => <Tile x={7} y={6} size={24} {...appTint(app().id, app().title)} />}
+              {(app) => <Tile x={7} y={6} size={24} {...appTint(app().id)} />}
             </Show>
             <Text class="absolute left-[38] top-[3] text-xs text-white font-bold">{ellipsize(current().title, FONT.xsBold, PAGE_W - 48)}</Text>
             <Text class="absolute left-[38] top-[18] text-xs text-[#ffffffb8]">{ellipsize(current().line, FONT.xs, PAGE_W - 48)}</Text>
