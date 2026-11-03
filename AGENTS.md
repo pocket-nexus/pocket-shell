@@ -1,28 +1,36 @@
 # Working in this repository
 
 Pocket Shell is a product built on PocketJS, which arrives as the
-`vendor/pocketjs` submodule. Nothing in `vendor/` is edited here: a runtime
-change lands in [pocket-nexus/pocketjs](https://github.com/pocket-nexus/pocketjs)
-first, and this repository moves its pin.
+`vendor/pocketjs` submodule; the Pocket Applets arrive as `vendor/applets`
+([pocket-nexus/applets](https://github.com/pocket-nexus/applets)). Nothing in
+`vendor/` is edited here: a change lands in
+[pocket-nexus/pocketjs](https://github.com/pocket-nexus/pocketjs) or
+pocket-nexus/applets first, and this repository moves its pin.
 
 The repository holds **three shells**, and a change belongs
 to one of them:
 
-- `shells/3ds/` — Pocket Shell, the launcher, and the **Pocket Applets** it
-  ships with (Hacker News, YouTube, X, Discord, GitHub, Camera, Photos,
-  Notes), over one iOS 6 kit in `ui/` (GitHub also over `kit/`). **Its
-  platforms are the Nintendo 3DS and the M5Stack Tab5**: on the 3DS two
-  screens of fixed size, a resistive panel with one contact, a d-pad and
-  shoulder buttons; on the Tab5 one 640x360 touch surface, a host-drawn home
-  ball and a keyboard. Each program reads its
-  surface size at start (`ui/screen.ts`) and lays out by size class. Every
-  applet draws on the touch surface and declares `system.agent`; the 3DS's
-  top screen and the L+R agent overlay belong to the PocketJS host and
-  framework, not to this repository.
-- `shells/touch/` — Pocket Shell Touch, a full-screen gesture shell with
+- `shells/3ds/`: Pocket Shell, the launcher (`shell/`), and the scripts that
+  build it with the **Pocket Applets** of `vendor/applets` (Hacker News, X,
+  YouTube, Discord, GitHub, Weather, Podcasts, Maps, Home Assistant, Camera,
+  Photos, Notes). The applets' iOS 6 kit `ui/` and their `lib/` live there
+  too; `shells/3ds/ui` and `shells/3ds/lib` link to them. **Its platforms are
+  the Nintendo 3DS, the M5Stack Tab5 and the PSP**: on the 3DS two screens of
+  fixed size, a resistive panel with one contact, a d-pad and shoulder
+  buttons; on the Tab5 one 640x360 touch surface, a host-drawn home ball and
+  a keyboard; on the PSP one 480x272 screen and buttons, with the launcher
+  alone (the pinned PocketJS gives the PSP no worker, and every networked
+  applet needs one). The Tab5 firmware boots pocket-m5's own copy of the
+  launcher (`apps/pocket-shell` there); `bun run tab5` builds this launcher
+  and the applets as Tab5 packages. Each program reads its surface size at
+  start (`ui/screen.ts`) and lays out by size class. Every applet draws on
+  the touch surface and declares `system.agent`; the 3DS's top screen and the
+  L+R agent overlay belong to the PocketJS host and framework, not to this
+  repository.
+- `shells/touch/`: Pocket Shell Touch, a full-screen gesture shell with
   retained mock apps on iPod touch 4 and Nokia E7. It owns navigation, window
   recency and its device tests.
-- `shells/desktop/` — the shell for desktop operating systems, imported from
+- `shells/desktop/`: the shell for desktop operating systems, imported from
   pocket-desktop. It owns windows, application presentation and themes.
   PocketJS owns package isolation, scheduling and native composition.
   macOS and Linux are native targets; the browser is an interactive preview.
@@ -49,15 +57,15 @@ fonts retain their own licenses. See `LICENSING.md`.
 - Prose states the mechanism and the reason. No slogans, no imported
   architecture jargon, no empty intensifiers.
 - Every program the launcher runs is a **Pocket Applet**: its app contract
-  (`pocket.app.json`) declares `applet` (summary, services, store) and meets
-  the applet rules in PocketJS `docs/APPLETS.md` — one 320×240 touch
-  surface, a capability allowlist, declared companion services, no native
-  code, no `eval`, size budgets. The PocketJS build refuses a broken applet;
-  `test/applets.test.ts` checks every one. The launcher (`shell/`) declares
-  no `applet`.
-- An app contract's entry is relative to `shells/3ds/`, the build's project
-  root; `shells/3ds/scripts/apps.ts` lists the launcher and the applets and
-  resolves their plans.
+  (`pocket.app.json`) declares `applet` (summary, services, hosts, store)
+  and meets the applet rules in PocketJS `docs/APPLETS.md`: one 320×240
+  touch surface, a capability allowlist, declared companion services, no
+  native code, no `eval`, size budgets. The PocketJS build refuses a broken
+  applet, and pocket-nexus/applets checks every one (`bun run check`
+  there). The launcher (`shell/`) declares no `applet`.
+- An app contract's entry is relative to its project root: `shells/3ds/` for
+  the launcher, `vendor/applets` for an applet. `shells/3ds/scripts/apps.ts`
+  lists the launcher and the applets and resolves their plans.
 - A Tab5 package is built against pocket-m5's host config and must be
   admitted by its host contract (`bun run tab5` checks with PocketJS's
   admission); the profile hash only orders variants.
@@ -79,7 +87,9 @@ bun run push --host <console-ip>     # rebuild the launcher's package and hot-pu
 bun run push hn --host <console-ip>  # rebuild Hacker News, install it into its slot and start it
 bun run deploy --host <console-ip>   # rebuild the .3dsx, install it over the wire, restart into it
 bun run shot --host <console-ip>     # a screenshot of both screens
-bun run offer                        # offer the 3DS applets through the running Pocket Companion
+bun run offer                        # offer the applets' 3DS and Tab5 packages through the running Pocket Companion
+bun run tab5                         # the launcher and the applets as Tab5 packages in dist/tab5
+bun run psp                          # the PSP EBOOT in dist/psp
 bun run 3ds                          # the full .3dsx in dist/3ds
 ```
 
@@ -98,7 +108,7 @@ bun run check:desktop          # or check:3ds / check:touch
 Run these commands from the repository root. Each shell also has its own
 package.json; desktop artifacts land in `shells/desktop/dist/`.
 
-Changes under `shells/3ds/shell`, `hn` or `ui` are hot pushes, and an
+Changes under `shells/3ds/shell` or `vendor/applets` are hot pushes, and an
 accepted push persists on the card for that app. A change under
 `vendor/pocketjs/products/3ds` is native: `bun run deploy` writes the new
 `.3dsx` to `sdmc:/3ds/` through the running Runtime and restarts into it, and

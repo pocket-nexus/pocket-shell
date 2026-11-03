@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // bun run tab5 [app…] — build packages for the M5Stack Tab5 (ESP-IDF).
 //
-// The Tab5 program in pocket-m5 (programs/m5stack-tab5) embeds Pocket Shell
-// and installs the applets from the linked Mac, like the 3DS. Every package
-// compiles against that program's host config (pocket.host.config.ts, which
-// names its host contract pocket.host.json, host id tab5-home), and a
+// The Tab5 program in pocket-m5 (programs/m5stack-tab5) embeds its own copy
+// of Pocket Shell (apps/pocket-shell there) and installs the applets from the
+// linked Mac, like the 3DS; the launcher built here replaces that copy in a
+// firmware built with -DPOCKETJS_TAB5_SHELL_PACKAGE=<package.pocket>. Every
+// package compiles against that program's host config (pocket.host.config.ts,
+// which names its host contract pocket.host.json, host id tab5-home), and a
 // package the host contract does not admit is an error: the check is
 // PocketJS's own (contracts/spec/admission.ts, the rules the firmware's
 // engine applies), so a package written here installs on that firmware. The
-// checkout is POCKET_M5_ROOT when set, else ../pocket-m5 beside this
-// repository. Outputs go to dist/tab5.
+// checkout is POCKET_M5_ROOT when set (relative to this repository's root),
+// else ../pocket-m5 beside this repository. Outputs go to dist/tab5.
 //
 //   bun run tab5            -> every app
 //   bun run tab5 shell hn   -> the named apps
@@ -22,7 +24,7 @@ import { hashPocketProfile, readPocketProfile } from "../../../vendor/pocketjs/f
 import { APPS, appContract, isShellApp, projectRoot } from "./apps.ts";
 import { DIST_TAB5, PLAN_DIR_TAB5 as PLAN_DIR, ROOT, VENDOR } from "./paths.ts";
 
-export const POCKET_M5_ROOT = process.env.POCKET_M5_ROOT ?? resolve(ROOT, "../pocket-m5");
+export const POCKET_M5_ROOT = resolve(ROOT, process.env.POCKET_M5_ROOT ?? "../pocket-m5");
 export const TAB5_PROGRAM = resolve(POCKET_M5_ROOT, "programs/m5stack-tab5");
 export const TAB5_HOST_CONFIG = resolve(TAB5_PROGRAM, "pocket.host.config.ts");
 export const TAB5_HOST_CONTRACT = resolve(TAB5_PROGRAM, "pocket.host.json");

@@ -1,9 +1,9 @@
 # Pocket Shell on the 3DS and the M5Stack Tab5
 
-This shell is **Pocket Shell**, the console's launcher, and the **Pocket
-Applets** it ships with, built once for the Nintendo 3DS and the M5Stack
-Tab5. On the 3DS every applet draws on the touch screen and nowhere else.
-The top screen belongs to the system: for each applet (each declares the
+This shell is **Pocket Shell**, the console's launcher, and the scripts that
+build it with the **Pocket Applets** of pocket-nexus/applets for the
+Nintendo 3DS, the M5Stack Tab5 and the PSP. On the 3DS every applet draws
+on the touch screen and nowhere else. The top screen belongs to the system: for each applet (each declares the
 capability `system.agent`), the PocketJS 3DS host draws Claude's room
 there, and **L+R opens the agent over any applet**. The runtime side (the room, the overlay, the
 companion's agent) is PocketJS's and is described in
@@ -57,7 +57,8 @@ and body as JSON) is at most **1020 bytes**: a longer post or reply is
 refused with `invalid_request`, and a glyph atlas is asked for in parts that
 `ui/glyphs.ts` merges into one atlas before it loads. On the 3DS the node
 rides the Pocket Link to the Mac; on the Tab5 it is the firmware's HTTP over
-Wi-Fi, which resolves `companion.pocket` like any other host name.
+Wi-Fi, and a request to `companion.pocket` goes over the Pocket Link to the
+paired Mac (pocket-m5 v0.1.2).
 
 ### Surfaces
 
@@ -93,7 +94,8 @@ On a surface larger than the 3DS's:
 
 Icons ship an `@2x` texture beside each 1x one (`shell/art/icons/bake.ts`), so
 a density-2 build draws them texel for texel. `POCKET_TAB5_SHOTS=<dir> bun run
-check:3ds` also writes each program's 592×360 and 360×592 screens.
+check:3ds` also writes the launcher's 592×360 and 360×592 screens; the
+applets' are pocket-nexus/applets' sims.
 
 ### The PSP
 
@@ -125,9 +127,10 @@ needs a touch surface.
 one that resolves into `dist/psp/packages/` with the admission check `bun run
 tab5` makes, and links one EBOOT with Pocket Shell as app 0 and the others
 embedded after it (PocketJS `tools/psp.ts`, which needs `pocket target add
-psp`). Under PSPLINK the PRX runs from the share the tethered computer
-serves, and that computer's companion keeps the link in the same share. A
-console linked this way shows no store, and Settings names its companion:
+psp`). At the pinned PocketJS that EBOOT holds the launcher alone. Under
+PSPLINK the PRX runs from the share the tethered computer serves, and that
+computer's companion keeps the link in the same share. A console linked this
+way shows no store, and Settings names its companion:
 
 ```sh
 usbhostfs_pc /opt/pocket/host0 &
@@ -141,10 +144,16 @@ The Tab5 target is pocket-m5's `programs/m5stack-tab5` with the host
 contract `tab5-home` (`pocket.host.json`, which its `pocket.host.config.ts`
 names): an ESP32-P4 whose 1280x720 panel
 shows the auxiliary surface at **640x360 logical, presented at 2x**, turned
-onto the portrait panel. The firmware embeds Pocket Shell as its launcher,
-keeps the installed applets on the microSD card and boots one runtime per
-app; the applets install from the Mac's catalog as on the 3DS. The six pictures at the top of
-the repository README are this surface.
+onto the portrait panel. The firmware embeds its own copy of Pocket Shell,
+pocket-m5's `apps/pocket-shell` (taken from this shell at `188c46c` and
+changed there since), keeps the installed applets on its `apps` flash
+partition and their data on the microSD card, and boots one runtime per
+app; the applets install from the Mac's catalog as on the 3DS. The six
+pictures at the top of the repository README are this surface. pocket-m5's
+releases are the firmware: Pocket Studio offers the latest at
+[studio.pocket.nexus/apps/shell](https://studio.pocket.nexus/apps/shell),
+and [the install guide](https://studio.pocket.nexus/docs/install/#tab5)
+shows how to write it with esptool and pair it with Pocket Companion.
 
 - `bun run tab5 [app…]` compiles each app against the Tab5 host config
   into `dist/tab5/<output>.pocket` and refuses a package the host contract
@@ -156,8 +165,12 @@ the repository README are this surface.
   per 30 Hz frame on the Tab5), and every enabled feature is a host
   capability. The host config is read from a
   [pocket-m5](https://github.com/pocket-nexus/pocket-m5) checkout:
-  `POCKET_M5_ROOT` when set, else `../pocket-m5` beside this repository.
-  `bun run offer` builds both the 3DS and the Tab5 package of
+  `POCKET_M5_ROOT` when set (relative to the repository root), else
+  `../pocket-m5` beside this repository. The launcher's package from here
+  replaces pocket-m5's in a firmware built with
+  `-DPOCKETJS_TAB5_SHELL_PACKAGE=<package.pocket>`.
+- The Pocket Companion app carries the applets and offers them to a paired
+  Tab5 or 3DS. `bun run offer` builds both the 3DS and the Tab5 package of
   every applet into `dist/3ds/apps/` and points the running Pocket Companion
   at them, and the companion lists to each console the files with a variant
   for its target.
@@ -183,10 +196,12 @@ the repository README are this surface.
   wiggles, and its navigation stack cuts where the 3DS slides.
 
 **The launcher** is the springboard (the home screen), Settings (Wi-Fi, Mac
-pairing by QR code, the Mac's app catalog) and the clock, which reads the Mac's time over the Pocket
-Link. The springboard holds **four columns by two rows a page** above a
-two-icon dock. Labels are bold 10 px (`text-2xs`), so "Hacker News" and
-"Pocket Nexus" fit their 80 px cells; a longer name ends in "...".
+pairing by QR code, the installed applets), the Mac (the applets the paired
+Mac offers, with GET, OPEN and UPDATE) and the clock, which reads the Mac's
+time over the Pocket Link. The springboard holds **four columns by two rows
+a page** above a dock of up to four icons (Settings, Camera, Photos, Mac).
+Labels are bold 10 px (`text-2xs`), so "Hacker News" and "Pocket Nexus" fit
+their 80 px cells; a longer name ends in "...".
 
 - A drag moves the row of pages with the stylus. A flick faster than
   **250 px/s** turns the page; a slower release settles on the nearest page.
@@ -232,19 +247,20 @@ a pushed applet can reach its service; any other request gets 403.
 
 - **YouTube** lists topic feeds and search results from yt-dlp, with
   thumbnails the companion renders into textures. The Mac needs yt-dlp and
-  ffmpeg (`brew install yt-dlp ffmpeg`). A New 3DS plays H.264
-  through its hardware decoder; an **Old 3DS plays 240×136 at about 12 fps**
+  ffmpeg: Pocket Companion's YouTube page downloads them, or `brew install
+  yt-dlp ffmpeg`. A New 3DS plays H.264 through its hardware decoder; an **Old 3DS plays 240×136 at about 12 fps**
   in PAL8 (a fixed 252-colour cube, only changed pixels sent), with sound,
   at 58 to 215 KB/s. Sound needs the console's DSP firmware once: Rosalina
   menu (L + Down + SELECT) > Miscellaneous options > Dump DSP firmware.
 - **X** reads the Following and For You timelines and threads through the
-  session of an account signed in on the Mac: `bun tools/companion.ts
-  service x login` opens a sign-in window there. It uses x.com's web API,
-  which X changes without notice. Setup and controls: [docs/X.md](../../vendor/applets/docs/X.md).
+  session of an account signed in on the Mac: Pocket Companion's X page, or
+  `bun tools/companion.ts service x login`, opens a sign-in window there.
+  It uses x.com's web API, which X changes without notice. Setup and controls: [docs/X.md](../../vendor/applets/docs/X.md).
 - **Discord** reads and sends in the servers a bot is in: create a bot in
   the Discord developer portal, turn on its Message Content intent, then
-  `bun tools/companion.ts service discord token <token>`, and `service
-  discord status` prints the invite link. Setup and controls:
+  give the token to Pocket Companion's Discord page or to `bun
+  tools/companion.ts service discord token <token>`, and `service discord
+  status` prints the invite link. Setup and controls:
   [docs/DISCORD.md](../../vendor/applets/docs/DISCORD.md).
 
 **GitHub** is built from the applets' `kit/`, a design system in which a page is rows
@@ -270,10 +286,12 @@ shows the touch screen or the agent's own copy of an applet, and the PocketJS
 mark as a screensaver while it rests. A pill in the
 bottom-right corner reads "L+R Ask Claude" while the mascot is idle.
 
-The agent needs **Pocket Companion** on the Mac, signed in to Codex: run
-`bun tools/companion.ts serve` in a PocketJS checkout, or build the menu bar
-app there with `bun run companion:app`. `bun run offer` puts this shell's
-applets in the companion's catalog.
+The agent needs **Pocket Companion** on the Mac, signed in to Codex (its
+Assistant page signs in). Get the app at
+[studio.pocket.nexus/apps/companion](https://studio.pocket.nexus/apps/companion),
+or in a PocketJS checkout run `bun tools/companion.ts serve` or build the
+menu bar app with `bun run companion:app`. The app carries the applets;
+`bun run offer` puts the ones built here in the companion's catalog.
 
 ## Commands
 
