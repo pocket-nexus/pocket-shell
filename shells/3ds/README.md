@@ -113,12 +113,13 @@ there while they are open. On a touch surface the legend draws nothing and
 the layouts keep their full height.
 
 The applets come from pocket-nexus/applets with the same button paths, and
-Hacker News, YouTube, X, Discord and GitHub declare the same presentation,
-but the PSP cannot run them yet: their network is a worker with an `http`
-node, and the psp host contract at the pinned PocketJS provides neither
-`runtime.worker` nor `net.http` (PocketJS `docs/POCKET-LINK.md`, "USB
-carrier"). The resolver leaves them out of the PSP build, as it leaves out
-every applet without the presentation, which needs a touch surface.
+there Hacker News, YouTube, X, Discord and GitHub declare the same
+presentation (pocket-nexus/applets#6). The PSP cannot run them yet: their
+network is a worker with an `http` node, and the psp host contract at the
+pinned PocketJS provides neither `runtime.worker` nor `net.http` (PocketJS
+`docs/POCKET-LINK.md`, "USB carrier"). The resolver leaves them out of the
+PSP build, as it leaves out every applet without the presentation, which
+needs a touch surface.
 
 `bun run psp` resolves every app for the psp host contract, compiles each
 one that resolves into `dist/psp/packages/` with the admission check `bun run
