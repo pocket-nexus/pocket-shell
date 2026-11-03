@@ -29,13 +29,8 @@
   },
   "include": [
     "shell",
-    "hn",
-    "youtube",
-    "x",
-    "discord",
-    "github",
-    "kit",
     "ui",
+    "lib",
     "scripts",
     "test"
   ]

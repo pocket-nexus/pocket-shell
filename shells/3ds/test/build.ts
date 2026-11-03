@@ -3,8 +3,8 @@
 // --pocket-only, the app's resolved plan and this shell as the project root.
 
 import { join } from "node:path";
-import { type ShellApp, writePlan } from "../scripts/apps.ts";
-import { PROJECT_ROOT, VENDOR } from "../scripts/paths.ts";
+import { projectRoot, type ShellApp, writePlan } from "../scripts/apps.ts";
+import { VENDOR } from "../scripts/paths.ts";
 
 /** Build `app` into `out`; returns the guest's path without extension. */
 export function buildGuest(app: ShellApp, out: string): string {
@@ -14,7 +14,7 @@ export function buildGuest(app: ShellApp, out: string): string {
       process.execPath,
       "tools/3ds.ts",
       `--plan=${plan.path}`,
-      `--project-root=${PROJECT_ROOT}`,
+      `--project-root=${projectRoot(app)}`,
       "--pocket-only",
       `--outdir=${join(out, "guest")}`,
       `--package-outdir=${out}`,
