@@ -10,16 +10,17 @@ Build intermediates and individual validation runs stay ignored.
 | Desktop `gen-assets.ts`, W95FA OTF and its OFL notice | Font recipe and original input; retained. The ten 1×/2× `.bin` atlases in `src/system-ui/fonts/` are ignored. Inter comes from the pinned PocketJS submodule. |
 | 3DS `shell/art/icons/*.png`, `icons.py` and `bake.ts` | The launcher's Blender-baked icon textures and the dock, plus their recipes. The build reads the committed PNGs and needs no Blender; Cycles output differs between renders, so `bun run --cwd shells/3ds icons` produces a new set to review. Renders and the contact sheet stay in ignored `.pocket-build/`. |
 | 3DS `shell/art/*.svg` and `shell/images.json` | The launcher's vector pictures (chevrons, checks, glows, the camera), rasterized by the PocketJS build. |
-| 3DS `kit/icons.gen.ts`, `github/art/kit/*.svg` and `github/images.json` | The kit's 16 px marks (issues, pull requests, repositories, checks) as geometry, and the SVGs and image list it writes for the GitHub applet's build. `bun shells/3ds/kit/icons.gen.ts` rewrites all three; the build reads the committed SVGs. |
-| 3DS `github/icon.png` | The GitHub applet's package icon (`icon` in its app contract): the same bytes as `shell/art/icons/github-64@2x.png`, because an app contract's icon sits inside the app's directory. `test/applets.test.ts` holds the two equal. |
 | 3DS `media/hw/*.png`, desktop `docs/*-theme.png` | Console screenshots embedded in the 3DS README and selected desktop pictures; desktop theme images are also shipped on the site. These are reviewed documentation assets. |
 | Desktop `docs/bench/classic-2026-08-23.{md,json}` | Historical baseline cited by the website, including measured data and protocol. It predates the portable renderer. |
 | Desktop `docs/bench/aqua-gpu-2026-09-10.{md,json}` | Dated comparison supporting the documented drag benchmark. It measures CPU submission and capture estimates, not physical input latency. |
 | Desktop `docs/bench/text-offload-{latency.json,welcome.txt}` | The dated text-service measurement and exact input cited by the text documentation. |
 | Touch `src/art/*.png`, `src/images.json` and `art/` | Shipped wallpaper and sixteen Blender-baked icon textures, plus their authoring recipes. Normal builds consume the committed PNGs without requiring Blender. Editable scene exports and render sheets stay in ignored `.pocket-build/touch-art/`. |
 | TypeScript/TSX, C, HTML, CSS and preview JavaScript | Maintained application, daemon, build or site source. Wayland protocol XML is the input to the pointer helper's build and retains its embedded MIT notice. |
-| Package/runtime manifests, tsconfigs, CI, Bun lockfile and `.gitmodules` | Build and dependency inputs. There is one root PocketJS gitlink and one workspace lockfile. |
+| Package/runtime manifests, tsconfigs, CI, Bun lockfile and `.gitmodules` | Build and dependency inputs. There are two root gitlinks, PocketJS and pocket-nexus/applets, and one workspace lockfile. |
 | GPL texts and third-party notices | Distribution terms; generated font atlases keep the source fonts' OFL terms. See [LICENSING.md](../LICENSING.md). |
+
+The applets' assets (the kit's marks, each applet's icon and pictures) are
+in pocket-nexus/applets, under `vendor/applets`.
 
 The SVG and atlas generators reproduced all 110 previously committed outputs
 byte-for-byte during this cleanup. Native, web and simulator builds now invoke

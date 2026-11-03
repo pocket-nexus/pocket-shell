@@ -1,9 +1,11 @@
 # Pocket Shell
 
-Pocket Shell is a launcher and its **Pocket Applets**, a set of apps built
-on [PocketJS](https://github.com/pocket-nexus/pocketjs) that run from one
-set of packages on the Nintendo 3DS's touch screen and on
-the M5Stack Tab5's landscape panel.
+Pocket Shell is a launcher for the **Pocket Applets**, small apps built on
+[PocketJS](https://github.com/pocket-nexus/pocketjs) that run from one set
+of packages on the Nintendo 3DS's touch screen and on the M5Stack Tab5's
+landscape panel. This repository holds the launcher and builds it, with the
+applets of [pocket-nexus/applets](https://github.com/pocket-nexus/applets)
+(the `vendor/applets` submodule), for the 3DS, the Tab5 and the PSP.
 
 | Home | Hacker News | Notes |
 | --- | --- | --- |
@@ -22,6 +24,15 @@ The Tab5 pictures are the device's framebuffer at its logical **640x360**
 console, and the 3DS Notes list is a simulator render at 320x240. Each
 applet lays itself out by size class from one source, so the 3DS and the
 Tab5 install the same programs: see [shells/3ds](shells/3ds/README.md).
+
+To use them, get Pocket Shell (the 3DS `.3dsx` or the Tab5 firmware) at
+[studio.pocket.nexus/apps/shell](https://studio.pocket.nexus/apps/shell) and
+Pocket Companion for the Mac at
+[studio.pocket.nexus/apps/companion](https://studio.pocket.nexus/apps/companion).
+Pocket Companion carries the applets: pair the device with it in Settings >
+Mac > Pair a Mac..., then tap Mac on the home screen to install them. The
+Tab5 firmware is [pocket-m5](https://github.com/pocket-nexus/pocket-m5)'s,
+with its own copy of the launcher.
 
 ## The shells as explorations
 
@@ -49,12 +60,13 @@ describe that tree.
 
 ```text
 shells/
-  3ds/       shell (the launcher), the applets (hn, youtube, x, discord, github, camera, photos, notes), ui and kit, scripts, test, media, manifests
+  3ds/       shell (the launcher), scripts, test, media; ui and lib link into vendor/applets
   touch/     src (gesture model and mock apps), scripts, test, manifest
   desktop/   src/system-ui, scripts, test, assets, docs, preview, site, manifests
 scripts/     setup, desktop command dispatch, repository paths and process helpers
 vendor/
   pocketjs/  shared runtime submodule
+  applets/   pocket-nexus/applets: the applets, ui, kit and lib (submodule)
 ```
 
 The three shells have separate Bun packages and TypeScript configurations.
@@ -97,6 +109,7 @@ bun run deploy --host <console-ip> # build Pocket Shell's .3dsx, install it over
 bun run push [hn] --host <console-ip>  # rebuild and hot-push the launcher (or install Hacker News)
 bun run offer                    # offer the applets (3DS and Tab5 packages) through the running Pocket Companion
 bun run tab5 [app…]              # build the launcher and the applets for the M5Stack Tab5 into dist/tab5
+bun run psp                      # build the PSP EBOOT (the launcher) into dist/psp
 bun run shot --host <console-ip>  # capture both console screens
 bun run 3ds                      # full console binary in dist/3ds
 bun run touch guest
@@ -104,8 +117,9 @@ bun run touch deploy             # portrait gesture shell on the connected iPod
 ```
 
 PocketJS is pinned through `vendor/pocketjs`, including the 3DS host's agent
-stage and the Pocket Link. Runtime changes belong upstream; this repository
-selects their commit through its submodule pin.
+stage and the Pocket Link, and the applets through `vendor/applets`. Runtime
+and applet changes belong upstream; this repository selects their commits
+through its submodule pins.
 
 ## License
 

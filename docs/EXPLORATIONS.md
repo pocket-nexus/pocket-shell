@@ -120,3 +120,9 @@ tablet when the surface is read at run time and the host's own controls
 models. The repaint display without a compositor needed its own animation
 class, so the launcher keeps two sets of transitions and the pinstripes tile a
 texture the PPA copies; both are in PocketJS now.
+
+Since then the applets, `ui/`, `kit/` and `lib/` have moved to
+pocket-nexus/applets (`vendor/applets` here), which Omarchy Pocket builds as
+well, and the Tab5 firmware keeps its own copy of the launcher in pocket-m5
+(`apps/pocket-shell`). The scripts here still build the 3DS and the Tab5
+variants from those sources.
