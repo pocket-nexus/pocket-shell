@@ -95,6 +95,46 @@ Icons ship an `@2x` texture beside each 1x one (`shell/art/icons/bake.ts`), so
 a density-2 build draws them texel for texel. `POCKET_TAB5_SHOTS=<dir> bun run
 check:3ds` also writes each program's 592×360 and 360×592 screens.
 
+### The PSP
+
+Pocket Shell runs on the PSP's whole 480×272 screen from the same entry. Its
+app contract adds the applet full-screen presentation (`{screens: 1, touch:
+"none", buttons: true}`, PocketJS `docs/APPLETS.md`), so the psp host
+contract compiles it with no auxiliary surface; `AppletSurface` mounts it on
+the screen and `readScreen()` reads the size from `appletViewport()`.
+
+Without touch every page is read by its d-pad focus, which the first row or
+icon holds from the start, and a **22 px button legend** along the bottom
+(`ui/legend.tsx`) names what each button does on the page in front: ○ for
+the focused row, × for back, then the page's own (L and R for feeds and
+pages, △ for reload or write, □ for edit or reload), and SELECT for the home
+screen in an applet. An alert and the system keyboard put their own buttons
+there while they are open. On a touch surface the legend draws nothing and
+the layouts keep their full height.
+
+The applets come from pocket-nexus/applets with the same button paths, and
+there Hacker News, YouTube, X, Discord and GitHub declare the same
+presentation (pocket-nexus/applets#6). The PSP cannot run them yet: their
+network is a worker with an `http` node, and the psp host contract at the
+pinned PocketJS provides neither `runtime.worker` nor `net.http` (PocketJS
+`docs/POCKET-LINK.md`, "USB carrier"). The resolver leaves them out of the
+PSP build, as it leaves out every applet without the presentation, which
+needs a touch surface.
+
+`bun run psp` resolves every app for the psp host contract, compiles each
+one that resolves into `dist/psp/packages/` with the admission check `bun run
+tab5` makes, and links one EBOOT with Pocket Shell as app 0 and the others
+embedded after it (PocketJS `tools/psp.ts`, which needs `pocket target add
+psp`). Under PSPLINK the PRX runs from the share the tethered computer
+serves, and that computer's companion keeps the link in the same share. A
+console linked this way shows no store, and Settings names its companion:
+
+```sh
+usbhostfs_pc /opt/pocket/host0 &
+bun tools/companion.ts serve --usb /opt/pocket/host0 --no-agent
+pspsh -e "ldstart host0:/pocketjs-psp.prx"   # after copying the PRX into the share
+```
+
 ### The M5Stack Tab5
 
 The Tab5 target is pocket-m5's `programs/m5stack-tab5` with the host
@@ -247,6 +287,7 @@ bun run offer [--3ds|--tab5]            # build the applets' 3DS and Tab5 packag
 bun run shot --host <console-ip>        # one screenshot of both screens
 bun run 3ds [shell|hn] [--pocket-only]  # build into dist/3ds
 bun run tab5 [app…]                     # build packages for the M5Stack Tab5 into dist/tab5
+bun run psp [--skip-eboot]              # build Pocket Shell's PSP EBOOT into dist/psp
 bun run --cwd shells/3ds icons          # re-render and re-bake the launcher's icons (macOS, Blender 5)
 bun run check:3ds                       # typecheck, the launcher's and the applets' sims, unit tests
 ```
