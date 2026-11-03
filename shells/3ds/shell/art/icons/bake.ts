@@ -55,7 +55,11 @@ const ICONS: Record<string, number[]> = {
   discord: [24, 46, 64],
   camera: [24, 46, 64],
   photos: [24, 46, 64],
+  weather: [24, 46, 64],
+  podcasts: [24, 46, 64],
+  maps: [24, 46, 64],
   github: [24, 46, 64],
+  homeassistant: [24, 46, 64],
 };
 
 const RENDERS = resolve(process.argv[2] ?? ".pocket-build/shell-icons/render");
@@ -216,7 +220,10 @@ function compose(icon: Rgba, size: Size): Uint8Array {
 // ---- bake --------------------------------------------------------------------------
 
 const baked: { name: string; size: number; tex: number; rgba: Uint8Array }[] = [];
+// BAKE_ONLY=github,hn bakes those from a render directory holding only them
+const bakeOnly = process.env.BAKE_ONLY?.split(",");
 for (const [name, sizes] of Object.entries(ICONS)) {
+  if (bakeOnly && !bakeOnly.includes(name)) continue;
   const render = name === "plain" ? null : decodePng(new Uint8Array(await Bun.file(join(RENDERS, `${name}.png`)).arrayBuffer()));
   if (render && (render.width !== 512 || render.height !== 512)) throw new Error(`${name}: expected a 512 px render`);
   for (const n of sizes) {
