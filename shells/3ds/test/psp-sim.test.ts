@@ -1,21 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/test/psp-sim.test.ts — what the PSP build carries, on the PSP's
 // full screen (test/psp.ts): 480x272, no auxiliary surface, no touch, the
-// link over the USB share. The build is Pocket Shell plus every applet that
-// resolves for the psp host contract (scripts/psp.ts). At this PocketJS no
-// applet does: the network applets fetch through a worker, which the PSP
-// host does not run, so the launcher is all there is to drive. The tests
-// read every page by buttons alone, through the button legend along the
-// bottom (ui/legend.tsx).
+// link over the USB share. The build is Pocket Shell plus every applet of
+// pocket-nexus/applets that resolves for the psp host contract
+// (scripts/psp.ts). At this PocketJS none does: an applet with a network
+// fetches through a worker, which the PSP host does not run, and one without
+// the full-screen presentation needs touch. So the launcher is all there is
+// to drive. The tests read every page by buttons alone, through the button
+// legend along the bottom (ui/legend.tsx).
 //
 // POCKET_PSP_SHOTS=<dir> also writes the screens as PNGs.
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BTN } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
-import { LAUNCHER } from "../scripts/apps.ts";
+import { appContract, LAUNCHER } from "../scripts/apps.ts";
 import { pspApps } from "../scripts/psp.ts";
 import { bootPsp, buildPspGuest, PSP, pspShot, USB_LINK } from "./psp.ts";
 
@@ -34,17 +35,17 @@ afterAll(() => {
 });
 
 describe("the PSP build", () => {
-  // When PocketJS gives the PSP a worker with an http node, the network
-  // applets resolve and this fails: they then join the journeys below.
+  // When PocketJS gives the PSP a worker with an http node, the applets with
+  // the full-screen presentation resolve and this fails: they then join the
+  // journeys below.
   test("carries the launcher; the resolver leaves out what the PSP cannot run", () => {
     const { apps, left } = pspApps();
     expect(apps).toEqual([LAUNCHER]);
-    const reasons = new Map(left.map(({ app, reasons }) => [app, reasons]));
-    for (const app of ["hn", "x", "youtube", "discord", "github"]) {
-      expect(reasons.get(app)).toContain("does not provide runtime.worker, which the worker declaration requires");
-    }
-    for (const app of ["camera", "photos", "notes"]) {
-      expect(reasons.get(app)).toContain("does not provide input.touch.auxiliary");
+    expect(left.length).toBeGreaterThan(0);
+    for (const { app, reasons } of left) {
+      const contract = JSON.parse(readFileSync(appContract(app), "utf8"));
+      if (contract.domains?.worker) expect([app, reasons]).toEqual([app, expect.stringContaining("does not provide runtime.worker, which the worker declaration requires")]);
+      if (!contract.app.presentations) expect([app, reasons]).toEqual([app, expect.stringContaining("does not provide input.touch.auxiliary")]);
     }
   });
 

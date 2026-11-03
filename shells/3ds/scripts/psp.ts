@@ -4,16 +4,18 @@
 // contract resolves for the PSP's full screen (the applet full-screen
 // presentation, PocketJS contracts/spec/applet.ts).
 //
-// Each app resolves against PocketJS's psp host contract
-// (hosts/psp/pocket.host.json, which programs/psp/pocket.host.config.ts
-// names), compiles into dist/psp/packages/<output>.pocket and must be
-// admitted by that contract, the check the EBOOT build makes again. An app
-// that does not resolve is left out with the resolver's reasons: Camera,
-// Photos and Notes serve the touch surface only, and the network applets
-// declare a worker with an http node, which the PSP host does not run
-// (it provides neither runtime.worker nor net.http). The EBOOT links with
-// PocketJS's tools/psp.ts and needs its toolchain (`pocket target add psp`);
-// --skip-eboot stops after the packages.
+// The apps are the launcher and the applets of pocket-nexus/applets
+// (scripts/apps.ts), each from its own project root. Each resolves against
+// PocketJS's psp host contract (hosts/psp/pocket.host.json, which
+// programs/psp/pocket.host.config.ts names), compiles into
+// dist/psp/packages/<output>.pocket and must be admitted by that contract,
+// the check the EBOOT build makes again. An app that does not resolve is left
+// out with the resolver's reasons: an applet with a network declares a worker
+// with an http node, which the PSP host does not run (it provides neither
+// runtime.worker nor net.http), and one without the full-screen presentation
+// needs a touch surface. The EBOOT links with PocketJS's tools/psp.ts and
+// needs its toolchain (`pocket target add psp`); --skip-eboot stops after the
+// packages.
 
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -25,7 +27,7 @@ import { validateAndResolveBuildPlan } from "../../../vendor/pocketjs/framework/
 import { hashPocketProfile } from "../../../vendor/pocketjs/framework/src/profile.ts";
 import { POCKET_PROFILES } from "../../../vendor/pocketjs/hosts/index.ts";
 import { profileRegistry } from "../../../vendor/pocketjs/tools/profile-resolver.ts";
-import { APPS, appContract, LAUNCHER } from "./apps.ts";
+import { APPS, appContract, LAUNCHER, projectRoot } from "./apps.ts";
 import { DIST_PSP, PLAN_DIR_PSP, PROJECT_ROOT, VENDOR } from "./paths.ts";
 
 export const PSP_HOST_CONFIG = resolve(VENDOR, "programs/psp/pocket.host.config.ts");
@@ -73,7 +75,7 @@ export async function buildPspPackage(app: string, outdir = DIST_PSP): Promise<{
       "--manifest",
       appContract(app),
       "--project-root",
-      PROJECT_ROOT,
+      projectRoot(app),
       "--host-config",
       PSP_HOST_CONFIG,
       "--outdir",
@@ -83,7 +85,7 @@ export async function buildPspPackage(app: string, outdir = DIST_PSP): Promise<{
       "--output",
       output,
     ],
-    { cwd: PROJECT_ROOT, stdout: "pipe", stderr: "pipe", env: { ...process.env, POCKETJS_FRAMEWORK_ROOT: VENDOR } },
+    { cwd: projectRoot(app), stdout: "pipe", stderr: "pipe", env: { ...process.env, POCKETJS_FRAMEWORK_ROOT: VENDOR } },
   );
   const [stdout, stderr] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text()]);
   if ((await child.exited) !== 0) throw new Error(`pocket-shell psp: building ${app} failed\n${stdout}${stderr}`);
