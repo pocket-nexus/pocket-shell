@@ -172,6 +172,34 @@ describe("springboard", () => {
   });
 });
 
+describe("app icons", () => {
+  const GAME = { output: "playset-space-shooter", id: "dev.pocket-nexus.playset.space-shooter", title: "Space Shooter", version: "0.1.0", bytes: 400_000 };
+
+  test("an app without baked art shows its tint under the applet glyph; no tile shows initials", async () => {
+    const home = await boot({ apps: [...APPS, GAME] });
+    await home.run(30);
+    shot(home, "icons");
+    const texts = home.texts("auxiliary");
+    for (const label of ["Space Shooter", "Contacts"]) expect(texts).toContain(label);
+    for (const initials of ["SS", "C", "HN", "PN"]) expect(texts).not.toContain(initials);
+    // The 46 px tile sits 49 px above its label, centred on it. Its glyph is
+    // four 9 px squares 4 px apart: their centres lie 6.5 px from the tile's
+    // centre, and the tile's centre is the tint between them.
+    const [x, y, w] = home.locate("Space Shooter", "auxiliary")!;
+    const { width, rgba } = home.world.pixels("auxiliary");
+    const light = (dx: number, dy: number): number => {
+      let sum = 0;
+      for (let row = -1; row <= 1; row++) for (let column = -1; column <= 1; column++) {
+        const o = ((Math.round(y - 49 + 23 + dy) + row) * width + Math.round(x + w / 2 + dx) + column) * 4;
+        sum += rgba[o]! + rgba[o + 1]! + rgba[o + 2]!;
+      }
+      return sum / 27;
+    };
+    const tint = light(0, 0);
+    for (const [dx, dy] of [[-6.5, -6.5], [6.5, -6.5], [-6.5, 6.5], [6.5, 6.5]] as const) expect(light(dx, dy)).toBeGreaterThan(tint + 40);
+  });
+});
+
 describe("springboard pages", () => {
   // Eleven apps: eight on the first page, three on the second.
   const MANY = Array.from({ length: 11 }, (_, index) => ({
