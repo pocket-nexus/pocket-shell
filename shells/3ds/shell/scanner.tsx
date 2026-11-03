@@ -175,7 +175,7 @@ export function scannerPage(sys: ShellSystem, stack: NavStack, setScan: (state: 
           <Text class="absolute text-sm text-white font-bold text-center" style={{ insetL: previewX + 12, insetT: pillY + 5, width: SCREEN_W - 2 * previewX - 24 }}>{pill()}</Text>
           <Show when={TALL}>
             <Text class="absolute left-[20] text-xs text-[#ffffff90] text-center" style={{ insetT: pillY + 44, width: SCREEN_W - 40 }}>
-              {"On your Mac, open Pocket Companion\nand choose Pair a Console..."}
+              {"On your Mac, open Pocket Hub\nand choose Pair a Console..."}
             </Text>
           </Show>
         </Show>

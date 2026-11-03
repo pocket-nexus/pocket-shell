@@ -274,7 +274,7 @@ function macPage(env: PageEnv, stack: NavStack, layer: LayerContext): PageSpec {
           cells: [{ id: "mac.status", label: "Status", value: linked ? "Linked" : "Searching", accessory: linked ? undefined : "spinner" }],
           footer: linked
             ? `Linked to ${companion.name} over USB. This console's apps come with it, so there is no store.`
-            : "Looking for the companion on the computer this console is plugged into. Run Pocket Companion there with --usb on the share.",
+            : "Looking for the companion on the computer this console is plugged into. Run Pocket Hub there with --usb on the share.",
         }];
       }
       const status =
@@ -286,7 +286,7 @@ function macPage(env: PageEnv, stack: NavStack, layer: LayerContext): PageSpec {
         link.state === LINK_STATE.linked && companion
           ? `Linked to ${companion.name}${companion.address ? ` at ${companion.address}` : ""}. Applets and web requests come through this Mac.`
           : link.state === LINK_STATE.searching
-            ? "Looking for a paired Mac on this network. Open Pocket Companion on the Mac."
+            ? "Looking for a paired Mac on this network. Open Pocket Hub on the Mac."
             : "Pair a Mac to install applets from it and to reach the web through it.";
       const sections: Section[] = [
         {
@@ -319,7 +319,7 @@ function macPage(env: PageEnv, stack: NavStack, layer: LayerContext): PageSpec {
       }
       sections.push({
         cells: [{ id: "mac.pair", label: link.paired.length ? "Pair Another Mac..." : "Pair a Mac...", tone: "action", run: () => stack.push("scan") }],
-        footer: "On your Mac, open Pocket Companion and choose Pair a Console... to show a code. Then hold the outer camera up to it.",
+        footer: "On your Mac, open Pocket Hub and choose Pair a Console... to show a code. Then hold the outer camera up to it.",
       });
       return sections;
     }),

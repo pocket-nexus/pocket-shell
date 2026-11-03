@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // bun run offer [--3ds | --tab5] — build every app but the launcher as
-// packages into dist/3ds/apps/ and point the running Pocket Companion at that
+// packages into dist/3ds/apps/ and point the running Pocket Hub at that
 // folder. Each app gets a 3DS package (<output>.pocket) and a Tab5 package
 // (<output>.tab5.pocket); the companion lists to each console the files with
 // a variant for its target. The launcher's store then lists them, and an

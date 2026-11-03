@@ -25,14 +25,12 @@ console, and the 3DS Notes list is a simulator render at 320x240. Each
 applet lays itself out by size class from one source, so the 3DS and the
 Tab5 install the same programs: see [shells/3ds](shells/3ds/README.md).
 
-To use them, get Pocket Shell (the 3DS `.3dsx` or the Tab5 firmware) at
-[studio.pocket.nexus/apps/shell](https://studio.pocket.nexus/apps/shell) and
-Pocket Companion for the Mac at
-[studio.pocket.nexus/apps/companion](https://studio.pocket.nexus/apps/companion).
-Pocket Companion carries the applets: pair the device with it in Settings >
-Mac > Pair a Mac..., then tap Mac on the home screen to install them. The
-Tab5 firmware is [pocket-m5](https://github.com/pocket-nexus/pocket-m5)'s,
-with its own copy of the launcher.
+To use them, Pocket Hub, an app for the Mac, installs Pocket Shell on a 3DS
+and carries the applets: pair the device with it in Settings > Mac > Pair a
+Mac..., then tap Mac on the home screen to install them. Pocket Hub is not
+released yet. The Tab5 firmware is
+[pocket-m5](https://github.com/pocket-nexus/pocket-m5)'s, with its own copy
+of the launcher.
 
 ## The shells as explorations
 
@@ -107,7 +105,7 @@ to list its commands, including captures, benchmarks and the text companion.
 ```sh
 bun run deploy --host <console-ip> # build Pocket Shell's .3dsx, install it over the wire and restart into it
 bun run push [hn] --host <console-ip>  # rebuild and hot-push the launcher (or install Hacker News)
-bun run offer                    # offer the applets (3DS and Tab5 packages) through the running Pocket Companion
+bun run offer                    # offer the applets (3DS and Tab5 packages) through the running Pocket Hub
 bun run tab5 [app…]              # build the launcher and the applets for the M5Stack Tab5 into dist/tab5
 bun run psp                      # build the PSP EBOOT (the launcher) into dist/psp
 bun run shot --host <console-ip>  # capture both console screens
