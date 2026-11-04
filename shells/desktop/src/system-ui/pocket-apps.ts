@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // The desktop's name and its visible application catalog come from the System
 // manifest. The About dialog's text and the prefix of an app window's title
-// come from pocket.about.json beside it. The native host receives separately
+// come from pocket.about.json beside it. The browser host receives separately
 // resolved complete package plans; this module carries only System-owned
 // presentation data.
 
@@ -103,11 +103,11 @@ export function appWindowTitle(
 }
 
 export interface PocketAppSpec {
-  /** Stable package id used by the native compositor surface registry. */
+  /** Stable package id used by the compositor surface registry. */
   package: string;
   /** Compact desktop caption/icon label. */
   title: string;
-  /** The macos-app plan's logical viewport. */
+  /** The web-app plan's logical viewport. */
   viewport: readonly [number, number];
 }
 

@@ -42,12 +42,12 @@ explored one way of operating a small computer; what each taught is in
 | --- | --- | --- |
 | Pocket Shell on the 3DS and the Tab5 | A touch-screen launcher with installed applets; on the 3DS, Claude's room on the top screen and L+R to talk or type; on the Tab5, a floating home ball and a keyboard | [shells/3ds](shells/3ds/README.md) |
 | Touch navigation | Full-screen gestures over sixteen mock apps on the iPod touch 4 and the Nokia E7 | [shells/touch](shells/touch/README.md) |
-| Desktop OS | Windows, a pointer and a keyboard, with Classic 98, XP and Aqua themes on macOS and Linux and a browser preview; the shell Pocket Studio uses | [shells/desktop](shells/desktop/README.md) |
+| Embedded desktop | Windows, a pointer and a keyboard, with Classic 98, XP and Aqua themes in the browser preview and Pocket Studio computers | [shells/desktop](shells/desktop/README.md) |
 | The Omarchy-style 3DS shell and the iPod touch 4 remote (archived) | Tiling windows on the top screen with shoulder chords and a deck on the touch screen; a handheld that mirrors and controls a Linux desktop | branch [`archive/3ds-omarchy-ipod-remote`](https://github.com/pocket-nexus/pocket-shell/tree/archive/3ds-omarchy-ipod-remote) |
 
-The former **pocket-desktop** project is the desktop OS shell in this
-repository. Its application code, assets, tests, native build scripts, browser
-preview, website and benchmark history are maintained under `shells/desktop/`.
+The former **pocket-desktop** project is the embedded desktop interface in this
+repository. Its application code, assets, tests, browser build scripts, browser
+preview and website are maintained under `shells/desktop/`.
 The import preserves its Git history. Existing installed package IDs and
 desktop artifact names remain stable. The archived shells are `main` at
 `78b94b2` before they were removed; they are not built or tested on `main`, and
@@ -89,18 +89,15 @@ bun run check:3ds                # or check:touch / check:desktop
 ```
 
 ```sh
-bun run desktop macos            # build and launch on macOS
-bun run desktop linux            # build and launch on Linux
 bun run desktop web              # interactive browser preview
-bun run desktop build            # macOS release build without launching
-bun run desktop package:linux    # relocatable Linux distribution
+bun run desktop build:web        # build the browser preview
 bun run desktop test:web         # browser interaction smoke test
 bun run desktop build:site
 bun run desktop test:site
 ```
 
 Desktop outputs are in `shells/desktop/dist/`. Use `bun run desktop --help`
-to list its commands, including captures, benchmarks and the text companion.
+to list its commands, including captures and the text companion.
 
 ```sh
 bun run deploy --host <console-ip> # build Pocket Shell's .3dsx, install it over the wire and restart into it

@@ -15,7 +15,7 @@
 // Shortcuts are macOS-style: the host forwards ⌘ chords as cmd-flagged key
 // lines (⌘Q quits and ⌘V pastes host-side) — ⌘W closes, ⌘M minimizes,
 // ⌘` cycles, ⌘N opens Notepad, ⌘Esc toggles Start, ⌘A/C/X edit the
-// focused Notepad. Pocket app input and scheduling are owned by the native
+// focused Notepad. Pocket app input and scheduling are owned by the host
 // compositor using the focused surface fact emitted by this shell. The host
 // can also open an installed app by package id (the svc "open" line) and
 // select the theme (the svc "theme" line); the shell reports the active
@@ -175,7 +175,7 @@ const aboutLabel = () => lw().about(DESKTOP_NAME);
 const WELCOME = [
   `Welcome to ${DESKTOP_NAME}.`,
   "",
-  "The desktop shell is one PocketJS guest. Every Pocket app icon starts another isolated QuickJS guest in the same PocketJS host process; each guest keeps its own globals, UI tree and fixed clock.",
+  "The desktop shell is one PocketJS guest. Each browser app runs in its own JavaScript Realm with a WASM UI, separate globals, a UI tree and a fixed clock.",
   "",
   "Word wrap is on (Edit > Word Wrap) - these paragraphs are single logical lines; resize the window and they reflow live.",
   "",
@@ -710,7 +710,7 @@ export default function App() {
       kind: "pocket",
       app,
     };
-    // Content is exactly the child plan's logical viewport. Native surface
+    // Content is exactly the child plan's logical viewport. Compositor surface
     // composition therefore needs no scale or second raster pass.
     const m = metrics();
     const outerW = app.viewport[0] + m.frame * 2;
@@ -2167,7 +2167,7 @@ export default function App() {
     const w = focused();
     if (!w) return;
     if (w.kind === "pocket") {
-      // The CompositorSurface focused flag routes input natively.
+      // The CompositorSurface focused flag routes input through the host.
       return;
     }
     if (w.kind === "mines" && k === "F2") {

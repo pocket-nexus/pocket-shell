@@ -1,37 +1,27 @@
-# Portable renderer and text experiment
+# Browser rendering and text
 
-Pocket Shell Desktop's System UI and installed demo bundles use SolidJS. The
-framework implementation is pinned by the root `vendor/pocketjs` submodule
-at merged commit `b5e2a274`. Runtime imports stay under
-`@pocketjs/framework/*`. Paths and commands below start at the repository root.
+Pocket Shell Desktop's System UI and installed demo bundles use SolidJS.
+The root `vendor/pocketjs` submodule pins the runtime. Runtime imports stay
+under `@pocketjs/framework/*`. Commands below start at the repository root.
 
 ## Ownership
 
 | Work | Owner |
 |---|---|
-| Native window, input, clipboard, final GPU presentation | winit / wgpu adapter |
-| Native QuickJS guests, Solid updates, flex layout, drawing, composition | native runtime worker |
-| Browser guests and Rust software drawing | existing isolated iframe/WASM instances |
-| Text wrapping, shaping and glyph rasterization | independent `io.offload` worker |
-| PSP text execution | paired companion only; no text engine linked into PSP |
-| Theme palettes, font slots, icons, metrics | System UI theme definitions |
+| AppInstances, input, focus and hidden-app suspension | browser System host |
+| Guest JavaScript and Rust software drawing | one iframe/WASM UI per package |
+| Child surface clipping and painter order | WASM compositor |
+| Text wrapping, shaping and glyph rasterization | independent `io.offload` Worker |
+| Theme palettes, font slots, icons and metrics | System UI theme definitions |
+| Embedded computer display and application services | embedding product |
 
-`pocket-ui-wgpu` executes the core DrawList on native GPU targets, including
-`SURFACE_QUAD` composition. WASM executes the same contract through
-`engine/core/src/compositor.rs`. Both preserve child surface painter order and
-scissor state outside the guest texture namespace. Native child textures are
-cached by instance generation and DrawList/resource revision; a bounded pool
-hands GPU frames to the window thread without CPU pixel copies. `AppSupervisor` retains independent realms, failure isolation,
-focus routing and hidden-app suspension. Native layout/raster work never enters
-the window event callback. Browser text work uses a Worker; the browser's general
-UI rendering still uses the existing iframe scheduler.
+The browser uploads each child's raster to the System UI compositor at its
+surface handle. Surface handles stay separate from guest texture resources.
+Text work runs in a Worker; the iframe scheduler advances the UI.
 
-`engine/crates/pocket-text` owns text execution. Atlas layout uses the same
-Rust core and package font metrics as rendering. OpenType shaping and coverage
-use COSMIC Text, Harfrust and Swash, with an empty font database populated only
-from explicit package/provider font bytes. No CoreText, Fontconfig, installed
-font directories, or OS text measurements are used. Winit and wgpu may
-use OS APIs for native window presentation.
+`engine/text` owns text execution. Atlas layout uses the Rust core and
+package font metrics. OpenType shaping and coverage use COSMIC Text, Harfrust
+and Swash, with a font database populated from package/provider font bytes.
 
 ## Capability contract
 
@@ -50,9 +40,8 @@ client delivery; provider document revisions reject stale writes. Reconnection
 reopens and uploads the latest requested revision. Closing a document releases
 its provider allocation.
 
-The transport never executes capability handlers in `submit` or `take`. Native
-hosts use bounded channels and a dedicated worker; browsers use a Worker and
-bounded credits. PSP uses a lower-priority host0 mailbox thread with fixed
+The transport never executes capability handlers in `submit` or `take`.
+Browsers use a Worker and bounded credits. PSP uses a lower-priority host0 mailbox thread with fixed
 buffers; that thread touches neither QuickJS, Ui, GE nor the global allocator.
 Without the companion, its session is zero and no work is submitted. The UI
 reports the pairing requirement instead of doing synchronous layout locally.
@@ -102,14 +91,14 @@ Build the portable engine and a package first:
 
 ```sh
 bun vendor/pocketjs/tools/text-wasm.ts
-bun run desktop build
+bun run desktop build:web
 ```
 
 For a device with the paired LAN `io.offload` transport:
 
 ```sh
 bun run desktop companion:text --address DEVICE_IP --key-file /path/to/pairing-key \
-  --pak shells/desktop/dist/pocket-desktop-system-ui.pak
+  --pak shells/desktop/dist/web/dist/pocket-desktop-system-ui.pak
 ```
 
 The pairing key is the existing 256-bit device key. It is not logged. Only
@@ -134,49 +123,17 @@ a device boot ID and sequence. Old files and replies are rejected across
 restarts. There is no network listener or font engine on the PSP. Do not expose
 that trusted host0 root as a public share.
 
-## Validation commands and historical scope
+## Validation
 
 ```sh
-bun run desktop check          # types, System UI rules, async simulator journeys, text/USB tests
-bun run desktop test:rust      # native text, native worker, compositor and AppSupervisor tests
-bun run desktop build          # macOS release host and all installed packages
-bun run desktop test:web       # real Chrome journey and dist/web-smoke.png
-```
-
-The imported renderer work at `b5e2a274` recorded: macOS release build and native first paint; native scripted
-typing and autosave round-trip; Solid simulator
-editing/selection/undo, theme changes and surface focus; browser initialization
-and Hero raster composition; Rust/WASM text parity at multiple widths;
-OpenType shaping with package font bytes; bounded and stale-revision rejection;
-reconnect; a real companion Worker through the USB packet adapter; PSP release
-build with the text-offload capability enabled.
-
-Linux build/package/launch is checked in CI. PSP physical pairing, input latency and frame-rate
-acceptance are still hardware checks. The checked-in August benchmark predates
-this renderer. The three theme screenshots were regenerated with `bun run desktop
-capture` using the actual Rust WASM text engine between simulator frames;
-`dist/web-smoke.png` is the current automated browser receipt.
-
-## Measured latency and preview density
-
-Native QuickJS -> offload worker -> frame-boundary delivery, using the welcome
-text at 60 Hz, improved from 8 frames / about 136 ms to 2 frames / about 35–39 ms
-for an edit. Worker computation was only about 0.1–0.2 ms before the change.
-The avoidable cost came from sequential whole-document upload requests. This
-measurement excludes OS input delivery and final window rendering; bulk initial
-uploads and multi-page results still have additional frame latency.
-
-The 2026-09-08 measurements and exact input are retained in [the dated measurements](bench/text-offload-latency.json)
-and [their exact input](bench/text-offload-welcome.txt). Reproduce the optimized path after a
-native product build:
-
-```sh
-bun vendor/pocketjs/tools/text-latency.ts --pak shells/desktop/dist/pocket-desktop-system-ui.pak \
-  --slot 19 --document shells/desktop/docs/bench/text-offload-welcome.txt
+bun run desktop check          # types, System UI, simulator, text and USB tests
+bun run desktop test:rust      # shared text engine and WASM compositor
+bun run desktop test:web       # Chrome journey and dist/web-smoke.png
 ```
 
 The browser preview keeps its logical/backing canvas at 800×600 and presents
 it at 400×300 CSS pixels: two backing pixels per displayed pixel. Pointer
-coordinates continue to map through the canvas rectangle to logical coordinates.
-The browser smoke test verifies the dimensions and opens a child app through
-that scaled input path.
+coordinates map through the canvas rectangle to logical coordinates. The
+browser smoke test verifies the dimensions and opens a child app through
+that scaled input path. Embedded products validate their own input, display
+and text-service integration on their target hardware.

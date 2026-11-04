@@ -1,11 +1,11 @@
 # Pocket Shell Desktop
 
-Pocket Shell Desktop is the desktop OS shell in [Pocket Shell](../../README.md).
-It runs multiple isolated Pocket applications inside one native process,
-using a Pocket System manifest. The entire System UI uses SolidJS and
-PocketJS's universal renderer. It owns windows, taskbar,
-application presentation and theme selection; PocketJS owns package
-resolution, AppInstance isolation, scheduling and native composition.
+Pocket Shell Desktop is the desktop interface in [Pocket Shell](../../README.md).
+It runs in the browser preview and on computers embedded in Pocket Studio's
+rooms. The System UI uses SolidJS and PocketJS's renderer; it owns windows,
+taskbar, application presentation and theme selection. The browser host owns
+AppInstance isolation, scheduling and composition. An embedding product owns
+its display, input and application services.
 
 ## Themes
 
@@ -13,7 +13,7 @@ Pocket Shell Desktop ships three System UI themes: Classic 98, XP and Aqua.
 Each is a period desktop rebuilt from PocketJS-native drawing — no bitmaps of
 the originals, no theme-specific code paths outside the theme's own
 definition. **All three run on the same System manifest, AppInstances and
-native compositor.**
+browser compositor.**
 
 | Classic 98 | XP | Aqua |
 |---|---|---|
@@ -69,12 +69,10 @@ pocket.system.json
              ↓
       ResolvedSystemPlan
              ↓
-  PocketJS portable desktop host
-      ├─ winit + wgpu: window, input and GPU presentation
-      ├─ runtime worker: SolidJS AppInstances + AppSupervisor
-      │   └─ shared Rust layout + pocket-ui-wgpu drawing and surface composition
-      └─ io.offload workers: portable Rust text service
-          └─ the same WASM provider serves browser and paired devices
+  PocketJS browser System host
+      ├─ one iframe Realm and WASM UI per AppInstance
+      ├─ fixed-step scheduling, focus and child surface composition
+      └─ io.offload workers: WASM text layout with package font bytes
 ```
 
 The System UI is in `src/system-ui`. Demo applications are consumed from the
@@ -129,14 +127,9 @@ every frame that ends in another theme, whether the Settings menu, the cycle
 chord or the host's line changed it. A host that keeps the user's choice or
 passes the theme on to its apps reads this line.
 
-The experimental framework implementation is pinned directly in
-`vendor/pocketjs` from [PocketJS PR #399](https://github.com/pocket-nexus/pocketjs/pull/399),
-which adds GPU composition on top of [PR #390](https://github.com/pocket-nexus/pocketjs/pull/390). A fresh `setup` uses
-that exact published commit; no checkout-local patches are applied.
-The desktop host no longer links gpui, CoreText or Fontconfig. Native window
-APIs handle the window, input and clipboard. The existing `pocket-ui-wgpu`
-backend draws through Metal on macOS, retaining child textures and handing GPU
-frames to the window thread. WASM keeps the Rust software rasterizer.
+The root `vendor/pocketjs` submodule pins the framework and browser runtime.
+The browser program is `programs/web/system-engine.js`; its AppInstances use
+`platforms/web` and the WASM UI core. A fresh `setup` uses the pinned commit.
 
 Notepad sends revisioned incremental edits through `io.offload`; Rust performs wrapping
 on a worker and returns bounded pages. Rendering and hit testing share an
@@ -149,65 +142,34 @@ pairing, budgets, current limits and validation.
 
 ## Assets
 
-Icons and 1×/2× font atlases are generated before native, browser and simulator
+Icons and 1×/2× font atlases are generated before browser and simulator
 builds. Only their generators and original font inputs are tracked. Use
 `bun run desktop assets` to rebuild them explicitly; see the
 [repository asset policy](../../docs/ASSETS.md).
 
 ## Build
 
-Run the commands below from the repository root. Build outputs and benchmark
-paths in this document are relative to `shells/desktop/`.
-
-Requirements: Bun and Rust. macOS native builds also need Xcode command-line
-tools. Linux native builds need the X11/Wayland development libraries and a Vulkan-capable driver listed by the CI workflow. Checks and browser builds
-require the `wasm32-unknown-unknown` Rust target.
+Run these commands from the repository root. Outputs are relative to
+`shells/desktop/`. Use the Bun version in `.bun-version` and the Rust toolchain
+in `vendor/pocketjs/rust-toolchain.toml`, with `wasm32-unknown-unknown` installed.
 
 ```sh
 bun run setup
 rustup target add wasm32-unknown-unknown
 bun run desktop check
 bun run desktop test:rust
-bun run desktop build
-bun run desktop macos
-```
-
-On Linux, build and launch the same resolved Pocket System through the generic
-portable Rust AppSupervisor host:
-
-```sh
-bun run desktop linux
-bun run desktop package:linux
-```
-
-`package:linux` creates a relocatable `PocketDesktop` product directory and a
-`pocket-desktop-linux-<arch>.tar.gz` distribution. After installing the Linux
-libraries listed above, extract it and run:
-
-```sh
-./PocketDesktop/bin/pocket-desktop
-```
-
-The relocatable launcher sets the artifact root and passes the complete
-`ResolvedSystemPlan` to the native host.
-
-Build or serve the browser preview with:
-
-```sh
 bun run desktop build:web
 bun run desktop web
 bun run desktop test:web
 ```
 
-The browser host uses a separate WASM text worker per package. It runs every installed package in an independent iframe
-JavaScript Realm with its own wasm UI instance. The parent AppSupervisor
-schedules focused/visible AppInstances and composites child rasters at the
-shell's `CompositorSurface` painter positions. `test:web` drives a real
-headless Chrome double-click journey and requires the Hero child raster to
-replace its shell fallback before saving `dist/web-smoke.png`.
+The browser host runs each installed package in an independent iframe Realm
+with its own WASM UI instance and text Worker. It schedules AppInstances and
+composites their rasters at the shell's `CompositorSurface` painter positions.
+`test:web` opens Hero in headless Chrome and waits for the child raster before
+saving `dist/web-smoke.png`.
 
-Build and verify the product site, including the complete preview at `/play/`,
-with:
+Build and verify the site, including the preview at `/play/`:
 
 ```sh
 bun run desktop build:site
@@ -215,51 +177,32 @@ bun run desktop test:site
 ```
 
 The retained Wrangler configuration targets Cloudflare Workers Static Assets
-at `desktop.pocketlab.build` and owns its custom-domain route.
-`bun run desktop deploy:site` builds before publishing. Moving the sources
-does not deploy the site.
+at `desktop.pocketlab.build`. `bun run desktop deploy:site` builds and publishes
+the site when a deployment is requested. Theme documentation images can be
+regenerated with `bun run desktop capture`.
 
-Regenerate the checked-in theme screenshots from the deterministic PocketJS
-simulator with `bun run desktop capture`.
+## Embed a Studio computer
 
-## Native drag benchmark
-
-After `bun run desktop build`, run `bun run desktop benchmark:drag` in an unlocked desktop
-session. It replays Aqua window movement at the default 800×600 size and writes
-native logs, artifact hashes and stage distributions under `.pocket/bench/drag`.
-The measurements bracket CPU tick, GPU command submission and presentation
-submission; they do not measure GPU completion or mouse-to-panel latency.
-Optional `--max-work-ms=16.7 --max-render-ms=3 --max-present-ms=3` checks apply
-p95 CPU budgets for the acceptance machine. A run with fewer than 320 of the
-340 measured drag frames fails, including when external input interrupts it.
-
-The [dated Aqua GPU comparison](docs/bench/aqua-gpu-2026-09-10.md) retains
-the measurements and their limits.
-
-## Historical classic baseline benchmark
-
-The checked-in August baseline measures the previous gpui host and is not a
-performance claim for the portable renderer. To record a new comparable run,
-build the macOS release host, keep the desktop session unlocked and run:
+**`pocket.app.studio.json` is the Studio computer's application contract.**
+An embedding product compiles it against its own host contract and runs the
+resulting `.pocket` package through PocketJS's shared runtime. The product
+supplies the screen texture, input and the `system-ui` and `pocket-studio`
+services. The shell supplies the desktop interface and themes.
 
 ```sh
-bun run desktop build
-bun run desktop benchmark:classic
+bun run desktop assets
+bun vendor/pocketjs/tools/pocket.ts compile \
+  --manifest shells/desktop/pocket.app.studio.json \
+  --project-root shells/desktop \
+  --target /path/to/product/pocket.host.json \
+  --output /path/to/product/desktop.pocket
 ```
 
-The benchmark records the native executable and complete installed System
-artifact sizes, ten process-cold/cache-warm launches from spawn to the first
-painted frame, and settled idle process-tree RSS plus macOS physical footprint.
-It writes the raw samples, machine identity, source revisions and a Markdown
-summary to `.pocket/bench/classic/<run>/classic-<date>.{json,md}`. Promote
-reviewed baselines into `docs/bench/` explicitly. Use `--quick` for a three-run
-smoke check; quick results cannot replace the checked-in baseline.
-
-Pass native-host script flags after `--`, for example:
-
-```sh
-bun run desktop macos -- --quit-after 120
-```
+A host that provides `pocket-studio` enables Agent Check, Studio Settings and
+My Games. Their values and actions belong to the embedding product. Browser
+Studio can also stage the System UI with its own `pocket.system.json`, About
+text and application catalog. Neither embedding uses a standalone desktop
+executable from this repository.
 
 ## Licensing
 

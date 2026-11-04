@@ -28,7 +28,7 @@ async function settle(
   }
 }
 
-// Preserve the standalone classic composition used by the baseline benchmark.
+// Render the Classic theme composition used by the documentation and site.
 const classic = await bootWorld(
   "pocket-desktop-system-ui",
   60,
@@ -45,7 +45,7 @@ await Bun.write(
 console.log(`Pocket Shell Desktop: captured ${classicOutput}`);
 
 // Theme switching is a System UI action delivered through the same input
-// path as the native host. A minimal companion gives the capture a real
+// path as the browser host. A minimal companion gives the capture a real
 // pointer/keyboard channel without adding any screenshot-only app API. One
 // world walks Classic -> XP -> Aqua with ⌘⇧T, capturing each stop.
 const inbox: string[] = [];

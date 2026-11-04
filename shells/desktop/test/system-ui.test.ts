@@ -120,7 +120,7 @@ describe("Pocket app desktop catalog", () => {
 
     const packages = await packageInputs();
     const systemResolution = validateAndResolveSystemPlan(system, {
-      target: "macos-app",
+      target: "web-app",
       packages,
     });
     expect(systemResolution.ok).toBe(true);
@@ -147,7 +147,7 @@ describe("Pocket app desktop catalog", () => {
         (item) => item.source === entry.manifest,
       )!.manifest;
       const resolution = validateAndResolveBuildPlan(manifest, {
-        target: "macos-app",
+        target: "web-app",
         role:
           entry.package === system.roles.systemUI ? "systemUI" : "application",
       });
@@ -170,10 +170,10 @@ describe("Pocket app desktop catalog", () => {
     // This repository's file describes the shell.
     expect(DESKTOP_ABOUT).toEqual({
       body: [
-        "A desktop compositor demo on the portable Rust backend.",
-        "SolidJS JSX over the same DrawList the",
-        "consoles boot; windows, menus and shortcuts",
-        "live in the guest.",
+        "A desktop for browsers and Studio computers.",
+        "Windows, menus and themes are drawn",
+        "with SolidJS and PocketJS. The product",
+        "connects its display and input.",
       ],
       link: "github.com/pocket-nexus/pocket-shell",
       translations: {},
@@ -325,7 +325,7 @@ describe("Pocket app desktop catalog", () => {
     )!;
     (hero.manifest as any).app.output = "settings-main";
     const result = validateAndResolveSystemPlan(system, {
-      target: "macos-app",
+      target: "web-app",
       packages,
     });
     expect(result.ok).toBe(false);
@@ -345,7 +345,7 @@ describe("Pocket app desktop catalog", () => {
       (entry) => entry.source !== "vendor/pocketjs/apps/hero/pocket.app.json",
     );
     const result = validateAndResolveSystemPlan(available, {
-      target: "macos-app",
+      target: "web-app",
       packages,
     });
     expect(result.ok).toBe(true);
@@ -368,7 +368,7 @@ describe("Pocket app desktop catalog", () => {
         (packageId) => packageId !== "dev.pocket-nexus.desktop.system-ui",
       );
     const missing = validateAndResolveSystemPlan(missingSystemUI, {
-      target: "macos-app",
+      target: "web-app",
       packages: (await packageInputs()).filter(
         (entry) => entry.source !== "shells/desktop/pocket.app.json",
       ),
@@ -385,7 +385,7 @@ describe("Pocket app desktop catalog", () => {
       "dev.pocket-nexus.unknown",
     );
     const unknown = validateAndResolveSystemPlan(unknownPackage, {
-      target: "macos-app",
+      target: "web-app",
       packages: await packageInputs(),
     });
     expect(unknown.ok).toBe(false);
@@ -405,7 +405,7 @@ describe("Pocket app desktop catalog", () => {
       "ui.compositor-surfaces",
     );
     const rejected = validateAndResolveSystemPlan(system, {
-      target: "macos-app",
+      target: "web-app",
       packages: required,
     });
     expect(rejected.ok).toBe(false);
@@ -423,7 +423,7 @@ describe("Pocket app desktop catalog", () => {
       "ui.compositor-surfaces",
     );
     const accepted = validateAndResolveSystemPlan(system, {
-      target: "macos-app",
+      target: "web-app",
       packages: enhanced,
     });
     expect(accepted.ok).toBe(true);
@@ -446,7 +446,7 @@ describe("Pocket app desktop catalog", () => {
     );
     capabilities.enhances.push("ui.compositor-surfaces");
     const result = validateAndResolveSystemPlan(system, {
-      target: "macos-app",
+      target: "web-app",
       packages,
     });
     expect(result.ok).toBe(false);
@@ -464,7 +464,7 @@ describe("Pocket app desktop catalog", () => {
     )!;
     (hero.manifest as any).app.companions = ["note"];
     const result = validateAndResolveSystemPlan(system, {
-      target: "macos-app",
+      target: "web-app",
       packages,
     });
     expect(result.ok).toBe(false);

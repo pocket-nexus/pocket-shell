@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "license": "GPL-3.0-only",
-  "description": "Pocket Shell for Nintendo 3DS, touch navigation and desktop operating systems",
+  "description": "Pocket Shell for Nintendo 3DS, touch navigation and embedded desktop interfaces",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/pocket-nexus/pocket-shell.git"
