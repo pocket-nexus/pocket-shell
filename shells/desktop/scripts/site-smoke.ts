@@ -111,7 +111,7 @@ async function browserSmoke(origin: string): Promise<void> {
       await evaluate<boolean>("document.readyState === 'complete'") ? true : null
     );
     await waitFor("the landing page", async () =>
-      (await evaluate<string>("document.querySelector('h1')?.textContent ?? ''")).includes("One process") ? true : null
+      (await evaluate<string>("document.querySelector('h1')?.textContent ?? ''")).includes("your browser and Studio") ? true : null
     );
     await evaluate("document.querySelector('[data-theme-shot=classic]')?.click()");
     await waitFor("the classic theme preview", async () =>
@@ -196,7 +196,7 @@ try {
     if (!html.includes("Pocket Shell Desktop")) throw new Error(route + " is not a Pocket Shell Desktop document");
   }
   const home = await (await fetch(origin + "/")).text();
-  for (const contract of ["native process", "/play/", "25.35", "AppSupervisor", "GPLv3"]) {
+  for (const contract of ["Pocket Studio", "/play/", "WebAssembly", "Browser scheduler", "GPLv3"]) {
     if (!home.includes(contract)) throw new Error("landing page is missing contract: " + contract);
   }
   const architecture = await (await fetch(origin + "/docs/architecture/")).text();

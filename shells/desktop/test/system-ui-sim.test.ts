@@ -93,7 +93,7 @@ function mockSvc(): MockSvc {
         surfaceBindings.push([node, surface, focused]);
         setCompositorSurface(node, surface, focused);
       };
-      ops.__host = "macos-app";
+      ops.__host = "web-app";
       ops.svcOpen = (name: string) => name === "system-ui";
       ops.svcPoll = () => {
         if (toGuest.length === 0) return null;
@@ -346,7 +346,7 @@ describe("system-ui System UI companion journey", () => {
     expect(treeHasText(world.getTree(), "[PASTED]QQ")).toBe(true);
   }, 30000);
 
-  test("desktop windows bind package surfaces and publish native focus", async () => {
+  test("desktop windows bind package surfaces and publish surface focus", async () => {
     const svc = mockSvc();
     const provider = await testTextProvider();
     const world = await bootWorld(APP, 60, {offload: provider.ops}, svc.mutateOps);
@@ -663,5 +663,49 @@ describe("system-ui System UI companion journey", () => {
     expect(listing.filter((text) => text === "System")).toHaveLength(1);
     expect(listing.filter((text) => text === "Batch File")).toHaveLength(1);
     expect(named()).toEqual([]);
+  }, 30000);
+});
+
+describe("Studio computer embedding", () => {
+  test("runs Studio programs, themes and settings events without child app surfaces", async () => {
+    const svc = mockSvc();
+    const world = await bootWorld(APP, 60, {}, (ops) => {
+      svc.mutateOps(ops);
+      ops.svcOpen = (name: string) => name === "system-ui" || name === "pocket-studio";
+    });
+    svc.push({ t: "hello", w: 640, h: 480, epoch: 1755650000000 });
+    await step(world, 3);
+    expect(treeHasClass(world.getTree(), XP_THEME.desktop)).toBe(true);
+    for (const title of ["Agent Check", "Studio Settings", "My Games"]) {
+      expect(treeHasText(world.getTree(), title)).toBe(true);
+    }
+    expect(treeHasText(world.getTree(), "welcome.txt - Notepad")).toBe(false);
+    expect(treeHasText(world.getTree(), appWindowTitle("Hero"))).toBe(false);
+
+    // Theme commands stay available to the product embedding the screen.
+    for (const theme of [CLASSIC_THEME, AQUA_THEME, XP_THEME]) {
+      svc.push({ t: "theme", id: theme.id });
+      await step(world, 2);
+      expect(treeHasClass(world.getTree(), theme.desktop)).toBe(true);
+    }
+    svc.push({ t: "key", k: "t", cmd: true, sh: true });
+    await step(world, 2);
+    expect(svc.sent()).toContainEqual({ t: "setting", key: "theme", value: "aqua" });
+    svc.push({ t: "theme", id: "xp" });
+    await step(world, 2);
+
+    // The third desktop icon opens Studio Settings. The product uses this
+    // event to keep its phone settings service alive while the window is open.
+    mouse(svc, 45, 148, true);
+    mouse(svc, 45, 148, false);
+    await step(world);
+    mouse(svc, 45, 148, true);
+    mouse(svc, 45, 148, false);
+    await step(world, 2);
+    expect(svc.sent()).toContainEqual({ t: "settings-open", on: true });
+    svc.push({ t: "key", k: "w", cmd: true });
+    await step(world, 2);
+    expect(svc.sent()).toContainEqual({ t: "settings-open", on: false });
+    expect(svc.surfaces()).toEqual([]);
   }, 30000);
 });

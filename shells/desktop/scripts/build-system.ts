@@ -9,7 +9,6 @@ import {
   ROOT,
   projectRootFor,
   resolveDesktopSystem,
-  type DesktopTarget,
 } from "./system-plan.ts";
 
 async function run(command: string[]): Promise<void> {
@@ -23,7 +22,6 @@ async function run(command: string[]): Promise<void> {
 }
 
 export interface BuildDesktopSystemOptions {
-  target?: DesktopTarget;
   dist?: string;
   planDir?: string;
 }
@@ -34,10 +32,9 @@ export async function buildDesktopSystem(
   systemPlanPath: string;
   applicationCount: number;
 }> {
-  const target = options.target ?? "macos-app";
   const dist = options.dist ?? DIST;
   const planDir = options.planDir ?? PLAN_DIR;
-  const system = await resolveDesktopSystem(target);
+  const system = await resolveDesktopSystem();
   await prepareAssets();
   mkdirSync(planDir, { recursive: true });
   mkdirSync(dist, { recursive: true });

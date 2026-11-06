@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   macos:
-    name: All shells + macOS desktop
+    name: All shells and WASM on macOS
     timeout-minutes: 30
     runs-on: macos-latest
     steps:
@@ -30,22 +30,15 @@ jobs:
       - run: bun run setup
       - run: bun run check
       - run: bun run desktop test:rust
-      - run: bun run desktop build
 
   linux-web:
-    name: Linux distribution + WASM preview
+    name: Browser preview and site
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
           submodules: recursive
-      - name: Install native window dependencies
-        run: >-
-          sudo apt-get update && sudo apt-get install -y --no-install-recommends
-          clang cmake pkg-config libwayland-dev libx11-dev libx11-xcb-dev
-          libxkbcommon-dev libxkbcommon-x11-dev libudev-dev libdrm-dev libgbm-dev
-          libxcb-shape0-dev libxcb-xfixes0-dev xvfb xauth libvulkan1 mesa-vulkan-drivers
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: .bun-version
@@ -63,7 +56,6 @@ jobs:
       - run: bun run setup
       - run: bun run check
       - run: bun run desktop test:rust
-      - run: bun run desktop package:linux
       - uses: browser-actions/setup-chrome@v2
         id: setup-chrome
       - name: Exercise the interactive WASM System preview
@@ -74,16 +66,11 @@ jobs:
         env:
           CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
         run: bun run --cwd shells/desktop build:site --reuse-preview && bun run desktop test:site
-      - name: Launch the packaged System under X11
-        run: >-
-          timeout 30s xvfb-run -a
-          shells/desktop/dist/linux-app/PocketDesktop/bin/pocket-desktop --quit-after 20
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: pocket-shell-desktop-linux-web
+          name: pocket-shell-desktop-web
           path: |
-            shells/desktop/dist/linux-app/pocket-desktop-linux-*.tar.gz
             shells/desktop/dist/web
             shells/desktop/dist/web-smoke.png
             shells/desktop/dist/site-smoke.png

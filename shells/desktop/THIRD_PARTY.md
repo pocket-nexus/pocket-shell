@@ -23,11 +23,9 @@ licensed under the SIL Open Font License 1.1. The complete received license is
 in `assets/fonts/LICENSE-W95FA.txt`. The generated, ignored atlas files under
 `src/system-ui/fonts` are derived Font Software and remain under the OFL 1.1.
 
-## Portable text and native presentation libraries
+## Portable text libraries
 
-The pinned PocketJS runtime uses COSMIC Text (0.19), Harfrust and Swash
-for Rust text processing, winit and softbuffer for native window/pixel
-presentation, and arboard for the clipboard. These dependencies retain their
+The pinned PocketJS text engine uses COSMIC Text, Harfrust and Swash for
+text layout, shaping and glyph rasterization. These dependencies retain their
 MIT and/or Apache-2.0 licenses as recorded by their Cargo package metadata and
-locked dependency graph. They retain those licenses in this GPL distribution. Font data continues to use the separate OFL notices above;
-no macOS system fonts are redistributed.
+locked dependency graph. Font data uses the separate OFL notices above.

@@ -11,12 +11,10 @@ export const ROOT = resolve(import.meta.dir, "..");
 export const REPOSITORY = resolve(ROOT, "../..");
 export const POCKETJS_ROOT = resolve(ROOT, "../../vendor/pocketjs");
 export const DIST = resolve(ROOT, "dist");
-export const PLAN_DIR = resolve(ROOT, ".pocket/macos-app");
-export type DesktopTarget = "macos-app" | "linux-app" | "web-app";
+export const PLAN_DIR = resolve(ROOT, ".pocket/web-app");
+const TARGET = "web-app";
 
-export async function resolveDesktopSystem(
-  target: DesktopTarget = "macos-app",
-): Promise<ResolvedSystemPlan> {
+export async function resolveDesktopSystem(): Promise<ResolvedSystemPlan> {
   const systemPath = resolve(ROOT, "pocket.system.json");
   const input = await Bun.file(systemPath).json();
   const validated = validatePocketSystem(input);
@@ -38,12 +36,12 @@ export async function resolveDesktopSystem(
       })),
   );
   const resolved = validateAndResolveSystemPlan(input, {
-    target,
+    target: TARGET,
     packages,
   });
   if (!resolved.ok) {
     throw new Error(
-      `Pocket Shell Desktop does not resolve against ${target}: ${resolved.diagnostics
+      `Pocket Shell Desktop does not resolve against ${TARGET}: ${resolved.diagnostics
         .map((item) => `${item.path || "/"}: ${item.message}`)
         .join("; ")}`,
     );

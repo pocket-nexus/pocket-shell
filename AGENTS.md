@@ -30,10 +30,10 @@ to one of them:
 - `shells/touch/`: Pocket Shell Touch, a full-screen gesture shell with
   retained mock apps on iPod touch 4 and Nokia E7. It owns navigation, window
   recency and its device tests.
-- `shells/desktop/`: the shell for desktop operating systems, imported from
-  pocket-desktop. It owns windows, application presentation and themes.
-  PocketJS owns package isolation, scheduling and native composition.
-  macOS and Linux are native targets; the browser is an interactive preview.
+- `shells/desktop/`: the desktop interface for browser previews and embedded
+  computers in Pocket Studio. It owns windows, application presentation and
+  themes. PocketJS supplies the browser runtime and shared rendering APIs;
+  the embedding product owns its display and input adapters.
 
 Each shell owns its sources, manifests, scripts, tests, assets and documentation.
 Root scripts provide setup and command routing. They share one runtime
@@ -53,7 +53,7 @@ fonts retain their own licenses. See `LICENSING.md`.
   `solid-js`.
 - Preserve installed package IDs and device identities when moving code.
 - Desktop colors, fonts, icons and chrome belong in its theme boundary.
-  Themes must not determine package identity or native host behavior.
+  Themes must not determine package identity or embedding host behavior.
 - Prose states the mechanism and the reason. No slogans, no imported
   architecture jargon, no empty intensifiers.
 - Every program the launcher runs is a **Pocket Applet**: its app contract
@@ -99,8 +99,8 @@ The touch shell uses `bun run touch guest|deploy|launch|status|capture` and
 Desktop commands run through the root dispatcher:
 
 ```sh
-bun run desktop macos          # or linux / web
-bun run desktop build          # native macOS release build
+bun run desktop web            # launch the browser preview
+bun run desktop build:web      # build the browser preview
 bun run desktop test:web
 bun run check:desktop          # or check:3ds / check:touch
 ```

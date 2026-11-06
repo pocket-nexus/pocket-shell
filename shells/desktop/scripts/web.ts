@@ -17,7 +17,6 @@ const planDir = resolve(ROOT, ".pocket/web-app");
 rmSync(output, { recursive: true, force: true });
 mkdirSync(runtime, { recursive: true });
 const receipt = await buildDesktopSystem({
-  target: "web-app",
   dist: artifacts,
   planDir,
 });

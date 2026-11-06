@@ -6,12 +6,11 @@ computer. Three are on `main`, two are on the branch
 This document names what each one explored, what it taught, and what carried
 into the next.
 
-## Windows, a pointer and a keyboard: the desktop OS shell
+## Windows, a pointer and a keyboard: the embedded desktop shell
 
-`shells/desktop/`, on `main`. The shell runs several isolated Pocket apps in
-one native process from a Pocket System manifest and owns windows, the
-taskbar, launching and themes; PocketJS owns package isolation, scheduling and
-composition (winit and wgpu on macOS and Linux, the browser as a preview).
+`shells/desktop/`, on `main`. The browser preview runs isolated Pocket apps from a
+Pocket System manifest. The shell owns windows, the taskbar, launching and themes; PocketJS supplies package isolation and the browser scheduler and compositor.
+Pocket Studio embeds the shell through its own display and input adapters.
 **Three period desktops, Classic 98, XP and Aqua, run on one semantic
 shell**: every part, from a caption to a file manager's sidebar, is one slot
 the active theme paints and places through its own chrome metrics, and the

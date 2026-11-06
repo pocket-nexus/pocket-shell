@@ -1,9 +1,9 @@
 {
   "body": [
-    "A desktop compositor demo on the portable Rust backend.",
-    "SolidJS JSX over the same DrawList the",
-    "consoles boot; windows, menus and shortcuts",
-    "live in the guest."
+    "A desktop for browsers and Studio computers.",
+    "Windows, menus and themes are drawn",
+    "with SolidJS and PocketJS. The product",
+    "connects its display and input."
   ],
   "link": "github.com/pocket-nexus/pocket-shell"
 }

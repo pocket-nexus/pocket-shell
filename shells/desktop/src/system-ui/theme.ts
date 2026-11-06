@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // System UI theme boundary. Product code consumes one DesktopTheme; every
 // period-specific color, metric, glyph and chrome class stays in this file.
-// Changing the active theme never changes the Pocket System manifest, native
-// host, AppSupervisor or child application plans.
+// Changing the active theme never changes the Pocket System manifest, embedding
+// host, scheduler or child application plans.
 //
 // The contract is a headless one: chrome.tsx / programs.tsx / app.tsx render
 // SEMANTIC parts (a caption, its control cluster, a menu bar, a task strip,
