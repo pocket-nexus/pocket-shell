@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, extname, relative, resolve } from "node:path";
 import { ROOT } from "./paths.ts";
 
@@ -29,8 +29,8 @@ for (const path of tracked.filter((path) => path.endsWith(".md"))) {
 const sourceInputs = new Set([
   "shells/desktop/assets/fonts/W95FA.otf",
 ]);
-// Each 3DS app's pictures (the launcher's Blender-baked icons; the applets'
-// are pocket-nexus/applets'): the images.json beside an app's manifest names
+// Each 3DS app's pictures (the launcher's icons are pocket-nexus/applets'
+// icon family, like the applets themselves): the images.json beside an app's manifest names
 // what its build reads, and the app contract names its package icon.
 for (const app of readdirSync(resolve(ROOT, "shells/3ds"), { withFileTypes: true })) {
   if (!app.isDirectory()) continue;
@@ -46,8 +46,18 @@ for (const app of readdirSync(resolve(ROOT, "shells/3ds"), { withFileTypes: true
 const touchImages = JSON.parse(readFileSync(resolve(ROOT, "shells/touch/src/images.json"), "utf8"));
 for (const key of Object.keys(touchImages)) sourceInputs.add(`shells/touch/src/${key}`);
 
+// A picture behind a link into a submodule is committed there: the
+// launcher's icons are vendor/applets/ui/art/icons, through shell/art/icons.
+const realRoot = realpathSync(ROOT);
+const committed = (path: string): boolean => {
+  const absolute = resolve(ROOT, path);
+  if (tracked.includes(path)) return true;
+  if (!existsSync(absolute)) return false;
+  const real = relative(realRoot, realpathSync(absolute));
+  return real.startsWith("vendor/") || tracked.includes(real);
+};
 for (const path of sourceInputs) {
-  if (!tracked.includes(path)) failures.push(`missing committed input: ${path}`);
+  if (!committed(path)) failures.push(`missing committed input: ${path}`);
 }
 // A build at raster density N reads `<name>@Nx.png` beside a declared PNG
 // (PocketJS density variants), so those variants are inputs too.

@@ -12,10 +12,10 @@ import type { WifiNetwork } from "@pocketjs/framework/wifi";
 import { offsetText, TIME_ZONES } from "./clock.ts";
 import { displayApi } from "./display.ts";
 import { LINK_PAIRING, LINK_STATE, sizeText, type ShellApp, type ShellSystem } from "./system.ts";
-import { appTint } from "../ui/chrome.tsx";
+import { appTint, Tile, type IconArt } from "../ui/icons.tsx";
 import type { LayerContext, NavStack, PageSpec } from "../ui/nav.tsx";
 import { SCREEN_H, SCREEN_W, appletSurfaceId } from "../ui/screen.ts";
-import { tableContent, type Cell, type CellIcon, type Section } from "../ui/table.tsx";
+import { tableContent, type Cell, type Section } from "../ui/table.tsx";
 import type { Press } from "../ui/touch.ts";
 import { legendWhileTyping } from "../ui/legend.tsx";
 
@@ -26,7 +26,12 @@ export const ICONS = {
   mac: { art: "mac" },
   apps: { art: "apps" },
   general: { art: "settings" },
-} satisfies Record<string, CellIcon>;
+} satisfies Record<string, { art: IconArt }>;
+
+/** A table row's 24 px picture (Cell.leading): one of the launcher's icons,
+ *  or an installed app's. */
+const iconAt = (art: IconArt) => (x: number, y: number) => <Tile x={x} y={y} size={24} art={art} />;
+const appAt = (id: string) => (x: number, y: number) => <Tile x={x} y={y} size={24} {...appTint(id)} />;
 
 export interface PageEnv {
   sys: ShellSystem;
@@ -78,13 +83,13 @@ function rootPage(env: PageEnv, stack: NavStack, layer: LayerContext): PageSpec 
     content: table(env, layer, () => [
       {
         cells: [
-          { id: "settings.wifi", label: "Wi-Fi", value: wifiSummary(sys), icon: ICONS.wifi, accessory: "chevron", run: () => stack.push("wifi") },
-          { id: "settings.mac", label: sys.tethered ? "Companion" : "Mac", value: linkSummary(sys), icon: ICONS.mac, accessory: "chevron", run: () => stack.push("mac") },
+          { id: "settings.wifi", label: "Wi-Fi", value: wifiSummary(sys), leading: iconAt(ICONS.wifi.art), accessory: "chevron", run: () => stack.push("wifi") },
+          { id: "settings.mac", label: sys.tethered ? "Companion" : "Mac", value: linkSummary(sys), leading: iconAt(ICONS.mac.art), accessory: "chevron", run: () => stack.push("mac") },
         ],
       },
       {
         cells: [
-          { id: "settings.apps", label: "Applets", value: String(sys.table().apps.length), icon: ICONS.apps, accessory: "chevron", run: () => stack.push("apps") },
+          { id: "settings.apps", label: "Applets", value: String(sys.table().apps.length), leading: iconAt(ICONS.apps.art), accessory: "chevron", run: () => stack.push("apps") },
         ],
       },
       ...(display
@@ -97,7 +102,7 @@ function rootPage(env: PageEnv, stack: NavStack, layer: LayerContext): PageSpec 
         : []),
       {
         cells: [
-          { id: "settings.general", label: "General", icon: ICONS.general, accessory: "chevron", run: () => stack.push("general") },
+          { id: "settings.general", label: "General", leading: iconAt(ICONS.general.art), accessory: "chevron", run: () => stack.push("general") },
         ],
       },
     ]),
@@ -345,7 +350,7 @@ function appsPage(env: PageEnv, _stack: NavStack, layer: LayerContext): PageSpec
             id: `apps.${app.id}`,
             label: app.title,
             detail: `${app.version ? `Version ${app.version}  ` : ""}${sizeText(app.bytes)}`,
-            tile: appTint(app.id),
+            leading: appAt(app.id),
             button: { id: `apps.delete.${app.id}`, label: "Delete", tone: "red" as const, run: () => remove(app) },
             run: () => remove(app),
           })),

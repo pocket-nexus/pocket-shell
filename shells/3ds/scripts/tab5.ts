@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // bun run tab5 [app…] — build packages for the M5Stack Tab5 (ESP-IDF).
 //
-// The Tab5 program in pocket-m5 (programs/m5stack-tab5) embeds its own copy
-// of Pocket Shell (apps/pocket-shell there) and installs the applets from the
-// linked Mac, like the 3DS; the launcher built here replaces that copy in a
-// firmware built with -DPOCKETJS_TAB5_SHELL_PACKAGE=<package.pocket>. Every
+// The Tab5 program in pocket-m5 (programs/m5stack-tab5) builds this launcher
+// from its third_party/pocket-shell submodule and installs the applets from
+// the linked Mac, like the 3DS; a package built here replaces the one it
+// compiles in a firmware built with -DPOCKETJS_TAB5_SHELL_PACKAGE=<package.pocket>. Every
 // package compiles against that program's host config (pocket.host.config.ts,
 // which names its host contract pocket.host.json, host id tab5-home), and a
 // package the host contract does not admit is an error: the check is
