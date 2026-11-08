@@ -29,8 +29,8 @@ To use them, Pocket Hub, an app for the Mac, installs Pocket Shell on a 3DS
 and carries the applets: pair the device with it in Settings > Mac > Pair a
 Mac..., then tap Mac on the home screen to install them. Pocket Hub is not
 released yet. The Tab5 firmware is
-[pocket-m5](https://github.com/pocket-nexus/pocket-m5)'s, with its own copy
-of the launcher.
+[pocket-m5](https://github.com/pocket-nexus/pocket-m5)'s, which builds this
+launcher from a submodule.
 
 ## The shells as explorations
 

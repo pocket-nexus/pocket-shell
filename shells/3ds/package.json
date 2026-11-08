@@ -15,7 +15,6 @@
     "offer": "bun scripts/offer.ts",
     "probe": "bun scripts/probe.ts",
     "shot": "bun scripts/shot.ts",
-    "icons": "bun scripts/icons.ts",
     "test": "bun ../../vendor/pocketjs/tools/wasm.ts && bun test --conditions=browser test",
     "check": "bun run typecheck && bun run test"
   }

@@ -92,7 +92,7 @@ On a surface larger than the 3DS's:
   forgets saved networks on a host whose launcher is its settings
   (`wifiCanJoin()`); the 3DS keeps its saved-slot page.
 
-Icons ship an `@2x` texture beside each 1x one (`shell/art/icons/bake.ts`), so
+Icons ship an `@2x` texture beside each 1x one (pocket-nexus/applets `tools/icons/bake.ts`), so
 a density-2 build draws them texel for texel. `POCKET_TAB5_SHOTS=<dir> bun run
 check:3ds` also writes the launcher's 592×360 and 360×592 screens; the
 applets' are pocket-nexus/applets' sims.
@@ -144,11 +144,11 @@ The Tab5 target is pocket-m5's `programs/m5stack-tab5` with the host
 contract `tab5-home` (`pocket.host.json`, which its `pocket.host.config.ts`
 names): an ESP32-P4 whose 1280x720 panel
 shows the auxiliary surface at **640x360 logical, presented at 2x**, turned
-onto the portrait panel. The firmware embeds its own copy of Pocket Shell,
-pocket-m5's `apps/pocket-shell` (taken from this shell at `188c46c` and
-changed there since), keeps the installed applets on its `apps` flash
-partition and their data on the microSD card, and boots one runtime per
-app; the applets install from the Mac's catalog as on the 3DS. The six
+onto the portrait panel. The firmware builds this launcher (`shell/`, from
+its `third_party/pocket-shell` submodule) and embeds it, keeps the installed
+applets on its `apps` flash partition and their data on the microSD card,
+and boots one runtime per app; the applets install from the Mac's catalog as
+on the 3DS, or from an install code (below). The six
 pictures at the top of the repository README are this surface. pocket-m5's
 releases are the firmware.
 
@@ -163,9 +163,20 @@ releases are the firmware.
   capability. The host config is read from a
   [pocket-m5](https://github.com/pocket-nexus/pocket-m5) checkout:
   `POCKET_M5_ROOT` when set (relative to the repository root), else
-  `../pocket-m5` beside this repository. The launcher's package from here
-  replaces pocket-m5's in a firmware built with
-  `-DPOCKETJS_TAB5_SHELL_PACKAGE=<package.pocket>`.
+  `../pocket-m5` beside this repository. A firmware built with
+  `-DPOCKETJS_TAB5_SHELL_PACKAGE=<package.pocket>` embeds a launcher package
+  from here in place of the one it compiles from its submodule.
+- **Installs from a code.** Where the firmware binds `globalThis.installer`
+  into the launcher (the Tab5), the Mac store shows a Scan a Code... row
+  above its list. The scanner reads an install URI
+  (`pocketlink://install?v=1&a=<app id>&s=<sha256>[&n=<title>]&u=<url>`,
+  pocket-m5 `components/pocket_system/README.md`, "Installs from a code"),
+  closes the camera and shows the app's title and the server's host with
+  Install and Cancel; the download's progress, then Open or the firmware's
+  error, follow on that page. `shell/system.ts` parses the URI, starts the
+  download and polls the installer every frame while it runs. Either scanner
+  entry takes either code: a pairing code pairs. A host without the
+  installer shows no row.
 - The Pocket Hub app carries the applets and offers them to a paired Tab5
   or 3DS. `bun run offer` builds both the 3DS and the Tab5 package of every
   applet into `dist/3ds/apps/` and points the running Pocket Hub at them,
@@ -208,30 +219,20 @@ their 80 px cells; a longer name ends in "...".
   host waits that long for the L+R chord.
 - Page dots above the dock follow the drag.
 
-**Icons are rendered at 512 px and finished at their size.**
-`shell/art/icons/icons.py` models Settings, Hacker News, Wi-Fi and Apps in
-Blender as lit objects on lacquer or metal plates, and Mac as a two-tone
-lacquer face after the Finder (a raised profile line, enamel eyes and
-smile), with few large shapes so they hold at 46 and 24 px. The applets
-get their own: Weather a sun behind a cloud on sky blue, Podcasts the
-broadcast microphone on purple, Maps a street map under a red pin, Home
-Assistant a house with one lit window on its blue, GitHub a cat's head in
-white enamel on charcoal lacquer. A shape made of overlapping outlines (the
-cloud, the cat's head and ears) is one boolean union before its bevel, since
-separate prisms with coplanar tops render with dark self-shadow patches.
-Pocket Nexus is the face "O" of the Pocket
-Nexus wordmark, drawn by the wordmark's own code (PocketJS
-`apps/nexus/art/draw.js`, run in headless Chrome by `shell/art/icons/nexus.ts`).
-`shell/art/icons/bake.ts` gives all of them one finish (the rounded mask, the
-iOS 6 gloss, a lit top rim, a shaded bottom rim and, at 46 px, a drop
-shadow), sharpens them after the downsample and writes 24, 46 and 64 px
-textures. The build reads the committed
-PNGs, so it needs no Blender. Cycles output differs a little between runs, so
-a re-render is a new set of pictures to review, not a check.
+**The icons are pocket-nexus/applets' icon family.** `shell/art/icons` is a
+link to `vendor/applets/ui/art/icons`: the launcher's own icons (Settings,
+Mac, Wi-Fi, Apps, Pocket Nexus) and every applet's, rendered in Blender at
+512 px by `tools/icons/icons.py` there and given one finish by
+`tools/icons/bake.ts` (the rounded mask, the iOS 6 gloss, a lit top rim, a
+shaded bottom rim and, at 46 px, a drop shadow) at 24, 46 and 64 px and
+`@2x`. `ui/icons.tsx` maps an app id to its icon and draws the tile; an
+applet's `icon.png`, the picture its package carries and the store lists, is
+the same 64@2x texture. A new icon is made and committed there (`bun run
+icons --only <name>` in pocket-nexus/applets), never here.
 
 **An app without baked art gets a glyph.** Its tile is a tint from its id
 under a four-square applet glyph and the `plain` finish, so it has the same
-gloss, rim and shadow as the baked icons (`ui/chrome.tsx` `appTint`). **No
+gloss, rim and shadow as the baked icons (`ui/icons.tsx` `appTint`). **No
 tile shows an app's initials.**
 
 **YouTube, X and Discord** reach their services through the linked Mac:
@@ -302,7 +303,6 @@ bun run shot --host <console-ip>        # one screenshot of both screens
 bun run 3ds [shell|hn] [--pocket-only]  # build into dist/3ds
 bun run tab5 [app…]                     # build packages for the M5Stack Tab5 into dist/tab5
 bun run psp [--skip-eboot]              # build Pocket Shell's PSP EBOOT into dist/psp
-bun run --cwd shells/3ds icons          # re-render and re-bake the launcher's icons (macOS, Blender 5)
 bun run check:3ds                       # typecheck, the launcher's and the applets' sims, unit tests
 ```
 

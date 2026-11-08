@@ -169,5 +169,32 @@
   },
   "art/icons/homeassistant-64.png": {
     "linear": true
+  },
+  "art/icons/notes-24.png": {
+    "linear": true
+  },
+  "art/icons/notes-46.png": {
+    "linear": true
+  },
+  "art/icons/notes-64.png": {
+    "linear": true
+  },
+  "art/icons/spotify-24.png": {
+    "linear": true
+  },
+  "art/icons/spotify-46.png": {
+    "linear": true
+  },
+  "art/icons/spotify-64.png": {
+    "linear": true
+  },
+  "art/icons/appstore-24.png": {
+    "linear": true
+  },
+  "art/icons/appstore-46.png": {
+    "linear": true
+  },
+  "art/icons/appstore-64.png": {
+    "linear": true
   }
 }

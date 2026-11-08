@@ -20,9 +20,10 @@ to one of them:
   buttons; on the Tab5 one 640x360 touch surface, a host-drawn home ball and
   a keyboard; on the PSP one 480x272 screen and buttons, with the launcher
   alone (the pinned PocketJS gives the PSP no worker, and every networked
-  applet needs one). The Tab5 firmware boots pocket-m5's own copy of the
-  launcher (`apps/pocket-shell` there); `bun run tab5` builds this launcher
-  and the applets as Tab5 packages. Each program reads its surface size at
+  applet needs one). The Tab5 firmware (pocket-m5) builds this launcher
+  from its `third_party/pocket-shell` submodule, so a launcher change for the
+  Tab5 lands here; `bun run tab5` builds this launcher and the applets as
+  Tab5 packages. Each program reads its surface size at
   start (`ui/screen.ts`) and lays out by size class. Every applet draws on
   the touch surface and declares `system.agent`; the 3DS's top screen and the
   L+R agent overlay belong to the PocketJS host and framework, not to this

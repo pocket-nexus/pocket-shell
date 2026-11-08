@@ -58,7 +58,8 @@ import {
 } from "./layout.ts";
 import { ICONS } from "./pages.tsx";
 import { type ShellApp, type ShellSystem } from "./system.ts";
-import { appTint, StatusBar, Tile, Wallpaper, type TileProps } from "../ui/chrome.tsx";
+import { StatusBar, Wallpaper } from "../ui/chrome.tsx";
+import { appTint, Tile, type TileProps } from "../ui/icons.tsx";
 import { setLegend } from "../ui/legend.tsx";
 import { appletTouch, COMPACT, SCREEN_H, SCREEN_W, TALL } from "../ui/screen.ts";
 import { ellipsize, FONT } from "../ui/text.ts";
