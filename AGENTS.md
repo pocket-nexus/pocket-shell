@@ -84,11 +84,12 @@ documentation or tests. New validation runs stay in ignored artifact folders.
 
 ```sh
 bun run check                        # typecheck + all three shells' unit and sim tests
-bun run push --host <console-ip>     # rebuild the launcher's package and hot-push it
-bun run push hn --host <console-ip>  # rebuild Hacker News, install it into its slot and start it
-bun run deploy --host <console-ip>   # rebuild the .3dsx, install it over the wire, restart into it
-bun run shot --host <console-ip>     # a screenshot of both screens
-bun run offer                        # offer the applets' 3DS and Tab5 packages through the running Pocket Hub
+bun run pair --host <console-ip>     # once per computer, while ftpd runs: write its pairing onto the card
+bun run push                         # rebuild the launcher's package and hot-push it
+bun run push hn                      # rebuild Hacker News, install it into its slot and start it
+bun run deploy                       # rebuild the .3dsx, install it over the Pocket Link, restart into it
+bun run shot                         # a screenshot of both screens
+bun run offer                        # build the applets' 3DS and Tab5 packages and serve them from the reference Pocket Link 2 Hub
 bun run tab5                         # the launcher and the applets as Tab5 packages in dist/tab5
 bun run psp                          # the PSP EBOOT in dist/psp
 bun run 3ds                          # the full .3dsx in dist/3ds
@@ -112,10 +113,20 @@ package.json; desktop artifacts land in `shells/desktop/dist/`.
 Changes under `shells/3ds/shell` or `vendor/applets` are hot pushes, and an
 accepted push persists on the card for that app. A change under
 `vendor/pocketjs/products/3ds` is native: `bun run deploy` writes the new
-`.3dsx` to `sdmc:/3ds/` through the running Runtime and restarts into it, and
-the restarted `.3dsx` boots the guest it embeds. **ftpd is needed once, to
-pair** (ftpd and Pocket Runtime are both homebrew, and one runs at a time).
-The console takes `.3dsx` files only.
+`.3dsx` to `sdmc:/3ds/` over the Pocket Link and restarts into it, and the
+restarted `.3dsx` boots the guest it embeds. The 3DS program speaks **Pocket
+Link 2** (PocketJS `docs/POCKET-LINK.md`): it dials this computer, and the
+console scripts run PocketJS's `tools/3ds-dev.ts`, the reference Hub's
+command line, so `--host` only adds a beacon target. There is no development
+connection (port 8131, `dev.key`) and no pairing by code on the 3DS: **ftpd
+is needed to set a console up for a computer** (`bun run pair`, which writes
+the pairing files onto the card), and to copy a first `.3dsx` onto a console
+whose program predates Pocket Link 2 (ftpd and Pocket Runtime are both
+homebrew, and one runs at a time). The Tab5 and the PSP build this launcher
+against PocketJS commits that speak Pocket Link 1, so the launcher reads
+from the running host whether it pairs by code (`shell/system.ts`
+`linkPairsByCode`) instead of assuming one version. The console takes
+`.3dsx` files only.
 
 **Recovery state is isolated per app** in
 `/pocketjs/runtime/apps/<slot>/` (the slot is the first 16 hex digits of the
