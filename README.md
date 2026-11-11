@@ -26,8 +26,12 @@ applet lays itself out by size class from one source, so the 3DS and the
 Tab5 install the same programs: see [shells/3ds](shells/3ds/README.md).
 
 To use them, Pocket Hub, an app for the Mac, installs Pocket Shell on a 3DS
-and carries the applets: pair the device with it in Settings > Mac > Pair a
-Mac..., then tap Mac on the home screen to install them. Pocket Hub is not
+and carries the applets. On the 3DS, which speaks Pocket Link 2, Hub writes
+the console's pairing onto its SD card through ftpd during that install;
+there is no code to scan, and the console links to the Mac by itself when
+Pocket Shell starts. Tap Mac on the home screen to install the applets the
+Mac offers. A Tab5 speaks Pocket Link 1 and pairs in Settings > Mac > Pair
+a Mac... by the code that a Hub speaking version 1 shows. Pocket Hub is not
 released yet. The Tab5 firmware is
 [pocket-m5](https://github.com/pocket-nexus/pocket-m5)'s, which builds this
 launcher from a submodule.
@@ -100,12 +104,13 @@ Desktop outputs are in `shells/desktop/dist/`. Use `bun run desktop --help`
 to list its commands, including captures and the text companion.
 
 ```sh
-bun run deploy --host <console-ip> # build Pocket Shell's .3dsx, install it over the wire and restart into it
-bun run push [hn] --host <console-ip>  # rebuild and hot-push the launcher (or install Hacker News)
-bun run offer                    # offer the applets (3DS and Tab5 packages) through the running Pocket Hub
+bun run pair --host <console-ip> # once, while ftpd runs on the 3DS: write this computer's pairing onto its card
+bun run deploy                   # build Pocket Shell's .3dsx, install it over the Pocket Link and restart into it
+bun run push [hn]                # rebuild and hot-push the launcher (or install Hacker News)
+bun run offer                    # build the applets (3DS and Tab5 packages) and serve them from the reference Pocket Link 2 Hub
 bun run tab5 [app…]              # build the launcher and the applets for the M5Stack Tab5 into dist/tab5
 bun run psp                      # build the PSP EBOOT (the launcher) into dist/psp
-bun run shot --host <console-ip>  # capture both console screens
+bun run shot                     # capture both console screens
 bun run 3ds                      # full console binary in dist/3ds
 bun run touch guest
 bun run touch deploy             # portrait gesture shell on the connected iPod

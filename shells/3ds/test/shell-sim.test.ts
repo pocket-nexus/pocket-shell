@@ -592,6 +592,121 @@ describe("pairing a Mac", () => {
   });
 });
 
+/** Boot with the sim's link answering as a Pocket Link 2 client
+ *  (engine/host-services/link2_guest.c): its status carries `limit`, the
+ *  payload limit it negotiated, and `pair` starts nothing and answers false,
+ *  because Pocket Hub writes the pairing onto the SD card (PocketJS
+ *  docs/POCKET-LINK.md §3). `features`, when given, is what the linked Hub
+ *  lists. The sim sets globalThis.link before the bundle evaluates, so the
+ *  launcher sees this host from its first frame. */
+async function bootLink2(options: Partial<Console3dsOptions> = {}, features?: string[]): Promise<{ home: Console3ds; pairs: string[] }> {
+  const booting = boot(options);
+  const ns = (globalThis as unknown as { link: { status(): string; pair(uri: string): boolean } }).link;
+  const status = ns.status;
+  const pairs: string[] = [];
+  ns.status = () => {
+    const parsed = JSON.parse(status()) as { state: string; features: string[] };
+    return JSON.stringify({ ...parsed, features: features && parsed.state === "linked" ? features : parsed.features, limit: 16_384 });
+  };
+  ns.pair = (uri) => {
+    pairs.push(uri);
+    return false;
+  };
+  return { home: await booting, pairs };
+}
+
+describe("on a Pocket Link 2 console", () => {
+  test("Settings > Mac says Pocket Hub sets the console up, and offers no scanner", async () => {
+    const { home, pairs } = await bootLink2({ link: { paired: [], catalog: CATALOG } });
+    await home.run(10);
+    await openSettings(home);
+    expect(home.texts("auxiliary")).toContain("Not Paired");
+    await home.tapText("Mac");
+    await home.run(24);
+    shot(home, "mac-link2");
+    const page = home.texts("auxiliary");
+    expect(page.join(" ")).toContain("Pocket Hub on your Mac sets this console up");
+    expect(page.join(" ")).toContain("There is no code to scan.");
+    expect(page).not.toContain("Pair a Mac...");
+    expect(page.join(" ")).not.toContain("Pair a Console");
+    expect(home.camera!.log).not.toContain("open");
+    expect(pairs).toEqual([]);
+  });
+
+  test("the paired Macs stay listed and Forget removes one", async () => {
+    const { home } = await bootLink2();
+    await home.run(10);
+    await openSettings(home);
+    await home.tapText("Mac");
+    await home.run(24);
+    const page = home.texts("auxiliary");
+    for (const label of ["Linked", "Paired Macs", "Evan's MacBook Pro", "Forget"]) expect(page).toContain(label);
+    expect(page.join(" ")).toContain("set this console up from Pocket Hub on it");
+    expect(page).not.toContain("Pair Another Mac...");
+    const forget = home.locate("Forget")!;
+    await home.tap(forget[0] + forget[2] / 2, forget[1] + forget[3] / 2);
+    await home.run(4);
+    expect(home.texts("auxiliary")).toContain('Forget "Evan\'s MacBook Pro"?');
+    expect(home.texts("auxiliary").join(" ")).toContain("To link again, set this console up from Pocket Hub on that Mac");
+    await home.press(BTN.RIGHT);
+    await home.press(BTN.CIRCLE);
+    await home.run(10);
+    expect(home.link!.log).toContain(`forget ${MAC.id}`);
+    const after = home.texts("auxiliary");
+    expect(after).toContain("Not Paired");
+    expect(after).not.toContain("Paired Macs");
+    expect(after.join(" ")).toContain("There is no code to scan.");
+  });
+
+  test("without a pairing the store sends the owner to Pocket Hub", async () => {
+    const { home } = await bootLink2({ link: { paired: [] } });
+    await home.run(10);
+    await home.tapText("Mac");
+    await home.run(24);
+    expect(home.texts("auxiliary")).toContain("No Mac Paired");
+    expect(home.texts("auxiliary").join(" ")).toContain("Set this console up from Pocket Hub");
+    await home.tapText("Mac Settings");
+    await home.run(24);
+    expect(home.texts("auxiliary")).not.toContain("Pair a Mac...");
+  });
+
+  test("a linked Hub that lists no catalog: the store asks for nothing and says so", async () => {
+    const { home } = await bootLink2({}, ["runtime", "runtime.native", "apps"]);
+    await home.run(10);
+    await home.tapText("Mac");
+    await home.run(24);
+    shot(home, "store-unoffered");
+    const store = home.texts("auxiliary");
+    expect(store).toContain("No Applets Offered");
+    expect(store.join(" ")).toContain("offers no applets to this console.");
+    expect(store).not.toContain("Reload");
+    expect(home.link!.log.some((line) => line.startsWith("catalog"))).toBe(false);
+    await home.press(BTN.START);
+    await home.run(24);
+    await openSettings(home);
+    await home.tapText("Mac");
+    await home.run(24);
+    expect(home.texts("auxiliary").join(" ")).toContain("offers this console no applets and no web requests.");
+  });
+
+  test("a Hub that starts offering a catalog while linked is asked for it", async () => {
+    let features = ["runtime", "apps"];
+    const booting = boot();
+    const ns = (globalThis as unknown as { link: { status(): string } }).link;
+    const status = ns.status;
+    ns.status = () => JSON.stringify({ ...JSON.parse(status()), features, limit: 16_384 });
+    const home = await booting;
+    await home.run(10);
+    expect(home.link!.log.some((line) => line.startsWith("catalog"))).toBe(false);
+    features = ["runtime", "apps", "catalog", "install"];
+    await home.run(40);
+    expect(home.link!.log.some((line) => line.startsWith("catalog"))).toBe(true);
+    await home.tapText("Mac");
+    await home.run(24);
+    for (const label of ["Hacker News", "OPEN", "Weather", "GET"]) expect(home.texts("auxiliary")).toContain(label);
+  });
+});
+
 describe("the Mac store", () => {
   test("lists the catalog, installs an app, and the app opens from the springboard", async () => {
     const home = await boot();

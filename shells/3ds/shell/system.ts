@@ -239,6 +239,46 @@ export function progressText(install: Install): string {
 
 export type CatalogState = "idle" | "loading" | "ready" | "error";
 
+// ---- what the link offers ------------------------------------------------------
+//
+// The launcher builds against two generations of the guest's link. Pocket
+// Link 1 (the Tab5's and the PSP's PocketJS) pairs by a code the console's
+// camera reads. Pocket Link 2 (the 3DS program from PocketJS db995a4) has no
+// pairing on the wire: Pocket Hub writes the pairing files onto the SD card
+// through ftpd while it installs the program, and `link.pair` answers false
+// (PocketJS docs/POCKET-LINK.md §3, §12.2). `globalThis.link` keeps version
+// 1's shape and names no version, so the launcher reads it from the status.
+
+/** Whether this console's link pairs by a scanned code. A version 2 client's
+ *  status carries `limit`, the payload limit it negotiates per connection
+ *  (POCKET-LINK.md §4.4, engine/host-services/link2_guest.c); a version 1
+ *  client's has no such field. A console without a link pairs with nothing. */
+export function linkPairsByCode(): boolean {
+  const raw = linkHost()?.status();
+  if (typeof raw !== "string") return false;
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown> | null;
+    return !(parsed && typeof parsed === "object" && "limit" in parsed);
+  } catch {
+    return true;
+  }
+}
+
+/** What the linked computer serves this console, from the link's feature
+ *  list: a group is in use only when both ends name it (POCKET-LINK.md §6.1;
+ *  version 1 gates catalog, install and net.stream the same way). A host that
+ *  reports no features while linked says nothing either way, so both read as
+ *  offered and the requests themselves answer. */
+export function linkOffers(link: LinkStatus): { catalog: boolean; web: boolean } {
+  if (link.state !== LINK_STATE.linked) return { catalog: false, web: false };
+  const features = link.features;
+  if (features.length === 0) return { catalog: true, web: true };
+  return {
+    catalog: features.includes("catalog"),
+    web: features.includes("net.http") || features.includes("net.stream"),
+  };
+}
+
 const sameJson = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
 
 /** The 3DS app table as the host writes it, every field kept (the framework's
@@ -315,6 +355,9 @@ export interface ShellSystem {
    *  into (a PSP's): its companion keeps the link and streams media, with no
    *  catalog, no installs and no pairing. */
   tethered: boolean;
+  /** The link pairs by a scanned code (Pocket Link 1). Without it Pocket Hub
+   *  sets the console up from the computer (Pocket Link 2); read when drawn. */
+  pairsByCode(): boolean;
   wifi: Accessor<WifiStatus | null>;
   hasWifi: boolean;
   /** The host lets the launcher scan for, join and forget networks (a console
@@ -377,7 +420,7 @@ export function createShellSystem(): ShellSystem {
 
   let catalogRequest = 0;
   const loadCatalog = () => {
-    if (tethered || link().state !== LINK_STATE.linked) {
+    if (tethered || !linkOffers(link()).catalog) {
       setCatalogState("idle");
       return;
     }
@@ -405,6 +448,7 @@ export function createShellSystem(): ShellSystem {
   // The catalog follows the link: fetched when it comes up, refetched when
   // the companion says its offer changed.
   let wasLinked = link().state === LINK_STATE.linked;
+  let wasOffered = linkOffers(link()).catalog;
   const [linked, setLinked] = createSignal(wasLinked);
   if (hasLink) {
     onLinkEvent((event) => {
@@ -430,11 +474,17 @@ export function createShellSystem(): ShellSystem {
     if (isLinked !== wasLinked) {
       wasLinked = isLinked;
       setLinked(isLinked);
-      if (isLinked) loadCatalog();
+    }
+    // A version 2 link's features can change while it stays up (§6.1), so the
+    // catalog follows the offer, not only the link.
+    const isOffered = linkOffers(link()).catalog;
+    if (isOffered !== wasOffered) {
+      wasOffered = isOffered;
+      if (isOffered) loadCatalog();
       else setCatalogState("idle");
     }
   });
-  if (wasLinked) loadCatalog();
+  if (wasOffered) loadCatalog();
 
   const setInstall = (id: string, value: Install | null) => {
     const next = { ...installs() };
@@ -458,6 +508,7 @@ export function createShellSystem(): ShellSystem {
     link,
     hasLink,
     tethered,
+    pairsByCode: () => hasLink && !tethered && linkPairsByCode(),
     wifi,
     hasWifi,
     canJoin,

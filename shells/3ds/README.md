@@ -56,7 +56,10 @@ the worker holds the rest. One request's descriptor (URL, method, headers
 and body as JSON) is at most **1020 bytes**: a longer post or reply is
 refused with `invalid_request`, and a glyph atlas is asked for in parts that
 `ui/glyphs.ts` merges into one atlas before it loads. On the 3DS the node
-rides the Pocket Link to the Mac; on the Tab5 it is the firmware's HTTP over
+rides the Pocket Link to the Mac as a `net.http` request that Pocket Hub
+performs, and only while Hub lists `net.http` (PocketJS
+`docs/POCKET-LINK.md` §6.1, §6.5); without it the request fails at once.
+On the Tab5 it is the firmware's HTTP over
 Wi-Fi, and a request to `companion.pocket` goes over the Pocket Link to the
 paired Mac (pocket-m5 v0.1.2).
 
@@ -129,12 +132,14 @@ tab5` makes, and links one EBOOT with Pocket Shell as app 0 and the others
 embedded after it (PocketJS `tools/psp.ts`, which needs `pocket target add
 psp`). At the pinned PocketJS that EBOOT holds the launcher alone. Under
 PSPLINK the PRX runs from the share the tethered computer serves, and that
-computer's companion keeps the link in the same share. A console linked this
-way shows no store, and Settings names its companion:
+computer's companion keeps the link in the same share with Pocket Link 1's
+USB carrier. That companion left PocketJS for Pocket Hub (PocketJS #672), and
+Pocket Link 2 has no USB carrier yet (`docs/POCKET-LINK.md` §2.0, §11), so
+the PSP keeps version 1. A console linked this way shows no store, and
+Settings names its companion:
 
 ```sh
 usbhostfs_pc /opt/pocket/host0 &
-bun tools/companion.ts serve --usb /opt/pocket/host0 --no-agent
 pspsh -e "ldstart host0:/pocketjs-psp.prx"   # after copying the PRX into the share
 ```
 
@@ -175,13 +180,17 @@ releases are the firmware.
   Install and Cancel; the download's progress, then Open or the firmware's
   error, follow on that page. `shell/system.ts` parses the URI, starts the
   download and polls the installer every frame while it runs. Either scanner
-  entry takes either code: a pairing code pairs. A host without the
-  installer shows no row.
+  entry takes either code: a pairing code pairs where the link pairs by code
+  (Pocket Link 1, the Tab5's), and gets a hint on a Pocket Link 2 console. A
+  host without the installer shows no row.
 - The Pocket Hub app carries the applets and offers them to a paired Tab5
-  or 3DS. `bun run offer` builds both the 3DS and the Tab5 package of every
-  applet into `dist/3ds/apps/` and points the running Pocket Hub at them,
-  and the companion lists to each console the files with a variant for its
-  target.
+  or 3DS, each over the version of the Pocket Link it speaks. `bun run
+  offer` builds both the 3DS and the Tab5 package of every applet into
+  `dist/3ds/apps/` and serves that folder as the catalog of PocketJS's
+  reference Pocket Link 2 Hub (`tools/3ds-dev.ts serve --apps`), which lists
+  to each console the files with a variant for its target. That Hub speaks
+  version 2 only, so it reaches a 3DS; a Tab5 needs a Hub that speaks
+  version 1.
 - The Tab5 has no buttons. The firmware paints a **floating home ball** over
   the picture: a tap sends SELECT (back to Home, or the launcher summoned
   from an app), a finger that moves at once drags the ball inside the
@@ -203,10 +212,31 @@ releases are the firmware.
   is `repaint`: the launcher keeps a flat wallpaper, cuts where the 3DS zooms and
   wiggles, and its navigation stack cuts where the 3DS slides.
 
-**The launcher** is the springboard (the home screen), Settings (Wi-Fi, Mac
-pairing by QR code, the installed applets), the Mac (the applets the paired
-Mac offers, with GET, OPEN and UPDATE) and the clock, which reads the Mac's
-time over the Pocket Link. The springboard holds **four columns by two rows
+**The launcher** is the springboard (the home screen), Settings (Wi-Fi, the
+paired Macs, the installed applets), the Mac (the applets the paired Mac
+offers, with GET, OPEN and UPDATE) and the clock, which reads the Mac's
+time over the Pocket Link.
+
+**How a console pairs depends on its link**, which the launcher reads from
+the running host (`shell/system.ts` `linkPairsByCode`, from the link status:
+a version 2 client reports its negotiated payload limit, `limit`, and a
+version 1 client has none):
+
+- **Pocket Link 2, the 3DS.** There is no pairing on the wire: no QR code, no
+  camera and no pairing window (PocketJS `docs/POCKET-LINK.md` §3). Pocket
+  Hub writes the pairing files into `sdmc:/pocketjs/link/` through ftpd, or
+  onto the SD card in the computer's reader, when it installs Pocket Shell,
+  and the console dials that computer from its next start. Settings > Mac
+  says so and lists the paired Macs with Forget; forgetting one deletes its
+  file on the card, and linking to it again takes another setup from that
+  Mac. `link.pair` answers false there, so the page offers no scanner.
+- **Pocket Link 1, the Tab5.** Settings > Mac > Pair a Mac... opens the
+  camera on the code Pocket Hub shows, as before.
+
+The Mac page and the store follow the features the link lists (§6.1): a
+linked Mac that lists no `catalog` gets "No Applets Offered" in the store
+instead of a request, and the Mac page says which of applets and web
+requests that Mac carries. The springboard holds **four columns by two rows
 a page** above a dock of up to four icons (Settings, Camera, Photos, Mac).
 Labels are bold 10 px (`text-2xs`), so "Hacker News" and "Pocket Nexus" fit
 their 80 px cells; a longer name ends in "...".
@@ -237,11 +267,15 @@ tile shows an app's initials.**
 
 **YouTube, X and Discord** reach their services through the linked Mac:
 each applet fetches `https://companion.pocket/<service>/…`, which Pocket
-Hub answers itself (PocketJS `tools/companion/services/`). Accounts,
-tokens and tools stay on the Mac; the console never holds them. The
-companion answers a service only for an app in its catalog whose manifest
-lists that service in `applet.services`, so `bun run offer` comes before
-a pushed applet can reach its service; any other request gets 403.
+Hub answers itself (the services left PocketJS with the companion, PocketJS
+#672). Accounts, tokens and tools stay on the Mac; the console never holds
+them. The companion answers a service only for an app in its catalog whose
+manifest lists that service in `applet.services`; any other request gets
+403. On a Pocket Link 2 console that fetch is a `net.http` request, so it
+needs a Hub that serves `net.http` and still answers `companion.pocket`:
+whether Pocket Hub keeps answering it beside applet channels is open
+(PocketJS `docs/POCKET-LINK.md` §11), and the reference Hub of `bun run
+offer` refuses it ("this Hub runs no services").
 
 - **YouTube** lists topic feeds and search results from yt-dlp, with
   thumbnails the companion renders into textures. The Mac needs yt-dlp and
@@ -251,14 +285,12 @@ a pushed applet can reach its service; any other request gets 403.
   at 58 to 215 KB/s. Sound needs the console's DSP firmware once: Rosalina
   menu (L + Down + SELECT) > Miscellaneous options > Dump DSP firmware.
 - **X** reads the Following and For You timelines and threads through the
-  session of an account signed in on the Mac: Pocket Hub's X page, or
-  `bun tools/companion.ts service x login`, opens a sign-in window there.
+  session of an account signed in on the Mac: Pocket Hub's X page opens a
+  sign-in window there.
   It uses x.com's web API, which X changes without notice. Setup and controls: [docs/X.md](../../vendor/applets/docs/X.md).
 - **Discord** reads and sends in the servers a bot is in: create a bot in
   the Discord developer portal, turn on its Message Content intent, then
-  give the token to Pocket Hub's Discord page or to `bun
-  tools/companion.ts service discord token <token>`, and `service discord
-  status` prints the invite link. Setup and controls:
+  give the token to Pocket Hub's Discord page. Setup and controls:
   [docs/DISCORD.md](../../vendor/applets/docs/DISCORD.md).
 
 **GitHub** is built from the applets' `kit/`, a design system in which a page is rows
@@ -285,31 +317,43 @@ mark as a screensaver while it rests. A pill in the
 bottom-right corner reads "L+R Ask Claude" while the mascot is idle.
 
 The agent needs **Pocket Hub** on the Mac, signed in to Codex (its
-Assistant page signs in). Pocket Hub is not released yet; in a PocketJS
-checkout, `bun tools/companion.ts serve` runs it, or `bun run
-companion:app` builds the menu bar app. The app carries the applets;
-`bun run offer` puts the ones built here in the companion's catalog.
+Assistant page signs in), and on a Pocket Link 2 console a Hub that lists
+the `agent` feature (PocketJS `docs/POCKET-LINK.md` §6.1, §6.6); without it
+the agent stage reads the link as unavailable. Pocket Hub is not released yet. The
+app carries the applets; `bun run offer` serves the ones built here from
+PocketJS's reference Hub instead.
 
 ## Commands
 
 Run from the repository root.
 
 ```sh
-bun run deploy --host <console-ip>      # build pocket-shell.3dsx, install it over the wire, restart into it
-bun run push --host <console-ip>        # rebuild the launcher's package and hot-push it
-bun run push hn --host <console-ip>     # rebuild Hacker News, install it into its slot and start it
-bun run offer [--3ds|--tab5]            # build the applets' 3DS and Tab5 packages and offer them through the companion
-bun run shot --host <console-ip>        # one screenshot of both screens
+bun run pair --host <console-ip>        # once, while ftpd runs: write this computer's pairing onto the card
+bun run deploy [--host <console-ip>]    # build pocket-shell.3dsx, install it over the link, restart into it
+bun run push [--host <console-ip>]      # rebuild the launcher's package and hot-push it
+bun run push hn [--host <console-ip>]   # rebuild Hacker News, install it into its slot and start it
+bun run offer [--3ds|--tab5]            # build the applets' 3DS and Tab5 packages and serve them from the reference Hub
+bun run shot [--host <console-ip>]      # one screenshot of both screens
+bun run probe [--host <console-ip>]     # the program's status and one screenshot
 bun run 3ds [shell|hn] [--pocket-only]  # build into dist/3ds
 bun run tab5 [app…]                     # build packages for the M5Stack Tab5 into dist/tab5
 bun run psp [--skip-eboot]              # build Pocket Shell's PSP EBOOT into dist/psp
 bun run check:3ds                       # typecheck, the launcher's and the applets' sims, unit tests
 ```
 
-A change under `shell/` or `vendor/applets` reaches a console with `push`. A
-change in the runtime (`vendor/pocketjs/products/3ds`) needs `deploy`. Pairing
-needs ftpd once: `bun run pair --host <console-ip>`. The `.3dsx` is the only
-console format.
+These commands run PocketJS's 3DS development tool (`tools/3ds-dev.ts`),
+the reference Pocket Link 2 Hub's command line: the console dials this
+computer, so `--host` only adds its address as a beacon target, and each
+command waits for the console to link (PocketJS `docs/POCKET-LINK.md`
+§12.1, items 6 and 7). The program has no development connection any more
+(no port 8131, no `dev.key`). A change under `shell/` or `vendor/applets`
+reaches a console with `push`. A change in the runtime
+(`vendor/pocketjs/products/3ds`) needs `deploy`. `pair` needs ftpd running
+on the console (or `--card <dir>` with its SD card mounted) once per
+computer; it keeps this computer's record in `$POCKETJS_LINK_HOME`, else
+`~/.pocketjs/link/`. A console whose program predates Pocket Link 2 never
+links: copy a current `pocket-shell.3dsx` to `sdmc:/3ds/` through ftpd and
+run `pair` before starting it. The `.3dsx` is the only console format.
 
 The launcher's recovery state is in `/pocketjs/runtime/apps/<slot>/`, where
 the slot is the first 16 hex digits of the SHA-256 of `dev.pocket-nexus.shell`.

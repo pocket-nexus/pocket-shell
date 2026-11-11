@@ -71,8 +71,8 @@ the web through a paired Mac.
 ## A launcher with installed applets: Pocket Shell on the 3DS
 
 `shells/3ds/`, on `main`. Pocket Shell is the console's launcher on the touch
-screen: a springboard of installed applets, Settings (Wi-Fi, pairing a Mac
-by QR code, the Mac's app catalog) and a clock set from the Mac over the
+screen: a springboard of installed applets, Settings (Wi-Fi, the paired
+Macs, the Mac's app catalog) and a clock set from the Mac over the
 Pocket Link. Every applet draws on the touch screen and declares
 `system.agent`; the PocketJS host draws Claude's room on the top screen and
 **L+R opens the agent over any applet**, which talks or types a request and
