@@ -11,7 +11,7 @@ import { createMemo, For, Show, type Accessor } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { ClassicSpinner } from "@pocketjs/framework/classic";
 import type { LinkCatalogApp } from "@pocketjs/framework/link";
-import { LINK_STATE, progressText, sizeText, type ShellSystem, type Install } from "./system.ts";
+import { LINK_STATE, linkOffers, progressText, sizeText, type ShellSystem, type Install } from "./system.ts";
 import { appTint, Tile } from "../ui/icons.tsx";
 import { SCREEN_W } from "../ui/screen.ts";
 import type { NavButton } from "../ui/bar.tsx";
@@ -176,11 +176,14 @@ function EmptyState(props: { title: string; message: string; button?: { id: stri
 export function storePage(env: StoreEnv, stack: NavStack, layer: LayerContext): PageSpec {
   const { sys, press } = env;
   const apps = () => sys.catalog();
-  const mode = (): "unavailable" | "unpaired" | "searching" | "loading" | "error" | "empty" | "list" => {
+  const mode = (): "unavailable" | "unpaired" | "searching" | "unoffered" | "loading" | "error" | "empty" | "list" => {
     if (!sys.hasLink) return "unavailable";
     const link = sys.link();
     if (link.state === LINK_STATE.unpaired) return "unpaired";
     if (link.state !== LINK_STATE.linked) return "searching";
+    // Linked to a computer that lists no catalog (a Pocket Link 2 Hub without
+    // a store): there is nothing to ask it for.
+    if (!linkOffers(link).catalog) return "unoffered";
     const state = sys.catalogState();
     if (state === "error") return "error";
     if (state !== "ready") return "loading";
@@ -230,6 +233,7 @@ export function storePage(env: StoreEnv, stack: NavStack, layer: LayerContext): 
                 unavailable: "No Pocket Link",
                 unpaired: "No Mac Paired",
                 searching: "Looking for Your Mac",
+                unoffered: "No Applets Offered",
                 loading: "Loading",
                 error: "Could Not Load Applets",
                 empty: "No Applets Offered",
@@ -237,8 +241,11 @@ export function storePage(env: StoreEnv, stack: NavStack, layer: LayerContext): 
               }[mode()]}
               message={{
                 unavailable: "This console's runtime has no Pocket Link.",
-                unpaired: "Pair a Mac in Settings > Mac to install\nthe applets it offers this console.",
+                unpaired: sys.pairsByCode()
+                  ? "Pair a Mac in Settings > Mac to install\nthe applets it offers this console."
+                  : "Set this console up from Pocket Hub\non your Mac to install its applets.",
                 searching: `Open Pocket Hub on ${sys.link().companion?.name ?? "your Mac"}.\nThe console links when it hears the Mac.`,
+                unoffered: `Pocket Hub on ${sys.link().companion?.name ?? "this Mac"}\noffers no applets to this console.`,
                 loading: "Asking the Mac for its applets...",
                 error: sys.catalogError() || "The Mac did not answer.",
                 empty: "Add a Pocket applet to Pocket Hub\non the Mac and it appears here.",

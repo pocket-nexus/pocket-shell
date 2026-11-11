@@ -7,11 +7,12 @@
 import { createSignal, onMount, type Accessor } from "solid-js";
 import { View } from "@pocketjs/framework/components";
 import { getOps } from "@pocketjs/framework/host";
+import type { LinkStatus } from "@pocketjs/framework/link";
 import { createOsk, Osk, oskHeight } from "@pocketjs/framework/osk";
 import type { WifiNetwork } from "@pocketjs/framework/wifi";
 import { offsetText, TIME_ZONES } from "./clock.ts";
 import { displayApi } from "./display.ts";
-import { LINK_PAIRING, LINK_STATE, sizeText, type ShellApp, type ShellSystem } from "./system.ts";
+import { LINK_PAIRING, LINK_STATE, linkOffers, sizeText, type ShellApp, type ShellSystem } from "./system.ts";
 import { appTint, Tile, type IconArt } from "../ui/icons.tsx";
 import type { LayerContext, NavStack, PageSpec } from "../ui/nav.tsx";
 import { SCREEN_H, SCREEN_W, appletSurfaceId } from "../ui/screen.ts";
@@ -263,6 +264,21 @@ export function wifiJoinPage(env: PageEnv, ssid: string, stack: NavStack, layer:
   };
 }
 
+/** On a link without pairing by code: how this console gets paired. */
+const SET_UP_FROM_HUB =
+  "Pocket Hub on your Mac sets this console up: it writes the pairing onto the SD card through ftpd when it installs Pocket Shell. There is no code to scan.";
+const ANOTHER_MAC =
+  "To add another Mac, set this console up from Pocket Hub on it, with ftpd running here or the SD card in the Mac's reader.";
+
+/** What the linked Mac serves this console, for the Mac page. */
+function offersText(link: LinkStatus): string {
+  const offers = linkOffers(link);
+  if (offers.catalog && offers.web) return "Applets and web requests come through this Mac.";
+  if (offers.catalog) return "Applets come from this Mac; it carries no web requests.";
+  if (offers.web) return "Web requests go through this Mac; it offers no applets.";
+  return "Pocket Hub on this Mac offers this console no applets and no web requests.";
+}
+
 function macPage(env: PageEnv, stack: NavStack, layer: LayerContext): PageSpec {
   const { sys } = env;
   return {
@@ -287,12 +303,19 @@ function macPage(env: PageEnv, stack: NavStack, layer: LayerContext): PageSpec {
         : link.state === LINK_STATE.connecting ? "Connecting"
         : link.state === LINK_STATE.searching ? "Searching"
         : "Not Paired";
+      // A link that pairs by a code (Pocket Link 1) pairs from the scanner
+      // here. Pocket Link 2 has no pairing on the wire: Pocket Hub writes the
+      // pairing onto the SD card through ftpd as it installs Pocket Shell, so
+      // this page says so and offers no scanner (PocketJS docs/POCKET-LINK.md §3).
+      const byCode = sys.pairsByCode();
       const footer =
         link.state === LINK_STATE.linked && companion
-          ? `Linked to ${companion.name}${companion.address ? ` at ${companion.address}` : ""}. Applets and web requests come through this Mac.`
+          ? `Linked to ${companion.name}${companion.address ? ` at ${companion.address}` : ""}. ${offersText(link)}`
           : link.state === LINK_STATE.searching
             ? "Looking for a paired Mac on this network. Open Pocket Hub on the Mac."
-            : "Pair a Mac to install applets from it and to reach the web through it.";
+            : byCode
+              ? "Pair a Mac to install applets from it and to reach the web through it."
+              : SET_UP_FROM_HUB;
       const sections: Section[] = [
         {
           cells: [{
@@ -317,15 +340,23 @@ function macPage(env: PageEnv, stack: NavStack, layer: LayerContext): PageSpec {
               id: `mac.forget.${mac.id}`,
               label: "Forget",
               tone: "red" as const,
-              run: () => env.confirm(`Forget "${mac.name}"?`, "This console will need to scan its code again to link.", "Forget", () => sys.forget(mac.id)),
+              run: () => env.confirm(
+                `Forget "${mac.name}"?`,
+                byCode ? "This console will need to scan its code again to link." : "To link again, set this console up from Pocket Hub on that Mac, with ftpd running here.",
+                "Forget",
+                () => sys.forget(mac.id),
+              ),
             },
           })),
+          footer: byCode ? undefined : ANOTHER_MAC,
         });
       }
-      sections.push({
-        cells: [{ id: "mac.pair", label: link.paired.length ? "Pair Another Mac..." : "Pair a Mac...", tone: "action", run: () => stack.push("scan") }],
-        footer: "On your Mac, open Pocket Hub and choose Pair a Console... to show a code. Then hold the outer camera up to it.",
-      });
+      if (byCode) {
+        sections.push({
+          cells: [{ id: "mac.pair", label: link.paired.length ? "Pair Another Mac..." : "Pair a Mac...", tone: "action", run: () => stack.push("scan") }],
+          footer: "On your Mac, open Pocket Hub and choose Pair a Console... to show a code. Then hold the outer camera up to it.",
+        });
+      }
       return sections;
     }),
   };

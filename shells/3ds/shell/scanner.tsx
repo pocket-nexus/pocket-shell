@@ -11,7 +11,10 @@
 //
 // Either entry takes either code: a pairing code pairs, an install code goes
 // to its confirmation page when the console can install from a code. Any
-// other code leaves the scanner running with a hint.
+// other code leaves the scanner running with a hint. Settings opens it to
+// pair only where the link pairs by a code (Pocket Link 1); on a Pocket Link
+// 2 console a pairing code read from the store's entry gets a hint instead,
+// because Pocket Hub writes that pairing onto the SD card.
 
 import { createSignal, onCleanup, Show, type Accessor } from "solid-js";
 import { Image, Text, View } from "@pocketjs/framework/components";
@@ -117,6 +120,11 @@ export function scannerPage(
       if (!isPairingUri(code)) {
         hintFrames = 120;
         setScan({ t: "scanning", hint: purpose === "pair" ? "That code is not a Pocket pairing code." : "That code is not a Pocket code." });
+        return;
+      }
+      if (!sys.pairsByCode()) {
+        hintFrames = 120;
+        setScan({ t: "scanning", hint: "This console pairs from Pocket Hub." });
         return;
       }
       const name = pairingName(code);
