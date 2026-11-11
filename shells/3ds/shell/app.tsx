@@ -86,8 +86,7 @@ export default function Shell() {
     exitLabel: "Home",
     background: () => <Pinstripes width={SCREEN_W} height={SCREEN_H} />,
     page(id, nav, layer) {
-      if (id === "scan") return scannerPage(sys, nav, setScan, scan);
-      if (id === "scan.install") return scannerPage(sys, nav, setScan, scan, "install");
+      if (id === "scan.install") return scannerPage(sys, nav, setScan, scan);
       if (id === "install.code") return codeInstallPage({ sys, press, keys }, nav, layer);
       if (id === "store") return storePage({ sys, press, keys }, nav, layer);
       if (id.startsWith("store.app:")) return storeAppPage({ sys, press, keys }, id.slice("store.app:".length), nav, layer);

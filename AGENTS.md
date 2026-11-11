@@ -118,15 +118,14 @@ restarted `.3dsx` boots the guest it embeds. The 3DS program speaks **Pocket
 Link 2** (PocketJS `docs/POCKET-LINK.md`): it dials this computer, and the
 console scripts run PocketJS's `tools/3ds-dev.ts`, the reference Hub's
 command line, so `--host` only adds a beacon target. There is no development
-connection (port 8131, `dev.key`) and no pairing by code on the 3DS: **ftpd
-is needed to set a console up for a computer** (`bun run pair`, which writes
-the pairing files onto the card), and to copy a first `.3dsx` onto a console
+connection (port 8131, `dev.key`) and no pairing by code: **ftpd is needed
+to set a console up for a computer** (`bun run pair`, which writes the
+pairing files onto the card), and to copy a first `.3dsx` onto a console
 whose program predates Pocket Link 2 (ftpd and Pocket Runtime are both
-homebrew, and one runs at a time). The Tab5 and the PSP build this launcher
-against PocketJS commits that speak Pocket Link 1, so the launcher reads
-from the running host whether it pairs by code (`shell/system.ts`
-`linkPairsByCode`) instead of assuming one version. The console takes
-`.3dsx` files only.
+homebrew, and one runs at a time). The launcher assumes Pocket Link 2 on
+every device: the Tab5 and the PSP move to it with their firmware, and a
+launcher from here pairs nothing by code on them. The console takes `.3dsx`
+files only.
 
 **Recovery state is isolated per app** in
 `/pocketjs/runtime/apps/<slot>/` (the slot is the first 16 hex digits of the

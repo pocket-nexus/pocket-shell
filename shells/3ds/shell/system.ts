@@ -16,12 +16,10 @@ import { onFrame } from "@pocketjs/framework/lifecycle";
 import {
   forgetCompanion,
   installApp,
-  LINK_PAIRING,
   LINK_STATE,
   linkHost,
   linkStatus,
   onLinkEvent,
-  pairCompanion,
   removeApp,
   requestCatalog,
   type LinkCatalogApp,
@@ -42,7 +40,7 @@ import { DEFAULT_OFFSET } from "./clock.ts";
 import { toAscii } from "../ui/text.ts";
 
 const POLL_FRAMES = 30;
-/** While something is changing (a connection, a pairing), poll faster. */
+/** While something is changing (a connection, a scan), poll faster. */
 const BUSY_POLL_FRAMES = 6;
 
 export interface ShellApp {
@@ -241,41 +239,22 @@ export type CatalogState = "idle" | "loading" | "ready" | "error";
 
 // ---- what the link offers ------------------------------------------------------
 //
-// The launcher builds against two generations of the guest's link. Pocket
-// Link 1 (the Tab5's and the PSP's PocketJS) pairs by a code the console's
-// camera reads. Pocket Link 2 (the 3DS program from PocketJS db995a4) has no
-// pairing on the wire: Pocket Hub writes the pairing files onto the SD card
-// through ftpd while it installs the program, and `link.pair` answers false
-// (PocketJS docs/POCKET-LINK.md §3, §12.2). `globalThis.link` keeps version
-// 1's shape and names no version, so the launcher reads it from the status.
-
-/** Whether this console's link pairs by a scanned code. A version 2 client's
- *  status carries `limit`, the payload limit it negotiates per connection
- *  (POCKET-LINK.md §4.4, engine/host-services/link2_guest.c); a version 1
- *  client's has no such field. A console without a link pairs with nothing. */
-export function linkPairsByCode(): boolean {
-  const raw = linkHost()?.status();
-  if (typeof raw !== "string") return false;
-  try {
-    const parsed = JSON.parse(raw) as Record<string, unknown> | null;
-    return !(parsed && typeof parsed === "object" && "limit" in parsed);
-  } catch {
-    return true;
-  }
-}
+// Every console speaks Pocket Link 2: Pocket Hub writes the pairing onto the
+// console's storage when it sets the console up, and no code pairs one
+// (PocketJS docs/POCKET-LINK.md §3). The launcher lists the paired computers
+// and forgets one; what the linked one serves comes from the link's features.
 
 /** What the linked computer serves this console, from the link's feature
- *  list: a group is in use only when both ends name it (POCKET-LINK.md §6.1;
- *  version 1 gates catalog, install and net.stream the same way). A host that
- *  reports no features while linked says nothing either way, so both read as
- *  offered and the requests themselves answer. */
+ *  list: a group is in use only when both ends name it (POCKET-LINK.md §6.1).
+ *  A host that reports no features while linked says nothing either way, so
+ *  both read as offered and the requests themselves answer. */
 export function linkOffers(link: LinkStatus): { catalog: boolean; web: boolean } {
   if (link.state !== LINK_STATE.linked) return { catalog: false, web: false };
   const features = link.features;
   if (features.length === 0) return { catalog: true, web: true };
   return {
     catalog: features.includes("catalog"),
-    web: features.includes("net.http") || features.includes("net.stream"),
+    web: features.includes("net.http"),
   };
 }
 
@@ -355,9 +334,6 @@ export interface ShellSystem {
    *  into (a PSP's): its companion keeps the link and streams media, with no
    *  catalog, no installs and no pairing. */
   tethered: boolean;
-  /** The link pairs by a scanned code (Pocket Link 1). Without it Pocket Hub
-   *  sets the console up from the computer (Pocket Link 2); read when drawn. */
-  pairsByCode(): boolean;
   wifi: Accessor<WifiStatus | null>;
   hasWifi: boolean;
   /** The host lets the launcher scan for, join and forget networks (a console
@@ -381,7 +357,6 @@ export interface ShellSystem {
   install(app: LinkCatalogApp): void;
   remove(app: ShellApp): boolean;
   launch(output: string): boolean;
-  pair(uri: string): boolean;
   forget(id: string): boolean;
   setWifi(on: boolean): void;
   connect(slot: number): void;
@@ -459,7 +434,7 @@ export function createShellSystem(): ShellSystem {
 
   let frames = 0;
   const busy = () =>
-    wifi()?.state === "connecting" || wifi()?.scanning === true || link().state === LINK_STATE.connecting || link().pairing === LINK_PAIRING.connecting;
+    wifi()?.state === "connecting" || wifi()?.scanning === true || link().state === LINK_STATE.connecting;
   onFrame(() => {
     pumpInstaller();
     frames++;
@@ -508,7 +483,6 @@ export function createShellSystem(): ShellSystem {
     link,
     hasLink,
     tethered,
-    pairsByCode: () => hasLink && !tethered && linkPairsByCode(),
     wifi,
     hasWifi,
     canJoin,
@@ -568,11 +542,6 @@ export function createShellSystem(): ShellSystem {
       return ok;
     },
     launch: (output) => launchApp(output),
-    pair(uri) {
-      const ok = pairCompanion(uri);
-      refresh();
-      return ok;
-    },
     forget(id) {
       const ok = forgetCompanion(id);
       refresh();
@@ -602,7 +571,7 @@ export function createShellSystem(): ShellSystem {
   };
 }
 
-export { LINK_PAIRING, LINK_STATE };
+export { LINK_STATE };
 
 /** "48 KB", "1.2 MB" */
 export function sizeText(bytes: number): string {

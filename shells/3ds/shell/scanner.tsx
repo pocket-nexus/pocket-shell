@@ -1,78 +1,41 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// shells/3ds/shell/scanner.tsx — the QR scanner: Settings > Mac > Pair a Mac,
-// and the store's Scan a Code... on a console that downloads apps by itself.
-// The outer camera's live preview under a viewfinder (1:1 on the 3DS's touch
-// screen; on a larger surface scaled to the height under the bar, or to the
-// width in portrait), the console's QR decoder polled every frame, and the
-// pairing handshake's progress.
+// shells/3ds/shell/scanner.tsx — the install-code scanner: the store's Scan a
+// Code... on a console that downloads apps by itself. The outer camera's live
+// preview under a viewfinder (1:1 on the 3DS's touch screen; on a larger
+// surface scaled to the height under the bar, or to the width in portrait),
+// and the console's QR decoder polled every frame.
 //
-//   scanning -> (pocketlink pairing QR) -> connecting to <name> -> paired -> back
 //   scanning -> (pocketlink install QR) -> the install page, in the scanner's place
 //
-// Either entry takes either code: a pairing code pairs, an install code goes
-// to its confirmation page when the console can install from a code. Any
-// other code leaves the scanner running with a hint. Settings opens it to
-// pair only where the link pairs by a code (Pocket Link 1); on a Pocket Link
-// 2 console a pairing code read from the store's entry gets a hint instead,
-// because Pocket Hub writes that pairing onto the SD card.
+// It reads install codes only. A console is paired by Pocket Hub, which
+// writes the pairing onto its storage (PocketJS docs/POCKET-LINK.md §3), so
+// no code pairs one; any other code leaves the scanner running with a hint.
 
-import { createSignal, onCleanup, Show, type Accessor } from "solid-js";
+import { onCleanup, Show, type Accessor } from "solid-js";
 import { Image, Text, View } from "@pocketjs/framework/components";
-import { after } from "@pocketjs/framework/clock";
 import { closeCamera, openCamera, pollQrCode } from "@pocketjs/framework/camera";
-import { isPairingUri } from "@pocketjs/framework/link";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 import { registerTexture } from "@pocketjs/framework/renderer";
-import { ClassicSpinner } from "@pocketjs/framework/classic";
-import { isInstallCode, LINK_PAIRING, type ShellSystem } from "./system.ts";
+import { isInstallCode, type ShellSystem } from "./system.ts";
 import { NAV_H } from "../ui/bar.tsx";
 import type { NavStack, PageSpec } from "../ui/nav.tsx";
 import { COMPACT, SCREEN_H, SCREEN_W, TALL } from "../ui/screen.ts";
-import { ellipsize, FONT, toAscii } from "../ui/text.ts";
 
 export const PREVIEW_KEY = "camera.preview";
 
-export type ScanState =
-  | { t: "scanning"; hint: string }
-  | { t: "connecting"; name: string }
-  | { t: "paired"; name: string }
-  | { t: "failed"; name: string; message: string }
-  | { t: "unavailable" };
-
-/** The companion name a pairing URI carries (its `n` parameter). */
-export function pairingName(uri: string): string {
-  const query = uri.slice(uri.indexOf("?") + 1);
-  for (const part of query.split("&")) {
-    const at = part.indexOf("=");
-    if (at > 0 && part.slice(0, at) === "n") {
-      try {
-        return toAscii(decodeURIComponent(part.slice(at + 1).replace(/\+/g, " "))) || "Mac";
-      } catch {
-        return "Mac";
-      }
-    }
-  }
-  return "Mac";
-}
+export type ScanState = { t: "scanning"; hint: string } | { t: "unavailable" };
 
 /** The camera image's size in its 512x256 preview texture. */
 const IMAGE_W = 320;
 const IMAGE_H = 240;
 
-/** Pair a Mac (Settings), or install an app from a code (the store). */
-export type ScanPurpose = "pair" | "install";
-
-const IDLE_HINT: Record<ScanPurpose, string> = {
-  pair: "Point the camera at the code on your Mac",
-  install: "Point the camera at an install code",
-};
+const IDLE_HINT = "Point the camera at an install code";
 
 export function scannerPage(
   sys: ShellSystem,
   stack: NavStack,
   setScan: (state: ScanState) => void,
   scan: Accessor<ScanState>,
-  purpose: ScanPurpose = "pair",
 ): PageSpec {
   // The preview fills the 3DS's screen behind the bar. A landscape surface
   // shows it under the bar as tall as the space there, centred, with the pill
@@ -92,77 +55,39 @@ export function scannerPage(
   let hintFrames = 0;
   let leaving = false;
 
-  let disposed = false;
-  onCleanup(() => {
-    disposed = true;
-    closeCamera();
-  });
+  onCleanup(() => closeCamera());
 
   onFrame(() => {
     const state = scan();
     if (state.t === "unavailable" || leaving) return;
-    if (state.t === "scanning" || state.t === "failed") {
-      if (hintFrames > 0 && --hintFrames === 0 && state.t === "scanning") setScan({ t: "scanning", hint: "" });
-      if (stack.busy()) return; // a code read mid-slide waits for the stack to settle
-      const code = pollQrCode();
-      if (code === undefined) return;
-      if (isInstallCode(code)) {
-        if (sys.canInstallCode() && sys.offerCode(code)) {
-          // The install page takes the scanner's place, which closes the camera.
-          leaving = true;
-          stack.replace("install.code");
-          return;
-        }
-        hintFrames = 120;
-        setScan({ t: "scanning", hint: sys.canInstallCode() ? "That install code could not be read." : "This console cannot install from a code." });
-        return;
-      }
-      if (!isPairingUri(code)) {
-        hintFrames = 120;
-        setScan({ t: "scanning", hint: purpose === "pair" ? "That code is not a Pocket pairing code." : "That code is not a Pocket code." });
-        return;
-      }
-      if (!sys.pairsByCode()) {
-        hintFrames = 120;
-        setScan({ t: "scanning", hint: "This console pairs from Pocket Hub." });
-        return;
-      }
-      const name = pairingName(code);
-      if (sys.pair(code)) setScan({ t: "connecting", name });
-      else setScan({ t: "failed", name, message: "The pairing code could not be read." });
+    if (hintFrames > 0 && --hintFrames === 0) setScan({ t: "scanning", hint: "" });
+    if (stack.busy()) return; // a code read mid-slide waits for the stack to settle
+    const code = pollQrCode();
+    if (code === undefined) return;
+    if (isInstallCode(code) && sys.canInstallCode() && sys.offerCode(code)) {
+      // The install page takes the scanner's place, which closes the camera.
+      leaving = true;
+      stack.replace("install.code");
       return;
     }
-    if (state.t === "connecting") {
-      const pairing = sys.link().pairing;
-      if (pairing === LINK_PAIRING.paired) {
-        setScan({ t: "paired", name: sys.link().companion?.name ?? state.name });
-        leaving = true;
-        // Back to the Mac page, unless the user already left the scanner.
-        after(1.2, () => !disposed && stack.top()?.page.startsWith("scan") && stack.pop());
-      } else if (pairing === LINK_PAIRING.failed) {
-        setScan({ t: "failed", name: state.name, message: sys.link().error || "The Mac refused the pairing." });
-      }
-    }
+    hintFrames = 120;
+    setScan({
+      t: "scanning",
+      hint: !isInstallCode(code)
+        ? "That code is not an install code."
+        : sys.canInstallCode()
+          ? "That install code could not be read."
+          : "This console cannot install from a code.",
+    });
   });
 
   const pill = () => {
     const state = scan();
-    switch (state.t) {
-      case "scanning":
-        return state.hint || IDLE_HINT[purpose];
-      case "connecting":
-        return ellipsize(`Connecting to ${state.name}...`, FONT.smBold, SCREEN_W - 80);
-      case "paired":
-        return ellipsize(`Paired with ${state.name}`, FONT.smBold, SCREEN_W - 80);
-      case "failed":
-        return ellipsize(state.message, FONT.smBold, SCREEN_W - 50);
-      default:
-        return "";
-    }
+    return state.t === "scanning" ? state.hint || IDLE_HINT : "";
   };
 
   return {
-    title: () => (purpose === "pair" ? "Pair a Mac" : "Scan a Code"),
+    title: () => "Scan a Code",
     backLabel: "Scan",
     tint: "black",
     bare: true,
@@ -186,34 +111,25 @@ export function scannerPage(
           <View class="absolute bg-[#00000070]" style={{ insetL: previewX, insetT: BOX_Y + BOX, width: SCREEN_W - 2 * previewX, height: previewBottom - BOX_Y - BOX }} />
           <View class="absolute bg-[#00000070]" style={{ insetL: previewX, insetT: BOX_Y, width: BOX_X - previewX, height: BOX }} />
           <View class="absolute bg-[#00000070]" style={{ insetL: BOX_X + BOX, insetT: BOX_Y, width: SCREEN_W - previewX - BOX_X - BOX, height: BOX }} />
-          <View class={scan().t === "paired" ? "absolute w-[22] h-[4] bg-[#5fd35f]" : "absolute w-[22] h-[4] bg-white"} style={{ insetL: BOX_X - 2, insetT: BOX_Y - 2 }} />
-          <View class={scan().t === "paired" ? "absolute w-[4] h-[22] bg-[#5fd35f]" : "absolute w-[4] h-[22] bg-white"} style={{ insetL: BOX_X - 2, insetT: BOX_Y - 2 }} />
-          <View class={scan().t === "paired" ? "absolute w-[22] h-[4] bg-[#5fd35f]" : "absolute w-[22] h-[4] bg-white"} style={{ insetL: BOX_X + BOX - 20, insetT: BOX_Y - 2 }} />
-          <View class={scan().t === "paired" ? "absolute w-[4] h-[22] bg-[#5fd35f]" : "absolute w-[4] h-[22] bg-white"} style={{ insetL: BOX_X + BOX - 2, insetT: BOX_Y - 2 }} />
-          <View class={scan().t === "paired" ? "absolute w-[22] h-[4] bg-[#5fd35f]" : "absolute w-[22] h-[4] bg-white"} style={{ insetL: BOX_X - 2, insetT: BOX_Y + BOX - 2 }} />
-          <View class={scan().t === "paired" ? "absolute w-[4] h-[22] bg-[#5fd35f]" : "absolute w-[4] h-[22] bg-white"} style={{ insetL: BOX_X - 2, insetT: BOX_Y + BOX - 20 }} />
-          <View class={scan().t === "paired" ? "absolute w-[22] h-[4] bg-[#5fd35f]" : "absolute w-[22] h-[4] bg-white"} style={{ insetL: BOX_X + BOX - 20, insetT: BOX_Y + BOX - 2 }} />
-          <View class={scan().t === "paired" ? "absolute w-[4] h-[22] bg-[#5fd35f]" : "absolute w-[4] h-[22] bg-white"} style={{ insetL: BOX_X + BOX - 2, insetT: BOX_Y + BOX - 20 }} />
-          <Show when={scan().t === "paired"}>
-            <View class="absolute w-[64] h-[64] rounded-[32] bg-[#3fae3fd0]" style={{ insetL: SCREEN_W / 2 - 32, insetT: BOX_Y + BOX / 2 - 32 }} />
-            <Image class="absolute w-[40] h-[40]" src="art/checkmark-big.svg" style={{ insetL: SCREEN_W / 2 - 20, insetT: BOX_Y + BOX / 2 - 20 }} />
-          </Show>
+          <View class="absolute w-[22] h-[4] bg-white" style={{ insetL: BOX_X - 2, insetT: BOX_Y - 2 }} />
+          <View class="absolute w-[4] h-[22] bg-white" style={{ insetL: BOX_X - 2, insetT: BOX_Y - 2 }} />
+          <View class="absolute w-[22] h-[4] bg-white" style={{ insetL: BOX_X + BOX - 20, insetT: BOX_Y - 2 }} />
+          <View class="absolute w-[4] h-[22] bg-white" style={{ insetL: BOX_X + BOX - 2, insetT: BOX_Y - 2 }} />
+          <View class="absolute w-[22] h-[4] bg-white" style={{ insetL: BOX_X - 2, insetT: BOX_Y + BOX - 2 }} />
+          <View class="absolute w-[4] h-[22] bg-white" style={{ insetL: BOX_X - 2, insetT: BOX_Y + BOX - 20 }} />
+          <View class="absolute w-[22] h-[4] bg-white" style={{ insetL: BOX_X + BOX - 20, insetT: BOX_Y + BOX - 2 }} />
+          <View class="absolute w-[4] h-[22] bg-white" style={{ insetL: BOX_X + BOX - 2, insetT: BOX_Y + BOX - 20 }} />
           {/* status pill */}
           <View
-            class={scan().t === "failed" || (scan().t === "scanning" && pill() !== IDLE_HINT[purpose])
+            class={pill() !== IDLE_HINT
               ? "absolute h-[28] rounded-[14] bg-[#b3261ee0] border border-[#ffffff50]"
               : "absolute h-[28] rounded-[14] bg-[#000000b0] border border-[#ffffff40]"}
             style={{ insetL: previewX + 12, insetT: pillY, width: SCREEN_W - 2 * previewX - 24 }}
           />
-          <Show when={scan().t === "connecting"}>
-            <View class="absolute" style={{ insetL: previewX + 22, insetT: pillY + 6 }}>
-              <ClassicSpinner size={16} color={"#ffffff"} />
-            </View>
-          </Show>
           <Text class="absolute text-sm text-white font-bold text-center" style={{ insetL: previewX + 12, insetT: pillY + 5, width: SCREEN_W - 2 * previewX - 24 }}>{pill()}</Text>
           <Show when={TALL}>
             <Text class="absolute left-[20] text-xs text-[#ffffff90] text-center" style={{ insetT: pillY + 44, width: SCREEN_W - 40 }}>
-              {purpose === "pair" ? "On your Mac, open Pocket Hub\nand choose Pair a Console..." : "A web page that offers an app\nshows its install code."}
+              {"A web page that offers an app\nshows its install code."}
             </Text>
           </Show>
         </Show>

@@ -133,10 +133,10 @@ embedded after it (PocketJS `tools/psp.ts`, which needs `pocket target add
 psp`). At the pinned PocketJS that EBOOT holds the launcher alone. Under
 PSPLINK the PRX runs from the share the tethered computer serves, and that
 computer's companion keeps the link in the same share with Pocket Link 1's
-USB carrier. That companion left PocketJS for Pocket Hub (PocketJS #672), and
-Pocket Link 2 has no USB carrier yet (`docs/POCKET-LINK.md` §2.0, §11), so
-the PSP keeps version 1. A console linked this way shows no store, and
-Settings names its companion:
+USB carrier. That companion left PocketJS for Pocket Hub (PocketJS #672).
+Every device is to speak Pocket Link 2, which has no USB carrier yet
+(`docs/POCKET-LINK.md` §2.0, §11); the PSP moves to it with one. A console
+linked this way shows no store, and Settings names its companion:
 
 ```sh
 usbhostfs_pc /opt/pocket/host0 &
@@ -179,18 +179,15 @@ releases are the firmware.
   closes the camera and shows the app's title and the server's host with
   Install and Cancel; the download's progress, then Open or the firmware's
   error, follow on that page. `shell/system.ts` parses the URI, starts the
-  download and polls the installer every frame while it runs. Either scanner
-  entry takes either code: a pairing code pairs where the link pairs by code
-  (Pocket Link 1, the Tab5's), and gets a hint on a Pocket Link 2 console. A
-  host without the installer shows no row.
+  download and polls the installer every frame while it runs. The scanner
+  reads install codes only; no code pairs a device (below). A host without
+  the installer shows no row.
 - The Pocket Hub app carries the applets and offers them to a paired Tab5
-  or 3DS, each over the version of the Pocket Link it speaks. `bun run
-  offer` builds both the 3DS and the Tab5 package of every applet into
-  `dist/3ds/apps/` and serves that folder as the catalog of PocketJS's
-  reference Pocket Link 2 Hub (`tools/3ds-dev.ts serve --apps`), which lists
-  to each console the files with a variant for its target. That Hub speaks
-  version 2 only, so it reaches a 3DS; a Tab5 needs a Hub that speaks
-  version 1.
+  or 3DS. `bun run offer` builds both the 3DS and the Tab5 package of every
+  applet into `dist/3ds/apps/` and serves that folder as the catalog of
+  PocketJS's reference Pocket Link 2 Hub (`tools/3ds-dev.ts serve --apps`),
+  which lists to each device the files with a variant for its target. A
+  Tab5 links to it once its firmware speaks Pocket Link 2.
 - The Tab5 has no buttons. The firmware paints a **floating home ball** over
   the picture: a tap sends SELECT (back to Home, or the launcher summoned
   from an app), a finger that moves at once drags the ball inside the
@@ -217,26 +214,22 @@ paired Macs, the installed applets), the Mac (the applets the paired Mac
 offers, with GET, OPEN and UPDATE) and the clock, which reads the Mac's
 time over the Pocket Link.
 
-**How a console pairs depends on its link**, which the launcher reads from
-the running host (`shell/system.ts` `linkPairsByCode`, from the link status:
-a version 2 client reports its negotiated payload limit, `limit`, and a
-version 1 client has none):
-
-- **Pocket Link 2, the 3DS.** There is no pairing on the wire: no QR code, no
-  camera and no pairing window (PocketJS `docs/POCKET-LINK.md` §3). Pocket
-  Hub writes the pairing files into `sdmc:/pocketjs/link/` through ftpd, or
-  onto the SD card in the computer's reader, when it installs Pocket Shell,
-  and the console dials that computer from its next start. Settings > Mac
-  says so and lists the paired Macs with Forget; forgetting one deletes its
-  file on the card, and linking to it again takes another setup from that
-  Mac. `link.pair` answers false there, so the page offers no scanner.
-- **Pocket Link 1, the Tab5.** Settings > Mac > Pair a Mac... opens the
-  camera on the code Pocket Hub shows, as before.
+**Pocket Hub sets a device up; no code pairs one.** Every device speaks
+Pocket Link 2, which has no pairing on the wire: no QR code, no camera and no
+pairing window (PocketJS `docs/POCKET-LINK.md` §3). Pocket Hub writes the
+pairing files onto the device's storage (on a 3DS `sdmc:/pocketjs/link/`,
+through ftpd or with the SD card in the computer's reader) when it installs
+Pocket Shell, and the device dials that computer from its next start.
+Settings > Mac says so and lists the paired Macs with Forget; forgetting one
+deletes its file on the card, and linking to it again takes another setup
+from that Mac. The launcher never calls `link.pair`.
 
 The Mac page and the store follow the features the link lists (§6.1): a
 linked Mac that lists no `catalog` gets "No Applets Offered" in the store
 instead of a request, and the Mac page says which of applets and web
-requests that Mac carries. The springboard holds **four columns by two rows
+requests (`net.http`) that Mac carries.
+
+The springboard holds **four columns by two rows
 a page** above a dock of up to four icons (Settings, Camera, Photos, Mac).
 Labels are bold 10 px (`text-2xs`), so "Hacker News" and "Pocket Nexus" fit
 their 80 px cells; a longer name ends in "...".

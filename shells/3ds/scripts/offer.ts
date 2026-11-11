@@ -6,10 +6,9 @@
 // stopped. Each app gets a 3DS package (<output>.pocket) and a Tab5 package
 // (<output>.tab5.pocket); the Hub lists to each console the files with a
 // variant for its target. A paired 3DS's store then lists them, and an install
-// or update goes over the Pocket Link. The reference Hub speaks version 2
-// only, so a Tab5, whose firmware speaks version 1, does not link to it; its
-// packages stay in the folder for a Hub that does. Other options (--daemon,
-// --resolve, --panel, --host…) go to serve unchanged.
+// or update goes over the Pocket Link. A Tab5 links to it once its firmware
+// speaks Pocket Link 2. Other options (--daemon, --resolve, --panel,
+// --host…) go to serve unchanged.
 
 import { copyFileSync, mkdirSync, renameSync } from "node:fs";
 import { resolve } from "node:path";

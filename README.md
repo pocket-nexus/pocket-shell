@@ -26,13 +26,12 @@ applet lays itself out by size class from one source, so the 3DS and the
 Tab5 install the same programs: see [shells/3ds](shells/3ds/README.md).
 
 To use them, Pocket Hub, an app for the Mac, installs Pocket Shell on a 3DS
-and carries the applets. On the 3DS, which speaks Pocket Link 2, Hub writes
-the console's pairing onto its SD card through ftpd during that install;
-there is no code to scan, and the console links to the Mac by itself when
-Pocket Shell starts. Tap Mac on the home screen to install the applets the
-Mac offers. A Tab5 speaks Pocket Link 1 and pairs in Settings > Mac > Pair
-a Mac... by the code that a Hub speaking version 1 shows. Pocket Hub is not
-released yet. The Tab5 firmware is
+and carries the applets. Every device speaks Pocket Link 2: Hub writes the
+device's pairing onto its storage (on a 3DS, its SD card through ftpd)
+during that install; there is no code to scan, and the device links to the
+Mac by itself when Pocket Shell starts. Tap Mac on the home screen to
+install the applets the Mac offers. Pocket Hub is not released yet. The Tab5
+firmware is
 [pocket-m5](https://github.com/pocket-nexus/pocket-m5)'s, which builds this
 launcher from a submodule.
 
