@@ -121,6 +121,33 @@ stage and the Pocket Link, and the applets through `vendor/applets`. Runtime
 and applet changes belong upstream; this repository selects their commits
 through its submodule pins.
 
+## Releases
+
+The repository has one SemVer version: the root `package.json`, each shell's
+`package.json` and each app contract (`pocket.app.json` and the desktop's
+system and Studio manifests) name it, and About on the console shows it. A
+release is a pull request that raises it:
+
+```sh
+bun run release                  # auto: the bump the Conventional Commits since the last tag ask for
+bun run release minor            # or patch / major, or an exact version such as 0.3.0-rc.1
+bun run release --dry-run        # prepare the change from HEAD under .pocket-build/release/ and open nothing
+```
+
+The command branches `release/v<version>` from `origin/main` in a worktree of
+its own, raises every version and `bun.lock`, and opens the pull request
+`chore(release): v<version>` with the changes since the last tag. `auto`
+raises the major for a breaking change (the minor below 1.0.0), the minor for
+a `feat`, the patch otherwise.
+
+Merging it is the release. **Release 3DS** (`.github/workflows/release-3ds.yml`)
+sees the root `package.json`'s version rise on `main`, tags the merge commit
+`v<version>`, builds the `.3dsx` from it and publishes the GitHub release
+`Pocket Shell v<version>`; a version with a suffix (`0.3.0-rc.1`) is a
+prerelease. A published release is never replaced. If a run fails after
+tagging, run the workflow by hand with that version to publish the tag again.
+Releases up to `v2026.11.12` were named by their date.
+
 ## License
 
 **GNU GPL version 3.** Root, 3DS and touch code uses
