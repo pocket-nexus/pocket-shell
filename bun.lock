@@ -10,15 +10,15 @@
     },
     "shells/3ds": {
       "name": "@pocket-shell/3ds",
-      "version": "0.1.0",
+      "version": "0.1.1",
     },
     "shells/desktop": {
       "name": "@pocket-shell/desktop",
-      "version": "0.1.0",
+      "version": "0.1.1",
     },
     "shells/touch": {
       "name": "@pocket-shell/touch",
-      "version": "0.1.0",
+      "version": "0.1.1",
     },
   },
   "packages": {

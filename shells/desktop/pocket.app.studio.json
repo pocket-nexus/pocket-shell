@@ -3,7 +3,7 @@
   "pocket": 2,
   "id": "dev.pocket-stack.desktop.studio",
   "title": "Pocket Studio Computer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "engine": {
     "capabilities": {
       "requires": [
