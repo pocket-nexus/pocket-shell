@@ -12,7 +12,8 @@ on:
       - 'bun.lock'
   workflow_call:
     inputs:
-      version:
+      ref:
+        description: The commit to build; its committed versions name the release
         required: true
         type: string
 
@@ -27,22 +28,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ inputs.ref }}
           submodules: true
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: .bun-version
       - name: Install dependencies
         run: bun run setup
-      - name: Test release version and artifact checks
-        run: bun test ./scripts/release-3ds.test.ts
-      - name: Prepare calendar version
-        id: version
-        env:
-          REQUESTED_VERSION: ${{ inputs.version }}
-        run: |
-          version="${REQUESTED_VERSION:-$(bun scripts/release-3ds.ts version)}"
-          bun scripts/release-3ds.ts prepare "$version"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Test the release scripts and artifact checks
+        run: bun test ./scripts
       - name: Install the runtime's pinned Rust toolchain
         run: |
           nightly="$(bun -e 'import { BUILD_STD_NIGHTLY } from "./vendor/pocketjs/tools/build/toolchains/rust.ts"; console.log(BUILD_STD_NIGHTLY)')"
@@ -54,10 +48,8 @@ jobs:
       - name: Build the release binary
         run: bun run 3ds
       - name: Verify and stage release files
-        env:
-          RELEASE_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          bun scripts/release-3ds.ts stage "$RELEASE_VERSION"
+          bun scripts/release-3ds.ts stage
           cd dist/release
           sha256sum --check SHA256SUMS
       - uses: actions/upload-artifact@v4

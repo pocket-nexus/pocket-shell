@@ -93,6 +93,7 @@ bun run offer                        # build the applets' 3DS and Tab5 packages 
 bun run tab5                         # the launcher and the applets as Tab5 packages in dist/tab5
 bun run psp                          # the PSP EBOOT in dist/psp
 bun run 3ds                          # the full .3dsx in dist/3ds
+bun run release [patch|minor|major]  # open the release PR; its merge tags and publishes the .3dsx
 ```
 
 The touch shell uses `bun run touch guest|deploy|launch|status|capture` and

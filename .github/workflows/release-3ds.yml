@@ -1,9 +1,22 @@
 name: Release 3DS
 run-name: Release 3DS from ${{ github.ref_name }}
 
-# Publishing is only triggered by the Actions "Run workflow" button or gh.
+# `bun run release` opens a pull request that raises the repository's version
+# (scripts/release/prepare.ts). Its merge changes package.json on main: this
+# workflow tags the merge commit v<version>, builds the .3dsx from it and
+# publishes the GitHub release. A package.json change that keeps the version
+# publishes nothing. A manual run names the version of an existing tag whose
+# release failed and publishes that tag's commit.
 on:
+  push:
+    branches: [main]
+    paths: [package.json]
   workflow_dispatch:
+    inputs:
+      version:
+        description: Version of an existing tag to publish (for example, 0.2.0)
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -13,54 +26,62 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  prepare:
+  identity:
     permissions:
-      contents: read
-      actions: read
+      contents: write # the release tag
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
-      version: ${{ steps.version.outputs.version }}
+      release: ${{ steps.identity.outputs.release }}
+      version: ${{ steps.identity.outputs.version }}
+      tag: ${{ steps.identity.outputs.tag }}
+      commit: ${{ steps.identity.outputs.commit }}
+      prerelease: ${{ steps.identity.outputs.prerelease }}
+      notes: ${{ steps.identity.outputs.notes }}
     steps:
       - name: Require the default branch
         env:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: test "$GITHUB_REF" = "refs/heads/$DEFAULT_BRANCH"
       - uses: actions/checkout@v7
+        with:
+          # The release notes list the commits since the previous tag.
+          fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: .bun-version
-      - name: Reserve the release date
-        id: version
+      - name: Tag the merged release pull request
+        id: identity
+        env:
+          RELEASE_INPUT: ${{ inputs.version }}
+          RELEASE_BEFORE: ${{ github.event.before }}
+        run: bun scripts/release/identity.ts --create-tag
+      - name: Refuse a published release
+        if: steps.identity.outputs.release == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.identity.outputs.tag }}
         run: |
-          # A rerun keeps the original dispatch date, even across midnight.
-          created=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq .created_at)
-          version=$(bun scripts/release-3ds.ts version "$created")
-          tag="v$version"
-          tags=$(git ls-remote --tags origin "refs/tags/$tag")
-          releases=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases" --jq '.[].tag_name')
-          if [ -n "$tags" ] || echo "$releases" | grep -Fxq "$tag"; then
-            echo "::error::Release or tag $tag already exists; published assets are never overwritten."
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2>/dev/null | grep -qx false; then
+            echo "::error::Release $TAG is published; published assets are never overwritten."
             exit 1
           fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Releasing $TAG" >> "$GITHUB_STEP_SUMMARY"
 
   build:
-    needs: prepare
+    needs: identity
+    if: needs.identity.outputs.release == 'true'
     uses: ./.github/workflows/build-3ds.yml
     with:
-      version: ${{ needs.prepare.outputs.version }}
+      ref: ${{ needs.identity.outputs.commit }}
 
   publish:
-    needs: [prepare, build]
+    needs: [identity, build]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v4
         with:
           name: 3ds-release
@@ -68,14 +89,18 @@ jobs:
       - name: Publish the verified build
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          RELEASE_VERSION: ${{ needs.identity.outputs.version }}
+          RELEASE_TAG: ${{ needs.identity.outputs.tag }}
+          RELEASE_COMMIT: ${{ needs.identity.outputs.commit }}
+          RELEASE_PRERELEASE: ${{ needs.identity.outputs.prerelease }}
+          RELEASE_CHANGES: ${{ needs.identity.outputs.notes }}
         run: |
           cd dist/release
           sha256sum --check SHA256SUMS
-          test "$(jq -r .source build-info.json)" = "$GITHUB_SHA"
+          test "$(jq -r .source build-info.json)" = "$RELEASE_COMMIT"
           test "$(jq -r .version build-info.json)" = "$RELEASE_VERSION"
           cat > "$RUNNER_TEMP/release-notes.md" <<'EOF'
-          Nintendo 3DS build. Release dates use Asia/Shanghai.
+          Nintendo 3DS build.
 
           - `.3dsx`: copy to the SD card's `/3ds/` directory and launch with Homebrew Launcher.
           - `SHA256SUMS`: the binary's checksum.
@@ -83,11 +108,19 @@ jobs:
 
           CI verifies compilation, package headers and checksums. It does not verify a physical console boot or interaction.
           EOF
-          printf '\nSource: %s\nBuild: %s/%s/actions/runs/%s\n' \
-            "$GITHUB_SHA" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >> "$RUNNER_TEMP/release-notes.md"
-          tag="v$RELEASE_VERSION"
-          gh release create "$tag" ./*.3dsx SHA256SUMS build-info.json \
-            --target "$GITHUB_SHA" --title "Pocket Shell $tag" \
+          printf '\n%s\n\nSource: %s\nBuild: %s/%s/actions/runs/%s\n' "$RELEASE_CHANGES" \
+            "$RELEASE_COMMIT" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >> "$RUNNER_TEMP/release-notes.md"
+          # A draft left by a failed run is replaced; `create` refuses a published release.
+          draft=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2>/dev/null || true)
+          if [ "$draft" = true ]; then
+            gh release delete "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --yes
+          fi
+          gh release create "$RELEASE_TAG" ./*.3dsx SHA256SUMS build-info.json \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --title "Pocket Shell $RELEASE_TAG" \
             --notes-file "$RUNNER_TEMP/release-notes.md" --draft
-          gh release edit "$tag" --draft=false --latest
-          gh release view "$tag" --json url --jq .url >> "$GITHUB_STEP_SUMMARY"
+          if [ "$RELEASE_PRERELEASE" = true ]; then
+            gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease
+          else
+            gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+          fi
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json url --jq .url >> "$GITHUB_STEP_SUMMARY"

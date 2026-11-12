@@ -19,8 +19,11 @@ import { SCREEN_H, SCREEN_W, appletSurfaceId } from "../ui/screen.ts";
 import { tableContent, type Cell, type Section } from "../ui/table.tsx";
 import type { Press } from "../ui/touch.ts";
 import { legendWhileTyping } from "../ui/legend.tsx";
+import { version } from "./pocket.app.json";
 
-export const SHELL_VERSION = "0.1.0";
+/** The launcher's app contract names the repository's version, which
+ *  `bun run release` raises (scripts/release/version.ts). */
+export const SHELL_VERSION: string = version;
 
 export const ICONS = {
   wifi: { art: "wifi" },
