@@ -3,7 +3,7 @@
   "pocket": 2,
   "id": "dev.pocket-nexus.desktop.system-ui",
   "title": "Pocket Shell Desktop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "engine": {
     "capabilities": {
       "requires": [

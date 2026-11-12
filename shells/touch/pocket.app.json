@@ -3,7 +3,7 @@
   "pocket": 2,
   "id": "dev.pocket-nexus.fluid",
   "title": "Pocket Shell Touch",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "engine": {
     "capabilities": {
       "requires": [
