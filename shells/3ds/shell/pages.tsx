@@ -12,7 +12,7 @@ import { createOsk, Osk, oskHeight } from "@pocketjs/framework/osk";
 import type { WifiNetwork } from "@pocketjs/framework/wifi";
 import { offsetText, TIME_ZONES } from "./clock.ts";
 import { displayApi } from "./display.ts";
-import { LINK_PAIRING, LINK_STATE, linkOffers, sizeText, type ShellApp, type ShellSystem } from "./system.ts";
+import { LINK_STATE, linkOffers, sizeText, type ShellApp, type ShellSystem } from "./system.ts";
 import { appTint, Tile, type IconArt } from "../ui/icons.tsx";
 import type { LayerContext, NavStack, PageSpec } from "../ui/nav.tsx";
 import { SCREEN_H, SCREEN_W, appletSurfaceId } from "../ui/screen.ts";
@@ -267,7 +267,8 @@ export function wifiJoinPage(env: PageEnv, ssid: string, stack: NavStack, layer:
   };
 }
 
-/** On a link without pairing by code: how this console gets paired. */
+/** How a console gets paired: Pocket Hub writes the pairing onto its
+ *  storage (PocketJS docs/POCKET-LINK.md §3). */
 const SET_UP_FROM_HUB =
   "Pocket Hub on your Mac sets this console up: it writes the pairing onto the SD card through ftpd when it installs Pocket Shell. There is no code to scan.";
 const ANOTHER_MAC =
@@ -282,7 +283,7 @@ function offersText(link: LinkStatus): string {
   return "Pocket Hub on this Mac offers this console no applets and no web requests.";
 }
 
-function macPage(env: PageEnv, stack: NavStack, layer: LayerContext): PageSpec {
+function macPage(env: PageEnv, _stack: NavStack, layer: LayerContext): PageSpec {
   const { sys } = env;
   return {
     title: () => (sys.tethered ? "Companion" : "Mac"),
@@ -306,19 +307,12 @@ function macPage(env: PageEnv, stack: NavStack, layer: LayerContext): PageSpec {
         : link.state === LINK_STATE.connecting ? "Connecting"
         : link.state === LINK_STATE.searching ? "Searching"
         : "Not Paired";
-      // A link that pairs by a code (Pocket Link 1) pairs from the scanner
-      // here. Pocket Link 2 has no pairing on the wire: Pocket Hub writes the
-      // pairing onto the SD card through ftpd as it installs Pocket Shell, so
-      // this page says so and offers no scanner (PocketJS docs/POCKET-LINK.md §3).
-      const byCode = sys.pairsByCode();
       const footer =
         link.state === LINK_STATE.linked && companion
           ? `Linked to ${companion.name}${companion.address ? ` at ${companion.address}` : ""}. ${offersText(link)}`
           : link.state === LINK_STATE.searching
             ? "Looking for a paired Mac on this network. Open Pocket Hub on the Mac."
-            : byCode
-              ? "Pair a Mac to install applets from it and to reach the web through it."
-              : SET_UP_FROM_HUB;
+            : SET_UP_FROM_HUB;
       const sections: Section[] = [
         {
           cells: [{
@@ -345,19 +339,13 @@ function macPage(env: PageEnv, stack: NavStack, layer: LayerContext): PageSpec {
               tone: "red" as const,
               run: () => env.confirm(
                 `Forget "${mac.name}"?`,
-                byCode ? "This console will need to scan its code again to link." : "To link again, set this console up from Pocket Hub on that Mac, with ftpd running here.",
+                "To link again, set this console up from Pocket Hub on that Mac, with ftpd running here.",
                 "Forget",
                 () => sys.forget(mac.id),
               ),
             },
           })),
-          footer: byCode ? undefined : ANOTHER_MAC,
-        });
-      }
-      if (byCode) {
-        sections.push({
-          cells: [{ id: "mac.pair", label: link.paired.length ? "Pair Another Mac..." : "Pair a Mac...", tone: "action", run: () => stack.push("scan") }],
-          footer: "On your Mac, open Pocket Hub and choose Pair a Console... to show a code. Then hold the outer camera up to it.",
+          footer: ANOTHER_MAC,
         });
       }
       return sections;
@@ -479,7 +467,7 @@ function timezonePage(env: PageEnv, _stack: NavStack, layer: LayerContext): Page
           on: sys.offset() === zone.offset,
           run: () => sys.setOffset(zone.offset),
         })),
-        footer: "No Mac has linked since the console started, so Pocket Shell shows the console's clock. Pair a Mac to take its time.",
+        footer: "No Mac has linked since the console started, so Pocket Shell shows the console's clock. Once a paired Mac links, it takes the Mac's time.",
       },
     ]);
   // Open on the zone in use.
@@ -500,4 +488,3 @@ export const SETTINGS_PAGES: Record<string, (env: PageEnv, stack: NavStack, laye
   timezone: timezonePage,
 };
 
-export { LINK_PAIRING };
