@@ -354,6 +354,11 @@ computer; it keeps this computer's record in `$POCKETJS_LINK_HOME`, else
 `~/.pocketjs/link/`. A console whose program predates Pocket Link 2 never
 links: copy a current `pocket-shell.3dsx` to `sdmc:/3ds/` through ftpd and
 run `pair` before starting it. The `.3dsx` is the only console format.
+A first install of an applet creates its slot's folders, and compiles its
+bundle, on threads of their own while the program keeps the link pumped
+(about 4 s per folder on the measured SD card), so the console no longer
+goes silent past the link's 10 s limit (PocketJS `docs/POCKET-LINK.md`
+§12.2).
 
 The launcher's recovery state is in `/pocketjs/runtime/apps/<slot>/`, where
 the slot is the first 16 hex digits of the SHA-256 of `dev.pocket-nexus.shell`.
