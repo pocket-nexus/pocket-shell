@@ -273,6 +273,45 @@ const SET_UP_FROM_HUB =
 const ANOTHER_MAC =
   "To add another Mac, set this console up from Pocket Hub on it, with ftpd running here or the SD card in the Mac's reader.";
 
+/** On a console that pairs by a code it shows (PocketJS docs/POCKET-LINK.md
+ *  §3.11): the sections of the Mac page for the code. The console lists the
+ *  computers whose Pocket Hub it hears, its owner chooses one, and the code
+ *  it then shows is entered in Pocket Hub there. */
+function pairCodeSections(sys: ShellSystem, link: LinkStatus): Section[] {
+  const pair = link.pair;
+  const cancel: Section = { cells: [{ id: "mac.pair.cancel", label: "Cancel", tone: "action", run: () => sys.pairClose() }] };
+  if (pair?.state === "open") {
+    return [
+      {
+        header: "Computers on This Network",
+        cells: pair.hubs.length
+          ? pair.hubs.map((hub) => ({ id: `mac.ask.${hub.id}`, label: hub.name || hub.id, accessory: "chevron" as const, run: () => sys.pairAsk(hub.id) }))
+          : [{ id: "mac.looking", label: "Looking...", tone: "muted" as const, accessory: "spinner" as const }],
+        footer: "Choose the computer to pair with. Pocket Hub has to be open on it, on this network.",
+      },
+      cancel,
+    ];
+  }
+  if (pair?.state === "asking") {
+    const minutes = Math.max(1, Math.round(pair.leftMs / 60_000));
+    const tries = pair.tries < 3 ? ` It takes ${pair.tries} more wrong ${pair.tries === 1 ? "entry" : "entries"}.` : "";
+    return [
+      {
+        header: "Pairing Code",
+        cells: [{ id: "mac.code", label: "Code", value: `${pair.code.slice(0, 3)} ${pair.code.slice(3)}` }],
+        footer: `Enter this code in Pocket Hub on ${pair.hubName || "that computer"}. It lasts ${minutes} more ${minutes === 1 ? "minute" : "minutes"}.${tries}`,
+      },
+      cancel,
+    ];
+  }
+  return [{
+    cells: [{ id: "mac.pair", label: link.paired.length ? "Pair Another Computer..." : "Pair a Computer...", tone: "action", run: () => sys.pairOpen() }],
+    footer: pair?.state === "failed" && pair.error
+      ? `The last code paired nothing: ${pair.error}.`
+      : "This console shows a code, and Pocket Hub on the computer asks for it.",
+  }];
+}
+
 /** What the linked Mac serves this console, for the Mac page. */
 function offersText(link: LinkStatus): string {
   const offers = linkOffers(link);
@@ -311,12 +350,19 @@ function macPage(env: PageEnv, stack: NavStack, layer: LayerContext): PageSpec {
       // pairing onto the SD card through ftpd as it installs Pocket Shell, so
       // this page says so and offers no scanner (PocketJS docs/POCKET-LINK.md §3).
       const byCode = sys.pairsByCode();
+      // A console that shows a code (§3.11) is paired from this page as well,
+      // with no camera: it has the sections of pairCodeSections below.
+      const showsCode = sys.showsPairCode();
+      // While a code is kept the page is the pairing alone: the list of
+      // computers, or the code and where to enter it, with Cancel in reach
+      // on the smallest surface.
+      if (showsCode && (link.pair?.state === "open" || link.pair?.state === "asking")) return pairCodeSections(sys, link);
       const footer =
         link.state === LINK_STATE.linked && companion
           ? `Linked to ${companion.name}${companion.address ? ` at ${companion.address}` : ""}. ${offersText(link)}`
           : link.state === LINK_STATE.searching
             ? "Looking for a paired Mac on this network. Open Pocket Hub on the Mac."
-            : byCode
+            : byCode || showsCode
               ? "Pair a Mac to install applets from it and to reach the web through it."
               : SET_UP_FROM_HUB;
       const sections: Section[] = [
@@ -345,15 +391,20 @@ function macPage(env: PageEnv, stack: NavStack, layer: LayerContext): PageSpec {
               tone: "red" as const,
               run: () => env.confirm(
                 `Forget "${mac.name}"?`,
-                byCode ? "This console will need to scan its code again to link." : "To link again, set this console up from Pocket Hub on that Mac, with ftpd running here.",
+                byCode
+                  ? "This console will need to scan its code again to link."
+                  : showsCode
+                    ? "To link again, pair this console with that Mac again."
+                    : "To link again, set this console up from Pocket Hub on that Mac, with ftpd running here.",
                 "Forget",
                 () => sys.forget(mac.id),
               ),
             },
           })),
-          footer: byCode ? undefined : ANOTHER_MAC,
+          footer: byCode || showsCode ? undefined : ANOTHER_MAC,
         });
       }
+      if (showsCode) sections.push(...pairCodeSections(sys, link));
       if (byCode) {
         sections.push({
           cells: [{ id: "mac.pair", label: link.paired.length ? "Pair Another Mac..." : "Pair a Mac...", tone: "action", run: () => stack.push("scan") }],
