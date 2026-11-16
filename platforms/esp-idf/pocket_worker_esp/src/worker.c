@@ -12,10 +12,14 @@
 struct pocket_worker_esp {
   pocket_worker_esp_config config;
   SemaphoreHandle_t mutex, done, ready;
+  /* Held to ask the runner to stop and to take it out of the host. */
+  SemaphoreHandle_t handover;
   TaskHandle_t task;
   pocket_worker_runner *runner;
   esp_timer_handle_t timer;
   esp_err_t startup;
+  /* The worker task is destroying its runner. */
+  bool draining;
   size_t guest_used, guest_peak;
   char console[4][1024];
   unsigned console_count, console_dropped;
@@ -117,10 +121,21 @@ static uint64_t now(void *context) {
 }
 /* The runner's idle wait. Notification counts survive the check-to-wait
  * race; an esp_timer one-shot wakes exact deadlines, so there is no global
- * worker tick. */
+ * worker tick. The one-shot is stopped when the wait ends: left armed after
+ * another wake ended the wait, it fires during the next turn and ends the
+ * wait after that one at once. With a close retried every millisecond and
+ * turns longer than that, no wait blocked, and the driver task that must run
+ * to release the resource, below this priority on this core, got no time.
+ *
+ * While the runner is destroyed the wait is one tick whatever wakes arrive:
+ * each retry of pocket_worker_destroy closes the open resources again and
+ * each close wakes this task. */
 static void wait_until(void *context, uint64_t deadline) {
   pocket_worker_esp *host = context;
-  esp_timer_stop(host->timer);
+  if (host->draining) {
+    vTaskDelay(1);
+    return;
+  }
   if (deadline != UINT64_MAX) {
     const uint64_t current = now(host);
     if (deadline <= current)
@@ -128,6 +143,7 @@ static void wait_until(void *context, uint64_t deadline) {
     esp_timer_start_once(host->timer, deadline - current);
   }
   ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+  esp_timer_stop(host->timer);
 }
 static JSValue console_log(JSContext *context, JSValueConst self, int argc,
                            JSValueConst *argv, int magic, JSValue *data) {
@@ -276,9 +292,14 @@ static void run(void *opaque) {
              (unsigned)host->guest_used, (unsigned)host->guest_peak,
              (unsigned)uxTaskGetStackHighWaterMark(NULL));
     /* Destroy retries through wait_until while native IO still holds the
-     * core, so the deadline timer must outlive it. */
-    pocket_worker_runner_destroy(host->runner);
+     * core, so the deadline timer must outlive it. A stop that timed out
+     * asks again meanwhile, so the runner leaves the host first. */
+    xSemaphoreTake(host->handover, portMAX_DELAY);
+    pocket_worker_runner *runner = host->runner;
     host->runner = NULL;
+    xSemaphoreGive(host->handover);
+    host->draining = true;
+    pocket_worker_runner_destroy(runner);
   }
   if (host->timer) {
     /* TASK-dispatch callbacks can still be in flight. Join them before
@@ -308,10 +329,11 @@ esp_err_t pocket_worker_esp_start(const pocket_worker_esp_config *config,
     return ESP_ERR_NO_MEM;
   host->config = *config;
   host->mutex = xSemaphoreCreateMutex();
+  host->handover = xSemaphoreCreateMutex();
   host->ready = xSemaphoreCreateBinary();
   host->done = xSemaphoreCreateBinary();
   const BaseType_t created =
-      host->mutex && host->ready && host->done
+      host->mutex && host->handover && host->ready && host->done
           ? config->task_stack_caps
                 ? xTaskCreatePinnedToCoreWithCaps(
                       run, "pocket_worker", config->task_stack_size, host,
@@ -324,6 +346,8 @@ esp_err_t pocket_worker_esp_start(const pocket_worker_esp_config *config,
   if (created != pdPASS) {
     if (host->mutex)
       vSemaphoreDelete(host->mutex);
+    if (host->handover)
+      vSemaphoreDelete(host->handover);
     if (host->ready)
       vSemaphoreDelete(host->ready);
     if (host->done)
@@ -345,7 +369,9 @@ esp_err_t pocket_worker_esp_stop(pocket_worker_esp *host, uint32_t timeout_ms) {
     return ESP_ERR_INVALID_ARG;
   /* Do not notify a task which has already deleted itself. */
   if (xSemaphoreTake(host->done, 0) != pdTRUE) {
+    xSemaphoreTake(host->handover, portMAX_DELAY);
     pocket_worker_runner_stop(host->runner);
+    xSemaphoreGive(host->handover);
     wake(host);
     const TickType_t wait =
         timeout_ms == UINT32_MAX ? portMAX_DELAY : pdMS_TO_TICKS(timeout_ms);
@@ -358,6 +384,7 @@ esp_err_t pocket_worker_esp_stop(pocket_worker_esp *host, uint32_t timeout_ms) {
     vTaskDelete(host->task);
   vSemaphoreDelete(host->done);
   vSemaphoreDelete(host->ready);
+  vSemaphoreDelete(host->handover);
   vSemaphoreDelete(host->mutex);
   free(host);
   return ESP_OK;
