@@ -110,6 +110,10 @@ Each strip holds a multiple of the rows that span whole 128-byte cache lines
 (`line_rows`: four 1184-byte rows at 592x1, one 1280-byte row at 640x1), and
 a turned strip a multiple of 8 raster rows besides.
 
+The PPA's 2x scaling interpolates between neighbouring pixels, so the
+runtime repaints one raster pixel around each damaged rectangle
+(`POCKET_DISPLAY_FILTERED_SCALING`).
+
 The launcher paints a 56-px translucent ball at the right edge of the
 picture, halfway down, as two ARGB8888 faces (resting and pressed) in PSRAM
 and hands the display the current face as its overlay
