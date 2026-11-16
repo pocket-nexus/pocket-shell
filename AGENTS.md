@@ -11,7 +11,7 @@ Architecture and implementation notes belong in `docs/`, not here.
   runs commitlint with `commitlint.config.mjs`.
 - The scope names the directory the change touches: a component
   (`worker-esp`, `http-esp`, `pocket-system`), a program (`m5stack-tab5`), an
-  app (`worker-http`), `tools`, `docs` or `deps`. Omit the scope only for
+  app (`unit-swap`), `tools`, `docs` or `deps`. Omit the scope only for
   repository-wide changes.
 - The header is at most 72 characters; the summary is imperative, lower case,
   without a trailing period.

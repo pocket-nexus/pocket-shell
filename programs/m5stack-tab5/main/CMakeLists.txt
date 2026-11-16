@@ -49,7 +49,7 @@ endif()
 # packages): each entry is an app directory below the repository root,
 # compiled against the same host config as the launcher. tab5_bundled.c
 # lists them for main.c.
-set(POCKETJS_TAB5_BUNDLED_APPS "apps/tab5-demo;apps/worker-http;apps/unit-swap;apps/worker-mqtt" CACHE STRING "App directories below the repository root to install at boot")
+set(POCKETJS_TAB5_BUNDLED_APPS "apps/tab5-demo;apps/unit-swap" CACHE STRING "App directories below the repository root to install at boot")
 set(bundled_includes "")
 set(bundled_entries "")
 set(bundled_count 0)

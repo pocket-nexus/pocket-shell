@@ -55,8 +55,8 @@ idf.py -p <port> flash monitor
 ```
 
 The firmware embeds this repository's apps (`apps/tab5-demo`,
-`apps/worker-http`, `apps/unit-swap`, `apps/worker-mqtt`) and installs them at boot, so Pocket Shell lists them
-without a computer. The applets install beside them from a paired computer's
+`apps/unit-swap`) and installs them at boot, so Pocket Shell lists them without
+a computer. The applets install beside them from a paired computer's
 Hub over Pocket Link 2 (pocketjs `docs/POCKET-LINK.md`); the Mac icon on the
 home screen lists what that Hub offers. The home ball returns to Pocket
 Shell.

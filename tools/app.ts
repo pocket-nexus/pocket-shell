@@ -1,5 +1,5 @@
 // Compiles an app for the host contract of programs/m5stack-tab5 (tab5-home).
-//   bun run app build apps/worker-http/pocket.app.json [--host-config <path>]
+//   bun run app build apps/unit-swap/pocket.app.json [--host-config <path>]
 // Packages land in .pocket-build/apps/<output>.pocket.
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
