@@ -484,10 +484,13 @@ static void request_task(void *opaque) {
       break;
     const int32_t status = perform(s);
     /* After a cancel or close the request is terminal already; finish still
-     * ends the stream and releases the native request. */
+     * ends the stream and releases the native request. Finish wakes the
+     * worker's task, which may outrank this one and close the resource
+     * before this task runs again: the mutex is held across both, so close
+     * never finds a finished request still running. */
+    lock(d);
     pocket_worker_finish(s->worker, s->handle, s->request, status,
                          s->delivered);
-    lock(d);
     s->phase = SLOT_DONE;
     unlock(d);
   }
