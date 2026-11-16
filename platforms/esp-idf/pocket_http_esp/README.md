@@ -7,6 +7,7 @@ The descriptor is the JSON the SDK's `io.http(name).open(...)` encodes, at most 
 | Rule | Value |
 | --- | --- |
 | TLS | mbedTLS with the ESP x509 certificate bundle (`esp_crt_bundle_attach`); `clock_wait` holds an `https://` hop until the wall clock is set |
+| Connections | a request task keeps the connection of its last request for 10 s when the whole response arrived and the server holds it open; a `GET`, `HEAD`, `PUT`, `DELETE` or `OPTIONS` to the same scheme, host and port goes out on it, and again on a new connection when the kept one fails before the response head; `POST`, `PATCH` and a URL with userinfo connect anew; open gives a request to the free task that keeps its origin's connection |
 | Request headers | hop-by-hop fields, `host`, `content-length` and `expect` dropped; `User-Agent: PocketJS/1` unless the request names one |
 | Redirects | followed by the request task, at most 3; 303, and 301/302 after POST, become GET without a body or `content-type`; `authorization` and `cookie` are dropped across origins |
 | Headers record | lower-case names, hop-by-hop fields dropped, repeats joined with `, ` (`set-cookie` with a newline); `content-type`, `location`, `etag`, `last-modified`, `cache-control`, `expires`, `date`, `retry-after` first; a field that does not fit the 1024-byte record is left out |

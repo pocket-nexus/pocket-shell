@@ -12,6 +12,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/select.h>
 
 #define SLOTS 2u
 #define FIELD_BYTES 4096u
@@ -22,6 +23,9 @@
 #define TASK_STACK 12288u
 /* How often a request to the companion looks for its next fact. */
 #define COMPANION_POLL_MS 10u
+/* How long a request task keeps the connection of its last request for the
+ * next request to the same origin. */
+#define KEEP_MS 10000u
 
 static const char *TAG = "pocket_http";
 
@@ -53,6 +57,12 @@ typedef struct {
   size_t fields_length, field_count;
   char record[POCKET_HTTP_ESP_RECORD];
   pocket_http_esp_fact fact;
+  /* The client of the last request, when its connection is kept for the
+   * next one. The request task owns it; `kept` and `origin`, the origin it
+   * is connected to, are shared with the worker task under the mutex. */
+  esp_http_client_handle_t client;
+  pocket_http_esp_url origin;
+  bool kept;
 } slot;
 
 struct pocket_http_esp {
@@ -139,6 +149,60 @@ static bool stopped(slot *s, const char *phase, int32_t *status) {
       s,
       s->sent && !s->field_count ? POCKET_WORKER_UNKNOWN : POCKET_WORKER_FAILED,
       "timeout: %s within %u ms", phase, (unsigned)s->descriptor.timeout_ms);
+  return true;
+}
+
+/* A method that may be sent twice (RFC 9110, 9.2.2). */
+static bool repeatable(uint8_t method) {
+  return method != POCKET_HTTP_ESP_POST && method != POCKET_HTTP_ESP_PATCH;
+}
+
+/* Userinfo becomes credentials that esp_http_client holds with the client. */
+static bool has_userinfo(const char *url, const pocket_http_esp_url *parsed) {
+  return memchr(url, '@', parsed->authority_end) != NULL;
+}
+
+static void drop_connection(slot *s) {
+  lock(s->driver);
+  s->kept = false;
+  unlock(s->driver);
+  if (s->client)
+    esp_http_client_cleanup(s->client);
+  s->client = NULL;
+}
+
+/* Whether the kept connection serves the request to `url`: it goes to that
+ * origin, the method may be sent twice, and the peer has neither closed the
+ * connection nor sent on it. Any other kept connection is closed. */
+static bool take_connection(slot *s, const pocket_http_esp_url *url) {
+  lock(s->driver);
+  const bool kept = s->kept;
+  s->kept = false;
+  unlock(s->driver);
+  if (kept && repeatable(s->descriptor.method) && !has_userinfo(s->url, url) &&
+      pocket_http_esp_same_origin(&s->origin, url)) {
+    const int fd = esp_http_client_get_socket(s->client);
+    if (fd >= 0) {
+      fd_set readable;
+      FD_ZERO(&readable);
+      FD_SET(fd, &readable);
+      struct timeval now = {0};
+      if (select(fd + 1, &readable, NULL, NULL, &now) == 0)
+        return true;
+    }
+  }
+  drop_connection(s);
+  return false;
+}
+
+/* A kept connection that fails before the response head was closed by its
+ * peer: the request goes out again on a new connection. */
+static bool resend(slot *s, bool *kept) {
+  if (!*kept || cancelled(s) || !remaining_ms(s))
+    return false;
+  drop_connection(s);
+  *kept = false;
+  s->sent = false;
   return true;
 }
 
@@ -242,7 +306,9 @@ static int32_t read_body(slot *s, esp_http_client_handle_t client) {
 }
 
 /* One hop: the terminal status, or for a 3xx with a Location its code with
- * *redirect set and the target in `location`. */
+ * *redirect set and the target in `location`. The hop goes out on the
+ * connection the task kept when that serves it, and its own connection is
+ * kept when the whole response arrived and the server holds it open. */
 static int32_t run_hop(slot *s, char *location, size_t capacity,
                        bool *redirect) {
   pocket_http_esp *d = s->driver;
@@ -258,61 +324,102 @@ static int32_t run_hop(slot *s, char *location, size_t capacity,
   if (!remaining_ms(s))
     return failure(s, POCKET_WORKER_FAILED, "timeout: no connection to %s",
                    url.host);
-  s->fields_length = s->field_count = 0;
-  const esp_http_client_config_t config = {
-      .url = s->url,
-      .method = METHODS[s->descriptor.method],
-      .timeout_ms = (int)remaining_ms(s),
-      .disable_auto_redirect = true,
-      .event_handler = on_client_event,
-      .user_data = s,
-      .buffer_size = POCKET_HTTP_ESP_RECORD,
-      /* The request line carries the whole path and query. */
-      .buffer_size_tx = POCKET_HTTP_ESP_URL + 64,
-      .user_agent = d->config.user_agent ? d->config.user_agent : "PocketJS/1",
-      .crt_bundle_attach = esp_crt_bundle_attach,
-  };
-  esp_http_client_handle_t client = esp_http_client_init(&config);
-  if (!client)
-    return failure(s, POCKET_WORKER_FAILED,
-                   "other: HTTP client allocation failed");
   const pocket_http_esp_request *r = &s->descriptor;
-  for (size_t at = 0; at < r->headers_length;) {
-    const char *name = r->headers + at, *value = name + strlen(name) + 1;
-    if (!pocket_http_esp_request_dropped(name))
-      esp_http_client_set_header(client, name, value);
-    at = (size_t)(value + strlen(value) + 1 - r->headers);
-  }
-  const esp_err_t opened = esp_http_client_open(client, (int)r->body_length);
-  if (opened != ESP_OK) {
-    status = connect_failed(s, client, url.host, opened);
-    goto done;
-  }
-  s->sent = true;
-  for (size_t written = 0; written < r->body_length;) {
-    const int n = esp_http_client_write(client, r->body + written,
-                                        (int)(r->body_length - written));
-    if (n <= 0) {
+  const char *agent =
+      d->config.user_agent ? d->config.user_agent : "PocketJS/1";
+  bool kept = take_connection(s, &url);
+  bool keep = false;
+  esp_http_client_handle_t client;
+  for (;;) {
+    s->fields_length = s->field_count = 0;
+    if (kept) {
+      if (esp_http_client_set_url(s->client, s->url) != ESP_OK) {
+        drop_connection(s);
+        kept = false;
+        continue;
+      }
+      esp_http_client_set_method(s->client, METHODS[r->method]);
+      esp_http_client_set_timeout_ms(s->client, (int)remaining_ms(s));
+    } else {
+      const esp_http_client_config_t config = {
+          .url = s->url,
+          .method = METHODS[r->method],
+          .timeout_ms = (int)remaining_ms(s),
+          .disable_auto_redirect = true,
+          .event_handler = on_client_event,
+          .user_data = s,
+          .buffer_size = POCKET_HTTP_ESP_RECORD,
+          /* The request line carries the whole path and query. */
+          .buffer_size_tx = POCKET_HTTP_ESP_URL + 64,
+          .user_agent = agent,
+          .crt_bundle_attach = esp_crt_bundle_attach,
+      };
+      s->client = esp_http_client_init(&config);
+      if (!s->client)
+        return failure(s, POCKET_WORKER_FAILED,
+                       "other: HTTP client allocation failed");
+    }
+    client = s->client;
+    for (size_t at = 0; at < r->headers_length;) {
+      const char *name = r->headers + at, *value = name + strlen(name) + 1;
+      if (!pocket_http_esp_request_dropped(name))
+        esp_http_client_set_header(client, name, value);
+      at = (size_t)(value + strlen(value) + 1 - r->headers);
+    }
+    const esp_err_t opened = esp_http_client_open(client, (int)r->body_length);
+    /* The request line and the headers are out, or the connection failed:
+     * the client holds none of this request's fields for the next one. */
+    for (size_t at = 0; at < r->headers_length;) {
+      const char *name = r->headers + at, *value = name + strlen(name) + 1;
+      if (!pocket_http_esp_request_dropped(name))
+        esp_http_client_delete_header(client, name);
+      at = (size_t)(value + strlen(value) + 1 - r->headers);
+    }
+    esp_http_client_set_header(client, "User-Agent", agent);
+    if (opened != ESP_OK) {
+      if (resend(s, &kept))
+        continue;
+      status = connect_failed(s, client, url.host, opened);
+      goto done;
+    }
+    s->sent = true;
+    bool lost = false;
+    for (size_t written = 0; !lost && written < r->body_length;) {
+      const int n = esp_http_client_write(client, r->body + written,
+                                          (int)(r->body_length - written));
+      if (n <= 0)
+        lost = true;
+      else
+        written += (size_t)n;
+    }
+    if (lost) {
+      if (resend(s, &kept))
+        continue;
       status = failure(s, POCKET_WORKER_UNKNOWN,
                        "connect: the connection closed while sending the "
                        "request");
       goto done;
     }
-    written += (size_t)n;
-  }
-  for (;;) {
-    esp_http_client_set_timeout_ms(client, slice_ms(s));
-    const int64_t fetched = esp_http_client_fetch_headers(client);
-    if (fetched >= 0)
-      break;
-    if (fetched != -ESP_ERR_HTTP_EAGAIN) {
-      status = failure(s, POCKET_WORKER_UNKNOWN,
-                       "connect: the connection closed before the response "
-                       "head");
-      goto done;
+    for (;;) {
+      esp_http_client_set_timeout_ms(client, slice_ms(s));
+      const int64_t fetched = esp_http_client_fetch_headers(client);
+      if (fetched >= 0)
+        break;
+      if (fetched != -ESP_ERR_HTTP_EAGAIN) {
+        lost = true;
+        break;
+      }
+      if (stopped(s, "no response head arrived", &status))
+        goto done;
     }
-    if (stopped(s, "no response head arrived", &status))
-      goto done;
+    if (!lost)
+      break;
+    if (resend(s, &kept))
+      continue;
+    status = failure(s, POCKET_WORKER_UNKNOWN,
+                     "connect: the connection closed before the response "
+                     "head");
+    goto done;
   }
   const int code = esp_http_client_get_status_code(client);
   if (code < 100 || code > 599) {
@@ -356,11 +463,23 @@ static int32_t run_hop(slot *s, char *location, size_t capacity,
     goto done;
   }
   status = bodiless ? POCKET_WORKER_OK : read_body(s, client);
-  if (status == POCKET_WORKER_OK)
-    ESP_LOGI(TAG, "%.200s %d %lluB", s->url, code,
-             (unsigned long long)s->delivered);
+  if (status == POCKET_WORKER_OK) {
+    ESP_LOGI(TAG, "%.200s %d %lluB%s", s->url, code,
+             (unsigned long long)s->delivered,
+             kept ? " on the kept connection" : "");
+    keep = !has_userinfo(s->url, &url) &&
+           esp_http_client_is_complete_data_received(client) &&
+           esp_http_client_is_persistent_connection(client);
+  }
 done:
-  esp_http_client_cleanup(client);
+  if (keep) {
+    lock(d);
+    s->origin = url;
+    s->kept = true;
+    unlock(d);
+  } else {
+    drop_connection(s);
+  }
   return status;
 }
 
@@ -453,9 +572,11 @@ static int32_t perform(slot *s) {
   s->fields_length = s->field_count = 0;
   if (d->config.companion && pocket_http_esp_companion_url(s->url))
     return perform_companion(s);
-  if (d->config.online && !d->config.online(d->config.context))
+  if (d->config.online && !d->config.online(d->config.context)) {
+    drop_connection(s);
     return failure(s, POCKET_WORKER_FAILED,
                    "unavailable: the network has no address");
+  }
   for (unsigned hop = 0;; ++hop) {
     char location[POCKET_HTTP_ESP_URL];
     bool redirect = false;
@@ -476,7 +597,12 @@ static void request_task(void *opaque) {
   slot *s = opaque;
   pocket_http_esp *d = s->driver;
   for (;;) {
-    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    /* A kept connection is closed when no request starts within KEEP_MS. */
+    if (!ulTaskNotifyTake(pdTRUE,
+                          s->client ? pdMS_TO_TICKS(KEEP_MS) : portMAX_DELAY)) {
+      drop_connection(s);
+      continue;
+    }
     lock(d);
     const bool quit = d->quit;
     unlock(d);
@@ -494,6 +620,7 @@ static void request_task(void *opaque) {
     s->phase = SLOT_DONE;
     unlock(d);
   }
+  drop_connection(s);
   xSemaphoreGive(d->stopped);
   if (d->config.task_stack_caps)
     vTaskDeleteWithCaps(NULL);
@@ -522,15 +649,39 @@ static int32_t driver_open(void *opaque, pocket_worker *worker, uint32_t handle,
   if (!s)
     return POCKET_WORKER_BUSY;
   /* An open slot belongs to this callback until start. */
-  if (pocket_http_esp_parse(bytes, length, &s->descriptor)) {
-    memcpy(s->opened, bytes, length);
-    s->opened_length = length;
-    return POCKET_WORKER_OK;
+  if (!pocket_http_esp_parse(bytes, length, &s->descriptor)) {
+    lock(d);
+    s->phase = SLOT_FREE;
+    unlock(d);
+    return POCKET_WORKER_INVALID;
   }
-  lock(d);
-  s->phase = SLOT_FREE;
-  unlock(d);
-  return POCKET_WORKER_INVALID;
+  /* The request goes to the free slot that keeps a connection to its origin,
+   * when this one does not. */
+  pocket_http_esp_url url;
+  slot *keeper = NULL;
+  if (pocket_http_esp_url_parse(s->descriptor.url, &url)) {
+    lock(d);
+    if (!(s->kept && pocket_http_esp_same_origin(&s->origin, &url)))
+      for (size_t i = 0; i < SLOTS && !keeper; ++i)
+        if (d->slots[i].phase == SLOT_FREE && d->slots[i].kept &&
+            pocket_http_esp_same_origin(&d->slots[i].origin, &url))
+          keeper = &d->slots[i];
+    if (keeper) {
+      keeper->phase = SLOT_OPEN;
+      keeper->handle = handle;
+      keeper->worker = worker;
+      keeper->request = 0;
+      keeper->cancel = false;
+      keeper->descriptor = s->descriptor;
+      s->phase = SLOT_FREE;
+      s->handle = 0;
+      s = keeper;
+    }
+    unlock(d);
+  }
+  memcpy(s->opened, bytes, length);
+  s->opened_length = length;
+  return POCKET_WORKER_OK;
 }
 
 static int32_t driver_validate(void *opaque, pocket_worker *worker,
