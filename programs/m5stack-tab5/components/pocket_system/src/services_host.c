@@ -31,10 +31,10 @@
 
 #include "companion.h"
 #include "esp_heap_caps.h"
+#include "esp_littlefs.h"
 #include "esp_log.h"
 #include "esp_random.h"
 #include "esp_timer.h"
-#include "esp_vfs_fat.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
@@ -696,16 +696,34 @@ typedef struct {
   esp_err_t result;
 } FlashMount;
 
+/* The store of a Tab5 without a card: LittleFS on a flash partition. It
+ * writes a change beside what it replaces and commits it in one program, so
+ * a reset or a power cut inside a write leaves the file as it was or as it
+ * was to be. FatFs over wear levelling wrote a sector as an erase and a
+ * program: a Tab5 that was reset between the two, 4 s into its first start
+ * without a card, kept an erased allocation table, which reads as a full
+ * volume, and from then on took no write (no device id, no data.fs, no
+ * pairing).
+ *
+ * A partition that holds no LittleFS is formatted: a new one, and the FAT
+ * volume an earlier firmware kept there, whose files are not carried over. */
 static void mount_flash(void *argument) {
   FlashMount *mount = argument;
-  const esp_vfs_fat_mount_config_t options = {
+  const esp_vfs_littlefs_conf_t options = {
+      .base_path = mount->root,
+      .partition_label = mount->label,
       .format_if_mount_failed = true,
-      .max_files = 8,
-      .allocation_unit_size = CONFIG_WL_SECTOR_SIZE,
   };
-  wl_handle_t handle = WL_INVALID_HANDLE;
-  mount->result = esp_vfs_fat_spiflash_mount_rw_wl(mount->root, mount->label,
-                                                   &options, &handle);
+  mount->result = esp_vfs_littlefs_register(&options);
+  if (mount->result != ESP_OK)
+    return;
+  size_t total = 0;
+  size_t used = 0;
+  if (esp_littlefs_info(mount->label, &total, &used) != ESP_OK)
+    ESP_LOGE(TAG, "store %s: its free space cannot be read", mount->label);
+  else
+    ESP_LOGI(TAG, "store %s: %u of %u KiB free", mount->label,
+             (unsigned)((total - used) / 1024), (unsigned)(total / 1024));
 }
 
 esp_err_t pocketjs_system_mount_flash(const char *label, const char *root) {

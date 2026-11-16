@@ -3,16 +3,23 @@
  * link2.c, link2_guest.c, link2_http.c, link2_bsd.c), on a POSIX
  * host_services.h, against the reference Hub of tests/link-host.test.ts:
  *
- *   link-host <store> <beacon-port> <slow-url>
+ *   link-host setup <store> <beacon-port> <slow-url>
+ *   link-host pair <store> <beacon-port> <hub id>
  *
- * Each step prints one line. A `wait <name>` line asks the test to act; the
- * harness pumps the link until it reads one line from stdin:
+ * `setup` links from the pairing files Hub's setup writes; `pair` pairs by a
+ * code the device shows (pocketjs docs/POCKET-LINK.md §3.11). Each step
+ * prints one line. A `wait <name>` line asks the test to act; the harness
+ * pumps the link until it reads one line from stdin:
  *
  *   start <url> error <message>          the transport refused the request
  *   status linked | not linked           the link's state after a wait
  *   fetch <url> <status> <end> <body>    headers status, end status, body
  *   switch <output>                      a launch the launcher took
- *   end <url> <status> <message>         a request the link ended */
+ *   end <url> <status> <message>         a request the link ended
+ *   ask <when> taken | refused           link.pairAsk's answer
+ *   hub listed | not listed              the Hub among those to choose from
+ *   code <digits>                        the code the device shows
+ *   pair <state>                         the pairing's state */
 
 #include <poll.h>
 #include <stdio.h>
@@ -29,6 +36,7 @@
 #include "launcher.h"
 #include "link2_guest.h"
 #include "link2_host.h"
+#include "link2_proto.h"
 #include "sha256.h"
 
 #define HN_ID "dev.pocket-nexus.hn"
@@ -242,9 +250,81 @@ static void fetch(const char *url) {
   printf("fetch %s no end\n", url);
 }
 
+/* The status's `pair` member. */
+static JsonSpan pair_status(void) {
+  const char *status = link2_guest_status_json();
+  JsonSpan pair = {0};
+  json_find(json_span(status, strlen(status)), "pair", &pair);
+  return pair;
+}
+
+static void pair_text(const char *key, char *out, size_t capacity) {
+  out[0] = '\0';
+  json_find_string(pair_status(), key, out, capacity);
+}
+
+/* Whether the Hubs to choose from include `hub`. */
+static bool pair_lists(const char *hub) {
+  JsonSpan hubs, element;
+  size_t at = 0;
+  bool malformed = false;
+  if (!json_find(pair_status(), "hubs", &hubs) || !json_is_array(hubs))
+    return false;
+  while (link2_array_next(hubs, &at, &element, &malformed)) {
+    char id[32] = "";
+    if (json_find_string(element, "id", id, sizeof id) && strcmp(id, hub) == 0)
+      return true;
+  }
+  return false;
+}
+
+/* A store no Hub has set up and a Hub on the network: the owner opens a
+ * pairing, chooses that Hub and reads the code out to its owner. */
+static int pair_by_code(const Link2HostConfig *config,
+                        const LauncherPackage *launcher, const char *hub) {
+  char text[64];
+  link2_host_init(config);
+  launcher_set_current(home_slot, launcher);
+  link2_host_guest_begin(launcher);
+  printf("ask closed %s\n", link2_guest_pair_ask(hub) ? "taken" : "refused");
+  if (!link2_guest_pair_open())
+    return 5;
+  bool listed = false;
+  for (int i = 0; i < 5000 && !listed; i += 1) {
+    frame();
+    listed = pair_lists(hub);
+    usleep(2000);
+  }
+  printf("hub %s\n", listed ? "listed" : "not listed");
+  pair_text("code", text, sizeof text);
+  printf("code %s\n", text);
+  printf("ask open %s\n", link2_guest_pair_ask(hub) ? "taken" : "refused");
+
+  /* Hub's owner enters the code; the client writes the key file and links. */
+  await_test("code");
+  printf("status %s\n", await_state("linked", true) ? "linked" : "not linked");
+  pair_text("state", text, sizeof text);
+  printf("pair %s\n", text);
+  fetch("https://companion.pocket/x/status");
+  link2_host_shutdown();
+
+  /* The next start links from the key file, with no pairing open. */
+  link2_host_init(config);
+  link2_host_guest_begin(launcher);
+  printf("status %s\n", await_state("linked", true) ? "linked" : "not linked");
+  pair_text("state", text, sizeof text);
+  printf("pair %s\n", text);
+  link2_host_shutdown();
+  return 0;
+}
+
 int main(int argc, char **argv) {
-  if (argc != 4)
+  if (argc != 5)
     return 2;
+  const bool pairing = strcmp(argv[1], "pair") == 0;
+  if (!pairing && strcmp(argv[1], "setup") != 0)
+    return 2;
+  argv += 1;
   setvbuf(stdout, NULL, _IOLBF, 0);
   mkdir(argv[1], 0777);
   snprintf(apps, sizeof apps, "%s/apps", argv[1]);
@@ -276,6 +356,8 @@ int main(int argc, char **argv) {
       .host_abi = 7,
       .beacon_port = (uint16_t)atoi(argv[2]),
   };
+  if (pairing)
+    return pair_by_code(&config, &launcher, argv[3]);
 
   /* A store Hub has not set up: no pairing file, and none can be made on
    * the link. The first start writes device.txt. */

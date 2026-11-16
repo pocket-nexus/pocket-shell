@@ -20,7 +20,7 @@ partition:
 | Place | Contents |
 | --- | --- |
 | `link/device.txt` | the device id, which the firmware makes at its first start |
-| `link/companions/<hub id>.txt` | a paired Hub's key file, which that Hub writes ("Pocket Link") |
+| `link/companions/<hub id>.txt` | a paired Hub's key file: written by the firmware when a code paired it, or by that Hub onto a card ("Pocket Link") |
 | `link/companions/<hub id>.last` | the name, address and port of that Hub's last link, when they differ from the key file's |
 | `apps/<slot>/app.txt` | the launcher's cached facts (output, id, title, version) |
 | `apps/<slot>/data/` | the guest's `data.fs` tree, quota from `applet.store` |
@@ -81,8 +81,25 @@ and rewrites the slot's `app.txt` when the cached hash differs. They are
 installed apps the Hub can neither replace nor remove. The runtime
 reads every package where it is, without a copy or a second hash pass
 (`POCKET_MEMORY_PACKAGE_VERIFIED`): the admission here is the hash pass.
-`pocketjs_system_mount_flash` mounts a wear-levelled FAT partition when no
-card is available.
+
+**Without a card the directory is LittleFS on the `storage` partition**
+(`pocketjs_system_mount_flash`, the `joltwallet/littlefs` component).
+LittleFS writes a change beside what it replaces and commits it in one
+program, so a reset or a power cut inside a write leaves the file as it was
+or as it was to be. The partition held FatFs over wear levelling before:
+that pair writes a sector as an erase and a program, and a Tab5 that was
+reset between the two, 4 s into its first start without a card, kept an
+erased allocation table. FatFs reads that table as a full volume, so the
+store mounted and took no write from then on: the device made a new id at
+every start and kept no `data.fs` and no pairing.
+
+**A partition that holds no LittleFS is formatted at start**: a new one, and
+the FAT volume an earlier firmware kept there, whose files are not carried
+over. A Tab5 with a card keeps its store on the card and loses nothing. On a
+Tab5 the format took 35 ms. Eight starts were reset inside the writes of the
+store's first files, four of them while a file was being written: each
+mounted at the next start, with no format and no error. The reset was the
+chip's, over USB; a cut of the flash chip's own power was not tried.
 
 ## Guest lifecycle
 
@@ -100,7 +117,7 @@ and boots it.
 | Global | Contract |
 | --- | --- |
 | `ui.appTable`, `ui.appLaunch`, `ui.appShot` | the `applications` operations, served by the program's operation provider from `pocketjs_system_app_table` and `pocketjs_system_launch` |
-| `link` | `contracts/spec/link.ts` on Pocket Link 2 (`link2_guest.c`): `status`, `forget`, `catalog`, `install`, `remove`, `poll`. `pair` answers false: no pairing travels on the link. `status()` carries `limit`, the connection's payload limit, which a version 1 host's status does not have |
+| `link` | `contracts/spec/link.ts` on Pocket Link 2 (`link2_guest.c`): `status`, `forget`, `catalog`, `install`, `remove`, `poll`, and `pairOpen`, `pairAsk`, `pairClose` for the pairing by a code ("Pocket Link"). `pair`, version 1's call for a scanned code, answers false. `status()` carries `limit`, the connection's payload limit, which a version 1 host's status does not have |
 | `wifi` | `contracts/spec/wifi.ts`, with `scan`, `join` and `forget` |
 | `fs` | `contracts/spec/fs.ts`, when the plan's features hold `data.fs` |
 | `installer` | the launcher only: installs from an install QR code (below) |
@@ -188,20 +205,22 @@ or of a last good package, so `runtime.status` says `generation` 0 and
 runs, `phase` is `starting`, `booted` or `switching`, and `frame` counts the
 pumps.
 
-**Pairing.** No pairing travels on the link (§3): a Hub writes
-`link/companions/<hub id>.txt`, with the link key, into the store, keeps
-`link/device.txt` when it holds an id and writes one otherwise, and the
-firmware reads both when it starts. The firmware never writes a key file.
-With a card in the slot the store is the microSD card, so a Hub writes the
-pairing onto the card in its computer's reader: the procedure of §3.2 with
-the link directory `link` (the reference Hub: `link2 setup --card <mounted
-card> --link-dir link`). **Without a card the store is the `storage` flash
-partition, which no computer reaches, and the Tab5 cannot be paired**; §11
-leaves a carrier without a file channel open. The firmware has no ftpd.
-Key files a version 1 firmware wrote under `link/companions/` have the same
-format: the client loads them, lists them in `link.status()` and links to
-none, since no version 2 Hub holds their id and key; `link.forget` removes
-them.
+**Pairing.** The Tab5 pairs by a code it shows (§3.11): its owner opens a
+pairing in the launcher (`link.pairOpen()`), the client makes a code of 6
+digits and lists the Hubs whose beacons it hears, the owner chooses one
+(`link.pairAsk(hub)`), and that Hub's owner enters the code. The Hub's offer
+carries the link key under the code; the client checks its proof, writes
+`link/companions/<hub id>.txt` itself and links by the handshake of §3.3.
+A code lasts 5 minutes and takes 3 offers with a wrong proof. Nothing but
+the store is needed, so a Tab5 without a card, whose store is the `storage`
+flash partition, pairs the same way. `link.status().pair` carries the code,
+what is left of its time and tries, and the Hubs to choose from. A Hub can
+also write `link/device.txt` and its key file onto a card in its computer's
+reader, the procedure of §3.2 with the link directory `link`; the client
+reads them when the firmware starts. Key files a version 1 firmware wrote
+under `link/companions/` have the same format: the client loads them, lists
+them in `link.status()` and links to none, since no version 2 Hub holds
+their id and key; `link.forget` removes them.
 
 **Memory.** Internal RAM that DMA reaches is what the Wi-Fi coprocessor's
 driver takes a buffer from for every packet (`eh_sdio`), and an applet with a

@@ -460,6 +460,16 @@ dependencies:
     source:
       type: idf
     version: 6.2.0
+  joltwallet/littlefs:
+    component_hash: e1a0f4a6adf821759cb34703a91107bbdce5d7ff6f4728f40ab012bb87842974
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.0'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.23.1
   pocket-nexus/pocket_guest_quickjs:
     dependencies:
     - name: idf
@@ -499,8 +509,9 @@ direct_dependencies:
 - espressif/mqtt
 - espressif/quickjs-ng
 - idf
+- joltwallet/littlefs
 - pocket-nexus/pocket_guest_quickjs
 - pocket-nexus/pocket_runtime
-manifest_hash: 940888775ff2c263f29dc0e507bd3a70c785556668d508526b550a3979d46f63
+manifest_hash: bed6c4b94c5c00a2b4fab437d6bd0d8cd6548a34fb40b825834be9648a4edc7a
 target: esp32p4
 version: 3.0.0

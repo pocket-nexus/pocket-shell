@@ -84,7 +84,8 @@ typedef struct {
  * start the link and the radio. */
 esp_err_t pocketjs_system_start(const pocketjs_system_config_t *config);
 
-/** Mount the FAT partition `label` (wear levelled) at `root`. */
+/** Mount the LittleFS partition `label` at `root`. A partition that holds
+ * no LittleFS, a FAT volume of an earlier firmware included, is formatted. */
 esp_err_t pocketjs_system_mount_flash(const char *label, const char *root);
 
 /** One package ready to boot. Its bytes stay valid until it is freed. */

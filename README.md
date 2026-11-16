@@ -65,29 +65,35 @@ with the firmware's host config into `.pocket-build/apps/`.
 
 ### Pairing a computer
 
-Pocket Link 2 sends no pairing on the link: a Hub writes two files into the
-Tab5's store, and the firmware reads them when it starts. With a microSD
-card in the Tab5 the store is the card, and the link directory is `link/` at
-its root. The reference Hub in the pocketjs checkout writes the pairing onto
-the card in this computer's reader, and then serves a folder of packages:
+**The Tab5 pairs by a code it shows** (pocketjs `docs/POCKET-LINK.md` §3.11).
+With the Tab5 and the computer on one network and a Hub running on the
+computer:
+
+1. On the Tab5: Settings > Mac > Pair a Computer..., then the computer in
+   the list. The page shows a code of 6 digits, good for 5 minutes.
+2. On the computer: enter that code in the Hub.
+
+The Hub mints the link key and sends it under the code; the Tab5 stores it
+in its store's `link/` directory and links by itself, now and at every later
+start. No card, cable or camera is involved: without a card the store is the
+`storage` flash partition. With the reference Hub in the pocketjs checkout:
 
 ```sh
-bun run --cwd third_party/pocketjs link2 setup --card <mounted card> --link-dir link
 bun run --cwd third_party/pocketjs link2 serve --apps <folder of .pocket files>
+bun run --cwd third_party/pocketjs link2 pair --code <the 6 digits>
 ```
 
-`setup` takes this computer's address for the Tab5's first connection from
-its default route; `--address <ip>` names another. Put the card back and
-start the Tab5: it links when it hears the Hub's beacon on its Wi-Fi
-network. `link2 status` and `link2 apps` then answer from the Tab5.
-pocket-shell's `bun run offer --tab5` builds the applets for this host and
-serves them from the same Hub.
+`serve` stays in the foreground and names a Tab5 that asks to be paired;
+`pair` is run beside it. `link2 status` and `link2 apps` then answer from the
+Tab5, and pocket-shell's `bun run offer --tab5` builds the applets for this
+host and serves them from the same Hub.
 
-**A Tab5 without a card cannot be paired**: its store is the `storage`
-flash partition, which no computer reaches. A Tab5 paired by a code under an
-earlier firmware (Pocket Link 1) keeps those key files and lists them in
-Settings > Mac, and links to none of them: version 2 is not compatible with
-version 1's wire, so forget them there and set the card up from a Hub.
+A Hub can also write the pairing files itself, as it does for a 3DS, onto a
+microSD card in the computer's reader (`link2 setup --card <mounted card>
+--link-dir link`): the Tab5 reads them from the card at its next start. A
+Tab5 paired by a scanned code under an earlier firmware (Pocket Link 1)
+keeps those key files, lists them in Settings > Mac and links to none of
+them: forget them there and pair again.
 [Pocket link](programs/m5stack-tab5/components/pocket_system/README.md#pocket-link)
 has the groups the firmware serves.
 

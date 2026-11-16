@@ -17,9 +17,11 @@
  *
  * It opens no applet channel, runs no agent and has no DevTools stream.
  *
- * No pairing travels on the link (§3): Hub writes `device.txt` and
- * `companions/<hub id>.txt` under link_host_directory(), and the client
- * reads them when it starts.
+ * The Tab5 pairs by a code it shows (§3.11): the client asks the Hub its
+ * owner chose, and writes `companions/<hub id>.txt` under
+ * link_host_directory() from that Hub's offer (link2_guest.h: pairOpen,
+ * pairAsk, pairClose). A Hub can also write `device.txt` and its key file
+ * there itself (§3.2), and the client reads them when it starts.
  *
  * No IDF dependency: the sockets are BSD sockets (link2_bsd.c, which lwIP
  * provides) and every other platform call goes through host_services.h, so

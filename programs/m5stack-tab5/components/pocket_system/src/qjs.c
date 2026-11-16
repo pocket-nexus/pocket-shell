@@ -5,8 +5,10 @@
  *   globalThis.link    contracts/spec/link.ts on Pocket Link 2
  *                      (link2_guest.c). `pair` stays in the namespace,
  *                      because a package built against version 1 requires
- *                      it, and answers false: Hub writes a pairing onto the
- *                      store, and none travels on the link
+ *                      it, and answers false: the Tab5 pairs by a code it
+ *                      shows (pocketjs docs/POCKET-LINK.md §3.11), with
+ *                      `pairOpen`, `pairAsk` and `pairClose`, and its
+ *                      status carries the code as `pair`
  *   globalThis.wifi    contracts/spec/wifi.ts (wifi.c), with the access
  *                      point ops
  *   globalThis.fs      contracts/spec/fs.ts, when the guest's plan declares
@@ -33,6 +35,9 @@
 enum {
   OP_LINK_STATUS,
   OP_LINK_PAIR,
+  OP_LINK_PAIR_OPEN,
+  OP_LINK_PAIR_ASK,
+  OP_LINK_PAIR_CLOSE,
   OP_LINK_FORGET,
   OP_LINK_CATALOG,
   OP_LINK_INSTALL,
@@ -143,6 +148,15 @@ static void perform(void *argument) {
   case OP_LINK_PAIR:
     bool_result(r, false);
     break;
+  case OP_LINK_PAIR_OPEN:
+    bool_result(r, link2_guest_pair_open());
+    break;
+  case OP_LINK_PAIR_ASK:
+    bool_result(r, r->text != NULL && link2_guest_pair_ask(r->text));
+    break;
+  case OP_LINK_PAIR_CLOSE:
+    link2_guest_pair_close();
+    break;
   case OP_LINK_FORGET:
     bool_result(r, r->text != NULL && link2_guest_forget(r->text));
     break;
@@ -234,6 +248,7 @@ static JSValue operation(JSContext *ctx, JSValueConst this_value, int argc,
   Request request = {.magic = magic};
   switch (magic) {
   case OP_LINK_PAIR:
+  case OP_LINK_PAIR_ASK:
   case OP_LINK_FORGET:
   case OP_LINK_REMOVE:
   case OP_LINK_INSTALL:
@@ -304,6 +319,9 @@ esp_err_t system_qjs_install(JSContext *ctx, bool launcher) {
   JSValue link = JS_NewObject(ctx);
   add(ctx, link, "status", 0, OP_LINK_STATUS);
   add(ctx, link, "pair", 1, OP_LINK_PAIR);
+  add(ctx, link, "pairOpen", 0, OP_LINK_PAIR_OPEN);
+  add(ctx, link, "pairAsk", 1, OP_LINK_PAIR_ASK);
+  add(ctx, link, "pairClose", 0, OP_LINK_PAIR_CLOSE);
   add(ctx, link, "forget", 1, OP_LINK_FORGET);
   add(ctx, link, "catalog", 0, OP_LINK_CATALOG);
   add(ctx, link, "install", 1, OP_LINK_INSTALL);

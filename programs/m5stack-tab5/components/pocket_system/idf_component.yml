@@ -4,6 +4,8 @@ targets:
   - esp32p4
 dependencies:
   idf: ">=6.0,<6.3"
+  # The store on the `storage` flash partition, for a Tab5 without a card.
+  joltwallet/littlefs: "1.23.1"
   pocket-nexus/pocket_runtime:
     override_path: ../../../../third_party/pocketjs/platforms/esp-idf/pocket_runtime
   pocket-nexus/pocket_guest_quickjs:

@@ -4,12 +4,15 @@
 // with pocketjs's Pocket Link 2 client under ASan and UBSan by
 // tests/link-host.c, against pocketjs's reference Hub in this process.
 //
-// A store Hub has not set up holds no pairing and makes none on the link;
-// after Hub's setup wrote the pairing files and the firmware started again,
-// it links, reports its status and its installed applets, takes a launch and
-// a removal from Hub, and sends each companion.pocket request as net.http
-// for the app that runs. With the link down, a request fails with a message
-// the app can show.
+// A store Hub has not set up holds no pairing; after Hub's setup wrote the
+// pairing files and the firmware started again, it links, reports its status
+// and its installed applets, takes a launch and a removal from Hub, and sends
+// each companion.pocket request as net.http for the app that runs. With the
+// link down, a request fails with a message the app can show.
+//
+// A store no Hub has set up also pairs by a code the device shows (pocketjs
+// docs/POCKET-LINK.md §3.11): the firmware writes the key file itself, links,
+// and links again from that file at its next start.
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { createSocket } from "node:dgram";
@@ -104,7 +107,7 @@ describe("the Tab5 on Pocket Link 2", () => {
     hub.start(20);
 
     const slow = "https://companion.pocket/slow";
-    const run = Bun.spawn([binary, store, String(beaconPort), slow], {
+    const run = Bun.spawn([binary, "setup", store, String(beaconPort), slow], {
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
@@ -171,7 +174,7 @@ describe("the Tab5 on Pocket Link 2", () => {
     const stderr = await new Response(run.stderr).text();
     expect(exitCode, `${stderr}\n${lines.join("\n")}`).toBe(0);
 
-    // Before the setup: no pairing, and nothing on the link makes one.
+    // Before the setup: no pairing.
     expect(lines).toContain("start https://companion.pocket/x/status error unavailable: no Mac is paired");
     expect(deviceId).toMatch(/^[0-9a-f]{16}$/);
     // The device read the key file and never wrote it. Hub's name, address
@@ -224,5 +227,76 @@ describe("the Tab5 on Pocket Link 2", () => {
     expect(lines).toContain(`end ${slow} -3 unavailable: the Pocket Link closed`);
     expect(lines).toContain("status not linked");
     expect(lines).toContain("start https://companion.pocket/x/status error unavailable: the paired Mac is not connected");
+    hub.stop();
+    hub = null;
+  }, 60_000);
+
+  test("pairs by a code it shows, writes the key file itself and links from it at the next start", async () => {
+    const store = join(scratch, "unpaired");
+    const linkDir = join(store, "link");
+    const beaconPort = await freeUdpPort();
+    const memory = new MemoryStore("00000000000000bb");
+    const asked: string[] = [];
+    hub = new LinkHub({
+      name: "Test Mac",
+      port: 0,
+      host: "127.0.0.1",
+      store: memory,
+      beaconTargets: [{ address: "127.0.0.1", port: beaconPort }],
+      onPairRequest: (request) => asked.push(request.device),
+      fetch: async (request) => ({ status: 200, url: request.url, headers: [["content-type", "application/json"]], body: new TextEncoder().encode(JSON.stringify({ app: request.app })) }),
+    });
+    await hub.listen();
+    hub.start(20);
+
+    const run = Bun.spawn([binary, "pair", store, String(beaconPort), hub.id], {
+      stdin: "pipe",
+      stdout: "pipe",
+      stderr: "pipe",
+      env: { ...process.env, ASAN_OPTIONS: "detect_leaks=0:abort_on_error=0", UBSAN_OPTIONS: "halt_on_error=1" },
+    });
+    const lines: string[] = [];
+    let recordsBeforeCode = -1;
+    const reader = run.stdout.getReader();
+    let pending = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      pending += new TextDecoder().decode(value);
+      let newline: number;
+      while ((newline = pending.indexOf("\n")) >= 0) {
+        const line = pending.slice(0, newline);
+        pending = pending.slice(newline + 1);
+        lines.push(line);
+        if (line === "wait code") {
+          // The device asked this Hub; its owner types the code the device shows.
+          await until(() => asked.length === 1, "the request at Hub");
+          recordsBeforeCode = memory.list().length;
+          const code = lines.find((shown) => shown.startsWith("code "))?.slice(5) ?? "";
+          await hub.pair(asked[0], code);
+          run.stdin.write("done\n");
+          run.stdin.flush();
+        }
+      }
+    }
+    const exitCode = await run.exited;
+    const stderr = await new Response(run.stderr).text();
+    expect(exitCode, `${stderr}\n${lines.join("\n")}`).toBe(0);
+
+    const deviceId = readFileSync(join(linkDir, "device.txt"), "utf8").trim();
+    expect(asked).toEqual([deviceId]);
+    // A Hub is asked only while a pairing is open, and holds no record before the code.
+    expect(lines.slice(0, 4)).toEqual(["ask closed refused", "hub listed", expect.stringMatching(/^code \d{6}$/), "ask open taken"]);
+    expect(recordsBeforeCode).toBe(0);
+    expect(memory.list().map((record) => record.id)).toEqual([deviceId]);
+    // The firmware wrote the key file; the link carries a request; the next start links from the file.
+    expect(readdirSync(join(linkDir, "companions")).filter((name) => name.endsWith(".txt"))).toEqual([`${hub.id}.txt`]);
+    expect(lines.slice(5)).toEqual([
+      "status linked",
+      "pair paired",
+      'fetch https://companion.pocket/x/status 200 0 {"app":"dev.pocket-nexus.shell"}',
+      "status linked",
+      "pair idle",
+    ]);
   }, 60_000);
 });

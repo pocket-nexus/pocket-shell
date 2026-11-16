@@ -158,10 +158,11 @@ the four bundled apps is 7.5 MiB of the 8 MiB `factory` partition.
 `-DPOCKETJS_TAB5_BUNDLED_APPS=` builds without
 them. `partitions.csv` lays the 16 MiB flash out as `nvs`, `phy_init`, the
 8 MiB `factory` app, the 4 MiB `apps` data partition at 0x810000 (installed
-packages, 64 KiB pages) and the 3.9 MiB `storage` FAT at 0xC10000. Firmware
-before the `apps` partition kept `storage` at 0x810000: the first boot of
-this layout formats the moved partition, which only a cardless device used,
-and moves `package.pocket` files from the card into `apps`. An install
+packages, 64 KiB pages) and the 3.9 MiB `storage` partition at 0xC10000,
+which holds LittleFS. Firmware before the `apps` partition kept `storage` at
+0x810000, and firmware before the LittleFS store kept a FAT volume in it: the
+first boot of this firmware formats the partition, which only a cardless
+device used, and moves `package.pocket` files from the card into `apps`. An install
 programs flash for a few seconds, during which the launcher does not
 draw. The log reports the frame rate every five seconds.
 
