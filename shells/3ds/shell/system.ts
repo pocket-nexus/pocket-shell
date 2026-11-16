@@ -320,6 +320,19 @@ function readLink(): LinkStatus {
     // The clock moves on every read; the launcher keeps it apart as a skew
     // (below) so an unchanged link stays equal and nothing redraws for it.
     clock: null,
+    // The code's time is kept in whole minutes for the same reason: the page
+    // that shows it redraws when the minute changes, not at every poll.
+    ...(status.pair
+      ? {
+          pair: {
+            ...status.pair,
+            leftMs: Math.ceil(status.pair.leftMs / 60_000) * 60_000,
+            hubName: toAscii(status.pair.hubName),
+            error: toAscii(status.pair.error),
+            hubs: status.pair.hubs.map((hub) => ({ ...hub, name: toAscii(hub.name) })),
+          },
+        }
+      : {}),
   };
 }
 
@@ -358,6 +371,17 @@ export interface ShellSystem {
   /** The link pairs by a scanned code (Pocket Link 1). Without it Pocket Hub
    *  sets the console up from the computer (Pocket Link 2); read when drawn. */
   pairsByCode(): boolean;
+  /** The console pairs by a code it shows (Pocket Link 2, PocketJS
+   *  docs/POCKET-LINK.md §3.11): its host's link has `pairOpen`, and
+   *  `link().pair` carries the code and the computers to choose from. Read
+   *  when drawn. */
+  showsPairCode(): boolean;
+  /** Make a code and list the computers on the network. */
+  pairOpen(): boolean;
+  /** Ask the computer `hub` of that list: its Pocket Hub then takes the code. */
+  pairAsk(hub: string): boolean;
+  /** Drop the code. */
+  pairClose(): void;
   wifi: Accessor<WifiStatus | null>;
   hasWifi: boolean;
   /** The host lets the launcher scan for, join and forget networks (a console
@@ -458,8 +482,15 @@ export function createShellSystem(): ShellSystem {
   }
 
   let frames = 0;
+  // While a code is shown the list of computers and the answer to it are
+  // read at the faster rate.
   const busy = () =>
-    wifi()?.state === "connecting" || wifi()?.scanning === true || link().state === LINK_STATE.connecting || link().pairing === LINK_PAIRING.connecting;
+    wifi()?.state === "connecting" ||
+    wifi()?.scanning === true ||
+    link().state === LINK_STATE.connecting ||
+    link().pairing === LINK_PAIRING.connecting ||
+    link().pair?.state === "open" ||
+    link().pair?.state === "asking";
   onFrame(() => {
     pumpInstaller();
     frames++;
@@ -509,6 +540,21 @@ export function createShellSystem(): ShellSystem {
     hasLink,
     tethered,
     pairsByCode: () => hasLink && !tethered && linkPairsByCode(),
+    showsPairCode: () => hasLink && !tethered && typeof linkHost()?.pairOpen === "function",
+    pairOpen() {
+      const ok = linkHost()?.pairOpen?.() ?? false;
+      refresh();
+      return ok;
+    },
+    pairAsk(hub) {
+      const ok = linkHost()?.pairAsk?.(hub) ?? false;
+      refresh();
+      return ok;
+    },
+    pairClose() {
+      linkHost()?.pairClose?.();
+      refresh();
+    },
     wifi,
     hasWifi,
     canJoin,

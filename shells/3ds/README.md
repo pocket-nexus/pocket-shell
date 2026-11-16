@@ -230,8 +230,17 @@ version 1 client has none):
   says so and lists the paired Macs with Forget; forgetting one deletes its
   file on the card, and linking to it again takes another setup from that
   Mac. `link.pair` answers false there, so the page offers no scanner.
-- **Pocket Link 1, the Tab5.** Settings > Mac > Pair a Mac... opens the
-  camera on the code Pocket Hub shows, as before.
+- **Pocket Link 2, a console that shows a code** (a Tab5 on pocket-m5's
+  firmware with PocketJS `docs/POCKET-LINK.md` §3.11). Its host's link has
+  `pairOpen`, `pairAsk` and `pairClose`, and its status carries `pair`
+  (`shell/system.ts` `showsPairCode`). Settings > Mac > Pair a Computer...
+  makes a code and lists the computers whose Pocket Hub the console hears on
+  the network; its owner chooses one, the page shows the 6 digits, and Pocket
+  Hub there asks for them. The page says how long the code lasts and how many
+  wrong entries it still takes, and, when a code paired nothing, why. No
+  camera, no ftpd and no card are involved.
+- **Pocket Link 1, a Tab5 on an earlier firmware.** Settings > Mac > Pair a
+  Mac... opens the camera on the code Pocket Hub shows, as before.
 
 The Mac page and the store follow the features the link lists (§6.1): a
 linked Mac that lists no `catalog` gets "No Applets Offered" in the store

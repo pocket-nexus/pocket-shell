@@ -615,6 +615,135 @@ async function bootLink2(options: Partial<Console3dsOptions> = {}, features?: st
   return { home: await booting, pairs };
 }
 
+/** The `pair` member of a host that pairs by a code it shows (PocketJS
+ *  docs/POCKET-LINK.md §3.11, contracts/spec/link.ts LinkPairByCode). */
+interface PairByCode {
+  state: "idle" | "open" | "asking" | "paired" | "failed";
+  code: string;
+  leftMs: number;
+  tries: number;
+  hub: string;
+  hubName: string;
+  error: string;
+  hubs: { id: string; name: string }[];
+}
+
+/** Boot as a Pocket Link 2 console that shows a pairing code (the Tab5): the
+ *  link has `pairOpen`, `pairAsk` and `pairClose`, and its status carries
+ *  `pair`. The test moves `pair` as the host would: computers come into the
+ *  list, a try is spent, the code pairs or runs out. */
+async function bootShowsCode(options: Partial<Console3dsOptions> = {}): Promise<{ home: Console3ds; pair: PairByCode; calls: string[] }> {
+  const booting = boot(options);
+  const ns = (globalThis as unknown as { link: { status(): string; pair(uri: string): boolean; pairOpen?(): boolean; pairAsk?(hub: string): boolean; pairClose?(): void } }).link;
+  const status = ns.status;
+  const pair: PairByCode = { state: "idle", code: "", leftMs: 0, tries: 0, hub: "", hubName: "", error: "", hubs: [] };
+  const calls: string[] = [];
+  ns.status = () => JSON.stringify({ ...(JSON.parse(status()) as object), limit: 16_384, pair });
+  ns.pair = () => false;
+  ns.pairOpen = () => {
+    calls.push("open");
+    Object.assign(pair, { state: "open", code: "482913", leftMs: 300_000, tries: 3, hub: "", hubName: "", error: "", hubs: [] });
+    return true;
+  };
+  ns.pairAsk = (hub) => {
+    calls.push(`ask ${hub}`);
+    const found = pair.hubs.find((entry) => entry.id === hub);
+    if (!found) return false;
+    Object.assign(pair, { state: "asking", hub, hubName: found.name });
+    return true;
+  };
+  ns.pairClose = () => {
+    calls.push("close");
+    Object.assign(pair, { state: "idle", code: "", leftMs: 0, tries: 0 });
+  };
+  return { home: await booting, pair, calls };
+}
+
+describe("on a console that shows a pairing code", () => {
+  test("Settings > Mac lists the computers it hears, shows the code for the one chosen, and says how a code ended", async () => {
+    const { home, pair, calls } = await bootShowsCode({ link: { paired: [], catalog: CATALOG } });
+    await home.run(10);
+    await openSettings(home);
+    await home.tapText("Mac");
+    await home.run(24);
+    let page = home.texts("auxiliary");
+    expect(page).toContain("Pair a Computer...");
+    expect(page.join(" ")).toContain("This console shows a code, and Pocket Hub on the computer asks for it.");
+    // No camera and no ftpd: neither the scanner's row nor the setup text.
+    expect(page).not.toContain("Pair a Mac...");
+    expect(page.join(" ")).not.toContain("There is no code to scan.");
+
+    await home.tapText("Pair a Computer...");
+    await home.run(12);
+    expect(calls).toEqual(["open"]);
+    page = home.texts("auxiliary");
+    expect(page).toContain("Computers on This Network");
+    expect(page).toContain("Looking...");
+    expect(page).not.toContain("Pair a Computer...");
+
+    // Two Hubs on the network, as a Mac that runs Pocket Hub and the reference Hub has.
+    pair.hubs = [{ id: "00000000000000aa", name: "Studio Mac" }, { id: "00000000000000bb", name: "Evan's MacBook Pro" }];
+    await home.run(40);
+    page = home.texts("auxiliary");
+    for (const label of ["Studio Mac", "Evan's MacBook Pro", "Cancel"]) expect(page).toContain(label);
+    expect(page).not.toContain("Looking...");
+
+    await home.tapText("Studio Mac");
+    await home.run(12);
+    expect(calls).toEqual(["open", "ask 00000000000000aa"]);
+    shot(home, "mac-pair-code");
+    page = home.texts("auxiliary");
+    for (const label of ["Pairing Code", "Code", "482 913", "Cancel"]) expect(page).toContain(label);
+    expect(page.join(" ")).toContain("Enter this code in Pocket Hub on Studio Mac. It lasts 5 more minutes.");
+    expect(page).not.toContain("Computers on This Network");
+
+    // A wrong entry at the computer: the code stays, a try is gone.
+    pair.tries = 2;
+    pair.leftMs = 61_000;
+    await home.run(40);
+    expect(home.texts("auxiliary").join(" ")).toContain("It lasts 2 more minutes. It takes 2 more wrong entries.");
+
+    // The third wrong entry drops the code.
+    Object.assign(pair, { state: "failed", code: "", leftMs: 0, tries: 0, error: "a wrong code was entered too often" });
+    await home.run(40);
+    page = home.texts("auxiliary");
+    expect(page).toContain("Pair a Computer...");
+    expect(page).not.toContain("482 913");
+    expect(page.join(" ")).toContain("The last code paired nothing: a wrong code was entered too often.");
+
+    // A new code, dropped from the page.
+    await home.tapText("Pair a Computer...");
+    await home.run(12);
+    await home.tapText("Cancel");
+    await home.run(12);
+    expect(calls).toEqual(["open", "ask 00000000000000aa", "open", "close"]);
+    expect(home.texts("auxiliary")).toContain("Pair a Computer...");
+  });
+
+  test("a paired console offers another computer, and Forget says how to link again", async () => {
+    const { home } = await bootShowsCode();
+    await home.run(10);
+    await openSettings(home);
+    await home.tapText("Mac");
+    await home.run(24);
+    const page = home.texts("auxiliary");
+    for (const label of ["Linked", "Paired Macs", "Evan's MacBook Pro", "Pair Another Computer..."]) expect(page).toContain(label);
+    expect(page.join(" ")).not.toContain("ftpd");
+    const forget = home.locate("Forget")!;
+    await home.tap(forget[0] + forget[2] / 2, forget[1] + forget[3] / 2);
+    await home.run(4);
+    expect(home.texts("auxiliary").join(" ")).toContain("To link again, pair this console with that Mac again.");
+  });
+
+  test("without a pairing the store sends the owner to Settings > Mac", async () => {
+    const { home } = await bootShowsCode({ link: { paired: [] } });
+    await home.run(10);
+    await home.tapText("Mac");
+    await home.run(30);
+    expect(home.texts("auxiliary").join(" ")).toContain("Pair a Mac in Settings > Mac to install");
+  });
+});
+
 describe("on a Pocket Link 2 console", () => {
   test("Settings > Mac says Pocket Hub sets the console up, and offers no scanner", async () => {
     const { home, pairs } = await bootLink2({ link: { paired: [], catalog: CATALOG } });
