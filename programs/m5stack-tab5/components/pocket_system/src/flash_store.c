@@ -12,6 +12,12 @@
  * clears bits without an erase. When two committed extents name one slot,
  * the higher sequence number is the package and the other is cleared.
  *
+ * An install streams into the partition (the stage): one run of free pages
+ * is set aside, each page is erased as the bytes reach it and the bytes are
+ * programmed as they arrive, so the caller hands over the next bytes only
+ * when these are in flash. The stage has no header until it is committed, so
+ * its pages are free pages to a firmware that starts in the middle of it.
+ *
  * Every function runs on the system task (system_run): a write disables the
  * cache, and the entry table is read and changed on that task alone.
  */
@@ -35,6 +41,8 @@
 #define HEADER_VERSION 1u
 #define STATE_LIVE 0xffffffffu
 #define WRITE_CHUNK 8192
+/* One piece of a streaming install, held in internal RAM while it runs. */
+#define STAGE_CHUNK 4096
 /* Header, footer and the smallest package that parses. */
 #define MIN_PACKAGE_BYTES 40
 
@@ -72,6 +80,20 @@ static uint32_t page_count;
 static flash_entry_t entries[FLASH_STORE_MAX_ENTRIES];
 static size_t entry_count;
 static uint32_t next_sequence = 1;
+
+/* The install that streams into the partition, one at a time. */
+static struct {
+  bool active;
+  /* The run set aside: its first page and its length. */
+  uint32_t page;
+  uint32_t pages;
+  /* Pages of the run erased so far, from its first. */
+  uint32_t erased;
+  /* Package bytes programmed, from HEADER_BYTES of the first page. */
+  size_t written;
+  /* A flash write cannot read PSRAM: each piece goes through internal RAM. */
+  uint8_t *chunk;
+} stage;
 
 static const flash_header_t *header_at(uint32_t page) {
   return (const flash_header_t *)(mapped + (size_t)page * PAGE_BYTES);
@@ -132,7 +154,8 @@ static esp_err_t clear_extent(uint32_t page) {
       &cleared, sizeof cleared);
 }
 
-/* The first run of `pages` free pages. */
+/* The first run of `pages` free pages: pages of no committed package and
+ * outside the run of an install that is streaming. */
 static bool first_fit(uint32_t pages, uint32_t *out) {
   uint32_t start = 0;
   while (pages <= page_count && start <= page_count - pages) {
@@ -143,6 +166,9 @@ static bool first_fit(uint32_t pages, uint32_t *out) {
           e->page + e->pages > next)
         next = e->page + e->pages;
     }
+    if (stage.active && stage.page < start + pages &&
+        start < stage.page + stage.pages && stage.page + stage.pages > next)
+      next = stage.page + stage.pages;
     if (next == start) {
       *out = start;
       return true;
@@ -150,6 +176,24 @@ static bool first_fit(uint32_t pages, uint32_t *out) {
     start = next;
   }
   return false;
+}
+
+static uint32_t pages_for(size_t size) {
+  return (uint32_t)((size + HEADER_BYTES + PAGE_BYTES - 1) / PAGE_BYTES);
+}
+
+static void write_header(uint8_t *chunk, const char *slot, size_t size,
+                         uint32_t pages, uint64_t hash) {
+  flash_header_t header = {.magic = HEADER_MAGIC,
+                           .version = HEADER_VERSION,
+                           .size = (uint32_t)size,
+                           .pages = pages,
+                           .sequence = next_sequence,
+                           .hash = hash,
+                           .state = STATE_LIVE};
+  memcpy(header.slot, slot, 16);
+  memset(header.padding, 0xff, sizeof header.padding);
+  memcpy(chunk, &header, sizeof header);
 }
 
 static uint32_t used_pages(void) {
@@ -269,8 +313,7 @@ esp_err_t flash_store_install(const char *slot, const uint8_t *bytes,
   flash_entry_t *earlier = entry_for(slot);
   if (earlier == NULL && entry_count == FLASH_STORE_MAX_ENTRIES)
     return ESP_ERR_NO_MEM;
-  const uint32_t pages =
-      (uint32_t)((size + HEADER_BYTES + PAGE_BYTES - 1) / PAGE_BYTES);
+  const uint32_t pages = pages_for(size);
   uint32_t page = 0;
   if (!first_fit(pages, &page)) {
     /* Reuse the slot's own pages: an interrupted install loses the app, as
@@ -302,16 +345,7 @@ esp_err_t flash_store_install(const char *slot, const uint8_t *bytes,
         esp_partition_write(partition, base + HEADER_BYTES + at, chunk, count);
   }
   if (result == ESP_OK) {
-    flash_header_t header = {.magic = HEADER_MAGIC,
-                             .version = HEADER_VERSION,
-                             .size = (uint32_t)size,
-                             .pages = pages,
-                             .sequence = next_sequence,
-                             .hash = hash,
-                             .state = STATE_LIVE};
-    memcpy(header.slot, slot, 16);
-    memset(header.padding, 0xff, sizeof header.padding);
-    memcpy(chunk, &header, sizeof header);
+    write_header(chunk, slot, size, pages, hash);
     result = esp_partition_write(partition, base, chunk, HEADER_BYTES);
   }
   heap_caps_free(chunk);
@@ -347,4 +381,122 @@ bool flash_store_remove(const char *slot) {
   const esp_err_t result = clear_extent(entry->page);
   drop_entry(entry);
   return result == ESP_OK;
+}
+
+// ---------------------------------------------------------------------------
+// the stage: an install that streams into the partition
+// ---------------------------------------------------------------------------
+
+bool flash_store_stage_begin(size_t size) {
+  if (partition == NULL || stage.active || size < MIN_PACKAGE_BYTES ||
+      size > UINT32_MAX - HEADER_BYTES)
+    return false;
+  const uint32_t pages = pages_for(size);
+  uint32_t page = 0;
+  if (!first_fit(pages, &page))
+    return false;
+  uint8_t *chunk =
+      heap_caps_malloc(STAGE_CHUNK, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  if (chunk == NULL)
+    return false;
+  stage.active = true;
+  stage.page = page;
+  stage.pages = pages;
+  stage.erased = 0;
+  stage.written = 0;
+  stage.chunk = chunk;
+  return true;
+}
+
+bool flash_store_staging(void) { return stage.active; }
+
+esp_err_t flash_store_stage_write(const uint8_t *bytes, size_t length) {
+  if (!stage.active)
+    return ESP_ERR_INVALID_STATE;
+  const size_t base = (size_t)stage.page * PAGE_BYTES;
+  while (length > 0) {
+    const size_t at = HEADER_BYTES + stage.written;
+    if (at / PAGE_BYTES >= stage.pages)
+      return ESP_ERR_INVALID_SIZE;
+    /* Each page is erased when the bytes reach it: one erase a page, not
+     * the whole run before the first byte. */
+    while (stage.erased <= at / PAGE_BYTES) {
+      const esp_err_t erased = esp_partition_erase_range(
+          partition, base + (size_t)stage.erased * PAGE_BYTES, PAGE_BYTES);
+      if (erased != ESP_OK)
+        return erased;
+      stage.erased += 1;
+    }
+    size_t count = length < STAGE_CHUNK ? length : STAGE_CHUNK;
+    const size_t in_page = PAGE_BYTES - at % PAGE_BYTES;
+    if (count > in_page)
+      count = in_page;
+    memcpy(stage.chunk, bytes, count);
+    const esp_err_t written =
+        esp_partition_write(partition, base + at, stage.chunk, count);
+    if (written != ESP_OK)
+      return written;
+    stage.written += count;
+    bytes += count;
+    length -= count;
+  }
+  return ESP_OK;
+}
+
+const uint8_t *flash_store_staged(size_t *size) {
+  if (!stage.active)
+    return NULL;
+  *size = stage.written;
+  return bytes_at(stage.page);
+}
+
+void flash_store_stage_abort(void) {
+  if (!stage.active)
+    return;
+  heap_caps_free(stage.chunk);
+  stage.chunk = NULL;
+  stage.active = false;
+}
+
+esp_err_t flash_store_stage_commit(const char *slot, const uint8_t **stored) {
+  if (!stage.active)
+    return ESP_ERR_INVALID_STATE;
+  esp_err_t result = ESP_OK;
+  flash_entry_t *earlier = entry_for(slot);
+  const size_t size = stage.written;
+  const uint32_t page = stage.page;
+  const uint32_t pages = pages_for(size);
+  if (slot == NULL || strlen(slot) != 16 || !hex_slot(slot) ||
+      size < MIN_PACKAGE_BYTES)
+    result = ESP_ERR_INVALID_ARG;
+  else if (earlier == NULL && entry_count == FLASH_STORE_MAX_ENTRIES)
+    result = ESP_ERR_NO_MEM;
+  if (result == ESP_OK) {
+    const uint64_t hash = footer_of(bytes_at(page), size);
+    write_header(stage.chunk, slot, size, pages, hash);
+    result = esp_partition_write(partition, (size_t)page * PAGE_BYTES,
+                                 stage.chunk, HEADER_BYTES);
+    if (result == ESP_OK && !extent_valid(page, header_at(page))) {
+      clear_extent(page);
+      result = ESP_ERR_INVALID_CRC;
+    }
+    if (result == ESP_OK) {
+      if (earlier != NULL) {
+        clear_extent(earlier->page);
+        drop_entry(earlier);
+      }
+      flash_entry_t entry = {.page = page,
+                             .pages = pages,
+                             .size = (uint32_t)size,
+                             .sequence = next_sequence,
+                             .hash = hash};
+      memcpy(entry.slot, slot, 17);
+      entries[entry_count++] = entry;
+      next_sequence += 1;
+      if (stored != NULL)
+        *stored = bytes_at(page);
+    }
+  }
+  flash_store_stage_abort();
+  return result;
 }

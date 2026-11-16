@@ -25,9 +25,9 @@ and a worker table of one `http`, one `mqtt`, two `i2c` and one `uart` node, the
 The firmware is a launcher console: `components/pocket_system`
 keeps the installed packages on the 4 MiB `apps` flash partition, read in
 place through one mapping, and the launcher's cached facts, each app's
-`data.fs` tree and uploads in progress on the microSD card (SDSPI; the
-`storage` flash partition without a card); it also keeps the Pocket Link to
-a paired companion, the Wi-Fi radio on the ESP32-C6 (esp_hosted) and the
+`data.fs` tree and an install that is staged in a file on the microSD card (SDSPI; the
+`storage` flash partition without a card); it also keeps the Pocket Link 2
+client to a paired Hub, the Wi-Fi radio on the ESP32-C6 (esp_hosted) and the
 wall clock from SNTP. The build compiles Pocket Shell
 (`third_party/pocket-shell/shells/3ds/shell`, project root `shells/3ds`, whose
 `ui`, `lib`, `kit` and `shell/art/icons` are links into its `vendor/applets`)
@@ -191,9 +191,10 @@ beyond that, a frame releases the least recently drawn ones the previous
 frame did not draw, and decodes them from flash again when a frame draws
 them.
 
-The applets install from a paired Mac's catalog (Pocket Companion carries
-them), and an app installs from an install QR code that Pocket Shell scans
-(`components/pocket_system`, "Installs from a code"). An applet compiled with
+The applets install from a paired Hub's catalog over Pocket Link 2
+(`components/pocket_system`, "Pocket Link": a Hub writes the pairing onto
+the microSD card), and an app installs from an install QR code that Pocket
+Shell scans (`components/pocket_system`, "Installs from a code"). An applet compiled with
 `--host-config programs/m5stack-tab5/pocket.host.config.ts` by a pocketjs at
 or after pocket-nexus/pocketjs#631 installs here. pocket-shell's `bun run
 tab5` and pocket-nexus/applets' `bun tools/build.ts tab5` compile against

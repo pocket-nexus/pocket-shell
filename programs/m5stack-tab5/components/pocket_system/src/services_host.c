@@ -42,7 +42,7 @@
 #include "host_services.h"
 #include "jscan.h"
 #include "launcher.h"
-#include "link.h"
+#include "link2_host.h"
 #include "sha256.h"
 #include "system_internal.h"
 
@@ -479,7 +479,29 @@ void link_host_address(char *out, size_t capacity) {
   wifi_address(out, capacity);
 }
 
+void *pocket_system_link_malloc(size_t size) {
+  void *block = heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  return block != NULL ? block : malloc(size);
+}
+
+void *pocket_system_link_calloc(size_t count, size_t size) {
+  void *block =
+      heap_caps_calloc(count, size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  return block != NULL ? block : calloc(count, size);
+}
+
 bool link_host_staging_path(const char *slot, char *out, size_t capacity) {
+  /* An install from the Hub streams into the apps partition when it has a
+   * run of free pages for the declared size: no file, on a card or on the
+   * storage partition, holds the package on its way. Without the partition,
+   * without such a run (link_host_install then reuses the slot's own pages)
+   * or beside another install that is streaming, it is staged in a file. */
+  const uint32_t declared = link2_host_install_bytes();
+  if (declared != 0 && flash_stage_path(slot, declared, out, capacity)) {
+    ESP_LOGI(TAG, "slot %s: %u bytes stream into the apps partition", slot,
+             (unsigned)declared);
+    return true;
+  }
   char directory[SLOT_PATH_BYTES];
   if (!launcher_host_slot_path(slot, NULL, directory, sizeof directory))
     return false;
@@ -488,9 +510,76 @@ bool link_host_staging_path(const char *slot, char *out, size_t capacity) {
   return launcher_host_slot_path(slot, STAGING_NAME, out, capacity);
 }
 
+/* A slot's folder is made here, in milliseconds on FAT. When it cannot be
+ * made the answer is still true: the commit then fails with its own
+ * message instead of an install that waits for a folder for good. */
+bool link_host_slot_ready(const char *slot) {
+  char directory[SLOT_PATH_BYTES];
+  if (launcher_host_slot_path(slot, NULL, directory, sizeof directory)) {
+    mkdir(apps_dir, 0777);
+    mkdir(directory, 0777);
+  }
+  return true;
+}
+
+/* Admit the package an install streamed into the apps partition and commit
+ * it where it is: no copy is read back into PSRAM and none is programmed a
+ * second time. */
+static bool install_staged(const char *slot, uint64_t hash,
+                           LauncherPackage *out, void **held, char *error,
+                           size_t capacity) {
+  size_t size = 0;
+  const uint8_t *bytes = flash_store_staged(&size);
+  const ResidentPackage *resident = resident_in_slot(slot);
+  ResidentPackage entry;
+  bool admitted = false;
+  if (resident != NULL && resident->bundled)
+    snprintf(error, capacity,
+             "install: the slot holds a package bundled into the firmware");
+  /* Its old pages become free at the commit, and an install after this one
+   * may erase them under it. */
+  else if (strcmp(slot, launcher_current_slot()) == 0)
+    snprintf(error, capacity,
+             "install: the app is running; return to the launcher first");
+  else if (size < 8 || (hash != 0 && footer_of(bytes, size) != hash))
+    snprintf(error, capacity, "the package does not match its declared hash");
+  else if (admit_resident(bytes, size, false, &entry, error, capacity)) {
+    if (strcmp(entry.slot, slot) != 0)
+      snprintf(error, capacity, "the package belongs to another app");
+    else
+      admitted = true;
+  }
+  if (!admitted) {
+    flash_store_stage_abort();
+    return false;
+  }
+  const esp_err_t result = flash_store_stage_commit(slot, NULL);
+  if (result != ESP_OK) {
+    snprintf(error, capacity,
+             "install: the apps partition could not be written (%s)",
+             esp_err_to_name(result));
+    return false;
+  }
+  if (!resident_put(&entry)) {
+    flash_store_remove(slot);
+    snprintf(error, capacity, "install: no room in the package table");
+    return false;
+  }
+  char stale[SLOT_PATH_BYTES];
+  if (launcher_host_slot_path(slot, PACKAGE_NAME, stale, sizeof stale))
+    remove(stale);
+  ESP_LOGI(TAG, "slot %s: %u bytes installed where they were streamed", slot,
+           (unsigned)size);
+  *out = facts_of(&entry.facts, entry.bytes, entry.size);
+  *held = NULL;
+  return true;
+}
+
 bool link_host_install(const char *slot, const char *path, uint64_t hash,
                        LauncherPackage *out, void **held, char *error,
                        size_t error_capacity) {
+  if (flash_stage_is(path))
+    return install_staged(slot, hash, out, held, error, error_capacity);
   const ResidentPackage *resident = resident_in_slot(slot);
   if (resident != NULL && resident->bundled) {
     remove(path);
@@ -580,6 +669,8 @@ bool link_host_remove(const char *slot) {
   return fs_remove_tree(directory, FS_MAX_DEPTH + 2) || installed;
 }
 
+/* Version 1's hooks for an agent channel: the version 2 client calls none
+ * of them, and this host has no agent. */
 void link_host_linked(bool up) { (void)up; }
 
 bool link_host_ctrl(const char *json, size_t length) {
@@ -782,8 +873,28 @@ static void migrate_files(void) {
   closedir(directory);
 }
 
+/* A Hub that is away fails every attempt the same way: a reason is logged
+ * once, until the link comes up or the reason changes. */
+static void report_link(const char *hub, const char *why) {
+  static bool up;
+  static char last[96];
+  if (hub != NULL) {
+    up = true;
+    last[0] = '\0';
+    ESP_LOGI(TAG, "pocket link: linked to %s", hub);
+    return;
+  }
+  const char *reason = why != NULL ? why : "closed";
+  if (up)
+    ESP_LOGI(TAG, "pocket link: down (%s)", reason);
+  else if (strcmp(reason, last) != 0)
+    ESP_LOGI(TAG, "pocket link: no link (%s)", reason);
+  up = false;
+  snprintf(last, sizeof last, "%s", reason);
+}
+
 /* The store's directories, the launcher's slot, the bundled and installed
- * packages and the link's identity. */
+ * packages and the link's client. */
 static void start_store(void *argument) {
   esp_err_t *result = argument;
   mkdir(apps_dir, 0777);
@@ -823,7 +934,12 @@ static void start_store(void *argument) {
     if (flash_store_ready())
       migrate_files();
   }
-  link_init();
+  const Link2HostConfig link_config = {
+      .home = &package,
+      .host_abi = config.host_abi,
+      .report = report_link,
+  };
+  link2_host_init(&link_config);
 }
 
 esp_err_t pocketjs_system_start(const pocketjs_system_config_t *settings) {
@@ -981,9 +1097,10 @@ bool pocketjs_system_app_is_launcher(const pocketjs_system_app_t *app) {
 static void bind_app(void *argument) {
   const pocketjs_system_app_t *app = argument;
   LauncherPackage package = facts_of(&app->facts, app->bytes, app->size);
-  /* The link names the running app in every net request; the guest's top
-   * level may already fetch. */
+  /* The link names the running app in every net.http request and in
+   * runtime.status; the guest's top level may already fetch. */
   launcher_set_current(app->slot, &package);
+  link2_host_guest_begin(&package);
   if ((app->facts.features & POCKET_IDF_FEATURE_FS) != 0U) {
     char data[SLOT_PATH_BYTES];
     char temp[SLOT_PATH_BYTES];
@@ -1012,7 +1129,7 @@ esp_err_t pocketjs_system_bind(JSContext *realm,
 
 static void unbind(void *unused) {
   (void)unused;
-  link_reset_guest();
+  link2_host_guest_end();
   install_reset_guest();
   fs_unbind();
 }
@@ -1051,7 +1168,7 @@ bool pocketjs_system_launch(const char *output) {
 
 static void pump(void *unused) {
   (void)unused;
-  link_pump();
+  link2_host_pump();
   install_pump();
 }
 

@@ -4,12 +4,21 @@
 #include <string.h>
 
 #include "jscan.h"
-#include "link.h"
+#include "link2_guest.h"
+#include "link2_host.h"
 #include "link_http.h"
+
+/* net.http is in use: the link is up, both ends list the group, and the
+ * connection's payload limit holds a request and its head (§6.5). */
+static bool available(void) {
+  const Link2 *link = link2_host_client();
+  return link != NULL && link2_in_use(link, "net.http") &&
+         link2_limit(link) >= LINK2_HTTP_MIN_PAYLOAD;
+}
 
 /* Why the link takes no request now, from the link's state. */
 static void unavailable(char *error, size_t capacity) {
-  const char *status = link_status_json();
+  const char *status = link2_guest_status_json();
   char state[16] = "";
   json_find_string(json_span(status, strlen(status)), "state", state,
                    sizeof state);
@@ -29,7 +38,7 @@ uint32_t companion_start(const uint8_t *descriptor, size_t length, char *error,
              "invalid_request: the Pocket Link cannot carry this request");
     return 0;
   }
-  if (!link_http_available()) {
+  if (!available()) {
     unavailable(error, capacity);
     return 0;
   }
@@ -55,9 +64,8 @@ bool companion_take(uint32_t id, pocket_http_esp_fact *fact) {
     memcpy(fact->bytes, next.bytes, fact->length);
   if (next.kind == POCKET_WORKER_END && next.status != POCKET_WORKER_OK) {
     /* The link client keeps no reason: a closed link fails every open
-     * request, and a net.error or a malformed answer ends one. */
-    const char *reason = !link_http_available()
-                             ? "unavailable: the Pocket Link closed"
+     * request, and an error reply or a malformed answer ends one. */
+    const char *reason = !available() ? "unavailable: the Pocket Link closed"
                          : next.status == POCKET_WORKER_FAILED
                              ? "protocol: the Mac's answer was malformed"
                              : "other: the Mac could not complete the request";

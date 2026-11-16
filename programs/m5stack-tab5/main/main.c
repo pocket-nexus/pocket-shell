@@ -26,6 +26,7 @@
 #include "bsp/display.h"
 #include "bsp/m5stack_tab5.h"
 #include "bsp/touch.h"
+#include "driver/sdspi_host.h"
 #include "esp_async_memcpy.h"
 #include "esp_cache.h"
 #include "esp_check.h"
@@ -35,6 +36,7 @@
 #include "esp_lcd_panel_ops.h"
 #include "esp_lcd_touch.h"
 #include "esp_log.h"
+#include "esp_memory_utils.h"
 #include "esp_private/gdma.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -1118,12 +1120,27 @@ static void start_worker_host(tab5_host_t *host) {
   };
 }
 
+/* Whether the card's host transfers `buffer` as it is. The SD SPI driver
+ * hands a PSRAM buffer to the SPI master's DMA without a copy, and that DMA
+ * underflows when PSRAM does not feed it in time. On a Tab5 an install from
+ * the Hub logged "spi_master: DMA TX underflow detected", its write failed
+ * with a timeout, and the card answered no write after it until the next
+ * start. A buffer in PSRAM is therefore not usable as it is: the SD layer
+ * copies it through an internal DMA buffer, 16 blocks at a time. */
+static bool card_buffer_usable(int slot, const void *buffer, size_t size) {
+  return !esp_ptr_external_ram(buffer) &&
+         sdspi_host_check_buffer_alignment(slot, buffer, size);
+}
+
 /* Storage and the system services; returns the card's mount point, NULL
  * when the store is the flash partition. */
 static const char *start_system(void) {
   /* The SDMMC controller drives the Wi-Fi coprocessor (esp_hosted), so the
    * card is read over SPI. */
-  bsp_sdcard_cfg_t card = {0};
+  sdmmc_host_t card_host;
+  bsp_sdcard_get_sdspi_host(SDMMC_HOST_SLOT_0, &card_host);
+  card_host.check_buffer_alignment = card_buffer_usable;
+  bsp_sdcard_cfg_t card = {.host = &card_host};
   const bool on_card =
       axi_dma_free() && bsp_sdcard_sdspi_mount(&card) == ESP_OK;
   const char *root = on_card ? BSP_SD_MOUNT_POINT : TAB5_STORE;

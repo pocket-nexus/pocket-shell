@@ -22,6 +22,7 @@
 #include "install_uri.h"
 #include "jscan.h"
 #include "launcher.h"
+#include "link2_host.h"
 #include "sha256.h"
 #include "system_internal.h"
 
@@ -122,6 +123,8 @@ static void commit(void) {
     return;
   }
   launcher_note_installed(install.slot, &package);
+  /* Hub learns of the app in the next runtime.apps report. */
+  link2_host_apps_changed();
   char output[LAUNCHER_OUTPUT_BYTES] = {0};
   launcher_package_output(&package, output, sizeof output);
   services_host_release(held);

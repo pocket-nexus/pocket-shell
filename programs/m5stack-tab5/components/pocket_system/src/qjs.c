@@ -2,7 +2,11 @@
  * The guest namespaces of the system services, the same shapes the 3DS
  * product publishes (products/3ds/src/qjs.c):
  *
- *   globalThis.link    contracts/spec/link.ts (link.c)
+ *   globalThis.link    contracts/spec/link.ts on Pocket Link 2
+ *                      (link2_guest.c). `pair` stays in the namespace,
+ *                      because a package built against version 1 requires
+ *                      it, and answers false: Hub writes a pairing onto the
+ *                      store, and none travels on the link
  *   globalThis.wifi    contracts/spec/wifi.ts (wifi.c), with the access
  *                      point ops
  *   globalThis.fs      contracts/spec/fs.ts, when the guest's plan declares
@@ -23,7 +27,7 @@
 #include <string.h>
 
 #include "fs.h"
-#include "link.h"
+#include "link2_guest.h"
 #include "system_internal.h"
 
 enum {
@@ -134,26 +138,27 @@ static void perform(void *argument) {
   r->kind = RESULT_UNDEFINED;
   switch (r->magic) {
   case OP_LINK_STATUS:
-    text_result(r, link_status_json());
+    text_result(r, link2_guest_status_json());
     break;
   case OP_LINK_PAIR:
-    bool_result(r, r->text != NULL && link_pair(r->text, r->length));
+    bool_result(r, false);
     break;
   case OP_LINK_FORGET:
-    bool_result(r, r->text != NULL && link_forget(r->text));
+    bool_result(r, r->text != NULL && link2_guest_forget(r->text));
     break;
   case OP_LINK_REMOVE:
-    bool_result(r, r->text != NULL && link_remove(r->text, r->length));
+    bool_result(r, r->text != NULL && link2_guest_remove(r->text, r->length));
     break;
   case OP_LINK_INSTALL:
-    int_result(r, r->text == NULL ? -1 : link_install(r->text, r->length));
+    int_result(r,
+               r->text == NULL ? -1 : link2_guest_install(r->text, r->length));
     break;
   case OP_LINK_CATALOG:
-    int_result(r, link_catalog());
+    int_result(r, link2_guest_catalog());
     break;
   case OP_LINK_POLL:
     r->kind = RESULT_TEXT_OR_UNDEFINED;
-    r->out_text = link_poll();
+    r->out_text = link2_guest_poll();
     break;
   case OP_INSTALLER_INSTALL_URI:
     int_result(r, r->text == NULL ? -1 : install_uri(r->text, r->length));

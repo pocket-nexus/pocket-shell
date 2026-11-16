@@ -31,7 +31,8 @@ pocket-m5/
 │  ├─ unit-swap/                Port A units found and driven by the worker, one at a time
 │  └─ tab5-demo/                the Tab5 factory launcher (M5Tab5-UserDemo) on PocketJS
 ├─ tests/                       host tests: HTTP and MQTT records, I2C descriptors, sensor drivers,
-│                               Unit Swap's conversions and records
+│                               Unit Swap's conversions and records, the package store on a
+│                               flash image, the Pocket Link 2 host against the reference Hub
 ├─ tools/                       pocket CLI wrapper, app packaging, formatter, host tests,
 │                               tab5-demo artwork conversion, firmware packaging
 │                               (firmware-dist.ts), the apps partition image (apps-partition.ts)

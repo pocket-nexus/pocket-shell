@@ -2,15 +2,16 @@
 
 /*
  * The system services of the Tab5 as a launcher console: installed apps and
- * switching between them, the Pocket Link to a paired companion, a guest's
- * data.fs tree, the Wi-Fi radio and the SNTP clock. The state machines are
- * engine/host-services; this component keeps the store, the radio, the clock
- * and the QuickJS bindings.
+ * switching between them, the Pocket Link 2 client to a paired Hub, a
+ * guest's data.fs tree, the Wi-Fi radio and the SNTP clock. The state machines
+ * are engine/host-services; this component keeps the store, the radio, the
+ * clock and the QuickJS bindings.
  *
  * The store lives under one mounted directory (`root`) and on one data
  * partition (`packages_partition`):
  *
- *   <root>/link/                        device id, paired companions
+ *   <root>/link/                        device id, and the key file of
+ *                                       each paired Hub, which Hub writes
  *   <root>/apps/<slot>/app.txt          the launcher's cached facts
  *   <root>/apps/<slot>/data/            the guest's data.fs tree
  *   <root>/apps/<slot>/package.pocket   an installed package, when the
@@ -48,7 +49,7 @@ typedef struct {
 
 typedef struct {
   size_t struct_size;
-  /** The host id the Pocket Link reports to a companion. */
+  /** The host id the Pocket Link reports to a Hub. */
   const char *target;
   /** The host facts packages are admitted against (pocket_profile.facts):
    * a package boots its first variant the facts satisfy. */
@@ -146,8 +147,8 @@ bool pocketjs_system_online(void);
 bool pocketjs_system_clock_wait(uint32_t ms);
 
 /** The pocket_http_esp transport of the worker's requests to
- * companion.pocket: the paired companion answers them over the Pocket Link
- * (README, "Companion services"). Its callbacks are callable from any
+ * companion.pocket: the paired Hub answers them over the Pocket Link's
+ * net.http (README, "Companion services"). Its callbacks are callable from any
  * task. */
 struct pocket_http_esp_companion;
 const struct pocket_http_esp_companion *pocketjs_system_companion(void);

@@ -2,8 +2,8 @@
 
 PocketJS firmware for M5Stack boards. Apps are TypeScript/JSX packages that
 run in a QuickJS guest on the PocketJS runtime; the firmware embeds Pocket
-Shell as its launcher, installs packages from a paired Mac over the Pocket
-Link and switches between them on the device.
+Shell as its launcher, installs packages from a paired computer over Pocket
+Link 2 and switches between them on the device.
 
 | Board | SoC | Display |
 | --- | --- | --- |
@@ -56,12 +56,42 @@ idf.py -p <port> flash monitor
 
 The firmware embeds this repository's apps (`apps/tab5-demo`,
 `apps/worker-http`, `apps/unit-swap`, `apps/worker-mqtt`) and installs them at boot, so Pocket Shell lists them
-without a companion. The applets install beside them from a paired Mac:
-[Pocket Companion](https://studio.pocket.nexus/apps/companion) carries them.
-Pair in Settings > Mac > Pair a Mac..., then the Mac icon on the home screen
-lists them. The home ball returns to Pocket Shell.
+without a computer. The applets install beside them from a paired computer's
+Hub over Pocket Link 2 (pocketjs `docs/POCKET-LINK.md`); the Mac icon on the
+home screen lists what that Hub offers. The home ball returns to Pocket
+Shell.
 `bun run app build <pocket.app.json>` compiles an app of this repository
 with the firmware's host config into `.pocket-build/apps/`.
+
+### Pairing a computer
+
+Pocket Link 2 sends no pairing on the link: a Hub writes two files into the
+Tab5's store, and the firmware reads them when it starts. With a microSD
+card in the Tab5 the store is the card, and the link directory is `link/` at
+its root. The reference Hub in the pocketjs checkout writes the pairing onto
+the card in this computer's reader, and then serves a folder of packages:
+
+```sh
+bun run --cwd third_party/pocketjs link2 setup --card <mounted card> --link-dir link
+bun run --cwd third_party/pocketjs link2 serve --apps <folder of .pocket files>
+```
+
+`setup` takes this computer's address for the Tab5's first connection from
+its default route; `--address <ip>` names another. Put the card back and
+start the Tab5: it links when it hears the Hub's beacon on its Wi-Fi
+network. `link2 status` and `link2 apps` then answer from the Tab5.
+pocket-shell's `bun run offer --tab5` builds the applets for this host and
+serves them from the same Hub.
+
+**A Tab5 without a card cannot be paired**: its store is the `storage`
+flash partition, which no computer reaches. A Tab5 paired by a code under an
+earlier firmware (Pocket Link 1) keeps those key files and lists them in
+Settings > Mac, and links to none of them: version 2 is not compatible with
+version 1's wire, so forget them there and set the card up from a Hub.
+[Pocket link](programs/m5stack-tab5/components/pocket_system/README.md#pocket-link)
+has the groups the firmware serves.
+
+### Applets without a computer
 
 A Tab5 can carry the applets without a Mac. pocket-shell's `bun run tab5
 <applet>…` compiles them from its `vendor/applets` against this host config
@@ -122,7 +152,10 @@ way (into `.pocket-build/dist/`) with the ESP-IDF environment exported.
 
 ## Pinned dependencies
 
-`third_party/pocketjs` is pinned to a commit on pocketjs `main`. It
+`third_party/pocketjs` is pinned to a commit on pocketjs `main`, the commit
+pocket-shell pins. It carries Pocket Link 2 (pocket-nexus/pocketjs#678): the
+specification, the C client `pocket_system` compiles and the reference Hub
+the host test runs against. It
 includes the host-facts admission, host contracts and app contracts of
 pocket-nexus/pocketjs#631, and pocket-nexus/pocketjs#635, which adds the
 `system.device` and `audio.capture` modules, the Wi-Fi access point ops, the
