@@ -8,6 +8,7 @@ on:
       - 'scripts/**'
       - 'runtime/**'
       - 'shells/3ds/**'
+      - 'ui/**'
       - 'devices/3ds/**'
       - 'devices/services/**'
       - 'vendor/pocketjs'

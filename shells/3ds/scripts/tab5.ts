@@ -14,7 +14,9 @@
 // is devices/m5stack; POCKET_M5_ROOT, relative to this repository's root,
 // names another one. Outputs go to dist/tab5.
 //
-//   bun run tab5            -> every app
+//   bun run tab5            -> every app: the launcher, and the applets of
+//                              the pocket-nexus/applets checkout when there
+//                              is one (scripts/apps.ts)
 //   bun run tab5 shell hn   -> the named apps
 
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
@@ -22,7 +24,7 @@ import { resolve } from "node:path";
 import { admissionHost, describeRejection, selectVariant, type VariantSelection } from "../../../runtime/spec/admission.ts";
 import { decodePocketPackage } from "../../../runtime/spec/pocket-package.ts";
 import { hashPocketProfile, readPocketProfile } from "../../../vendor/pocketjs/framework/src/profile.ts";
-import { APPS, appContract, isShellApp, projectRoot } from "./apps.ts";
+import { APPS, appContract, isShellApp, projectRoot, unknownApp } from "./apps.ts";
 import { DIST_TAB5, PLAN_DIR_TAB5 as PLAN_DIR, POCKET_SHELL_CLI, ROOT } from "./paths.ts";
 
 export const POCKET_M5_ROOT = resolve(ROOT, process.env.POCKET_M5_ROOT ?? "devices/m5stack");
@@ -78,7 +80,7 @@ export async function buildTab5(app: string): Promise<string> {
 
 if (import.meta.main) {
   const named = process.argv.slice(2);
-  for (const app of named) if (!isShellApp(app)) throw new Error(`pocket-shell tab5: no app named ${app}`);
+  for (const app of named) if (!isShellApp(app)) unknownApp("tab5", app);
   // Every app is built and checked; the failures are listed together.
   const failed: string[] = [];
   for (const app of named.length > 0 ? named : APPS) {

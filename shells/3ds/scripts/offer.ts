@@ -9,16 +9,19 @@
 // or update goes over the Pocket Link. The reference Hub speaks version 2
 // only, so a Tab5, whose firmware speaks version 1, does not link to it; its
 // packages stay in the folder for a Hub that does. Other options (--daemon,
-// --resolve, --panel, --host…) go to serve unchanged.
+// --resolve, --panel, --host…) go to serve unchanged. The apps are those of
+// the pocket-nexus/applets checkout (scripts/apps.ts); without one the
+// command stops.
 
 import { copyFileSync, mkdirSync, renameSync } from "node:fs";
 import { resolve } from "node:path";
 import { $ } from "bun";
 import { passThrough } from "../../../scripts/run.ts";
-import { APPS, LAUNCHER, writePlan } from "./apps.ts";
+import { APPS, LAUNCHER, requireApplets, writePlan } from "./apps.ts";
 import { DIST_3DS, LINK_TOOL, ROOT } from "./paths.ts";
 import { buildTab5 } from "./tab5.ts";
 
+requireApplets("offer", "the catalog");
 const args = process.argv.slice(2);
 const threeDs = !args.includes("--tab5");
 const tab5 = !args.includes("--3ds");

@@ -301,11 +301,11 @@ offer` refuses it ("this Hub runs no services").
 - **X** reads the Following and For You timelines and threads through the
   session of an account signed in on the Mac: Pocket Hub's X page opens a
   sign-in window there.
-  It uses x.com's web API, which X changes without notice. Setup and controls: [docs/X.md](../../vendor/applets/docs/X.md).
+  It uses x.com's web API, which X changes without notice. Setup and controls: [docs/X.md](https://github.com/pocket-nexus/applets/blob/main/docs/X.md).
 - **Discord** reads and sends in the servers a bot is in: create a bot in
   the Discord developer portal, turn on its Message Content intent, then
   give the token to Pocket Hub's Discord page. Setup and controls:
-  [docs/DISCORD.md](../../vendor/applets/docs/DISCORD.md).
+  [docs/DISCORD.md](https://github.com/pocket-nexus/applets/blob/main/docs/DISCORD.md).
 
 **GitHub** is built from the applets' `kit/`, a design system in which a page is rows
 and the kit draws them (`kit/platform.tsx` is what it takes from the device,

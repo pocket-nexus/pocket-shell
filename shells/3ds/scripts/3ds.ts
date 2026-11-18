@@ -8,12 +8,14 @@
 //   bun run 3ds                  -> dist/3ds/pocket-shell.3dsx (the launcher)
 //   bun run 3ds --pocket-only    -> dist/3ds/pocket-shell.pocket (hot push)
 //   bun run 3ds hn --pocket-only -> dist/3ds/hn-main.pocket (the launcher installs it)
+//
+// An applet is built from the pocket-nexus/applets checkout (scripts/apps.ts).
 
 import { build3ds } from "../../../devices/3ds/build.ts";
-import { isShellApp, LAUNCHER, projectRoot, writePlan } from "./apps.ts";
+import { projectRoot, takeApp, writePlan } from "./apps.ts";
 
 const args = process.argv.slice(2);
-const app = isShellApp(args[0]) ? args.shift()! : LAUNCHER;
+const app = takeApp("3ds", args);
 if (args.includes("--cia")) throw new Error("pocket-shell 3ds: the console takes .3dsx files only");
 const plan = writePlan(app);
 

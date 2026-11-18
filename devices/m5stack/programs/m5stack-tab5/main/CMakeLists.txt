@@ -26,8 +26,8 @@ idf_component_register(
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wall -Wextra -Werror)
 
 # The launcher is Pocket Shell, compiled from this repository's shells/3ds
-# (shells/3ds/shell, with the shared iOS 6 kit and icons of the
-# vendor/applets submodule) against the host config pocket.host.config.ts.
+# (shells/3ds/shell, with the iOS 6 kit and the icons of ui/ at the
+# repository root) against the host config pocket.host.config.ts.
 # A package the host contract admits replaces it.
 set(POCKETJS_TAB5_SHELL_PACKAGE "" CACHE FILEPATH "Launcher package to embed instead of shells/3ds/shell")
 if(POCKETJS_TAB5_SHELL_PACKAGE)
@@ -71,8 +71,9 @@ foreach(app_dir IN LISTS POCKETJS_TAB5_BUNDLED_APPS)
 endforeach()
 # Prebuilt packages the firmware serves from flash beside the apps above:
 # each entry is a .pocket file compiled with this host config, such as an
-# applet that `bun run tab5` at the repository root builds from
-# vendor/applets.
+# applet that `bun run tab5 <applet>` at the repository root builds from a
+# pocket-nexus/applets checkout (POCKET_APPLETS_ROOT, default ../applets
+# beside this repository).
 set(POCKETJS_TAB5_BUNDLED_PACKAGES "" CACHE STRING "Prebuilt .pocket files to install at boot")
 foreach(package_file IN LISTS POCKETJS_TAB5_BUNDLED_PACKAGES)
     get_filename_component(package_leaf "${package_file}" NAME_WE)
