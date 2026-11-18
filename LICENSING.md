@@ -9,6 +9,9 @@ text is in [LICENSE](LICENSE).
 | Imported desktop shell code, documentation and original assets | GPL-3.0-only |
 | M5Stack firmware in `devices/m5stack`: code, documentation and original assets | GPL-3.0-or-later |
 | PocketJS runtime submodule | MIT |
+| `runtime/`, `link/`, `docs/POCKET-LINK.md`, `docs/APPLETS.md` and `docs/POCKET-AGENT.md` | Imported from PocketJS (MIT) at commit `89e1043830434e07926e520d129c4fe0fccdcd48`; distributed here under GPL-3.0-or-later. The original notice is [runtime/LICENSE.pocketjs-MIT](runtime/LICENSE.pocketjs-MIT) |
+| `devices/3ds` and `devices/services`, except `devices/services/quirc` | Imported from PocketJS (MIT) at commit `806ac202141ece274f47c938c2899ffe8d30921d`; distributed here under GPL-3.0-or-later. The original notice is [runtime/LICENSE.pocketjs-MIT](runtime/LICENSE.pocketjs-MIT) |
+| `devices/services/quirc`: the quirc QR decoder, vendored unmodified | ISC, [devices/services/quirc/LICENSE](devices/services/quirc/LICENSE) |
 | Third-party fonts and derived font atlases | Their accompanying font licenses |
 | Third-party files in `devices/m5stack`: M5Stack's Tab5 demo pictures, Bosch's BMI270 feature image | Their accompanying notices (MIT, BSD-3-Clause) |
 

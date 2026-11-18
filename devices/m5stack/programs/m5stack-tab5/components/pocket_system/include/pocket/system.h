@@ -4,7 +4,7 @@
  * The system services of the Tab5 as a launcher console: installed apps and
  * switching between them, the Pocket Link 2 client to a paired Hub, a
  * guest's data.fs tree, the Wi-Fi radio and the SNTP clock. The state machines
- * are engine/host-services; this component keeps the store, the radio, the
+ * are devices/services; this component keeps the store, the radio, the
  * clock and the QuickJS bindings.
  *
  * The store lives under one mounted directory (`root`) and on one data

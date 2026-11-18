@@ -45,6 +45,12 @@ implementation notes belong in `docs/`, not here.
   from `shells/3ds/shell` with the iOS 6 kit and the icons of
   `vendor/applets`. A pocketjs bump rebuilds every app, Pocket Shell
   included, so a breaking change updates the apps in the same pull request.
+- The portable C host services the `pocket_system`, `pocket_camera` and
+  `pocket_media` components compile (the Pocket Link 2 client, the launcher's
+  app table, `data.fs`, photo images, quirc, the media stream's headers) are
+  `devices/services` at the repository root, shared with the 3DS program
+  (`devices/3ds`). After a change there run `bun run check:devices` and
+  `bun run check:m5stack`.
 - ESP-IDF registry dependencies are declared with exact versions in
   `idf_component.yml`. Each program commits its `dependencies.lock`.
 - Code derived from third-party sources keeps its original copyright and

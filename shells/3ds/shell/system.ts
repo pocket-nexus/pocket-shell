@@ -11,7 +11,7 @@
 
 import { createSignal, type Accessor } from "solid-js";
 import { getOps } from "@pocketjs/framework/host";
-import { launchApp } from "@pocketjs/framework/launcher";
+import { launchApp } from "../../../runtime/src/launcher.ts";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 import {
   forgetCompanion,
@@ -26,7 +26,7 @@ import {
   requestCatalog,
   type LinkCatalogApp,
   type LinkStatus,
-} from "@pocketjs/framework/link";
+} from "../../../runtime/src/link.ts";
 import {
   connectSavedNetwork,
   forgetNetwork,
@@ -37,7 +37,7 @@ import {
   wifiHost,
   wifiStatus,
   type WifiStatus,
-} from "@pocketjs/framework/wifi";
+} from "../../../runtime/src/wifi.ts";
 import { DEFAULT_OFFSET } from "./clock.ts";
 import { toAscii } from "../ui/text.ts";
 
@@ -251,7 +251,7 @@ export type CatalogState = "idle" | "loading" | "ready" | "error";
 
 /** Whether this console's link pairs by a scanned code. A version 2 client's
  *  status carries `limit`, the payload limit it negotiates per connection
- *  (POCKET-LINK.md §4.4, engine/host-services/link2_guest.c); a version 1
+ *  (POCKET-LINK.md §4.4, devices/services/link2_guest.c); a version 1
  *  client's has no such field. A console without a link pairs with nothing. */
 export function linkPairsByCode(): boolean {
   const raw = linkHost()?.status();

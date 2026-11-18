@@ -1,8 +1,8 @@
-# engine/host-services holds the Pocket Link 2 client, the launcher and the
+# devices/services holds the Pocket Link 2 client, the launcher and the
 # data.fs state machines every native program compiles; this component adds
 # the store, the radio, the SNTP clock, installs from an address over
 # esp_http_client and the QuickJS bindings.
-set(shared "${CMAKE_CURRENT_LIST_DIR}/../../../../../../vendor/pocketjs/engine/host-services")
+set(shared "${CMAKE_CURRENT_LIST_DIR}/../../../../../services")
 
 idf_component_register(
     SRCS

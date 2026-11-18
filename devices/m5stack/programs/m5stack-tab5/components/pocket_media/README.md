@@ -9,7 +9,7 @@ texture and the board's speaker.
 - Dependencies: `pocket_runtime`, `pocket_guest_quickjs`
 
 A stream task opens the TCP connection the guest names, reads PAL8 pictures
-(`engine/host-services/media_wire.h`) into a ring of 16 PSM_5650 frames
+(`devices/services/media_wire.h`) into a ring of 16 PSM_5650 frames
 (4.2 MB of PSRAM) and IMA ADPCM blocks (`media_adpcm.h`) into a ring of 24 PCM
 blocks, and returns one credit per packet with `TCP_NODELAY` set. The frame
 ring holds 1.3 s at 12 fps, more than the 1.1 s the audio ring lets the stream

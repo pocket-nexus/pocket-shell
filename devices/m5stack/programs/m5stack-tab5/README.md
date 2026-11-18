@@ -4,9 +4,10 @@ Firmware for the M5Stack Tab5: an ESP32-P4 with a 720x1280 MIPI-DSI panel,
 a GT911 touch controller and an ESP32-C6 Wi-Fi coprocessor. The program
 composes the runtime with `pocket_guest_quickjs`, two `pocket_render_esp_ppa`
 renderers split across the cores (`pocketjs_esp32p4_ppa_lanes`), the
-`pocket_display_esp_dpi` output and `pocket_runner`. Those components, the
-IDF archive and `engine/host-services` come from `vendor/pocketjs`; the
-program, its components and its host contract live here.
+`pocket_display_esp_dpi` output and `pocket_runner`. Those components and the
+IDF archive come from `vendor/pocketjs`, and the portable host services from
+`devices/services`; the program, its components and its host contract live
+here.
 
 The program was imported from pocket-nexus/pocketjs#616 (`df0d434a`), whose
 platform and engine changes reached pocketjs `main` through

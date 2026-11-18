@@ -1,7 +1,7 @@
 // tests/link-host.test.ts — the Tab5's side of Pocket Link 2
 // (programs/m5stack-tab5/components/pocket_system/src/link2_host.c) and its
 // route for the worker's requests to companion.pocket (companion.c): built
-// with pocketjs's Pocket Link 2 client under ASan and UBSan by
+// with the Pocket Link 2 client of devices/services under ASan and UBSan by
 // tests/link-host.c, against pocketjs's reference Hub in this process.
 //
 // A store Hub has not set up holds no pairing; after Hub's setup wrote the
@@ -24,7 +24,8 @@ import { LinkError } from "../../../vendor/pocketjs/tools/pocket-link/v2/peer.ts
 
 const ROOT = join(import.meta.dir, "..");
 const POCKETJS = join(ROOT, "../../vendor/pocketjs");
-const SHARED = join(POCKETJS, "engine/host-services");
+/** devices/services: the portable host services the firmware compiles. */
+const SHARED = join(ROOT, "../services");
 const SYSTEM = join(ROOT, "programs/m5stack-tab5/components/pocket_system/src");
 
 const pause = (ms: number) => new Promise((done) => setTimeout(done, ms));

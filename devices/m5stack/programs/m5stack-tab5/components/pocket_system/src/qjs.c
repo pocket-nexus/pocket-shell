@@ -1,6 +1,6 @@
 /*
  * The guest namespaces of the system services, the same shapes the 3DS
- * product publishes (products/3ds/src/qjs.c):
+ * product publishes (devices/3ds/src/qjs.c):
  *
  *   globalThis.link    contracts/spec/link.ts on Pocket Link 2
  *                      (link2_guest.c). `pair` stays in the namespace,

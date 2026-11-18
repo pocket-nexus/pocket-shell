@@ -28,6 +28,10 @@
     }
   },
   "include": [
-    "scripts"
+    "scripts",
+    "runtime",
+    "link",
+    "devices/3ds",
+    "devices/services"
   ]
 }

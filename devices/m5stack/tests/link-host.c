@@ -1,5 +1,5 @@
 /* programs/m5stack-tab5/components/pocket_system/src/link2_host.c and
- * companion.c with the Pocket Link 2 client they drive (engine/host-services
+ * companion.c with the Pocket Link 2 client they drive (devices/services
  * link2.c, link2_guest.c, link2_http.c, link2_bsd.c), on a POSIX
  * host_services.h, against the reference Hub of tests/link-host.test.ts:
  *

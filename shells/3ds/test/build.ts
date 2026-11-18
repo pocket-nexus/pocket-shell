@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Bundle one of the shell's apps for the sim: the vendored 3DS toolchain with
-// --pocket-only, the app's resolved plan and this shell as the project root.
+// Bundle one of the shell's apps for the sim: the 3DS build
+// (devices/3ds/build.ts) with --pocket-only, the app's resolved plan and the
+// app's project root.
 
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { projectRoot, type ShellApp, writePlan } from "../scripts/apps.ts";
-import { VENDOR } from "../scripts/paths.ts";
+import { ROOT } from "../scripts/paths.ts";
 
 /** Build `app` into `out`; returns the guest's path without extension. */
 export function buildGuest(app: ShellApp, out: string): string {
@@ -12,14 +13,14 @@ export function buildGuest(app: ShellApp, out: string): string {
   const build = Bun.spawnSync(
     [
       process.execPath,
-      "tools/3ds.ts",
+      resolve(ROOT, "devices/3ds/build.ts"),
       `--plan=${plan.path}`,
       `--project-root=${projectRoot(app)}`,
       "--pocket-only",
       `--outdir=${join(out, "guest")}`,
       `--package-outdir=${out}`,
     ],
-    { cwd: VENDOR, stdout: "pipe", stderr: "pipe" },
+    { cwd: ROOT, stdout: "pipe", stderr: "pipe" },
   );
   if (build.exitCode !== 0) throw new Error(`${app} build failed\n${build.stdout}${build.stderr}`);
   return join(out, "guest", plan.output);

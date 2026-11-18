@@ -1,5 +1,5 @@
 # The stream's wire layout is shared with the 3DS product.
-set(shared "${CMAKE_CURRENT_LIST_DIR}/../../../../../../vendor/pocketjs/engine/host-services")
+set(shared "${CMAKE_CURRENT_LIST_DIR}/../../../../../services")
 
 idf_component_register(
     SRCS "src/media.c"

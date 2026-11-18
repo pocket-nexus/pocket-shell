@@ -2,8 +2,8 @@
 // bun run shot [--host <ip>] [--out media/hw-x.png] [--eval "<js>"] — one
 // screenshot of a running console, both screens in one PNG.
 //
-// The console sends it over the Pocket Link as runtime.screenshot (PocketJS
-// tools/3ds-dev.ts shot, the reference Hub's command line). --eval evaluates
+// The console sends it over the Pocket Link as runtime.screenshot
+// (link/3ds-dev.ts shot, the reference Hub's command line). --eval evaluates
 // an expression in the guest first, over the DevTools stream, so a state worth
 // photographing can be set up without pressing anything:
 //
@@ -16,7 +16,7 @@ import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { $ } from "bun";
 import { passThrough } from "../../../scripts/run.ts";
-import { ROOT, VENDOR } from "./paths.ts";
+import { LINK_TOOL, ROOT } from "./paths.ts";
 
 const args = process.argv.slice(2);
 /** Take `--name <value>` or `--name=<value>` out of the arguments. */
@@ -34,9 +34,9 @@ const settle = Number(take("settle") ?? 900);
 const target = host ? ["--host", host] : [];
 
 if (code) {
-  await passThrough($`bun ${VENDOR}/tools/3ds-dev.ts eval ${code} ${target} ${args}`.cwd(ROOT));
+  await passThrough($`bun ${LINK_TOOL} eval ${code} ${target} ${args}`.cwd(ROOT));
   // Let the state settle before the picture is taken.
   await Bun.sleep(settle);
 }
 mkdirSync(dirname(out), { recursive: true });
-await passThrough($`bun ${VENDOR}/tools/3ds-dev.ts shot --out ${out} ${target} ${args}`.cwd(ROOT));
+await passThrough($`bun ${LINK_TOOL} shot --out ${out} ${target} ${args}`.cwd(ROOT));

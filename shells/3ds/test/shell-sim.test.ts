@@ -12,8 +12,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BTN } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
-import type { LinkCatalogApp } from "../../../vendor/pocketjs/contracts/spec/link.ts";
-import { bootConsole3ds, type Console3ds, type Console3dsOptions } from "../../../vendor/pocketjs/programs/sim/console-3ds.ts";
+import type { LinkCatalogApp } from "../../../runtime/spec/link.ts";
+import { bootConsole3ds, type Console3ds, type Console3dsOptions } from "../../../runtime/sim/console-3ds.ts";
 import { createSimFsHost } from "../../../vendor/pocketjs/platforms/sim/fs.ts";
 import { encodePNG } from "../../../vendor/pocketjs/tools/png.ts";
 import { buildGuest } from "./build.ts";
@@ -593,7 +593,7 @@ describe("pairing a Mac", () => {
 });
 
 /** Boot with the sim's link answering as a Pocket Link 2 client
- *  (engine/host-services/link2_guest.c): its status carries `limit`, the
+ *  (devices/services/link2_guest.c): its status carries `limit`, the
  *  payload limit it negotiated, and `pair` starts nothing and answers false,
  *  because Pocket Hub writes the pairing onto the SD card (PocketJS
  *  docs/POCKET-LINK.md §3). `features`, when given, is what the linked Hub

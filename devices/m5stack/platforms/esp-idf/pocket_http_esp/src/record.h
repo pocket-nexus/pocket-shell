@@ -5,7 +5,7 @@
 
 /* The HTTP descriptor and headers record of the worker's io.http resource
  * (contracts/spec/worker.ts), with the limits of the 3DS provider
- * (engine/host-services/link_http.c). Pure C: no IDF dependency. */
+ * (devices/services/link2_http.c). Pure C: no IDF dependency. */
 #define POCKET_HTTP_ESP_RECORD 1024u
 #define POCKET_HTTP_ESP_URL 2048u
 #define POCKET_HTTP_ESP_TIMEOUT_MS 30000u

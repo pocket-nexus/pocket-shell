@@ -2,7 +2,7 @@
 
 /*
  * The worker's requests to companion.pocket over the Pocket Link: the
- * pocket_http_esp companion transport on engine/host-services/link2_http.c,
+ * pocket_http_esp companion transport on devices/services/link2_http.c,
  * the worker's HTTP stream on Pocket Link 2's `net.http` (pocketjs
  * docs/POCKET-LINK.md §6.5). The paired Hub performs each request, and
  * answers companion.pocket itself while it serves that origin (§11).

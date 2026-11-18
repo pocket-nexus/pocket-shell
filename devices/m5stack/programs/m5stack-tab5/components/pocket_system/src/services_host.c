@@ -1,5 +1,5 @@
 /*
- * engine/host-services on ESP-IDF (host_services.h), and the store and app
+ * devices/services on ESP-IDF (host_services.h), and the store and app
  * lifecycle of pocket/system.h.
  *
  * A slot holds one committed package, `package.pocket`; its hash is the
