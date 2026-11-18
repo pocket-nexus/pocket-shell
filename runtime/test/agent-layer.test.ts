@@ -19,13 +19,13 @@ import { join } from "node:path";
 import { AGENT_LABELS, AGENT_MODE, AGENT_SCREEN, type AgentClientMessage, type AgentDisplay } from "../spec/agent.ts";
 import { BTN } from "../../vendor/pocketjs/contracts/spec/spec.ts";
 import { bootConsole3ds, type Console3ds } from "../sim/console-3ds.ts";
-import { resolve3dsBuildPlan } from "../../vendor/pocketjs/tools/3ds-profile.ts";
+import { resolve3dsBuildPlan } from "../../devices/3ds/tools/profile.ts";
 import { encodePNG } from "../../vendor/pocketjs/tools/png.ts";
 
 /** The fixture's project root: its app contract's entry is relative to it. */
 const PROJECT = new URL("..", import.meta.url).pathname;
-/** PocketJS, whose 3DS toolchain builds the fixture. */
-const VENDOR = new URL("../../vendor/pocketjs/", import.meta.url).pathname;
+/** The 3DS program's build, which compiles the fixture with PocketJS's toolchain. */
+const BUILD_3DS = new URL("../../devices/3ds/build.ts", import.meta.url).pathname;
 const OUT = mkdtempSync(join(tmpdir(), "pocket-agent-"));
 const OUTPUT = "agent-fixture-main";
 const GUEST = join(OUT, "guest", OUTPUT);
@@ -39,8 +39,8 @@ beforeAll(() => {
   const plan = join(OUT, "plan.json");
   writeFileSync(plan, JSON.stringify(resolve3dsBuildPlan(manifest)));
   const build = Bun.spawnSync(
-    [process.execPath, "tools/3ds.ts", `--plan=${plan}`, `--project-root=${PROJECT}`, "--pocket-only", `--outdir=${join(OUT, "guest")}`, `--package-outdir=${OUT}`],
-    { cwd: VENDOR, stdout: "pipe", stderr: "pipe" },
+    [process.execPath, BUILD_3DS, `--plan=${plan}`, `--project-root=${PROJECT}`, "--pocket-only", `--outdir=${join(OUT, "guest")}`, `--package-outdir=${OUT}`],
+    { stdout: "pipe", stderr: "pipe" },
   );
   if (build.exitCode !== 0) throw new Error(`fixture build failed\n${build.stdout}${build.stderr}`);
   if (SHOTS) mkdirSync(SHOTS, { recursive: true });

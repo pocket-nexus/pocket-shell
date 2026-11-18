@@ -11,7 +11,7 @@
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { readPocketManifest } from "../../../vendor/pocketjs/framework/src/manifest/load.ts";
-import { resolve3dsBuildPlan } from "../../../vendor/pocketjs/tools/3ds-profile.ts";
+import { resolve3dsBuildPlan } from "../../../devices/3ds/tools/profile.ts";
 // the applets built for some devices only, as pocket-nexus/applets names them
 import { ONLY } from "../../../vendor/applets/tools/apps.ts";
 import { APPLETS_ROOT, PLAN_DIR, PROJECT_ROOT } from "./paths.ts";
@@ -45,8 +45,8 @@ export function appContract(app: ShellApp): string {
   return resolve(projectRoot(app), app, "pocket.app.json");
 }
 
-/** Resolve `app`'s app contract against the 3ds-dev host contract and write
- *  the plan the vendored toolchain reads. */
+/** Resolve `app`'s app contract against the 3ds-dev host contract
+ *  (devices/3ds/pocket.host.json) and write the plan the build reads. */
 export function writePlan(app: ShellApp): { path: string; output: string } {
   const plan = resolve3dsBuildPlan(readPocketManifest(appContract(app)).manifest);
   mkdirSync(PLAN_DIR, { recursive: true });

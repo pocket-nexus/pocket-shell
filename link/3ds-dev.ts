@@ -13,7 +13,7 @@
 //
 // This is the reference Hub's command line (link/v2/cli.ts) with what a 3DS
 // checkout adds: `--app <name>` builds the guest or the .3dsx of a PocketJS
-// app first (vendor/pocketjs/tools/3ds.ts), `probe` is a status and a
+// app first (devices/3ds/build.ts), `probe` is a status and a
 // screenshot, and `dev` stays linked with the Pocket DevTools panel and one
 // key per step. Every other command and option goes to that command line
 // unchanged. The scripts of shells/3ds/scripts pass their own package or
@@ -32,8 +32,10 @@ import { EXIT, main as link } from "./v2/cli.ts";
 import { linkHome } from "./v2/store.ts";
 
 const ROOT = new URL("..", import.meta.url).pathname;
-/** PocketJS, whose 3DS toolchain builds an app named with `--app`. */
+/** PocketJS, whose demo apps `--app` names; an app's entry is relative to it. */
 const POCKETJS = join(ROOT, "vendor/pocketjs");
+/** The 3DS program's build: the guest package, or the .3dsx that embeds it. */
+const BUILD_3DS = join(ROOT, "devices/3ds/build.ts");
 
 const USAGE = `Nintendo 3DS development over Pocket Link 2
 
@@ -76,7 +78,7 @@ function fail(message: string): never {
 }
 
 async function buildPackage(app: string): Promise<string> {
-  const result = await $`bun tools/3ds.ts ${app} --pocket-only`.cwd(POCKETJS).quiet().nothrow();
+  const result = await $`bun ${BUILD_3DS} ${app} --pocket-only --project-root=${POCKETJS}`.cwd(ROOT).quiet().nothrow();
   if (result.exitCode !== 0) throw new Error(`3DS guest build failed\n${result.stdout}${result.stderr}`);
   const path = [...`${result.stdout}\n${result.stderr}`.matchAll(/^output: (.+\.pocket) \(/gm)].at(-1)?.[1];
   if (!path || !existsSync(path)) throw new Error("3DS guest build did not report a .pocket output");
@@ -84,7 +86,7 @@ async function buildPackage(app: string): Promise<string> {
 }
 
 async function buildNative(app: string): Promise<string> {
-  const result = await $`bun tools/3ds.ts ${app}`.cwd(POCKETJS).quiet().nothrow();
+  const result = await $`bun ${BUILD_3DS} ${app} --project-root=${POCKETJS}`.cwd(ROOT).quiet().nothrow();
   if (result.exitCode !== 0) throw new Error(`3DS build failed\n${result.stdout}${result.stderr}`);
   const path = [...`${result.stdout}\n${result.stderr}`.matchAll(/^output: (.+\.3dsx)$/gm)].at(-1)?.[1];
   if (!path || !existsSync(path)) throw new Error("3DS build did not report a .3dsx output");
