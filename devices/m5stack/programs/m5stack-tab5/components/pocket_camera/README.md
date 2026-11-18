@@ -18,7 +18,7 @@ budget. The owner task copies the newest
 preview into one 512x256 texture of the running guest between ticks
 (`pocketjs_camera_present`, through `pocket_runtime_update_texture`, so only
 the quads that sample it repaint), so the guest draws an ordinary image handle. A
-decode task runs quirc (`engine/host-services/quirc`) on the preview's luma
+decode task runs quirc (`devices/services/quirc`) on the preview's luma
 at most every 250 ms, built with `QUIRC_FLOAT_TYPE=float` for the P4's
 single-precision FPU: **135 ms for a frame holding a pairing code** (1.7 s in
 double), 9 ms for a frame without a code.
@@ -27,7 +27,7 @@ Stills are the same crop at 640x480, encoded by the JPEG codec to
 `<storage>/DCIM/100POCKT/PKT_nnnn.JPG` (41 to 55 ms with the file write on
 an SD card over SPI). Thumbnails (78 px in a 128 texture)
 and full views (fitted to 320x240) are decoded by the codec and box-filtered
-by `engine/host-services/photos_image.c`; thumbnails are cached under
+by `devices/services/photos_image.c`; thumbnails are cached under
 `<storage>/photos/thumbs`. Long file names need FAT LFN or LittleFS.
 
 The storage may be a flash partition (`storage_in_flash`: LittleFS on the

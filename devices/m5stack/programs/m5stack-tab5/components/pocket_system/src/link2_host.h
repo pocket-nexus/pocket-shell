@@ -1,7 +1,7 @@
 #pragma once
 
 /*
- * Pocket Link 2 on the Tab5 (engine/host-services/link2.h, pocketjs
+ * Pocket Link 2 on the Tab5 (devices/services/link2.h, pocketjs
  * docs/POCKET-LINK.md): the firmware's one client to a paired Hub, its
  * platform and what the firmware supplies to it.
  *

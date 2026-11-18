@@ -6,7 +6,7 @@ switching between them, the Pocket Link 2 client to a paired Hub, a guest's
 QR code.
 
 - Public header: `pocket/system.h`
-- Shared state machines: `engine/host-services` (`link2.c` with
+- Shared state machines: `devices/services` (`link2.c` with
   `link2_proto.c`, `link2_guest.c`, `link2_http.c` and `link2_bsd.c`,
   `launcher.c`, `fs.c`), compiled from the repository
 - `esp_wifi` comes from `espressif/esp_wifi_remote` and `espressif/esp_hosted`,
@@ -182,7 +182,7 @@ its events.
 ## Pocket Link
 
 `link2_host.c` creates the firmware's one Pocket Link 2 client (pocketjs
-`docs/POCKET-LINK.md`, `engine/host-services/link2.h`) at start and pumps it
+`docs/POCKET-LINK.md`, `devices/services/link2.h`) at start and pumps it
 once per frame on the system task. Its sockets are lwIP's BSD sockets
 (`link2_bsd.c`); while the radio has no address every socket call answers
 "gone", so the link drops when the address does and searches again when it
@@ -262,7 +262,7 @@ A worker reaches the paired Hub's services at
 `LINK_SERVICES_HOST` in `contracts/spec/link.ts`) through its `http` node.
 `pocketjs_system_companion` is the `pocket_http_esp` transport for that host:
 `companion.c` sends the request over the Pocket Link as a `net.http` request
-(§6.5) with engine/host-services `link2_http.c`. The request names the
+(§6.5) with devices/services `link2_http.c`. The request names the
 running app, taken from the launcher and not from the guest, and the Hub
 answers it for the services that app declares while it serves that origin
 (§11 leaves open when a Hub stops). The request task makes each call on the

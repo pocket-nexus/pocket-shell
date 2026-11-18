@@ -2,7 +2,7 @@
 
 The worker's `io.http` resource (`contracts/spec/worker.ts`, kind 3, capability `net.http`) on `esp_http_client`. The firmware creates one driver and declares it as an `http` node; each opened resource holds one request, and two run at once. A request runs on its own task (12 KB stack, `task_stack_caps`) so the worker's owner task never blocks on DNS, a connect or a read.
 
-The descriptor is the JSON the SDK's `io.http(name).open(...)` encodes, at most 1024 bytes: an `http://` or `https://` URL, a method of `GET HEAD POST PUT PATCH DELETE OPTIONS`, string header fields, a UTF-8 body (none for GET and HEAD), `timeoutMs` 1..120000 (30000) and `maxBytes` 0..262144 (262144). Open refuses any other descriptor. `submit()` starts the request; the stream carries one headers fact `{"status":S,"url":U,"headers":{...}}`, data facts of at most 1024 bytes with their offsets, then the end fact, whose status settles the request. The 3DS provider (`engine/host-services/link_http.c`) produces the same facts.
+The descriptor is the JSON the SDK's `io.http(name).open(...)` encodes, at most 1024 bytes: an `http://` or `https://` URL, a method of `GET HEAD POST PUT PATCH DELETE OPTIONS`, string header fields, a UTF-8 body (none for GET and HEAD), `timeoutMs` 1..120000 (30000) and `maxBytes` 0..262144 (262144). Open refuses any other descriptor. `submit()` starts the request; the stream carries one headers fact `{"status":S,"url":U,"headers":{...}}`, data facts of at most 1024 bytes with their offsets, then the end fact, whose status settles the request. The 3DS provider (`devices/services/link2_http.c`) produces the same facts.
 
 | Rule | Value |
 | --- | --- |

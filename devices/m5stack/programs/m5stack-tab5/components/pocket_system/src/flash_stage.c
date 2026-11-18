@@ -1,7 +1,7 @@
 /*
  * The staging file of an install as a file of the apps partition.
  *
- * The engine writes an install with stdio (engine/host-services
+ * The engine writes an install with stdio (devices/services
  * link2_guest.c: fopen, fwrite, fsync, fclose, and remove when it fails) into
  * the path link_host_staging_path gives it. This file system gives it a path
  * whose bytes go to the flash store's stage (flash_store.c) as they are
