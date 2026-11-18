@@ -1,6 +1,6 @@
 version: "0.1.0"
 description: MQTT 3.1.1 and 5.0 sessions for PocketJS workers over esp-mqtt
-license: MIT
+license: GPL-3.0-or-later
 targets: [esp32p4, esp32s3, esp32c3, esp32c6]
 dependencies:
   idf: ">=6.0,<6.3"

@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "description": "PocketJS firmware, board support and drivers for M5Stack devices",
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "scripts": {
     "format": "bun tools/format.ts",
     "format:check": "bun tools/format.ts --check",

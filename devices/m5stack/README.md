@@ -175,6 +175,10 @@ driver contracts and directory layout come from pocket-nexus/pocketjs#603.
 
 ## License
 
-MIT, see [LICENSE](LICENSE). Pocket Shell (`third_party/pocket-shell`) and
-the applets are `GPL-3.0-or-later`; a firmware image that embeds Pocket Shell
-contains that code.
+`GPL-3.0-or-later`, like the launcher (`shells/3ds`) and the applets the
+firmware image embeds; see [LICENSING.md](../../LICENSING.md). The code was
+imported from pocket-m5, which was MIT licensed, and that notice is kept as
+[LICENSE.pocket-m5-MIT](LICENSE.pocket-m5-MIT). The Tab5 demo pictures and the
+BMI270 feature image keep their own notices
+([art/LICENSE](apps/tab5-demo/art/LICENSE),
+[BOSCH-LICENSE.txt](apps/tab5-demo/drivers/BOSCH-LICENSE.txt)).
