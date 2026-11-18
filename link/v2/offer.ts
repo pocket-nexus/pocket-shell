@@ -14,7 +14,7 @@
 import { type FSWatcher, readFileSync, readdirSync, statSync, watch } from "node:fs";
 import { join, resolve } from "node:path";
 import { LINK2_INSTALL_MAX_BYTES } from "../../runtime/spec/link2.ts";
-import { POCKET_PACKAGE_FOOTER_SIZE, POCKET_SECTION, decodeIdentity, decodePocketPackage, findSection, fnv1a64 } from "@pocketjs/framework/package";
+import { POCKET_PACKAGE_FOOTER_SIZE, POCKET_SECTION, decodeIdentity, decodePocketPackage, findSection, fnv1a64 } from "../../runtime/spec/pocket-package.ts";
 import type { HubOffer } from "./hub.ts";
 import { LinkError } from "./peer.ts";
 

@@ -19,7 +19,7 @@ if (command !== "build" || !manifestArgument) usage();
 
 const hostConfig = option("--host-config") ? resolve(option("--host-config")!)
   : join(root, "programs", "m5stack-tab5", "pocket.host.config.ts");
-const frameworkRoot = process.env.POCKETJS_ROOT ?? resolve(root, "../../vendor/pocketjs");
+const cli = resolve(root, "../../cli/pocket-shell.ts");
 if (!existsSync(hostConfig)) {
   console.error(`no host config: ${hostConfig}`);
   process.exit(2);
@@ -30,7 +30,7 @@ const buildRoot = join(root, ".pocket-build", "apps");
 const pocket = join(buildRoot, `${output}.pocket`);
 const compile = spawnSync(
   "bun",
-  [join(frameworkRoot, "tools", "pocket.ts"), "compile",
+  [cli, "compile",
     "--manifest", manifest, "--host-config", hostConfig,
     "--project-root", dirname(manifest), "--outdir", join(buildRoot, output),
     "--plan-dir", join(buildRoot, output, "plans"), "--output", pocket],

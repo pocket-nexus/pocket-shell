@@ -2,13 +2,14 @@
 // bun run psp [--skip-eboot] — build Pocket Shell for the PSP: one EBOOT with
 // the launcher as app 0 and, embedded after it, every applet whose app
 // contract resolves for the PSP's full screen (the applet full-screen
-// presentation, PocketJS contracts/spec/applet.ts).
+// presentation, runtime/spec/applet.ts).
 //
 // The apps are the launcher and the applets of pocket-nexus/applets
 // (scripts/apps.ts), each from its own project root. Each resolves against
 // PocketJS's psp host contract (hosts/psp/pocket.host.json, which
-// programs/psp/pocket.host.config.ts names), compiles into
-// dist/psp/packages/<output>.pocket and must be admitted by that contract,
+// programs/psp/pocket.host.config.ts names), compiles with this repository's
+// CLI (cli/pocket-shell.ts compile) into dist/psp/packages/<output>.pocket
+// and must be admitted by that contract,
 // the check the EBOOT build makes again. An app that does not resolve is left
 // out with the resolver's reasons: an applet with a network declares a worker
 // with an http node, which the PSP host does not run (it provides neither
@@ -19,16 +20,16 @@
 
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { admissionHost, describeRejection, selectVariant } from "../../../vendor/pocketjs/contracts/spec/admission.ts";
-import { decodePocketPackage } from "../../../vendor/pocketjs/contracts/spec/pocket-package.ts";
-import { readPocketManifest } from "../../../vendor/pocketjs/framework/src/manifest/load.ts";
-import type { ResolvedBuildPlan } from "../../../vendor/pocketjs/framework/src/manifest/plan.ts";
-import { validateAndResolveBuildPlan } from "../../../vendor/pocketjs/framework/src/manifest/resolve.ts";
+import { admissionHost, describeRejection, selectVariant } from "../../../runtime/spec/admission.ts";
+import { decodePocketPackage } from "../../../runtime/spec/pocket-package.ts";
+import { readPocketManifest } from "../../../runtime/manifest/load.ts";
+import type { ResolvedBuildPlan } from "../../../runtime/manifest/plan.ts";
+import { validateAndResolveBuildPlan } from "../../../runtime/manifest/resolve.ts";
 import { hashPocketProfile } from "../../../vendor/pocketjs/framework/src/profile.ts";
 import { POCKET_PROFILES } from "../../../vendor/pocketjs/hosts/index.ts";
 import { profileRegistry } from "../../../vendor/pocketjs/tools/profile-resolver.ts";
 import { APPS, appContract, LAUNCHER, projectRoot } from "./apps.ts";
-import { DIST_PSP, PLAN_DIR_PSP, PROJECT_ROOT, VENDOR } from "./paths.ts";
+import { DIST_PSP, PLAN_DIR_PSP, POCKET_SHELL_CLI, PROJECT_ROOT, VENDOR } from "./paths.ts";
 
 export const PSP_HOST_CONFIG = resolve(VENDOR, "programs/psp/pocket.host.config.ts");
 /** The PRX tools/psp.ts links, which PSPLINK starts from the share. */
@@ -70,7 +71,7 @@ export async function buildPspPackage(app: string, outdir = DIST_PSP): Promise<{
   const child = Bun.spawn(
     [
       process.execPath,
-      resolve(VENDOR, "tools/cli/bin.mjs"),
+      POCKET_SHELL_CLI,
       "compile",
       "--manifest",
       appContract(app),
@@ -85,7 +86,7 @@ export async function buildPspPackage(app: string, outdir = DIST_PSP): Promise<{
       "--output",
       output,
     ],
-    { cwd: projectRoot(app), stdout: "pipe", stderr: "pipe", env: { ...process.env, POCKETJS_FRAMEWORK_ROOT: VENDOR } },
+    { cwd: projectRoot(app), stdout: "pipe", stderr: "pipe" },
   );
   const [stdout, stderr] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text()]);
   if ((await child.exited) !== 0) throw new Error(`pocket-shell psp: building ${app} failed\n${stdout}${stderr}`);

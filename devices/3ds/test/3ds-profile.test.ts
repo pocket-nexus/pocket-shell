@@ -7,10 +7,10 @@ import { describe,expect,test } from "bun:test";
 import {
 extractHostBuildInputs,
 hostBuildEnvironment,
-} from "../../../vendor/pocketjs/framework/src/manifest/host-build-inputs.ts";
+} from "../../../runtime/manifest/host-build-inputs.ts";
 import {
 validateAndResolveBuildPlan
-} from "../../../vendor/pocketjs/framework/src/manifest/resolve.ts";
+} from "../../../runtime/manifest/resolve.ts";
 import {
 resolve3dsBuildPlan,
 THREE_DS_AUXILIARY_VIEWPORT,

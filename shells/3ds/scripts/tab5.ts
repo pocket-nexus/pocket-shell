@@ -8,21 +8,22 @@
 // package compiles against that program's host config (pocket.host.config.ts,
 // which names its host contract pocket.host.json, host id tab5-home), and a
 // package the host contract does not admit is an error: the check is
-// PocketJS's own (contracts/spec/admission.ts, the rules the firmware's
-// engine applies), so a package written here installs on that firmware. The
-// firmware tree is devices/m5stack; POCKET_M5_ROOT, relative to this
-// repository's root, names another one. Outputs go to dist/tab5.
+// runtime/spec/admission.ts (the rules the firmware's engine applies), so a
+// package written here installs on that firmware. Each package is compiled
+// by this repository's CLI (cli/pocket-shell.ts compile). The firmware tree
+// is devices/m5stack; POCKET_M5_ROOT, relative to this repository's root,
+// names another one. Outputs go to dist/tab5.
 //
 //   bun run tab5            -> every app
 //   bun run tab5 shell hn   -> the named apps
 
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { admissionHost, describeRejection, selectVariant, type VariantSelection } from "../../../vendor/pocketjs/contracts/spec/admission.ts";
-import { decodePocketPackage } from "../../../vendor/pocketjs/contracts/spec/pocket-package.ts";
+import { admissionHost, describeRejection, selectVariant, type VariantSelection } from "../../../runtime/spec/admission.ts";
+import { decodePocketPackage } from "../../../runtime/spec/pocket-package.ts";
 import { hashPocketProfile, readPocketProfile } from "../../../vendor/pocketjs/framework/src/profile.ts";
 import { APPS, appContract, isShellApp, projectRoot } from "./apps.ts";
-import { DIST_TAB5, PLAN_DIR_TAB5 as PLAN_DIR, ROOT, VENDOR } from "./paths.ts";
+import { DIST_TAB5, PLAN_DIR_TAB5 as PLAN_DIR, POCKET_SHELL_CLI, ROOT } from "./paths.ts";
 
 export const POCKET_M5_ROOT = resolve(ROOT, process.env.POCKET_M5_ROOT ?? "devices/m5stack");
 export const TAB5_PROGRAM = resolve(POCKET_M5_ROOT, "programs/m5stack-tab5");
@@ -51,7 +52,7 @@ export async function buildTab5(app: string): Promise<string> {
   const child = Bun.spawn(
     [
       process.execPath,
-      resolve(VENDOR, "tools/cli/bin.mjs"),
+      POCKET_SHELL_CLI,
       "compile",
       "--manifest",
       manifestPath,
@@ -66,7 +67,7 @@ export async function buildTab5(app: string): Promise<string> {
       "--output",
       output,
     ],
-    { cwd: projectRoot(app), stdout: "inherit", stderr: "inherit", env: { ...process.env, POCKETJS_FRAMEWORK_ROOT: VENDOR } },
+    { cwd: projectRoot(app), stdout: "inherit", stderr: "inherit" },
   );
   if ((await child.exited) !== 0) throw new Error(`pocket-shell tab5: building ${app} failed`);
   const admission = tab5Admission(output);

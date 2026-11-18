@@ -76,7 +76,7 @@
 // app, and they are the ones the generic runtime carries.
 
 import { $ } from "bun";
-import { readPocketManifest } from "../../vendor/pocketjs/framework/src/manifest/load.ts";
+import { readPocketManifest } from "../../runtime/manifest/load.ts";
 import { capture, prepareNative3ds, runNative3dsMake } from "../../vendor/pocketjs/tools/build/3ds/native.ts";
 import type { PocketProfile } from "../../vendor/pocketjs/framework/src/profile.ts";
 import type { RuntimeBuildContext } from "../../vendor/pocketjs/framework/src/host-config.ts";
@@ -88,26 +88,28 @@ import {
   mkdirSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { availableParallelism } from "node:os";
 import { dirname, join, resolve as resolvePath } from "node:path";
-import { encodePocketPackage } from "../../vendor/pocketjs/contracts/spec/pocket-package.ts";
+import { encodePocketPackage } from "../../runtime/spec/pocket-package.ts";
 import {
   extractHostBuildInputs,
   hostBuildEnvironment,
-} from "../../vendor/pocketjs/framework/src/manifest/host-build-inputs.ts";
+} from "../../runtime/manifest/host-build-inputs.ts";
 import {
   canonicalJson,
   verifyPlanHash,
   type ResolvedBuildPlan,
-} from "../../vendor/pocketjs/framework/src/manifest/plan.ts";
+} from "../../runtime/manifest/plan.ts";
 import {
   THREE_DS_DEV_TARGET_ID,
   THREE_DS_PROFILE,
   resolve3dsBuildPlan,
 } from "./tools/profile.ts";
-import { makeVariant } from "../../vendor/pocketjs/tools/pocket-pack.ts";
+import { makeVariant } from "../../runtime/package/pocket-pack.ts";
+import { checkAppletBundle, checkAppletSources, formatAppletDiagnostics } from "../../runtime/package/applet-check.ts";
 const softwareProfile = THREE_DS_PROFILE;
 
 /** This repository's root, with a trailing slash: outputs, plans and caches. */
@@ -593,6 +595,17 @@ export async function build3ds(argv: readonly string[], context?: RuntimeBuildCo
   for (const artifact of [guestJavaScript, guestPack]) {
     if (!existsSync(artifact)) {
       throw new Error(`PocketJS 3ds: the guest build did not produce ${artifact}`);
+    }
+  }
+  // A Pocket Applet's code and bundle meet the applet rules
+  // (runtime/spec/applet.ts), as `pocket-shell compile` checks them.
+  if (!context && !args.skipBuild && plan.applet) {
+    const diagnostics = [
+      ...checkAppletSources({ projectRoot: args.projectRoot, entry: plan.app.entry, applet: plan.applet, capabilities: Object.keys(plan.features) }),
+      ...checkAppletBundle({ jsBytes: statSync(guestJavaScript).size, pakBytes: statSync(guestPack).size }),
+    ];
+    if (diagnostics.length > 0) {
+      throw new Error(`${formatAppletDiagnostics(plan.app.output, diagnostics)}\nPocketJS 3ds: the applet breaks the applet rules (docs/APPLETS.md)`);
     }
   }
 
