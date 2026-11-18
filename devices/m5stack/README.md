@@ -16,12 +16,11 @@ Pocket Link; a floating home ball; Wi-Fi with an optional access point,
 SNTP clock, worker HTTP, MQTT, I2C and RS485 nodes, camera, media, PCM audio and
 microphones, board controls and keyboard. Pocket Shell, the launcher, is
 compiled from this repository's [`shells/3ds`](../../shells/3ds/README.md)
-(`shells/3ds/shell`); the applets
-(Hacker News, YouTube, Notes and the others), the iOS 6 kit they share with
-the launcher and every icon live in
-[pocket-nexus/applets](https://github.com/pocket-nexus/applets), the
-`vendor/applets` submodule. The next firmware build compiles a launcher
-change in `shells/3ds/shell`.
+(`shells/3ds/shell`) with the iOS 6 kit and the icons in `ui/` at the
+repository root; the applets (Hacker News, YouTube, Notes and the others),
+which draw with the same kit, live in
+[pocket-nexus/applets](https://github.com/pocket-nexus/applets). The next
+firmware build compiles a launcher change in `shells/3ds/shell` or `ui/`.
 App workers get an `http` node (`pocket_http_esp`), an `mqtt` node
 (`pocket_mqtt_esp`, MQTT 3.1.1 and 5.0) and `i2c` and `uart` nodes
 (`pocket_io_esp`); see [Worker domain](docs/WORKER.md).
@@ -102,8 +101,10 @@ has the groups the firmware serves.
 ### Applets without a computer
 
 A Tab5 can carry the applets without a Mac. `bun run tab5 <applet>…` at the
-repository root compiles them from `vendor/applets` against this host config
-into `dist/tab5/`; `-DPOCKETJS_TAB5_BUNDLED_PACKAGES="<a.pocket>;<b.pocket>"`
+repository root compiles them from a checkout of pocket-nexus/applets
+(`POCKET_APPLETS_ROOT`, default `../applets` beside this repository) against
+this host config into `dist/tab5/`;
+`-DPOCKETJS_TAB5_BUNDLED_PACKAGES="<a.pocket>;<b.pocket>"`
 embeds packages in the firmware image, served from flash like the bundled
 apps (the `factory` partition has room for about 3.5 MiB of them beside Pocket
 Shell when `POCKETJS_TAB5_BUNDLED_APPS` is empty), and `bun

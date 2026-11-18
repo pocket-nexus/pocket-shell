@@ -77,7 +77,9 @@ describe("the Tab5 on Pocket Link 2", () => {
       "-o", binary,
     ]);
     expect(compile.exitCode, compile.stderr.toString()).toBe(0);
-  });
+    // One compiler run builds eleven sources under two sanitizers: a hook's
+    // five seconds do not cover it on a loaded machine.
+  }, 120_000);
 
   afterAll(() => {
     hub?.stop();

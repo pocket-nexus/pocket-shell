@@ -10,11 +10,11 @@
 import { resolve } from "node:path";
 import { $ } from "bun";
 import { passThrough } from "../../../scripts/run.ts";
-import { isShellApp, LAUNCHER, writePlan } from "./apps.ts";
+import { takeApp, writePlan } from "./apps.ts";
 import { DIST_3DS, LINK_TOOL, ROOT } from "./paths.ts";
 
 const args = process.argv.slice(2);
-const app = isShellApp(args[0]) ? args.shift()! : LAUNCHER;
+const app = takeApp("push", args);
 const { output } = writePlan(app);
 
 await passThrough($`bun ${resolve(import.meta.dir, "3ds.ts")} ${app} --pocket-only`.cwd(ROOT));

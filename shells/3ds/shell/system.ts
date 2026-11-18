@@ -39,7 +39,7 @@ import {
   type WifiStatus,
 } from "../../../runtime/src/wifi.ts";
 import { DEFAULT_OFFSET } from "./clock.ts";
-import { toAscii } from "../ui/text.ts";
+import { toAscii } from "../../../ui/text.ts";
 
 const POLL_FRAMES = 30;
 /** While something is changing (a connection, a pairing), poll faster. */

@@ -32,7 +32,7 @@ beforeAll(() => {
     join(FIXTURES, "3ds-fs.c"), join(SRC, "fs.c"), join(SRC, "jscan.c"), "-o", binary,
   ]);
   expect(compile.exitCode, compile.stderr.toString()).toBe(0);
-});
+}, 120_000);
 
 afterAll(() => {
   if (scratch) rmSync(scratch, { recursive: true, force: true });

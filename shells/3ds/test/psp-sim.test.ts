@@ -3,24 +3,30 @@
 // full screen (test/psp.ts): 480x272, no auxiliary surface, no touch, the
 // link over the USB share. The build is Pocket Shell plus every applet of
 // pocket-nexus/applets that resolves for the psp host contract
-// (scripts/psp.ts). At this PocketJS none does: an applet with a network
-// fetches through a worker, which the PSP host does not run, and one without
-// the full-screen presentation needs touch. So the launcher is all there is
-// to drive. The tests read every page by buttons alone, through the button
-// legend along the bottom (ui/legend.tsx).
+// (scripts/psp.ts), when a checkout of it is at hand (scripts/apps.ts). At
+// this PocketJS none does: an applet with a network fetches through a worker,
+// which the PSP host does not run, and one without the full-screen
+// presentation needs touch. So the launcher is all there is to drive. The
+// tests read every page by buttons alone, through the button legend along
+// the bottom (ui/legend.tsx).
 //
 // POCKET_PSP_SHOTS=<dir> also writes the screens as PNGs.
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { BTN } from "../../../vendor/pocketjs/contracts/spec/spec.ts";
 import { appContract, LAUNCHER } from "../scripts/apps.ts";
-import { pspApps } from "../scripts/psp.ts";
+import { pspApps, resolvePspContract } from "../scripts/psp.ts";
 import { bootPsp, buildPspGuest, PSP, pspShot, USB_LINK } from "./psp.ts";
 
 const OUT = mkdtempSync(join(tmpdir(), "pocket-psp-"));
+/** An applet in this repository (runtime/test/fixtures/applets): it declares
+ *  a worker and no full-screen presentation. */
+const FIXTURE_APPLET = resolve(import.meta.dir, "../../../runtime/test/fixtures/applets/feed/pocket.app.json");
+const NO_WORKER = "does not provide runtime.worker, which the worker declaration requires";
+const NO_TOUCH = "does not provide input.touch.auxiliary";
 let GUEST = "";
 const GLOBALS = ["ui", "__pak", "__simHz", "frame", "link", "wifi", "camera", "net", "agent", "fs", "__pocketApp"] as const;
 const saved = new Map(GLOBALS.map((key) => [key, (globalThis as Record<string, unknown>)[key]]));
@@ -41,11 +47,16 @@ describe("the PSP build", () => {
   test("carries the launcher; the resolver leaves out what the PSP cannot run", () => {
     const { apps, left } = pspApps();
     expect(apps).toEqual([LAUNCHER]);
-    expect(left.length).toBeGreaterThan(0);
+    // The fixture applet is left out for both reasons.
+    const fixture = resolvePspContract(FIXTURE_APPLET);
+    expect("reasons" in fixture ? fixture.reasons : "resolved").toContain(NO_WORKER);
+    expect("reasons" in fixture ? fixture.reasons : "resolved").toContain(NO_TOUCH);
+    // So is every applet of a pocket-nexus/applets checkout: `left` holds
+    // them all, and none without a checkout.
     for (const { app, reasons } of left) {
       const contract = JSON.parse(readFileSync(appContract(app), "utf8"));
-      if (contract.domains?.worker) expect([app, reasons]).toEqual([app, expect.stringContaining("does not provide runtime.worker, which the worker declaration requires")]);
-      if (!contract.app.presentations) expect([app, reasons]).toEqual([app, expect.stringContaining("does not provide input.touch.auxiliary")]);
+      if (contract.domains?.worker) expect([app, reasons]).toEqual([app, expect.stringContaining(NO_WORKER)]);
+      if (!contract.app.presentations) expect([app, reasons]).toEqual([app, expect.stringContaining(NO_TOUCH)]);
     }
   });
 

@@ -4,8 +4,14 @@ import { ROOT, VENDOR } from "../../../scripts/paths.ts";
 
 export { ROOT, VENDOR };
 export const PROJECT_ROOT = resolve(import.meta.dir, "..");
-/** pocket-nexus/applets: the applets' own project root. */
-export const APPLETS_ROOT = resolve(ROOT, "vendor/applets");
+/** Where the applets checkout is looked for when POCKET_APPLETS_ROOT names
+ *  none: `applets` beside this repository. */
+export const APPLETS_ROOT_DEFAULT = "../applets";
+/** pocket-nexus/applets, the applets' own project root: a checkout outside
+ *  this repository. POCKET_APPLETS_ROOT names it, relative to this
+ *  repository's root (as POCKET_M5_ROOT is, scripts/tab5.ts). The launcher
+ *  builds without one (scripts/apps.ts). */
+export const APPLETS_ROOT = resolve(ROOT, process.env.POCKET_APPLETS_ROOT || APPLETS_ROOT_DEFAULT);
 // Console outputs stay at the repository root.
 export const DIST_3DS = resolve(ROOT, "dist/3ds");
 /** This repository's CLI: `check` and `compile` of an app contract (cli/README.md). */

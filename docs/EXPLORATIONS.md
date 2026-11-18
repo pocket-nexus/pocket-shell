@@ -120,8 +120,10 @@ models. The repaint display without a compositor needed its own animation
 class, so the launcher keeps two sets of transitions and the pinstripes tile a
 texture the PPA copies; both are in PocketJS now.
 
-Since then the applets, `ui/`, `kit/` and `lib/` have moved to
-pocket-nexus/applets (`vendor/applets` here), which Omarchy Pocket builds as
-well. The Tab5 firmware is in this repository (`devices/m5stack`, imported
-from pocket-m5) and compiles the launcher from `shells/3ds/shell`. The
-scripts here still build the 3DS and the Tab5 variants from those sources.
+Since then the applets, `kit/` and `lib/` have moved to
+pocket-nexus/applets, which Omarchy Pocket builds as well. `ui/` moved with
+them and was imported from there into this repository's root at `4660dfe`;
+the applets build against it. The Tab5 firmware is in this repository (`devices/m5stack`,
+imported from pocket-m5) and compiles the launcher from `shells/3ds/shell`.
+The scripts here build the 3DS and the Tab5 variants of the applets from a
+checkout of pocket-nexus/applets (`POCKET_APPLETS_ROOT`).

@@ -13,12 +13,12 @@ import type { WifiNetwork } from "../../../runtime/src/wifi.ts";
 import { offsetText, TIME_ZONES } from "./clock.ts";
 import { displayApi } from "./display.ts";
 import { LINK_PAIRING, LINK_STATE, linkOffers, sizeText, type ShellApp, type ShellSystem } from "./system.ts";
-import { appTint, Tile, type IconArt } from "../ui/icons.tsx";
-import type { LayerContext, NavStack, PageSpec } from "../ui/nav.tsx";
-import { SCREEN_H, SCREEN_W, appletSurfaceId } from "../ui/screen.ts";
-import { tableContent, type Cell, type Section } from "../ui/table.tsx";
-import type { Press } from "../ui/touch.ts";
-import { legendWhileTyping } from "../ui/legend.tsx";
+import { appTint, Tile, type IconArt } from "../../../ui/icons.tsx";
+import type { LayerContext, NavStack, PageSpec } from "../../../ui/nav.tsx";
+import { SCREEN_H, SCREEN_W, appletSurfaceId } from "../../../ui/screen.ts";
+import { tableContent, type Cell, type Section } from "../../../ui/table.tsx";
+import type { Press } from "../../../ui/touch.ts";
+import { legendWhileTyping } from "../../../ui/legend.tsx";
 import { version } from "./pocket.app.json";
 
 /** The launcher's app contract names the repository's version, which

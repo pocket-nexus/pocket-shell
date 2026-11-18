@@ -33,6 +33,7 @@
     "runtime",
     "link",
     "devices/3ds",
-    "devices/services"
+    "devices/services",
+    "ui"
   ]
 }

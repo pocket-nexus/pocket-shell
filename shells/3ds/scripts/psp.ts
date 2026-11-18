@@ -4,12 +4,12 @@
 // contract resolves for the PSP's full screen (the applet full-screen
 // presentation, runtime/spec/applet.ts).
 //
-// The apps are the launcher and the applets of pocket-nexus/applets
-// (scripts/apps.ts), each from its own project root. Each resolves against
-// PocketJS's psp host contract (hosts/psp/pocket.host.json, which
-// programs/psp/pocket.host.config.ts names), compiles with this repository's
-// CLI (cli/pocket-shell.ts compile) into dist/psp/packages/<output>.pocket
-// and must be admitted by that contract,
+// The apps are the launcher and, when a checkout of pocket-nexus/applets is
+// at hand, its applets (scripts/apps.ts), each from its own project root.
+// Each resolves against PocketJS's psp host contract
+// (hosts/psp/pocket.host.json, which programs/psp/pocket.host.config.ts
+// names), compiles with this repository's CLI (cli/pocket-shell.ts compile)
+// into dist/psp/packages/<output>.pocket and must be admitted by that contract,
 // the check the EBOOT build makes again. An app that does not resolve is left
 // out with the resolver's reasons: an applet with a network declares a worker
 // with an http node, which the PSP host does not run (it provides neither
@@ -39,12 +39,18 @@ export const PSP_PRX = resolve(VENDOR, "programs/psp/target/mipsel-sony-psp/rele
  *  its built-in hosts: the file alone is refused, its id being a command's. */
 const pspProfile = () => POCKET_PROFILES["psp"];
 
-/** `app`'s plan for the PSP, or the reasons it does not resolve. */
-export function resolvePsp(app: string): { plan: ResolvedBuildPlan } | { reasons: string } {
+/** The plan of the app contract at `contract` for the PSP, or the reasons
+ *  it does not resolve. */
+export function resolvePspContract(contract: string): { plan: ResolvedBuildPlan } | { reasons: string } {
   const profile = pspProfile();
-  const resolution = validateAndResolveBuildPlan(readPocketManifest(appContract(app)).manifest, { target: profile.id }, profileRegistry(profile));
+  const resolution = validateAndResolveBuildPlan(readPocketManifest(contract).manifest, { target: profile.id }, profileRegistry(profile));
   if (!resolution.ok) return { reasons: resolution.diagnostics.map((item) => `${item.path || "/"}: ${item.message}`).join("; ") };
   return { plan: resolution.plan };
+}
+
+/** `app`'s plan for the PSP, or the reasons it does not resolve. */
+export function resolvePsp(app: string): { plan: ResolvedBuildPlan } | { reasons: string } {
+  return resolvePspContract(appContract(app));
 }
 
 /** The apps the PSP build carries: the launcher first, then every applet
