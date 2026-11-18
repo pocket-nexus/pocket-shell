@@ -1,9 +1,10 @@
 name: M5Stack firmware
 
 # Host checks and the Tab5 firmware build of devices/m5stack. The firmware
-# compiles the launcher from shells/3ds and the runtime from vendor/pocketjs,
-# so a change to either builds it again. This workflow publishes no release:
-# the packaged firmware is a workflow artifact.
+# compiles the launcher from shells/3ds, the host services from
+# devices/services and the runtime from vendor/pocketjs, so a change to any
+# of them builds it again. This workflow publishes no release: the packaged
+# firmware is a workflow artifact.
 on:
   pull_request:
     paths:
@@ -13,6 +14,7 @@ on:
       - 'package.json'
       - 'scripts/**'
       - 'devices/m5stack/**'
+      - 'devices/services/**'
       - 'shells/3ds/**'
       - 'vendor/**'
   push:
@@ -24,6 +26,7 @@ on:
       - 'package.json'
       - 'scripts/**'
       - 'devices/m5stack/**'
+      - 'devices/services/**'
       - 'shells/3ds/**'
       - 'vendor/**'
   workflow_dispatch: {}

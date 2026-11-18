@@ -31,6 +31,31 @@ jobs:
       - run: bun run check
       - run: bun run desktop test:rust
 
+  devices:
+    name: Device programs' host tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+      # 3ds-composition.test.ts builds devices/3ds/core with the stable
+      # compiler PocketJS pins.
+      - name: Read the runtime's pinned Rust toolchain
+        id: rust-pin
+        run: echo "version=$(sed -n 's/^channel = "\(.*\)"/\1/p' vendor/pocketjs/rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ steps.rust-pin.outputs.version }}
+      # camera-photo.test.ts links the computer's libjpeg.
+      - name: Install native test dependencies
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libjpeg-turbo8-dev pkg-config
+      - run: bun run setup
+      - run: bun run check:devices
+
   linux-web:
     name: Browser preview and site
     runs-on: ubuntu-24.04
