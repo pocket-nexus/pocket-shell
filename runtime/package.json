@@ -1,0 +1,20 @@
+{
+  "name": "@pocket-shell/runtime",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-or-later",
+  "description": "The Pocket Runtime's TypeScript layer: the Applet surface, Pocket Link, the system agent, Wi-Fi, device and camera modules, their contracts and the 3DS console simulator",
+  "exports": {
+    "./applet": "./src/applet.tsx",
+    "./link": "./src/link.ts",
+    "./channel": "./src/channel.ts",
+    "./launcher": "./src/launcher.ts",
+    "./system": "./src/system.ts",
+    "./agent": "./src/agent.ts",
+    "./wifi": "./src/wifi.ts",
+    "./device": "./src/device.ts",
+    "./camera": "./src/camera.ts",
+    "./spec/*": "./spec/*.ts",
+    "./sim/*": "./sim/*.ts"
+  }
+}

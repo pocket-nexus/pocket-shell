@@ -28,6 +28,7 @@
     }
   },
   "include": [
-    "scripts"
+    "scripts",
+    "runtime"
   ]
 }
