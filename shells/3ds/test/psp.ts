@@ -9,7 +9,7 @@
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { decodePocketPackage, findSection, findVariant, POCKET_SECTION } from "../../../vendor/pocketjs/contracts/spec/pocket-package.ts";
+import { decodePocketPackage, findSection, findVariant, POCKET_SECTION } from "../../../runtime/spec/pocket-package.ts";
 import { bootConsole3ds, type Console3ds, type Console3dsOptions } from "../../../runtime/sim/console-3ds.ts";
 import { encodePNG } from "../../../vendor/pocketjs/tools/png.ts";
 import { buildPspPackage } from "../scripts/psp.ts";

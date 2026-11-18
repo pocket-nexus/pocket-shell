@@ -94,7 +94,8 @@ archive is passed with `POCKET_RUNTIME_ARCHIVE`.
 (`devices/*`); its one dependency is `clang-format-node`. `bun run setup` at
 the repository root installs PocketJS's dependencies in `vendor/pocketjs`
 and links `@pocketjs/framework` and `solid-js` into the root `node_modules`
-(`scripts/setup.ts`). `tools/pocket` runs the CLI of `vendor/pocketjs`; the
-CMake helpers call it through `POCKETJS_CLI`. The apps under `apps/` and
-Pocket Shell compile with that CLI, and their imports resolve to the root's
-`node_modules`.
+(`scripts/setup.ts`). `tools/pocket` runs the repository's CLI
+(`cli/pocket-shell.ts`, which passes `host export` to the CLI of
+`vendor/pocketjs`); the CMake helpers call it through `POCKETJS_CLI`. The apps
+under `apps/` and Pocket Shell compile with that CLI, and their imports
+resolve to the root's `node_modules`.

@@ -9,8 +9,8 @@ import {
   definePlatformContractRegistry,
   defineTargetRegistry,
 } from "../../../vendor/pocketjs/contracts/spec/platforms.ts";
-import type { ResolvedBuildPlan } from "../../../vendor/pocketjs/framework/src/manifest/plan.ts";
-import { validateAndResolveBuildPlan } from "../../../vendor/pocketjs/framework/src/manifest/resolve.ts";
+import type { ResolvedBuildPlan } from "../../../runtime/manifest/plan.ts";
+import { validateAndResolveBuildPlan } from "../../../runtime/manifest/resolve.ts";
 import { readPocketProfile } from "../../../vendor/pocketjs/framework/src/profile.ts";
 import { targetProfile } from "../../../vendor/pocketjs/hosts/contract.ts";
 

@@ -76,8 +76,12 @@ devices/
   3ds/       the Nintendo 3DS host program (C, a Rust archive, its Makefile and build), host contract, tests
   services/  portable C host services both device programs compile: the Pocket Link 2 client, launcher, fs, JSON, SHA-256, photo images, quirc
   m5stack/   M5Stack Tab5 firmware (ESP-IDF): programs, platforms, apps, tools, tests, docs
+cli/         pocket-shell.ts: check an app contract and compile it into a .pocket package; other commands go to PocketJS's CLI
 runtime/
-  spec/      contracts: Pocket Link 1 and 2, applet, agent, owner setup, Wi-Fi, device, camera
+  spec/      contracts: the app contract, the .pocket package and its admission, Pocket Link 1 and 2, applet, agent, owner setup, Wi-Fi, device, camera
+  manifest/  the app contract's loader, validation and resolution into a build plan; host build inputs
+  package/   a package variant's sections, bytecode sections, package tools, the applet check
+  schema/    pocket-2.json, the app contract's JSON schema, and its generator
   src/       guest modules: applet surface, link, channel, launcher, system sheet, agent, Wi-Fi, device, camera
   sim/       the 3DS console simulator and its link, Wi-Fi, camera and agent fakes
   test/      tests of the modules above
@@ -86,15 +90,15 @@ link/
   *.ts       fetch.ts, the Hub's destination policy; 3ds-dev.ts, the 3DS development tool
   vectors/   Pocket Link 2 conformance vectors
   test/      tests of the reference implementation
-docs/        POCKET-LINK.md, APPLETS.md, POCKET-AGENT.md; asset policy; explorations
+docs/        APP-CONTRACT.md, POCKET-PACKAGE.md, POCKET-LINK.md, APPLETS.md, POCKET-AGENT.md; asset policy; explorations
 scripts/     setup, desktop command dispatch, repository paths and process helpers
 vendor/
-  pocketjs/  PocketJS submodule: the UI framework, the build toolchain, the engine crates, the 3DS platform and PICA renderer
+  pocketjs/  PocketJS submodule: the UI framework, the compiler and host contracts, the engine crates, the 3DS platform and PICA renderer
   applets/   pocket-nexus/applets: the applets, ui, kit and lib (submodule)
 ```
 
 The three shells have separate Bun packages and TypeScript configurations;
-the root configuration type-checks `scripts`, `runtime`, `link` and the
+the root configuration type-checks `scripts`, `cli`, `runtime`, `link` and the
 TypeScript of `devices/3ds` and `devices/services`.
 `devices/m5stack` is a fourth Bun package in the same workspace; its C
 sources build with ESP-IDF. `devices/3ds` and `devices/services` are not Bun
@@ -148,6 +152,8 @@ bun run touch guest
 bun run touch deploy             # portrait gesture shell on the connected iPod
 bun run check:m5stack            # Tab5 firmware: clang-format check and host tests (needs a C compiler)
 bun run m5stack app build apps/unit-swap/pocket.app.json   # compile one of the firmware's own apps
+bun run pocket-shell check --manifest shells/3ds/shell/pocket.app.json --project-root shells/3ds --target devices/3ds/pocket.host.json
+                                 # resolve and type-check one app contract against a host contract; `compile` writes its .pocket
 ```
 
 PocketJS is pinned through `vendor/pocketjs` and the applets through
@@ -166,6 +172,17 @@ they were imported from PocketJS at `806ac202`, and the `.3dsx` and the Tab5
 firmware build from these copies. The 3DS build reads the platform
 (`platforms/3ds`), the PICA renderer, the QuickJS facade and the engine
 crates from `vendor/pocketjs`.
+
+The [app contract](docs/APP-CONTRACT.md) (`pocket.app.json`: its schema,
+loader and resolver), the [`.pocket` package format](docs/POCKET-PACKAGE.md)
+with its admission rules, the applet check and the [CLI](cli/README.md) that
+compiles an application into a package are in `runtime/` and `cli/`. They
+were imported from PocketJS at `806ac202`, and PocketJS keeps its own copies
+until it removes them. The 3DS, Tab5 and PSP packages and the Tab5 firmware
+build from the copies here; `shells/desktop` and `shells/touch` call
+PocketJS's. PocketJS supplies the host contracts and the compiler: the CLI
+writes the resolved build plan to a file, and `vendor/pocketjs/tools/build.ts
+--plan=<file>` turns it into the JavaScript bundle and the asset pack.
 
 ## Releases
 

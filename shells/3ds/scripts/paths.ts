@@ -8,6 +8,8 @@ export const PROJECT_ROOT = resolve(import.meta.dir, "..");
 export const APPLETS_ROOT = resolve(ROOT, "vendor/applets");
 // Console outputs stay at the repository root.
 export const DIST_3DS = resolve(ROOT, "dist/3ds");
+/** This repository's CLI: `check` and `compile` of an app contract (cli/README.md). */
+export const POCKET_SHELL_CLI = resolve(ROOT, "cli/pocket-shell.ts");
 /** The reference Pocket Link 2 Hub's command line with the 3DS steps. */
 export const LINK_TOOL = resolve(ROOT, "link/3ds-dev.ts");
 export const PLAN_DIR = resolve(ROOT, ".pocket/plans/3ds");

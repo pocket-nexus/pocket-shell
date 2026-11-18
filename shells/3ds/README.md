@@ -28,7 +28,7 @@ the section `applet` and meets the applet rules
 ([APPLETS.md](../../docs/APPLETS.md)): one touch surface
 that admits 320×240, the agent enhanced, an allowlist of capabilities, the
 companion services it reaches declared (`applet.services`), no native code
-and no code evaluation, bundle and pak budgets. The PocketJS build refuses an
+and no code evaluation, bundle and pak budgets. The build refuses an
 applet that breaks a rule. The launcher is an app, not an applet: it pairs,
 installs and switches, which applets cannot.
 
@@ -162,9 +162,9 @@ the firmware releases up to `v0.1.4` are pocket-m5's.
 
 - `bun run tab5 [app…]` compiles each app against the Tab5 host config
   into `dist/tab5/<output>.pocket` and refuses a package the host contract
-  does not admit. The check is PocketJS's admission
-  (`contracts/spec/admission.ts`), the rules the firmware applies when it
-  opens a package: the binding generation, raster density, animation class,
+  does not admit. The check is `runtime/spec/admission.ts`, the rules the
+  firmware applies when it opens a package: the binding generation, raster
+  density, animation class,
   viewport, presentation and auxiliary surface match, the tick rate is a
   whole multiple of a host cadence (an applet's 60 Hz runs two core ticks
   per 30 Hz frame on the Tab5), and every enabled feature is a host

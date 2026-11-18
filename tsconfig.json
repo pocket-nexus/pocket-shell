@@ -29,6 +29,7 @@
   },
   "include": [
     "scripts",
+    "cli",
     "runtime",
     "link",
     "devices/3ds",

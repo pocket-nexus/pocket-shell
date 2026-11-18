@@ -10,7 +10,7 @@
 
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { readPocketManifest } from "../../../vendor/pocketjs/framework/src/manifest/load.ts";
+import { readPocketManifest } from "../../../runtime/manifest/load.ts";
 import { resolve3dsBuildPlan } from "../../../devices/3ds/tools/profile.ts";
 // the applets built for some devices only, as pocket-nexus/applets names them
 import { ONLY } from "../../../vendor/applets/tools/apps.ts";

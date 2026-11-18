@@ -6,6 +6,7 @@ on:
       - '.github/workflows/*3ds.yml'
       - '.bun-version'
       - 'scripts/**'
+      - 'runtime/**'
       - 'shells/3ds/**'
       - 'devices/3ds/**'
       - 'devices/services/**'

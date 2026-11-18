@@ -155,9 +155,9 @@ cd devices/m5stack/programs/m5stack-tab5
 idf.py -p /dev/cu.usbmodem1201 build flash monitor
 ```
 
-Builds run the Pocket CLI through `tools/pocket` (`POCKETJS_CLI`) and, with
-`POCKETJS_RUST_FROM_SOURCE=ON` (the default here), need a Rust toolchain with
-the `riscv32imafc-unknown-none-elf` target. The image with Pocket Shell and
+Builds run the repository's CLI (`cli/pocket-shell.ts`) through `tools/pocket`
+(`POCKETJS_CLI`) and, with `POCKETJS_RUST_FROM_SOURCE=ON` (the default here),
+need a Rust toolchain with the `riscv32imafc-unknown-none-elf` target. The image with Pocket Shell and
 the four bundled apps is 7.5 MiB of the 8 MiB `factory` partition.
 `-DPOCKETJS_TAB5_BUNDLED_APPS=` builds without
 them. `partitions.csv` lays the 16 MiB flash out as `nvs`, `phy_init`, the
@@ -203,7 +203,7 @@ Shell scans (`components/pocket_system`, "Installs from a code"). An applet comp
 `--host-config programs/m5stack-tab5/pocket.host.config.ts` by a pocketjs at
 or after pocket-nexus/pocketjs#631 installs here. `bun run tab5` at the
 repository root and pocket-nexus/applets' `bun tools/build.ts tab5` compile against
-this host config and check each package with PocketJS's admission. A UI realm
-has no network module: an app reaches the network through its worker's
+this host config and check each package with the admission rules the firmware
+applies. A UI realm has no network module: an app reaches the network through its worker's
 `io.http`, and one that imports `@pocketjs/framework/net`, removed from
 pocketjs, does not compile.

@@ -8,7 +8,7 @@
   "scripts": {
     "format": "bun tools/format.ts",
     "format:check": "bun tools/format.ts --check",
-    "pocket": "bun ../../vendor/pocketjs/tools/pocket.ts",
+    "pocket": "bun ../../cli/pocket-shell.ts",
     "app": "bun tools/app.ts",
     "test": "sh tools/test-worker-io.sh",
     "check": "bun run format:check && bun run test"

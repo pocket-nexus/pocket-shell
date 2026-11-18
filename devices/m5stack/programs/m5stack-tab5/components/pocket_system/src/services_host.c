@@ -228,7 +228,7 @@ static uint64_t le64(const uint8_t *p) {
 }
 
 /* A section of the admitted variant, the one whose hash (variant offset 24,
- * contracts/spec/pocket-package.ts) is facts->variant_hash: `kind` 8, the
+ * runtime/spec/pocket-package.ts) is facts->variant_hash: `kind` 8, the
  * NUL-terminated worker source, or 9, its bytecode envelope. */
 static bool variant_section(const uint8_t *bytes, size_t size,
                             const pocket_idf_package_facts *facts,

@@ -14,7 +14,7 @@ import { expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { POCKET_BINDING_GENERATION } from "../../../vendor/pocketjs/contracts/spec/binding-generation.ts";
-import { encodeIdentity, encodePocketPackage } from "../../../vendor/pocketjs/contracts/spec/pocket-package.ts";
+import { encodeIdentity, encodePocketPackage } from "../../../runtime/spec/pocket-package.ts";
 import { hashPocketProfile } from "../../../vendor/pocketjs/framework/src/profile.ts";
 import { STABLE_RUST_TOOLCHAIN } from "../../../vendor/pocketjs/tools/build/toolchains/rust.ts";
 import { THREE_DS_PROFILE } from "../tools/profile.ts";
