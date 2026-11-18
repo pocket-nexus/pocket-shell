@@ -74,8 +74,8 @@ endpoint (§12).
 
 ### What version 2 retires
 
-Pocket Link 1 (`runtime/spec/link.ts`, `link/protocol.ts`,
-PocketJS `engine/host-services/link.c`, and Pocket Hub's version 1 endpoint):
+Pocket Link 1 (`runtime/spec/link.ts`, PocketJS `tools/pocket-link/protocol.ts`
+and `engine/host-services/link.c`, and Pocket Hub's version 1 endpoint):
 
 | Version 1 | Version 2 |
 | --- | --- |
