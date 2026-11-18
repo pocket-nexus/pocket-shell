@@ -1,7 +1,7 @@
 // Formats C and C++ sources with the clang-format pinned in package.json.
 //   bun run format           rewrite files in place
 //   bun run format:check     exit 1 when any file differs
-// Tracked and untracked (non-ignored) files are included; third_party/ is not.
+// Tracked and untracked (non-ignored) files below devices/m5stack are included.
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 
@@ -10,7 +10,7 @@ const check = process.argv.includes("--check");
 const listed = spawnSync(
   "git",
   ["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--",
-    "*.c", "*.h", "*.cc", "*.cpp", "*.hpp", ":!:third_party/**"],
+    "*.c", "*.h", "*.cc", "*.cpp", "*.hpp"],
   { cwd: root, encoding: "utf8" },
 );
 if (listed.status !== 0) {

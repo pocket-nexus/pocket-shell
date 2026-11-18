@@ -21,9 +21,9 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { admissionHost, describeRejection, selectVariant } from "../third_party/pocketjs/contracts/spec/admission.ts";
-import { decodeIdentity, decodePocketPackage, POCKET_SECTION } from "../third_party/pocketjs/contracts/spec/pocket-package.ts";
-import { hashPocketProfile, readPocketProfile } from "../third_party/pocketjs/framework/src/profile.ts";
+import { admissionHost, describeRejection, selectVariant } from "../../../vendor/pocketjs/contracts/spec/admission.ts";
+import { decodeIdentity, decodePocketPackage, POCKET_SECTION } from "../../../vendor/pocketjs/contracts/spec/pocket-package.ts";
+import { hashPocketProfile, readPocketProfile } from "../../../vendor/pocketjs/framework/src/profile.ts";
 
 const root = resolve(import.meta.dir, "..");
 const program = join(root, "programs", "m5stack-tab5");

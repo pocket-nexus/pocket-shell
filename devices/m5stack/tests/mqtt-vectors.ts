@@ -5,7 +5,7 @@
 import { writeFileSync } from "node:fs";
 import {
   encodeMqttDisconnect, encodeMqttOpen, encodeMqttPublish, encodeMqttSubscribe, encodeMqttUnsubscribe,
-} from "../third_party/pocketjs/framework/src/io/mqtt.ts";
+} from "../../../vendor/pocketjs/framework/src/io/mqtt.ts";
 
 const vectors: Record<string, Uint8Array> = {
   open_v311: encodeMqttOpen({

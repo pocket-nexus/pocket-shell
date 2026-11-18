@@ -6,7 +6,7 @@
 //   bun tools/tab5-demo-art.ts <M5Tab5-UserDemo checkout>
 import { readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { encodePNG } from "../third_party/pocketjs/tools/png.ts";
+import { encodePNG } from "../../../vendor/pocketjs/tools/png.ts";
 
 const IMAGES = [
   "sw_on", "sw_off", "sw_chg_on", "sw_chg_off", "sw_qc_on", "sw_qc_off", "sw_rf_h", "sw_rf_l",

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
 get_filename_component(m5_root "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
-set(pocketjs_components "${m5_root}/third_party/pocketjs/platforms/esp-idf")
+set(pocketjs_components "${m5_root}/../../vendor/pocketjs/platforms/esp-idf")
 list(APPEND EXTRA_COMPONENT_DIRS
     "${pocketjs_components}/pocket_runtime"
     "${pocketjs_components}/pocket_guest_quickjs"

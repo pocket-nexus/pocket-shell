@@ -46,7 +46,7 @@ const project = JSON.parse(readFileSync(join(build, "project_description.json"),
 const chip = flasher.extra_esptool_args.chip;
 const version = project.project_version;
 const name = `pocket-m5-tab5-${version}`;
-const pocketjs = run("git", ["-C", join(root, "third_party", "pocketjs"), "rev-parse", "--short=8", "HEAD"], root);
+const pocketjs = run("git", ["-C", resolve(root, "../../vendor/pocketjs"), "rev-parse", "--short=8", "HEAD"], root);
 
 rmSync(out, { recursive: true, force: true });
 const parts = join(out, name);

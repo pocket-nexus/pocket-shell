@@ -1,7 +1,8 @@
 #!/bin/sh
-# PocketJS CLI from the pinned third_party/pocketjs checkout. CMake helpers in
-# the pocket_runtime component invoke this script through POCKETJS_CLI.
+# PocketJS CLI from the repository's pinned vendor/pocketjs checkout. CMake
+# helpers in the pocket_runtime component invoke this script through
+# POCKETJS_CLI.
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-framework_root=${POCKETJS_ROOT:-"$root/third_party/pocketjs"}
+framework_root=${POCKETJS_ROOT:-"$root/../../vendor/pocketjs"}
 exec bun "$framework_root/tools/pocket.ts" "$@"

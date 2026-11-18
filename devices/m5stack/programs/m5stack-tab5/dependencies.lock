@@ -479,7 +479,7 @@ dependencies:
     - name: espressif/quickjs-ng
       version: 0.14.0
     source:
-      path: ../../third_party/pocketjs/platforms/esp-idf/pocket_guest_quickjs
+      path: ../../../../vendor/pocketjs/platforms/esp-idf/pocket_guest_quickjs
       type: local
     targets:
     - esp32p4
@@ -492,7 +492,7 @@ dependencies:
     - name: idf
       version: '>=6.0,<6.3'
     source:
-      path: ../../third_party/pocketjs/platforms/esp-idf/pocket_runtime
+      path: ../../../../vendor/pocketjs/platforms/esp-idf/pocket_runtime
       type: local
     targets:
     - esp32p4

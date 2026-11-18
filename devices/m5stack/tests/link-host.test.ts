@@ -19,11 +19,12 @@ import { createSocket } from "node:dgram";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { type HubDevice, LinkHub, MemoryStore, directoryStorage } from "../third_party/pocketjs/tools/pocket-link/v2/hub.ts";
-import { LinkError } from "../third_party/pocketjs/tools/pocket-link/v2/peer.ts";
+import { type HubDevice, LinkHub, MemoryStore, directoryStorage } from "../../../vendor/pocketjs/tools/pocket-link/v2/hub.ts";
+import { LinkError } from "../../../vendor/pocketjs/tools/pocket-link/v2/peer.ts";
 
 const ROOT = join(import.meta.dir, "..");
-const SHARED = join(ROOT, "third_party/pocketjs/engine/host-services");
+const POCKETJS = join(ROOT, "../../vendor/pocketjs");
+const SHARED = join(POCKETJS, "engine/host-services");
 const SYSTEM = join(ROOT, "programs/m5stack-tab5/components/pocket_system/src");
 
 const pause = (ms: number) => new Promise((done) => setTimeout(done, ms));
@@ -68,7 +69,7 @@ describe("the Tab5 on Pocket Link 2", () => {
       process.env.CC ?? "cc", "-std=gnu11", "-O1", "-g", "-Wall", "-Wextra", "-Werror",
       "-fsanitize=address,undefined", "-fno-sanitize-recover=undefined",
       `-I${SYSTEM}`, `-I${SHARED}`,
-      `-I${join(ROOT, "third_party/pocketjs/engine/worker/include")}`,
+      `-I${join(POCKETJS, "engine/worker/include")}`,
       `-I${join(ROOT, "platforms/esp-idf/pocket_http_esp/include")}`,
       join(ROOT, "tests/link-host.c"), join(SYSTEM, "link2_host.c"), join(SYSTEM, "companion.c"),
       ...["link2.c", "link2_bsd.c", "link2_guest.c", "link2_http.c", "link2_proto.c", "launcher.c", "jscan.c", "sha256.c"].map((file) => join(SHARED, file)),

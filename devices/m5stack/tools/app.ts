@@ -19,7 +19,7 @@ if (command !== "build" || !manifestArgument) usage();
 
 const hostConfig = option("--host-config") ? resolve(option("--host-config")!)
   : join(root, "programs", "m5stack-tab5", "pocket.host.config.ts");
-const frameworkRoot = process.env.POCKETJS_ROOT ?? join(root, "third_party", "pocketjs");
+const frameworkRoot = process.env.POCKETJS_ROOT ?? resolve(root, "../../vendor/pocketjs");
 if (!existsSync(hostConfig)) {
   console.error(`no host config: ${hostConfig}`);
   process.exit(2);

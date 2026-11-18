@@ -5,6 +5,6 @@ targets:
 dependencies:
   idf: ">=6.0,<6.3"
   pocket-nexus/pocket_runtime:
-    override_path: ../../../../third_party/pocketjs/platforms/esp-idf/pocket_runtime
+    override_path: ../../../../../../vendor/pocketjs/platforms/esp-idf/pocket_runtime
   pocket-nexus/pocket_guest_quickjs:
-    override_path: ../../../../third_party/pocketjs/platforms/esp-idf/pocket_guest_quickjs
+    override_path: ../../../../../../vendor/pocketjs/platforms/esp-idf/pocket_guest_quickjs

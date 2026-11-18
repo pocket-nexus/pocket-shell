@@ -25,11 +25,11 @@ idf_component_register(
 
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wall -Wextra -Werror)
 
-# The launcher is Pocket Shell, compiled from the third_party/pocket-shell
-# submodule (shells/3ds/shell, with the shared iOS 6 kit and icons of its
+# The launcher is Pocket Shell, compiled from this repository's shells/3ds
+# (shells/3ds/shell, with the shared iOS 6 kit and icons of the
 # vendor/applets submodule) against the host config pocket.host.config.ts.
 # A package the host contract admits replaces it.
-set(POCKETJS_TAB5_SHELL_PACKAGE "" CACHE FILEPATH "Launcher package to embed instead of third_party/pocket-shell")
+set(POCKETJS_TAB5_SHELL_PACKAGE "" CACHE FILEPATH "Launcher package to embed instead of shells/3ds/shell")
 if(POCKETJS_TAB5_SHELL_PACKAGE)
     pocketjs_embed_package(
         TARGET ${COMPONENT_LIB}
@@ -40,16 +40,16 @@ else()
     pocketjs_compile_app(
         TARGET ${COMPONENT_LIB}
         NAME app
-        MANIFEST "../../../third_party/pocket-shell/shells/3ds/shell/pocket.app.json"
-        PROJECT_ROOT "../../../third_party/pocket-shell/shells/3ds"
+        MANIFEST "../../../../../shells/3ds/shell/pocket.app.json"
+        PROJECT_ROOT "../../../../../shells/3ds"
         HOST_CONFIG "../pocket.host.config.ts")
 endif()
 
 # Local apps the firmware installs at boot (pocket_system's bundled
-# packages): each entry is an app directory below the repository root,
+# packages): each entry is an app directory below devices/m5stack,
 # compiled against the same host config as the launcher. tab5_bundled.c
 # lists them for main.c.
-set(POCKETJS_TAB5_BUNDLED_APPS "apps/tab5-demo;apps/unit-swap" CACHE STRING "App directories below the repository root to install at boot")
+set(POCKETJS_TAB5_BUNDLED_APPS "apps/tab5-demo;apps/unit-swap" CACHE STRING "App directories below devices/m5stack to install at boot")
 set(bundled_includes "")
 set(bundled_entries "")
 set(bundled_count 0)
@@ -71,8 +71,8 @@ foreach(app_dir IN LISTS POCKETJS_TAB5_BUNDLED_APPS)
 endforeach()
 # Prebuilt packages the firmware serves from flash beside the apps above:
 # each entry is a .pocket file compiled with this host config, such as an
-# applet that pocket-shell's `bun run tab5` builds from its vendor/applets
-# (the applets need a newer PocketJS than third_party/pocketjs compiles).
+# applet that `bun run tab5` at the repository root builds from
+# vendor/applets.
 set(POCKETJS_TAB5_BUNDLED_PACKAGES "" CACHE STRING "Prebuilt .pocket files to install at boot")
 foreach(package_file IN LISTS POCKETJS_TAB5_BUNDLED_PACKAGES)
     get_filename_component(package_leaf "${package_file}" NAME_WE)

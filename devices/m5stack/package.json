@@ -1,31 +1,19 @@
 {
-  "name": "pocket-m5",
+  "name": "@pocket-shell/m5stack",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "PocketJS firmware, board support and drivers for M5Stack devices",
   "license": "MIT",
-  "workspaces": [
-    "third_party/pocketjs"
-  ],
   "scripts": {
     "format": "bun tools/format.ts",
     "format:check": "bun tools/format.ts --check",
-    "pocket": "bun third_party/pocketjs/tools/pocket.ts",
-    "app": "bun tools/app.ts"
-  },
-  "dependencies": {
-    "@pocketjs/framework": "workspace:*",
-    "solid-js": "1.9.14"
+    "pocket": "bun ../../vendor/pocketjs/tools/pocket.ts",
+    "app": "bun tools/app.ts",
+    "test": "sh tools/test-worker-io.sh",
+    "check": "bun run format:check && bun run test"
   },
   "devDependencies": {
-    "@commitlint/cli": "21.2.4",
-    "@commitlint/config-conventional": "21.2.4",
-    "bun-types": "1.4.4",
-    "clang-format-node": "4.0.3",
-    "lefthook": "2.2.2"
-  },
-  "trustedDependencies": [
-    "lefthook"
-  ]
+    "clang-format-node": "4.0.3"
+  }
 }

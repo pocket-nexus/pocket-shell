@@ -1,5 +1,5 @@
 # quirc and the photo image code are shared with the 3DS product.
-set(shared "${CMAKE_CURRENT_LIST_DIR}/../../../../third_party/pocketjs/engine/host-services")
+set(shared "${CMAKE_CURRENT_LIST_DIR}/../../../../../../vendor/pocketjs/engine/host-services")
 
 idf_component_register(
     SRCS "src/camera.c"

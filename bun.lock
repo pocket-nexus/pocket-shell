@@ -8,6 +8,13 @@
         "wrangler": "4.125.0",
       },
     },
+    "devices/m5stack": {
+      "name": "@pocket-shell/m5stack",
+      "version": "0.1.0",
+      "devDependencies": {
+        "clang-format-node": "4.0.3",
+      },
+    },
     "shells/3ds": {
       "name": "@pocket-shell/3ds",
       "version": "0.2.0",
@@ -156,6 +163,8 @@
 
     "@pocket-shell/desktop": ["@pocket-shell/desktop@workspace:shells/desktop"],
 
+    "@pocket-shell/m5stack": ["@pocket-shell/m5stack@workspace:devices/m5stack"],
+
     "@pocket-shell/touch": ["@pocket-shell/touch@workspace:shells/touch"],
 
     "@poppinss/colors": ["@poppinss/colors@4.1.6", "", { "dependencies": { "kleur": "^4.1.5" } }, "sha512-H9xkIdFswbS8n1d6vmRd8+c10t2Qe+rZITbbDHHkQixH5+2x1FDGmi/0K+WgWiqQFKPSlIYB7jlH6Kpfn6Fleg=="],
@@ -169,6 +178,8 @@
     "@speed-highlight/core": ["@speed-highlight/core@1.2.24", "", {}, "sha512-qeW2e1l78afw8VhRPfPQ1Gjj+KU5XFQ/OFV5ti6eTa9bruO7mJyZtA4vw0ofqmA3tKCkROE9xLk3VZoeRc98nw=="],
 
     "blake3-wasm": ["blake3-wasm@2.1.5", "", {}, "sha512-F1+K8EbfOZE49dtoPtmxUQrpXaBIl3ICvasLh+nJta0xkz+9kF/7uet9fLnwKqhDrmj6g+6K3Tw9yQPUg2ka5g=="],
+
+    "clang-format-node": ["clang-format-node@4.0.3", "", { "bin": { "clang-format": "build/cli.js", "clang-format-node": "build/cli.js" } }, "sha512-QJtAWw/BkjcucheaOwHbOa+odN20MOIHTnum5ibIBBnnolKFUf6r8qIs5cSGxj79/QTrTggYLEzNNlXVSzTrLw=="],
 
     "cookie": ["cookie@1.1.1", "", {}, "sha512-ei8Aos7ja0weRpFzJnEA9UHJ/7XQmqglbRwnf2ATjcB9Wq874VKH9kfjjirM6UhU2/E5fFYadylyhFldcqSidQ=="],
 
