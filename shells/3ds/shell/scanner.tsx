@@ -19,8 +19,8 @@
 import { createSignal, onCleanup, Show, type Accessor } from "solid-js";
 import { Image, Text, View } from "@pocketjs/framework/components";
 import { after } from "@pocketjs/framework/clock";
-import { closeCamera, openCamera, pollQrCode } from "../../../runtime/src/camera.ts";
-import { isPairingUri } from "../../../runtime/src/link.ts";
+import { closeCamera, openCamera, pollQrCode } from "@pocket-shell/runtime/camera";
+import { isPairingUri } from "@pocket-shell/runtime/link";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 import { registerTexture } from "@pocketjs/framework/renderer";
 import { ClassicSpinner } from "@pocketjs/framework/classic";

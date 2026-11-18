@@ -7,7 +7,7 @@
 import { createMemo, createSignal, Match, Show, Switch } from "solid-js";
 import { animate, jump } from "@pocketjs/framework/animation";
 import { AuxiliarySurface, View } from "@pocketjs/framework/components";
-import { setBrightness, setSwitch, setVolume } from "@pocketjs/framework/device";
+import { setBrightness, setSwitch, setVolume } from "@pocket-shell/runtime/device";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 import { mount } from "@pocketjs/framework/solid";
 import type { NodeMirror } from "@pocketjs/framework/renderer";

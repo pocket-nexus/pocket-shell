@@ -17,7 +17,10 @@ import {
   APPLET_GATED_MODULES,
   APPLET_MODULES,
   APPLET_PACKAGES,
+  APPLET_RUNTIME_GATED_MODULES,
+  APPLET_RUNTIME_MODULES,
   APPLET_SYSTEM_LINK_EXPORTS,
+  RUNTIME_GUEST_MODULES,
   appletManifestDiagnostics,
   capabilityMatches,
   type AppletDeclaration,
@@ -50,6 +53,59 @@ function resolveModule(from: string, specifier: string): string | null {
     if (existsSync(path) && statSync(path).isFile()) return path;
   }
   return null;
+}
+
+/** Whether `module` is on `allowed`, or on `gated` with a capability of
+ *  `capabilities` that opens it. */
+function moduleAllowed(
+  module: string,
+  allowed: readonly string[],
+  gated: Readonly<Record<string, readonly string[]>>,
+  capabilities: readonly string[],
+): boolean {
+  const gate = gated[module];
+  return allowed.includes(module) || (gate !== undefined && capabilities.some((id) => gate.some((pattern) => capabilityMatches(id, pattern))));
+}
+
+/** Why the applet may not import `@pocket-shell/runtime/<module>`, or null
+ *  when it may. */
+function runtimeModuleRefusal(module: string, capabilities: readonly string[]): string | null {
+  if (moduleAllowed(module, APPLET_RUNTIME_MODULES, APPLET_RUNTIME_GATED_MODULES, capabilities)) return null;
+  const gate = APPLET_RUNTIME_GATED_MODULES[module];
+  return gate ? `needs the ${gate.join(" or ")} capability` : "is not available to applets";
+}
+
+/** The diagnostic for a bare import of `specifier` in the module at `at`, or
+ *  null when the applet may import it. */
+function bareImportDiagnostic(specifier: string, at: string, capabilities: readonly string[]): ContractDiagnostic | null {
+  const framework = specifier.match(/^@pocketjs\/framework(?:\/(.+))?$/);
+  if (framework) {
+    const module = framework[1] ?? "solid";
+    // PocketJS published the Runtime's guest modules under its own name
+    // until it removed them; they are Pocket Shell's now.
+    if ((RUNTIME_GUEST_MODULES as readonly string[]).includes(module)) {
+      const refusal = runtimeModuleRefusal(module, capabilities);
+      return {
+        code: "applet.module",
+        path: at,
+        message: `${specifier} moved to @pocket-shell/runtime/${module}${refusal ? `, which ${refusal}` : ""}`,
+      };
+    }
+    if (moduleAllowed(module, APPLET_MODULES, APPLET_GATED_MODULES, capabilities)) return null;
+    const gate = APPLET_GATED_MODULES[module];
+    return {
+      code: "applet.module",
+      path: at,
+      message: gate ? `${specifier} needs the ${gate.join(" or ")} capability` : `${specifier} is not available to applets`,
+    };
+  }
+  const runtime = specifier.match(/^@pocket-shell\/runtime\/(.+)$/);
+  if (runtime) {
+    const refusal = runtimeModuleRefusal(runtime[1]!, capabilities);
+    return refusal ? { code: "applet.module", path: at, message: `${specifier} ${refusal}` } : null;
+  }
+  if ((APPLET_PACKAGES as readonly string[]).includes(specifier)) return null;
+  return { code: "applet.package", path: at, message: `${specifier}: an applet imports PocketJS, the Pocket Shell runtime and Solid only` };
 }
 
 /** The modules an applet ships, from its entry, with their code. */
@@ -91,26 +147,8 @@ function moduleGraph(input: AppletSourceInput, out: ContractDiagnostic[]): Map<s
         }
         continue;
       }
-      const framework = specifier.match(/^@pocketjs\/framework(?:\/(.+))?$/);
-      if (framework) {
-        const module = framework[1] ?? "solid";
-        const gate = APPLET_GATED_MODULES[module];
-        const allowed = (APPLET_MODULES as readonly string[]).includes(module) ||
-          (gate !== undefined && input.capabilities.some((id) => gate.some((pattern) => capabilityMatches(id, pattern))));
-        if (!allowed) {
-          out.push({
-            code: "applet.module",
-            path: show(path),
-            message: gate
-              ? `@pocketjs/framework/${module} needs the ${gate.join(" or ")} capability`
-              : `@pocketjs/framework/${module} is not available to applets`,
-          });
-        }
-        continue;
-      }
-      if (!(APPLET_PACKAGES as readonly string[]).includes(specifier)) {
-        out.push({ code: "applet.package", path: show(path), message: `${specifier}: an applet imports PocketJS and Solid only` });
-      }
+      const diagnostic = bareImportDiagnostic(specifier, show(path), input.capabilities);
+      if (diagnostic) out.push(diagnostic);
     }
   }
   return modules;
@@ -128,7 +166,7 @@ export function checkAppletSources(input: AppletSourceInput): ContractDiagnostic
     if (/\bnew\s+Function\s*\(|(?<![.\w$])Function\s*\(/.test(code)) {
       out.push({ code: "applet.eval", path: at, message: "Function constructor: an applet evaluates no code" });
     }
-    for (const match of code.matchAll(/import\s*\{([^}]*)\}\s*from\s*["']@pocketjs\/framework\/link["']/g)) {
+    for (const match of code.matchAll(/import\s*\{([^}]*)\}\s*from\s*["']@pocket-shell\/runtime\/link["']/g)) {
       for (const name of match[1]!.split(",").map((part) => part.trim().split(/\s+as\s+/)[0]!)) {
         if ((APPLET_SYSTEM_LINK_EXPORTS as readonly string[]).includes(name)) {
           out.push({ code: "applet.system", path: at, message: `${name} acts for the launcher, not an applet` });

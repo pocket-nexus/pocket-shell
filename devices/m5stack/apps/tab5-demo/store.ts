@@ -2,9 +2,9 @@
 // records, the board's device status and the radio's status, read once per
 // frame or every few frames, and the commands sent back to the worker.
 import { createSignal } from "solid-js";
-import { deviceStatus, type DeviceStatus } from "@pocketjs/framework/device";
+import { deviceStatus, type DeviceStatus } from "@pocket-shell/runtime/device";
 import { onFrame } from "@pocketjs/framework/lifecycle";
-import { wifiStatus, type WifiStatus } from "@pocketjs/framework/wifi";
+import { wifiStatus, type WifiStatus } from "@pocket-shell/runtime/wifi";
 import { worker } from "@pocketjs/framework/worker/channels";
 import {
   decodeScan, decodeSensors, emptySensors, encodeCommand, type Scan, type Sensors,

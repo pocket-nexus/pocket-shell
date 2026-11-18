@@ -181,9 +181,9 @@ describe("source rules", () => {
       ...CLEAN,
       "notes/bad.ts": [
         `import { readFileSync } from "node:fs";`,
-        `import { installApp, companionNow } from "@pocketjs/framework/link";`,
-        `import { launchApp } from "@pocketjs/framework/launcher";`,
-        `import { openCamera } from "@pocketjs/framework/camera";`,
+        `import { installApp, companionNow } from "@pocket-shell/runtime/link";`,
+        `import { launchApp } from "@pocket-shell/runtime/launcher";`,
+        `import { openCamera } from "@pocket-shell/runtime/camera";`,
         `export const run = () => { eval("1"); new Function("return 1"); void import("./app.tsx"); return [readFileSync, installApp, companionNow, launchApp, openCamera]; };`,
       ].join("\n"),
       "notes/main.tsx": `import "./bad.ts";\n${CLEAN["notes/main.tsx"]}`,
@@ -195,6 +195,45 @@ describe("source rules", () => {
     // camera is gated, not forbidden.
     const withCamera = checkAppletSources({ projectRoot: dir, entry: "notes/main.tsx", applet: DECLARED, capabilities: ["camera.photo"] });
     expect(withCamera.filter((d) => d.message.includes("camera"))).toEqual([]);
+  });
+
+  test("the Runtime's modules: applet and link pass, camera with its capability, the system's are refused", () => {
+    const runtimeModules = (imports: string[], capabilities: string[] = []) => {
+      const dir = project({
+        ...CLEAN,
+        "notes/runtime.ts": imports.map((name, index) => `import * as m${index} from "@pocket-shell/runtime/${name}";`).join("\n") +
+          `\nexport const all = [${imports.map((_, index) => `m${index}`).join(", ")}];\n`,
+        "notes/main.tsx": `import "./runtime.ts";\n${CLEAN["notes/main.tsx"]}`,
+      });
+      return checkAppletSources({ projectRoot: dir, entry: "notes/main.tsx", applet: DECLARED, capabilities }).map((d) => d.message);
+    };
+    expect(runtimeModules(["applet", "link"])).toEqual([]);
+    expect(runtimeModules(["camera"])).toEqual(["@pocket-shell/runtime/camera needs the camera. capability"]);
+    expect(runtimeModules(["camera"], ["camera.qr"])).toEqual([]);
+    expect(runtimeModules(["channel", "launcher", "system", "agent", "wifi", "device", "spec/link"])).toEqual(
+      ["channel", "launcher", "system", "agent", "wifi", "device", "spec/link"].map((name) => `@pocket-shell/runtime/${name} is not available to applets`),
+    );
+  });
+
+  test("an import of a Runtime module by its PocketJS name names the module's specifier", () => {
+    const dir = project({
+      ...CLEAN,
+      "notes/old.ts": [
+        `import { AppletSurface } from "@pocketjs/framework/applet";`,
+        `import { companionNow } from "@pocketjs/framework/link";`,
+        `import { openCamera } from "@pocketjs/framework/camera";`,
+        `import { wifiStatus } from "@pocketjs/framework/wifi";`,
+        `export const all = [AppletSurface, companionNow, openCamera, wifiStatus];`,
+      ].join("\n"),
+      "notes/main.tsx": `import "./old.ts";\n${CLEAN["notes/main.tsx"]}`,
+    });
+    const found = checkAppletSources({ projectRoot: dir, entry: "notes/main.tsx", applet: DECLARED, capabilities: ["camera.qr"] });
+    expect(found.map((d) => [d.code, d.path, d.message])).toEqual([
+      ["applet.module", "notes/old.ts", "@pocketjs/framework/applet moved to @pocket-shell/runtime/applet"],
+      ["applet.module", "notes/old.ts", "@pocketjs/framework/link moved to @pocket-shell/runtime/link"],
+      ["applet.module", "notes/old.ts", "@pocketjs/framework/camera moved to @pocket-shell/runtime/camera"],
+      ["applet.module", "notes/old.ts", "@pocketjs/framework/wifi moved to @pocket-shell/runtime/wifi, which is not available to applets"],
+    ]);
   });
 
   test("worker/channels, the UI's side of the applet's worker, comes with net.http", () => {

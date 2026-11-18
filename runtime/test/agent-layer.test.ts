@@ -5,21 +5,22 @@
 // geometry and a fake `globalThis.agent` (runtime/sim/agent.ts) in place of
 // the host and the companion.
 //
-// The fixture's entry imports the overlay. The pinned PocketJS build adds its
-// own copy (vendor/pocketjs/framework/src/agent-layer.tsx) to an app that
-// declares "system.agent", so the fixture does not declare it: one overlay
-// is registered, and it is this repository's.
+// The fixture declares "system.agent" and imports nothing of the agent: the
+// 3DS build passes the overlay to PocketJS's compiler as a system layer
+// (runtime/manifest/system-layers.ts, `tools/build.ts --layer`), the way an
+// app gets it.
 //
 // POCKET_AGENT_SHOTS=<dir> writes bottom-screen PNGs of each state.
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { AGENT_LABELS, AGENT_MODE, AGENT_SCREEN, type AgentClientMessage, type AgentDisplay } from "../spec/agent.ts";
 import { BTN } from "../../vendor/pocketjs/contracts/spec/spec.ts";
 import { bootConsole3ds, type Console3ds } from "../sim/console-3ds.ts";
 import { resolve3dsBuildPlan } from "../../devices/3ds/tools/profile.ts";
+import { AGENT_LAYER, systemLayers } from "../manifest/system-layers.ts";
 import { encodePNG } from "../../vendor/pocketjs/tools/png.ts";
 
 /** The fixture's project root: its app contract's entry is relative to it. */
@@ -86,6 +87,22 @@ const sentOf = <T extends AgentClientMessage["t"]>(app: Console3ds, t: T) =>
   app.agent!.sent.filter((message): message is Extract<AgentClientMessage, { t: T }> => message.t === t);
 
 const lastStage = (app: Console3ds) => app.agent!.stages[app.agent!.stages.length - 1];
+
+describe("the overlay is a system layer of the build", () => {
+  test("a Solid app that declares system.agent gets it, other apps do not", () => {
+    const plan = (framework: string, agent: boolean) => ({ app: { framework }, features: { "system.agent": agent } }) as Parameters<typeof systemLayers>[0];
+    expect(systemLayers(plan("solid", true))).toEqual([AGENT_LAYER]);
+    expect(systemLayers(plan("solid", false))).toEqual([]);
+    expect(systemLayers(plan("vue-vapor", true))).toEqual([]);
+  });
+
+  test("the fixture's bundle holds this repository's overlay once", () => {
+    // The bundle names each module by its path from the compiler's checkout.
+    const compiler = realpathSync(new URL("../../vendor/pocketjs", import.meta.url).pathname);
+    const modules = [...readFileSync(`${GUEST}.js`, "utf8").matchAll(/^  \/\/ (\S*agent-layer\.tsx)$/gm)].map((match) => resolve(compiler, match[1]!));
+    expect(modules).toEqual([realpathSync(AGENT_LAYER)]);
+  });
+});
 
 describe("summoning", () => {
   test("the guest says hello with its app, and the stage idles", async () => {
