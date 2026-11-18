@@ -1,22 +1,25 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // runtime/test/applet.test.ts — the Pocket Applet rules (runtime/spec/applet.ts,
 // runtime/package/applet-check.ts): the manifest rules at plan resolution, the
-// source rules over an applet's import graph, the bundle budgets, and two of
-// the applets the launcher installs (vendor/applets).
+// source rules over an applet's import graph, the bundle budgets, and one
+// applet checked from its files (test/fixtures/applets/feed). The applets the
+// launcher installs are pocket-nexus/applets, which checks each of them.
 
 import { afterAll, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { resolve3dsBuildPlan } from "../../devices/3ds/tools/profile.ts";
+import { readPocketManifest } from "../manifest/load.ts";
 import { validateAndResolveBuildPlan } from "../manifest/resolve.ts";
 import { validatePocketManifest } from "../manifest/validate.ts";
 import { checkApplet, checkAppletBundle, checkAppletSources } from "../package/applet-check.ts";
 import { APPLET_BUDGET, appletManifestDiagnostics, type AppletDeclaration } from "../spec/applet.ts";
 import type { PocketManifestV2 } from "../spec/pocket-manifest.ts";
 
-/** pocket-nexus/applets: the applets' project root. */
-const APPLETS = new URL("../../vendor/applets/", import.meta.url).pathname;
+/** The fixture applet's project root, laid out as pocket-nexus/applets is:
+ *  an applet's directory (feed/) beside a directory its modules share (lib/). */
+const FIXTURES = new URL("./fixtures/applets/", import.meta.url).pathname;
 const TMP = mkdtempSync(join(tmpdir(), "pocket-applet-"));
 afterAll(() => rmSync(TMP, { recursive: true, force: true }));
 
@@ -233,17 +236,34 @@ describe("source rules", () => {
   });
 });
 
-describe("budgets and the shipped applets", () => {
+describe("budgets and an applet's files", () => {
   test("the bundle budgets", () => {
     expect(checkAppletBundle({ jsBytes: APPLET_BUDGET.jsBytes, pakBytes: APPLET_BUDGET.pakBytes })).toEqual([]);
     expect(checkAppletBundle({ jsBytes: APPLET_BUDGET.jsBytes + 1 }).map((d) => d.code)).toEqual(["applet.budget"]);
     expect(checkAppletBundle({ jsBytes: 1, pakBytes: APPLET_BUDGET.pakBytes + 1 }).map((d) => d.code)).toEqual(["applet.budget"]);
   });
 
-  // Notes keeps a store and has no worker; Hacker News fetches through one.
-  test("Notes and Hacker News of pocket-nexus/applets are applets and pass", () => {
-    for (const applet of ["notes", "hn"]) {
-      expect([applet, checkApplet({ manifestPath: join(APPLETS, applet, "pocket.app.json"), projectRoot: APPLETS })]).toEqual([applet, []]);
-    }
+  // The fixture applet fetches through a worker, as Hacker News of
+  // pocket-nexus/applets does, and keeps a store, as its Notes does.
+  test("the fixture applet passes from its files: the contract, the worker, the store, a shared module", () => {
+    const manifestPath = join(FIXTURES, "feed/pocket.app.json");
+    expect(checkApplet({ manifestPath, projectRoot: FIXTURES })).toEqual([]);
+    const plan = resolve3dsBuildPlan(readPocketManifest(manifestPath).manifest);
+    expect(plan.applet).toEqual({
+      version: 1,
+      summary: "The latest headline of one feed, kept between runs.",
+      hosts: ["feed.example.com"],
+      store: { maxBytes: 65536 },
+    });
+    expect(plan.domains?.worker?.entry).toBe("lib/feed-worker.ts");
+    // The build checks the sources with the plan's features. Without them
+    // the same graph is refused at the two gated modules, one in the
+    // applet's directory and one in the shared one: the check read both.
+    const graph = { projectRoot: FIXTURES, entry: plan.app.entry, applet: plan.applet! };
+    expect(checkAppletSources({ ...graph, capabilities: Object.keys(plan.features) })).toEqual([]);
+    expect(checkAppletSources({ ...graph, capabilities: [] }).map((d) => [d.path, d.message]).sort()).toEqual([
+      ["feed/saved.ts", "@pocketjs/framework/fs needs the data.fs capability"],
+      ["lib/feed.ts", "@pocketjs/framework/worker/channels needs the net.http capability"],
+    ]);
   });
 });
