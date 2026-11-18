@@ -74,18 +74,31 @@ shells/
   desktop/   src/system-ui, scripts, test, assets, docs, preview, site, manifests
 devices/
   m5stack/   M5Stack Tab5 firmware (ESP-IDF): programs, platforms, apps, tools, tests, docs
+runtime/
+  spec/      contracts: Pocket Link 1 and 2, applet, agent, owner setup, Wi-Fi, device, camera
+  src/       guest modules: applet surface, link, channel, launcher, system sheet, agent, Wi-Fi, device, camera
+  sim/       the 3DS console simulator and its link, Wi-Fi, camera and agent fakes
+  test/      tests of the modules above
+link/
+  v2/        Pocket Link 2 reference codec, device, Hub and the Hub's command line
+  *.ts       version 1 codec, destination policy and QR encoder; 3ds-dev.ts, the 3DS development tool
+  vectors/   Pocket Link 2 conformance vectors
+  test/      tests of the reference implementation
+docs/        POCKET-LINK.md, APPLETS.md, POCKET-AGENT.md; asset policy; explorations
 scripts/     setup, desktop command dispatch, repository paths and process helpers
 vendor/
-  pocketjs/  shared runtime submodule
+  pocketjs/  PocketJS submodule: the UI framework, the build toolchain and the native hosts
   applets/   pocket-nexus/applets: the applets, ui, kit and lib (submodule)
 ```
 
-The three shells have separate Bun packages and TypeScript configurations.
+The three shells have separate Bun packages and TypeScript configurations;
+the root configuration type-checks `scripts`, `runtime` and `link`.
 `devices/m5stack` is a fourth Bun package in the same workspace; its C
 sources build with ESP-IDF. See the
 [asset policy and review](docs/ASSETS.md) for generated outputs,
 source inputs and retained documentation fixtures. Application code is separate;
-runtime APIs come from `@pocketjs/framework/*`.
+UI APIs come from `@pocketjs/framework/*`, and the launcher's applet surface,
+link, launcher, agent, Wi-Fi and camera modules come from `runtime/src`.
 
 ## Development
 
@@ -101,7 +114,7 @@ git clone --recurse-submodules https://github.com/pocket-nexus/pocket-shell.git
 cd pocket-shell
 bun run setup
 rustup target add wasm32-unknown-unknown
-bun run check                    # types, unit and simulator tests for all shells
+bun run check                    # types, unit and simulator tests for the link, the runtime and all shells
 bun run check:3ds                # or check:touch / check:desktop
 ```
 
@@ -131,10 +144,16 @@ bun run check:m5stack            # Tab5 firmware: clang-format check and host te
 bun run m5stack app build apps/unit-swap/pocket.app.json   # compile one of the firmware's own apps
 ```
 
-PocketJS is pinned through `vendor/pocketjs`, including the 3DS host's agent
-stage and the Pocket Link, and the applets through `vendor/applets`. Runtime
-and applet changes belong upstream; this repository selects their commits
-through its submodule pins.
+PocketJS is pinned through `vendor/pocketjs`, including the 3DS host program
+(the agent stage and the Pocket Link's C client), and the applets through
+`vendor/applets`. Changes to the UI framework, the native hosts and the
+applets belong upstream; this repository selects their commits through its
+submodule pins. The Pocket Link's contract, TypeScript reference
+implementation and [specification](docs/POCKET-LINK.md), the
+[applet rules](docs/APPLETS.md) and the [agent](docs/POCKET-AGENT.md)'s
+contract and guest modules are in `runtime/`, `link/` and `docs/`: they were
+imported from PocketJS at `89e10438`, and PocketJS keeps its own copies until
+it removes them.
 
 ## Releases
 
@@ -172,6 +191,8 @@ workflow artifact.
 
 **GNU GPL version 3.** Root, 3DS, touch and M5Stack firmware code uses
 `GPL-3.0-or-later`; imported desktop code retains `GPL-3.0-only`.
+`runtime/`, `link/` and the three specifications imported from PocketJS (MIT)
+are distributed under `GPL-3.0-or-later`.
 PocketJS and third-party fonts retain their own licenses. See
 [LICENSING.md](LICENSING.md), [LICENSE](LICENSE) and
 [contribution rules](CONTRIBUTING.md).

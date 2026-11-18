@@ -5,10 +5,11 @@ build it with the **Pocket Applets** of pocket-nexus/applets for the
 Nintendo 3DS, the M5Stack Tab5 and the PSP. On the 3DS every applet draws
 on the touch screen and nowhere else. The top screen belongs to the system: for each applet (each declares the
 capability `system.agent`), the PocketJS 3DS host draws Claude's room
-there, and **L+R opens the agent over any applet**. The runtime side (the room, the overlay, the
-companion's agent) is PocketJS's and is described in
-[POCKET-AGENT.md](../../vendor/pocketjs/docs/POCKET-AGENT.md) in the pinned
-submodule. On the Tab5 the same programs lay out for its one landscape panel;
+there, and **L+R opens the agent over any applet**. The room is the PocketJS 3DS host's, the
+overlay is `runtime/src/agent-layer.tsx` (the pinned PocketJS build adds its
+own copy to each app that declares the capability) and the model runs in
+Pocket Hub; [POCKET-AGENT.md](../../docs/POCKET-AGENT.md) describes the
+console side. On the Tab5 the same programs lay out for its one landscape panel;
 see [The M5Stack Tab5](#the-m5stack-tab5).
 
 | Home | L+R | The agent at work | The reply |
@@ -22,8 +23,8 @@ which took **30.4k tokens**.
 ## The launcher and the applets
 
 An applet is a Pocket app whose app contract (`pocket.app.json`) declares
-the section `applet` and meets the applet rules (PocketJS
-[APPLETS.md](../../vendor/pocketjs/docs/APPLETS.md)): one touch surface
+the section `applet` and meets the applet rules
+([APPLETS.md](../../docs/APPLETS.md)): one touch surface
 that admits 320×240, the agent enhanced, an allowlist of capabilities, the
 companion services it reaches declared (`applet.services`), no native code
 and no code evaluation, bundle and pak budgets. The PocketJS build refuses an
@@ -57,8 +58,8 @@ and body as JSON) is at most **1020 bytes**: a longer post or reply is
 refused with `invalid_request`, and a glyph atlas is asked for in parts that
 `ui/glyphs.ts` merges into one atlas before it loads. On the 3DS the node
 rides the Pocket Link to the Mac as a `net.http` request that Pocket Hub
-performs, and only while Hub lists `net.http` (PocketJS
-`docs/POCKET-LINK.md` §6.1, §6.5); without it the request fails at once.
+performs, and only while Hub lists `net.http`
+(`docs/POCKET-LINK.md` §6.1, §6.5); without it the request fails at once.
 On the Tab5 it is the firmware's HTTP over
 Wi-Fi, and a request to `companion.pocket` goes over the Pocket Link to the
 paired Mac (since pocket-m5 v0.1.2).
@@ -104,7 +105,7 @@ applets' are pocket-nexus/applets' sims.
 
 Pocket Shell runs on the PSP's whole 480×272 screen from the same entry. Its
 app contract adds the applet full-screen presentation (`{screens: 1, touch:
-"none", buttons: true}`, PocketJS `docs/APPLETS.md`), so the psp host
+"none", buttons: true}`, `docs/APPLETS.md`), so the psp host
 contract compiles it with no auxiliary surface; `AppletSurface` mounts it on
 the screen and `readScreen()` reads the size from `appletViewport()`.
 
@@ -121,8 +122,8 @@ The applets come from pocket-nexus/applets with the same button paths, and
 there Hacker News, YouTube, X, Discord and GitHub declare the same
 presentation (pocket-nexus/applets#6). The PSP cannot run them yet: their
 network is a worker with an `http` node, and the psp host contract at the
-pinned PocketJS provides neither `runtime.worker` nor `net.http` (PocketJS
-`docs/POCKET-LINK.md`, "USB carrier"). The resolver leaves them out of the
+pinned PocketJS provides neither `runtime.worker` nor `net.http`
+(`docs/POCKET-LINK.md`, "USB carrier"). The resolver leaves them out of the
 PSP build, as it leaves out every applet without the presentation, which
 needs a touch surface.
 
@@ -225,7 +226,7 @@ a version 2 client reports its negotiated payload limit, `limit`, and a
 version 1 client has none):
 
 - **Pocket Link 2, the 3DS.** There is no pairing on the wire: no QR code, no
-  camera and no pairing window (PocketJS `docs/POCKET-LINK.md` §3). Pocket
+  camera and no pairing window (`docs/POCKET-LINK.md` §3). Pocket
   Hub writes the pairing files into `sdmc:/pocketjs/link/` through ftpd, or
   onto the SD card in the computer's reader, when it installs Pocket Shell,
   and the console dials that computer from its next start. Settings > Mac
@@ -233,7 +234,7 @@ version 1 client has none):
   file on the card, and linking to it again takes another setup from that
   Mac. `link.pair` answers false there, so the page offers no scanner.
 - **Pocket Link 2, a console that shows a code** (a Tab5 on the firmware
-  of `devices/m5stack`, PocketJS `docs/POCKET-LINK.md` §3.11). Its host's link has
+  of `devices/m5stack`, `docs/POCKET-LINK.md` §3.11). Its host's link has
   `pairOpen`, `pairAsk` and `pairClose`, and its status carries `pair`
   (`shell/system.ts` `showsPairCode`). Settings > Mac > Pair a Computer...
   makes a code and lists the computers whose Pocket Hub the console hears on
@@ -286,7 +287,7 @@ manifest lists that service in `applet.services`; any other request gets
 403. On a Pocket Link 2 console that fetch is a `net.http` request, so it
 needs a Hub that serves `net.http` and still answers `companion.pocket`:
 whether Pocket Hub keeps answering it beside applet channels is open
-(PocketJS `docs/POCKET-LINK.md` §11), and the reference Hub of `bun run
+(`docs/POCKET-LINK.md` §11), and the reference Hub of `bun run
 offer` refuses it ("this Hub runs no services").
 
 - **YouTube** lists topic feeds and search results from yt-dlp, with
@@ -330,10 +331,10 @@ bottom-right corner reads "L+R Ask Claude" while the mascot is idle.
 
 The agent needs **Pocket Hub** on the Mac, signed in to Codex (its
 Assistant page signs in), and on a Pocket Link 2 console a Hub that lists
-the `agent` feature (PocketJS `docs/POCKET-LINK.md` §6.1, §6.6); without it
+the `agent` feature (`docs/POCKET-LINK.md` §6.1, §6.6); without it
 the agent stage reads the link as unavailable. Pocket Hub is not released yet. The
 app carries the applets; `bun run offer` serves the ones built here from
-PocketJS's reference Hub instead.
+the reference Hub (`link/v2`) instead.
 
 ## Commands
 
@@ -353,10 +354,10 @@ bun run psp [--skip-eboot]              # build Pocket Shell's PSP EBOOT into di
 bun run check:3ds                       # typecheck, the launcher's and the applets' sims, unit tests
 ```
 
-These commands run PocketJS's 3DS development tool (`tools/3ds-dev.ts`),
+These commands run `link/3ds-dev.ts`,
 the reference Pocket Link 2 Hub's command line: the console dials this
 computer, so `--host` only adds its address as a beacon target, and each
-command waits for the console to link (PocketJS `docs/POCKET-LINK.md`
+command waits for the console to link (`docs/POCKET-LINK.md`
 §12.1, items 6 and 7). The program has no development connection any more
 (no port 8131, no `dev.key`). A change under `shell/` or `vendor/applets`
 reaches a console with `push`. A change in the runtime
@@ -369,7 +370,7 @@ run `pair` before starting it. The `.3dsx` is the only console format.
 A first install of an applet creates its slot's folders, and compiles its
 bundle, on threads of their own while the program keeps the link pumped
 (about 4 s per folder on the measured SD card), so the console no longer
-goes silent past the link's 10 s limit (PocketJS `docs/POCKET-LINK.md`
+goes silent past the link's 10 s limit (`docs/POCKET-LINK.md`
 §12.2).
 
 The launcher's recovery state is in `/pocketjs/runtime/apps/<slot>/`, where

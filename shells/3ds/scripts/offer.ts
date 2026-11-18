@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // bun run offer [--3ds | --tab5] [serve options] — build every app but the
 // launcher as packages into dist/3ds/apps/, then serve that folder as the
-// catalog of the reference Pocket Link 2 Hub (PocketJS tools/3ds-dev.ts
+// catalog of the reference Pocket Link 2 Hub (link/3ds-dev.ts
 // serve --apps, with its net.http), which stays in the foreground until it is
 // stopped. Each app gets a 3DS package (<output>.pocket) and a Tab5 package
 // (<output>.tab5.pocket); the Hub lists to each console the files with a
@@ -16,7 +16,7 @@ import { resolve } from "node:path";
 import { $ } from "bun";
 import { passThrough } from "../../../scripts/run.ts";
 import { APPS, LAUNCHER, writePlan } from "./apps.ts";
-import { DIST_3DS, ROOT, VENDOR } from "./paths.ts";
+import { DIST_3DS, LINK_TOOL, ROOT } from "./paths.ts";
 import { buildTab5 } from "./tab5.ts";
 
 const args = process.argv.slice(2);
@@ -33,4 +33,4 @@ for (const app of APPS.filter((name) => name !== LAUNCHER)) {
   }
   if (tab5) copyFileSync(await buildTab5(app), resolve(offered, `${output}.tab5.pocket`));
 }
-await passThrough($`bun ${VENDOR}/tools/3ds-dev.ts serve --apps ${offered} ${serve}`.cwd(ROOT));
+await passThrough($`bun ${LINK_TOOL} serve --apps ${offered} ${serve}`.cwd(ROOT));

@@ -11,7 +11,7 @@
 
 import { createSignal, type Accessor } from "solid-js";
 import { getOps } from "@pocketjs/framework/host";
-import { launchApp } from "@pocketjs/framework/launcher";
+import { launchApp } from "../../../runtime/src/launcher.ts";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 import {
   forgetCompanion,
@@ -26,7 +26,7 @@ import {
   requestCatalog,
   type LinkCatalogApp,
   type LinkStatus,
-} from "@pocketjs/framework/link";
+} from "../../../runtime/src/link.ts";
 import {
   connectSavedNetwork,
   forgetNetwork,
@@ -37,7 +37,7 @@ import {
   wifiHost,
   wifiStatus,
   type WifiStatus,
-} from "@pocketjs/framework/wifi";
+} from "../../../runtime/src/wifi.ts";
 import { DEFAULT_OFFSET } from "./clock.ts";
 import { toAscii } from "../ui/text.ts";
 

@@ -28,6 +28,8 @@
     }
   },
   "include": [
-    "scripts"
+    "scripts",
+    "runtime",
+    "link"
   ]
 }

@@ -11,7 +11,7 @@
 // @pocketjs/framework/agent. A host without the agent's display ops has no
 // mode to switch: displayApi() is null and Settings shows no switch.
 
-import { agentHost, displayMode, setDisplayMode } from "@pocketjs/framework/agent";
+import { agentHost, displayMode, setDisplayMode } from "../../../runtime/src/agent.ts";
 
 export type DisplayMode = "dual" | "single";
 
