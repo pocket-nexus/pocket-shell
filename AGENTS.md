@@ -80,8 +80,8 @@ copies, and `vendor/applets` imports those (`@pocketjs/framework/applet`,
   (`test/`). `shells/3ds/shell` imports its applet surface, link, launcher,
   agent, Wi-Fi and camera modules from `runtime/src`.
 - `link/`: the Pocket Link 2 reference implementation (`v2/`: codec, device,
-  Hub and the Hub's command line), version 1's codec, destination policy and
-  QR encoder, the 3DS development tool (`3ds-dev.ts`), the conformance
+  Hub and the Hub's command line), the Hub's destination policy (`fetch.ts`),
+  the 3DS development tool (`3ds-dev.ts`), the conformance
   vectors (`vectors/`) and the tests (`test/`). The C client is
   `devices/services` (`link2*.c`); `devices/services/test` runs it against
   this Hub and these vectors.

@@ -83,7 +83,7 @@ runtime/
   test/      tests of the modules above
 link/
   v2/        Pocket Link 2 reference codec, device, Hub and the Hub's command line
-  *.ts       version 1 codec, destination policy and QR encoder; 3ds-dev.ts, the 3DS development tool
+  *.ts       fetch.ts, the Hub's destination policy; 3ds-dev.ts, the 3DS development tool
   vectors/   Pocket Link 2 conformance vectors
   test/      tests of the reference implementation
 docs/        POCKET-LINK.md, APPLETS.md, POCKET-AGENT.md; asset policy; explorations
