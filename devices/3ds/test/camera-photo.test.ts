@@ -62,7 +62,7 @@ beforeAll(() => {
     ...pkg.stdout.toString().trim().split(/\s+/), "-lm", "-o", binary,
   ]);
   expect(compile.exitCode, compile.stderr.toString()).toBe(0);
-});
+}, 120_000);
 
 afterAll(() => {
   if (scratch) rmSync(scratch, { recursive: true, force: true });

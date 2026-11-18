@@ -190,7 +190,7 @@ beforeAll(() => {
     join(shared, "link2.c"), join(shared, "link2_bsd.c"), join(shared, "link2_proto.c"), join(shared, "sha256.c"), join(shared, "jscan.c"), "-o", binary,
   ]);
   expect(compile.exitCode, compile.stderr.toString()).toBe(0);
-});
+}, 120_000);
 
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
