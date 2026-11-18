@@ -40,10 +40,11 @@ implementation notes belong in `docs/`, not here.
 
 ## Dependencies and third-party code
 
-- PocketJS is `vendor/pocketjs` and the applets are `vendor/applets`, the
-  repository's pinned submodules. Pocket Shell, the launcher, is compiled
-  from `shells/3ds/shell` with the iOS 6 kit and the icons of
-  `vendor/applets`. A pocketjs bump rebuilds every app, Pocket Shell
+- PocketJS is `vendor/pocketjs`, the repository's pinned submodule. Pocket
+  Shell, the launcher, is compiled from `shells/3ds/shell` with the iOS 6 kit
+  and the icons of `ui/` at the repository root. The applets are
+  pocket-nexus/applets, outside this repository; the firmware build reads
+  none of them. A pocketjs bump rebuilds every app, Pocket Shell
   included, so a breaking change updates the apps in the same pull request.
 - The portable C host services the `pocket_system`, `pocket_camera` and
   `pocket_media` components compile (the Pocket Link 2 client, the launcher's

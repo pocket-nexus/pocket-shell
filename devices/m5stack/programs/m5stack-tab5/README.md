@@ -30,8 +30,9 @@ place through one mapping, and the launcher's cached facts, each app's
 `storage` flash partition without a card); it also keeps the Pocket Link 2
 client to a paired Hub, the Wi-Fi radio on the ESP32-C6 (esp_hosted) and the
 wall clock from SNTP. The build compiles Pocket Shell
-(`shells/3ds/shell`, project root `shells/3ds`, whose
-`ui`, `lib`, `kit` and `shell/art/icons` are links into `vendor/applets`)
+(`shells/3ds/shell`, project root `shells/3ds`; it imports the kit from
+`ui/` at the repository root, and its `shell/art/icons` is a link to
+`ui/art/icons`)
 with `pocket.host.config.ts`, embeds it as the
 launcher and boots one runtime per app; SELECT from the home control returns
 to the launcher. The build also compiles the apps that

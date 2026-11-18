@@ -6,14 +6,14 @@ directory split of pocketjs `main` (pocket-nexus/pocketjs#603): **platforms**
 hold SDK and board drivers, and **programs** compose drivers into firmware
 with a host config and the **host contract** (`pocket.host.json`), the facts
 apps compile and are admitted against. The launcher, Pocket Shell, is
-compiled from `shells/3ds/shell` in the same repository.
+compiled from `shells/3ds/shell` and the kit in `ui/` of the same repository.
 
 ```text
 pocket-shell/
 ├─ .github/workflows/           firmware-m5stack.yml: host checks and the Tab5 build
 ├─ vendor/
-│  ├─ pocketjs/                 PocketJS checkout pinned to a commit (submodule)
-│  └─ applets/                  the applets, their kit and icons (submodule)
+│  └─ pocketjs/                 PocketJS checkout pinned to a commit (submodule)
+├─ ui/                          the iOS 6 kit and the icons the launcher draws with
 ├─ shells/3ds/shell/            Pocket Shell, the launcher the firmware compiles
 └─ devices/m5stack/
    ├─ platforms/esp-idf/        ESP-IDF components owned by this tree

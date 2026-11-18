@@ -1,8 +1,8 @@
 # Pocket Shell on the 3DS and the M5Stack Tab5
 
 This shell is **Pocket Shell**, the console's launcher, and the scripts that
-build it with the **Pocket Applets** of pocket-nexus/applets for the
-Nintendo 3DS, the M5Stack Tab5 and the PSP. On the 3DS every applet draws
+build it, and the **Pocket Applets** of a pocket-nexus/applets checkout, for
+the Nintendo 3DS, the M5Stack Tab5 and the PSP. On the 3DS every applet draws
 on the touch screen and nowhere else. The top screen belongs to the system: for each applet (each declares the
 capability `system.agent`), the 3DS host program
 ([devices/3ds](../../devices/3ds/README.md)) draws Claude's room
@@ -32,22 +32,27 @@ and no code evaluation, bundle and pak budgets. The build refuses an
 applet that breaks a rule. The launcher is an app, not an applet: it pairs,
 installs and switches, which applets cannot.
 
-**The applets live in [pocket-nexus/applets](https://github.com/pocket-nexus/applets)**,
-a submodule here at `vendor/applets`: one source that builds for the 3DS, the
-Tab5 and Omarchy Pocket, with its own rules, sims and sample data (`bun run
-check` there), and the store at applets.pocket.nexus. The scripts here build
-the launcher from `shell/` and every applet the submodule has for a console
-from `vendor/applets` (its own project root), with this repository's PocketJS.
+**The applets live in [pocket-nexus/applets](https://github.com/pocket-nexus/applets)**:
+one source that builds for the 3DS, the Tab5 and Omarchy Pocket against this
+repository, with its own rules, sims and sample data (`bun run check`
+there), and the store at applets.pocket.nexus. The scripts here build the
+launcher from `shell/`, and every applet a checkout of that repository has
+for a console from that checkout (its own project root), with this
+repository's PocketJS. The checkout is the directory `POCKET_APPLETS_ROOT`
+names, by default `../applets` beside this repository; the launcher builds
+without one ([Commands](#commands)).
 
 | Program | Directory | Package | Reaches the console |
 | --- | --- | --- | --- |
 | Pocket Shell | `shell/` | `dev.pocket-nexus.shell`, `pocket-shell` | embedded in the `.3dsx`; the launcher |
-| Hacker News, YouTube, X, Discord, GitHub, Weather, Podcasts, Maps, Home, Camera, Photos, Notes | `vendor/applets/<name>/` | `dev.pocket-nexus.<name>`, `<name>-main` | installed through the launcher from the linked Mac, or pushed |
+| Hacker News, YouTube, X, Discord, GitHub, Weather, Podcasts, Maps, Home, Camera, Photos, Notes | `<name>/` in pocket-nexus/applets | `dev.pocket-nexus.<name>`, `<name>-main` | installed through the launcher from the linked Mac, or pushed |
 
-`ui/` (a link to `vendor/applets/ui`) is the iOS 6 kit the launcher and the
+`ui/` at the repository root is the iOS 6 kit the launcher and the
 applets build on at the 3DS's 0.82 scale: the navigation stack and bar,
 grouped tables, alerts, text fitting, a slot pool for long lists and one
-stylus router per screen.
+stylus router per screen. The launcher imports it by relative path
+(`../../../ui/nav.tsx`), and the paths `ui/…` below are from the repository
+root.
 
 **An applet's network is its worker.** The UI realm has no network: an
 applet that declares `net.http` declares the worker in `lib/net-worker.ts`
@@ -57,7 +62,7 @@ over those rings (records in `lib/net-wire.ts`). The host's node runs two reques
 the worker holds the rest. One request's descriptor (URL, method, headers
 and body as JSON) is at most **1020 bytes**: a longer post or reply is
 refused with `invalid_request`, and a glyph atlas is asked for in parts that
-`ui/glyphs.ts` merges into one atlas before it loads. On the 3DS the node
+`ui/glyphs.ts` of pocket-nexus/applets merges into one atlas before it loads. On the 3DS the node
 rides the Pocket Link to the Mac as a `net.http` request that Pocket Hub
 performs, and only while Hub lists `net.http`
 (`docs/POCKET-LINK.md` §6.1, §6.5); without it the request fails at once.
@@ -97,7 +102,7 @@ On a surface larger than the 3DS's:
   forgets saved networks on a host whose launcher is its settings
   (`wifiCanJoin()`); the 3DS keeps its saved-slot page.
 
-Icons ship an `@2x` texture beside each 1x one (pocket-nexus/applets `tools/icons/bake.ts`), so
+Icons ship an `@2x` texture beside each 1x one in `ui/art/icons` (baked by pocket-nexus/applets `tools/icons/bake.ts`), so
 a density-2 build draws them texel for texel. `POCKET_TAB5_SHOTS=<dir> bun run
 check:3ds` also writes the launcher's 592×360 and 360×592 screens; the
 applets' are pocket-nexus/applets' sims.
@@ -263,16 +268,19 @@ their 80 px cells; a longer name ends in "...".
   host waits that long for the L+R chord.
 - Page dots above the dock follow the drag.
 
-**The icons are pocket-nexus/applets' icon family.** `shell/art/icons` is a
-link to `vendor/applets/ui/art/icons`: the launcher's own icons (Settings,
-Mac, Wi-Fi, Apps, Pocket Nexus) and every applet's, rendered in Blender at
-512 px by `tools/icons/icons.py` there and given one finish by
+**The launcher and the applets share one icon family, `ui/art/icons`.**
+`shell/art/icons` is a link to it, because the PocketJS build finds a
+picture by its name below the entry's directory. The family holds the
+launcher's own icons (Settings, Mac, Wi-Fi, Apps, Pocket Nexus) and every
+applet's at 24, 46 and 64 px and `@2x`. pocket-nexus/applets renders them:
+in Blender at 512 px by its `tools/icons/icons.py`, given one finish by its
 `tools/icons/bake.ts` (the rounded mask, the iOS 6 gloss, a lit top rim, a
-shaded bottom rim and, at 46 px, a drop shadow) at 24, 46 and 64 px and
-`@2x`. `ui/icons.tsx` maps an app id to its icon and draws the tile; an
-applet's `icon.png`, the picture its package carries and the store lists, is
-the same 64@2x texture. A new icon is made and committed there (`bun run
-icons --only <name>` in pocket-nexus/applets), never here.
+shaded bottom rim and, at 46 px, a drop shadow). The build here reads the
+committed PNGs and needs no Blender. `ui/icons.tsx` maps an app id to its
+icon (`APP_ART`) and draws the tile; an applet's `icon.png`, the picture its
+package carries and the store lists, is the same 64@2x texture. A new icon
+is rendered there (`bun run icons --only <name>` in pocket-nexus/applets)
+and committed here with its `APP_ART` entry.
 
 **An app without baked art gets a glyph.** Its tile is a tint from its id
 under a four-square applet glyph and the `plain` finish, so it has the same
@@ -345,23 +353,46 @@ Run from the repository root.
 bun run pair --host <console-ip>        # once, while ftpd runs: write this computer's pairing onto the card
 bun run deploy [--host <console-ip>]    # build pocket-shell.3dsx, install it over the link, restart into it
 bun run push [--host <console-ip>]      # rebuild the launcher's package and hot-push it
-bun run push hn [--host <console-ip>]   # rebuild Hacker News, install it into its slot and start it
-bun run offer [--3ds|--tab5]            # build the applets' 3DS and Tab5 packages and serve them from the reference Hub
+bun run push hn [--host <console-ip>]   # rebuild Hacker News from the applets checkout, install it into its slot and start it
+bun run offer [--3ds|--tab5]            # build the applets checkout's 3DS and Tab5 packages and serve them from the reference Hub
 bun run shot [--host <console-ip>]      # one screenshot of both screens
 bun run probe [--host <console-ip>]     # the program's status and one screenshot
 bun run 3ds [shell|hn] [--pocket-only]  # build into dist/3ds
 bun run tab5 [app…]                     # build packages for the M5Stack Tab5 into dist/tab5
 bun run psp [--skip-eboot]              # build Pocket Shell's PSP EBOOT into dist/psp
-bun run check:3ds                       # typecheck, the launcher's and the applets' sims, unit tests
+bun run check:3ds                       # typecheck, the launcher's sims, unit tests
 ```
+
+**An applet is built from a checkout of pocket-nexus/applets.** `bun run 3ds
+<applet>`, `push <applet>`, `tab5 <applet>` and `offer` read the directory
+`POCKET_APPLETS_ROOT` names (from this repository's root when the path is
+relative), by default `../applets` beside this repository. `scripts/apps.ts`
+lists each directory there that holds a `pocket.app.json`, leaves out the
+applets that checkout builds for other devices alone (`ONLY` in its
+`tools/apps.ts`), and builds each from the checkout as its project root with
+this repository's CLI and PocketJS. An applet draws with the `ui/` its own
+imports name. With no checkout, `3ds`, `push`, `deploy`, `tab5` and `psp`
+build the launcher, and `offer` or a command that names an applet stops with
+one line:
+
+```text
+pocket-shell 3ds: hn needs a pocket-nexus/applets checkout and none is at <path> (POCKET_APPLETS_ROOT, default ../applets beside this repository)
+```
+
+`bun run tab5 <applet>` compiles with `pocket-shell compile`, which
+type-checks the applet with the checkout's `tsconfig.json`. TypeScript finds
+`solid-js` and `bun-types` in the checkout's `node_modules`, so the checkout
+needs its own `bun run setup` first; a checkout without them fails the type
+check. `bun run 3ds <applet>` runs no type check and builds from a checkout
+without `node_modules`.
 
 These commands run `link/3ds-dev.ts`,
 the reference Pocket Link 2 Hub's command line: the console dials this
 computer, so `--host` only adds its address as a beacon target, and each
 command waits for the console to link (`docs/POCKET-LINK.md`
 §12.1, items 6 and 7). The program has no development connection any more
-(no port 8131, no `dev.key`). A change under `shell/` or `vendor/applets`
-reaches a console with `push`. A change in the host program (`devices/3ds`,
+(no port 8131, no `dev.key`). A change under `shell/`, `ui/` or an applet of
+the applets checkout reaches a console with `push`. A change in the host program (`devices/3ds`,
 `devices/services`) needs `deploy`. `pair` needs ftpd running
 on the console (or `--card <dir>` with its SD card mounted) once per
 computer; it keeps this computer's record in `$POCKETJS_LINK_HOME`, else
