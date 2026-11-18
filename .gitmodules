@@ -1,8 +1,0 @@
-[submodule "third_party/pocketjs"]
-	path = third_party/pocketjs
-	url = https://github.com/pocket-nexus/pocketjs.git
-	branch = main
-[submodule "third_party/pocket-shell"]
-	path = third_party/pocket-shell
-	url = https://github.com/pocket-nexus/pocket-shell.git
-	branch = main
