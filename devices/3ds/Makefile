@@ -50,9 +50,13 @@ INCLUDE_DIR := $(CURDIR)/include
 # This repository's sources: the product (SOURCE, INCLUDE_DIR) and the
 # portable C every native host compiles (devices/services/README.md).
 SHARED := $(CURDIR)/../services
+# The 3DS platform's media, offload, SOC and worker sources (platform/,
+# imported from PocketJS platforms/3ds).
+PLATFORM_LOCAL := $(CURDIR)/platform
 # Everything below POCKETJS_ROOT is read in place from the pinned PocketJS:
-# the platform (hooks, HID, media, worker), the PICA renderer, the QuickJS
-# facade, the worker and guest sources and the generated contract headers.
+# the platform's hooks, HID facts and input source, the PICA renderer, the
+# QuickJS facade, the worker and guest sources and the generated contract
+# headers.
 POCKETJS_ROOT ?= $(CURDIR)/../../vendor/pocketjs
 PLATFORM_SOURCE := $(POCKETJS_ROOT)/platforms/3ds
 OFFLOAD_INCLUDE := $(POCKETJS_ROOT)/engine/modules/offload/include
@@ -96,7 +100,7 @@ CFLAGS := -Wall -Wextra -O2 -g -std=gnu11 -mword-relocations -ffunction-sections
   $(ARCH) -D__3DS__ -DPOCKETJS_WORKER_HTTP -DJS_NO_NAN_BOXING -DPOCKET_QJS_BELLARD \
   -DPOCKETJS_TARGET_ID='"$(POCKETJS_TARGET)"' \
   -DPOCKETJS_HOST_ABI=$(POCKETJS_HOST_ABI) \
-  -I$(POCKETJS_WORKER)/include -I$(PLATFORM_SOURCE) -I$(SHARED) -I$(OFFLOAD_INCLUDE) -I$(POCKETJS_CONTRACTS) -I$(POCKETJS_GUEST)/include -I$(POCKETJS_NATIVE_QUICKJS) -I$(POCKETJS_NATIVE_PROGRAM_INCLUDE) -I$(BUILD) -I$(INCLUDE_DIR) -I$(POCKETJS_PICA_INCLUDE) -I$(POCKETJS_QUICKJS_DIR) \
+  -I$(POCKETJS_WORKER)/include -I$(PLATFORM_LOCAL) -I$(PLATFORM_SOURCE) -I$(SHARED) -I$(OFFLOAD_INCLUDE) -I$(POCKETJS_CONTRACTS) -I$(POCKETJS_GUEST)/include -I$(POCKETJS_NATIVE_QUICKJS) -I$(POCKETJS_NATIVE_PROGRAM_INCLUDE) -I$(BUILD) -I$(INCLUDE_DIR) -I$(POCKETJS_PICA_INCLUDE) -I$(POCKETJS_QUICKJS_DIR) \
   -I$(DEVKITPRO)/libctru/include -I$(DEVKITPRO)/portlibs/3ds/include
 
 # bytecode.c keys its per-slot bytecode cache by the QuickJS build: the first
@@ -222,17 +226,20 @@ $(BUILD)/canonical_guest.o: $(POCKETJS_GUEST)/src/guest.c $(wildcard $(POCKETJS_
 $(BUILD)/qjs_program.o: $(POCKETJS_NATIVE_QUICKJS)/pocket_qjs_program.c $(wildcard $(POCKETJS_NATIVE_QUICKJS)/*.h) $(wildcard $(POCKETJS_NATIVE_PROGRAM_INCLUDE)/*.h) $(wildcard $(POCKETJS_GUEST)/include/*.h) $(wildcard $(POCKETJS_CONTRACTS)/*.h) $(FLAGS_STAMP) | $(BUILD)
 	$(CC) $(CFLAGS) -DPOCKET_QJS_HOST_PROFILE -c $< -o $@
 
-$(BUILD)/%.o: $(SOURCE)/%.c $(wildcard $(INCLUDE_DIR)/*.h) $(wildcard $(SOURCE)/*.h) $(wildcard $(SHARED)/*.h) $(wildcard $(PLATFORM_SOURCE)/*.h) $(wildcard $(OFFLOAD_INCLUDE)/*.h) $(wildcard $(POCKETJS_CONTRACTS)/*.h) $(wildcard $(POCKETJS_PICA_INCLUDE)/*.h) $(BUILD)/vshader_shbin.h $(BUILD)/stage_shbin.h $(EXTENSION_HEADERS) $(FLAGS_STAMP) | $(BUILD)
+$(BUILD)/%.o: $(SOURCE)/%.c $(wildcard $(INCLUDE_DIR)/*.h) $(wildcard $(SOURCE)/*.h) $(wildcard $(SHARED)/*.h) $(wildcard $(PLATFORM_LOCAL)/*.h) $(wildcard $(PLATFORM_SOURCE)/*.h) $(wildcard $(OFFLOAD_INCLUDE)/*.h) $(wildcard $(POCKETJS_CONTRACTS)/*.h) $(wildcard $(POCKETJS_PICA_INCLUDE)/*.h) $(BUILD)/vshader_shbin.h $(BUILD)/stage_shbin.h $(EXTENSION_HEADERS) $(FLAGS_STAMP) | $(BUILD)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 ifneq ($(POCKETJS_EXTENSION),)
-$(BUILD)/%.o: $(POCKETJS_EXTENSION)/src/%.c $(wildcard $(INCLUDE_DIR)/*.h) $(wildcard $(SOURCE)/*.h) $(wildcard $(POCKETJS_EXTENSION)/src/*.h) $(wildcard $(SHARED)/*.h) $(wildcard $(PLATFORM_SOURCE)/*.h) $(wildcard $(OFFLOAD_INCLUDE)/*.h) $(wildcard $(POCKETJS_CONTRACTS)/*.h) $(wildcard $(POCKETJS_PICA_INCLUDE)/*.h) $(BUILD)/vshader_shbin.h $(BUILD)/stage_shbin.h $(EXTENSION_HEADERS) $(FLAGS_STAMP) | $(BUILD)
+$(BUILD)/%.o: $(POCKETJS_EXTENSION)/src/%.c $(wildcard $(INCLUDE_DIR)/*.h) $(wildcard $(SOURCE)/*.h) $(wildcard $(POCKETJS_EXTENSION)/src/*.h) $(wildcard $(SHARED)/*.h) $(wildcard $(PLATFORM_LOCAL)/*.h) $(wildcard $(PLATFORM_SOURCE)/*.h) $(wildcard $(OFFLOAD_INCLUDE)/*.h) $(wildcard $(POCKETJS_CONTRACTS)/*.h) $(wildcard $(POCKETJS_PICA_INCLUDE)/*.h) $(BUILD)/vshader_shbin.h $(BUILD)/stage_shbin.h $(EXTENSION_HEADERS) $(FLAGS_STAMP) | $(BUILD)
 	$(CC) $(CFLAGS) -c $< -o $@
 endif
 
-# Platform mechanisms compile from their own source tree; product policy stays
+# Platform mechanisms compile from their own source trees; product policy stays
 # in SOURCE and supplies the media resource callback.
-$(BUILD)/%.o: $(PLATFORM_SOURCE)/%.c $(wildcard $(PLATFORM_SOURCE)/*.h) $(wildcard $(OFFLOAD_INCLUDE)/*.h) $(wildcard $(POCKETJS_CONTRACTS)/*.h) $(FLAGS_STAMP) | $(BUILD)
+$(BUILD)/%.o: $(PLATFORM_LOCAL)/%.c $(wildcard $(PLATFORM_LOCAL)/*.h) $(wildcard $(SHARED)/*.h) $(wildcard $(OFFLOAD_INCLUDE)/*.h) $(wildcard $(POCKETJS_CONTRACTS)/*.h) $(FLAGS_STAMP) | $(BUILD)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD)/%.o: $(PLATFORM_SOURCE)/%.c $(wildcard $(PLATFORM_SOURCE)/*.h) $(wildcard $(POCKETJS_CONTRACTS)/*.h) $(FLAGS_STAMP) | $(BUILD)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # The shared services compile from devices/services.
@@ -244,7 +251,7 @@ $(BUILD)/quirc/%.o: $(SHARED)/quirc/%.c $(wildcard $(SHARED)/quirc/*.h) $(FLAGS_
 	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -w -c $< -o $@
 
-$(BUILD)/offload.o: $(PLATFORM_SOURCE)/offload.h $(PLATFORM_SOURCE)/offload_queue.h
+$(BUILD)/offload.o: $(PLATFORM_LOCAL)/offload.h $(PLATFORM_LOCAL)/offload_queue.h
 $(BUILD)/services_host.o $(BUILD)/qjs.o $(BUILD)/main.o $(BUILD)/devmenu.o: \
   $(wildcard $(SHARED)/*.h) $(SOURCE)/services_host.h $(SOURCE)/runtime.h
 $(BUILD)/camera.o $(BUILD)/gfx.o $(BUILD)/qjs.o $(BUILD)/main.o: $(SOURCE)/camera.h
@@ -254,9 +261,9 @@ $(BUILD)/photos.o $(BUILD)/photos_jpeg.o: $(SOURCE)/photos_jpeg.h
 $(BUILD)/wifi.o $(BUILD)/qjs.o $(BUILD)/main.o: $(SOURCE)/wifi.h
 $(BUILD)/stage.o $(BUILD)/agent.o $(BUILD)/qjs.o $(BUILD)/main.o $(BUILD)/services_host.o: $(SOURCE)/stage.h $(SOURCE)/agent.h
 $(BUILD)/runtime.o: $(SOURCE)/runtime.h
-$(BUILD)/qjs.o: $(PLATFORM_SOURCE)/offload.h $(PLATFORM_SOURCE)/offload_coverage.h
-$(BUILD)/media.o: $(PLATFORM_SOURCE)/media.h $(SHARED)/media_wire.h $(SHARED)/media_adpcm.h
-$(BUILD)/main.o $(BUILD)/qjs.o $(BUILD)/gfx.o: $(PLATFORM_SOURCE)/media.h
+$(BUILD)/qjs.o: $(PLATFORM_LOCAL)/offload.h $(PLATFORM_LOCAL)/offload_coverage.h
+$(BUILD)/media.o: $(PLATFORM_LOCAL)/media.h $(SHARED)/media_wire.h $(SHARED)/media_adpcm.h
+$(BUILD)/main.o $(BUILD)/qjs.o $(BUILD)/gfx.o: $(PLATFORM_LOCAL)/media.h
 $(BUILD)/main.o $(BUILD)/transition.o: $(SOURCE)/transition.h
 $(BUILD)/main.o $(BUILD)/bytecode.o: $(SOURCE)/bytecode.h
 $(BUILD)/main.o $(BUILD)/qjs.o: $(SOURCE)/qjs.h
