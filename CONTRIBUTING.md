@@ -1,8 +1,10 @@
 # Contributing
 
 Make changes in the shell that owns the behavior: `shells/3ds`, `shells/touch`
-or `shells/desktop`. Runtime changes land in PocketJS first, followed by a
-submodule pin update here.
+or `shells/desktop`. The Pocket Link's contract and reference implementation,
+the applet contract and the agent's guest modules are in `runtime/` and
+`link/`. UI framework and native host changes land in PocketJS first,
+followed by a submodule pin update here.
 
 Use Conventional Commit titles and open a draft pull request. Describe the
 behavior that changed and the checks performed. Preserve the applicable GPL
