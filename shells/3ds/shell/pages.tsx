@@ -7,9 +7,9 @@
 import { createSignal, onMount, type Accessor } from "solid-js";
 import { View } from "@pocketjs/framework/components";
 import { getOps } from "@pocketjs/framework/host";
-import type { LinkStatus } from "@pocketjs/framework/link";
+import type { LinkStatus } from "../../../runtime/src/link.ts";
 import { createOsk, Osk, oskHeight } from "@pocketjs/framework/osk";
-import type { WifiNetwork } from "@pocketjs/framework/wifi";
+import type { WifiNetwork } from "../../../runtime/src/wifi.ts";
 import { offsetText, TIME_ZONES } from "./clock.ts";
 import { displayApi } from "./display.ts";
 import { LINK_PAIRING, LINK_STATE, linkOffers, sizeText, type ShellApp, type ShellSystem } from "./system.ts";

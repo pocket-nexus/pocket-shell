@@ -12,8 +12,8 @@
 // SELECT Home hint, as it does in an applet.
 
 import { createEffect, createSignal, onMount, Show, type JSX } from "solid-js";
-import { setHomeHint } from "@pocketjs/framework/agent";
-import { AppletSurface } from "@pocketjs/framework/applet";
+import { setHomeHint } from "../../../runtime/src/agent.ts";
+import { AppletSurface } from "../../../runtime/src/applet.tsx";
 import { View, type NodeMirror } from "@pocketjs/framework/components";
 import { animate, animationClass, jump } from "@pocketjs/framework/animation";
 import { after } from "@pocketjs/framework/clock";
