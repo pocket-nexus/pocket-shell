@@ -6,7 +6,7 @@
  *                      (link2_guest.c). `pair` stays in the namespace,
  *                      because a package built against version 1 requires
  *                      it, and answers false: the Tab5 pairs by a code it
- *                      shows (pocketjs docs/POCKET-LINK.md §3.11), with
+ *                      shows (the root docs/POCKET-LINK.md §3.11), with
  *                      `pairOpen`, `pairAsk` and `pairClose`, and its
  *                      status carries the code as `pair`
  *   globalThis.wifi    contracts/spec/wifi.ts (wifi.c), with the access

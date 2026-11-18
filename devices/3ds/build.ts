@@ -108,6 +108,7 @@ import {
   THREE_DS_PROFILE,
   resolve3dsBuildPlan,
 } from "./tools/profile.ts";
+import { systemLayerArguments } from "../../runtime/manifest/system-layers.ts";
 import { makeVariant } from "../../runtime/package/pocket-pack.ts";
 import { checkAppletBundle, checkAppletSources, formatAppletDiagnostics } from "../../runtime/package/applet-check.ts";
 const softwareProfile = THREE_DS_PROFILE;
@@ -587,7 +588,8 @@ export async function build3ds(argv: readonly string[], context?: RuntimeBuildCo
   console.log(`PocketJS 3ds: building app "${plan.app.output}" (${plan.app.framework})`);
   mkdirSync(args.outputDir, { recursive: true });
   if (!context && !args.skipBuild) {
-    await $`bun tools/build.ts --plan=${planPath} --project-root=${args.projectRoot} --outdir=${args.outputDir}`
+    // The plan's system layers (runtime/manifest/system-layers.ts) go ahead of the entry.
+    await $`bun tools/build.ts --plan=${planPath} --project-root=${args.projectRoot} --outdir=${args.outputDir} ${systemLayerArguments(plan)}`
       .cwd(pocketjs);
   }
   const guestJavaScript = join(args.outputDir, `${inputs.appOutput}.js`);
@@ -598,10 +600,13 @@ export async function build3ds(argv: readonly string[], context?: RuntimeBuildCo
     }
   }
   // A Pocket Applet's code and bundle meet the applet rules
-  // (runtime/spec/applet.ts), as `pocket-shell compile` checks them.
-  if (!context && !args.skipBuild && plan.applet) {
+  // (runtime/spec/applet.ts), as `pocket-shell compile` checks them. The
+  // applet section is in a plan this repository resolved (loadBuildPlan); a
+  // recipe's package arrives compiled and checked.
+  const applet = context ? undefined : (plan as ResolvedBuildPlan).applet;
+  if (!args.skipBuild && applet) {
     const diagnostics = [
-      ...checkAppletSources({ projectRoot: args.projectRoot, entry: plan.app.entry, applet: plan.applet, capabilities: Object.keys(plan.features) }),
+      ...checkAppletSources({ projectRoot: args.projectRoot, entry: plan.app.entry, applet, capabilities: Object.keys(plan.features) }),
       ...checkAppletBundle({ jsBytes: statSync(guestJavaScript).size, pakBytes: statSync(guestPack).size }),
     ];
     if (diagnostics.length > 0) {

@@ -19,8 +19,9 @@ export const build: RuntimeBuild = {
     ...nativeSources("engine/spec", "engine/drivers", "engine/core", "engine/package", "engine/runtime", "programs/sdk/archive", "engine/physics", "engine/modules/media", "engine/render", "devices/3ds/pocket-3ds-pica", "engine/guest-quickjs", "programs/native/runtime", "devices/gles/pocket-gles", "devices/gles/pocket-gles1", "devices/gles/pocket-gles2"),
     resolve(repository, "platforms/3ds"), resolve(repository, "engine/modules/offload/include"),
     resolve(repository, "programs/native/quickjs"),
-    // This repository: the product, its archive and the host services.
-    ...["src", "include", "Makefile", "app.rsf", "core/src", "core/Cargo.toml", "core/Cargo.lock"].map(path => resolve(product, path)),
+    // This repository: the product, the platform sources imported from
+    // PocketJS (platform/), its archive and the host services.
+    ...["src", "include", "platform", "Makefile", "app.rsf", "core/src", "core/Cargo.toml", "core/Cargo.lock"].map(path => resolve(product, path)),
     ...readdirSync(services).filter(name => /\.[ch]$/.test(name)).map(name => resolve(services, name)),
     resolve(services, "quirc"),
   ],

@@ -7,8 +7,8 @@
 #include <stdint.h>
 
 /*
- * The app-switch transition (PocketJS docs/LAUNCHER.md "3DS"): a host-owned overlay
- * on both screens while one guest gives way to the next.
+ * The app-switch transition (README.md, "Installed apps and the launcher"): a
+ * host-owned overlay on both screens while one guest gives way to the next.
  *
  *   leaving   a black scrim rises over the old guest's last frame in
  *             TRANSITION_LEAVE_MS while an activity indicator fades in on

@@ -8,10 +8,10 @@
 // an Android phone) runs in. The host keeps the choice.
 //
 // The calls are `displayMode()` and `setDisplayMode(mode)` of
-// @pocketjs/framework/agent. A host without the agent's display ops has no
+// @pocket-shell/runtime/agent. A host without the agent's display ops has no
 // mode to switch: displayApi() is null and Settings shows no switch.
 
-import { agentHost, displayMode, setDisplayMode } from "../../../runtime/src/agent.ts";
+import { agentHost, displayMode, setDisplayMode } from "@pocket-shell/runtime/agent";
 
 export type DisplayMode = "dual" | "single";
 

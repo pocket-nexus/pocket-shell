@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // The system agent's overlay on the touch screen (runtime/spec/agent.ts).
 //
-// The build adds this module to every app that declares "system.agent"
-// (tools/build.ts), and render() mounts it above the app's auxiliary surface
-// (system-layers.ts). It is the same for every app:
+// Pocket Shell's builds add this module to every Solid app that declares
+// "system.agent": runtime/manifest/system-layers.ts passes it to PocketJS's
+// compiler as `tools/build.ts --layer=<module>`, the compiler imports it
+// ahead of the app's entry, and render() mounts it above the app's auxiliary
+// surface (@pocketjs/framework/system-layers). It is the same for every app:
 //
 //   L+R       opens the overlay on a choice of Talk (A) or Type (X); L+R
 //             again, or B, closes it
@@ -18,7 +20,7 @@
 // notch").
 //
 // While the overlay is open the app under it is paused: its frame callbacks
-// and button handlers stop (frame.ts suspendApp), its gestures are cancelled
+// and button handlers stop (suspendApp), its gestures are cancelled
 // and a scrim takes the stylus. When the agent operates the app on the
 // user's screen, the overlay shrinks to a banner, the app runs again, and
 // the agent's taps, drags and presses replace the user's input until the
@@ -45,7 +47,6 @@ import {
   type AgentScreenReport,
   type AgentUsage,
 } from "../spec/agent.ts";
-import { BTN, ENUMS } from "../../vendor/pocketjs/contracts/spec/spec.ts";
 import {
   agentHost,
   agentStatus,
@@ -63,19 +64,25 @@ import {
   type AgentHostOps,
   type PlayedFrame,
 } from "./agent.ts";
-import { animate, jump } from "../../vendor/pocketjs/framework/src/anim.ts";
+import { appTable, launchApp } from "./launcher.ts";
+import { animate, jump } from "@pocketjs/framework/animation";
 import { after } from "@pocketjs/framework/clock";
 import { FocusScope, Text, View } from "@pocketjs/framework/components";
 import { getAuxiliarySurfaceRoots, hasAuxiliarySurface } from "@pocketjs/framework/display";
-import { onButtonPress, onFrame, pushButtonHandlerBlock, suspendApp, SystemFrameContext } from "../../vendor/pocketjs/framework/src/frame.ts";
 import { createGesture, pushTouchBlock } from "@pocketjs/framework/gesture";
 import type { HostOps } from "@pocketjs/framework/host";
-import { appTable, launchApp } from "./launcher.ts";
+import { auxiliaryTouches, BTN } from "@pocketjs/framework/input";
+import { onButtonPress, onFrame, pushButtonHandlerBlock } from "@pocketjs/framework/lifecycle";
 import { createOsk, Osk, oskHeight } from "@pocketjs/framework/osk";
-import { openOsk } from "../../vendor/pocketjs/framework/src/osk-controller.ts";
 import { createElement, detachNode, insertNode, render as rendererRender, setProp, type NodeMirror } from "@pocketjs/framework/renderer";
-import { registerSystemLayer, setFrameInputFilter } from "../../vendor/pocketjs/framework/src/system-layers.ts";
-import { auxiliaryTouches } from "../../vendor/pocketjs/framework/src/touch.ts";
+import {
+  ENUMS,
+  openOsk,
+  registerSystemLayer,
+  setFrameInputFilter,
+  suspendApp,
+  SystemFrameContext,
+} from "@pocketjs/framework/system-layers";
 
 const W = 320;
 const H = 240;

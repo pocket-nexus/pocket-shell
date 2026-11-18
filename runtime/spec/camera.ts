@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// PocketJS camera spec — a live preview texture and an on-device QR decoder
+// Camera spec — a live preview texture and an on-device QR decoder
 // (`globalThis.camera`, capability "camera.qr"), and stills kept on the
 // console's storage (capability "camera.photo", the same namespace).
 //

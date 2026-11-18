@@ -173,7 +173,7 @@ describe("commands PocketJS owns", () => {
     const forwarded = cli(["catalog", "--json"]);
     const direct = run(POCKETJS_CLI, ["catalog", "--json"]);
     expect(forwarded).toEqual(direct);
-    expect(JSON.parse(forwarded.stdout).map((row: { id: string }) => row.id)).toContain("3ds-dev");
+    expect(JSON.parse(forwarded.stdout).map((row: { id: string }) => row.id)).toContain("3ds-runtime");
     // `host` without export or fetch is PocketJS's usage error.
     const failed = cli(["host"]);
     expect(failed).toEqual(run(POCKETJS_CLI, ["host"]));

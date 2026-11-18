@@ -7,6 +7,13 @@
 // vendor/pocketjs already installed are linked here rather than installed a
 // second time, which also guarantees one copy of Solid — two would give the
 // app a reactive graph the framework does not own.
+//
+// The Runtime's guest modules are linked the same way: an import of
+// "@pocket-shell/runtime/link" resolves through node_modules/@pocket-shell/runtime
+// to runtime/src/link.ts (runtime/package.json's exports). The PocketJS
+// compiler follows the link to that real path, outside node_modules, and walks
+// the module in pass 1 like a relative import, so its class strings and glyphs
+// compile with the app's.
 
 import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
@@ -28,6 +35,7 @@ if (Bun.version !== bun) {
 
 const links = new Map<string, string>([
   ["node_modules/@pocketjs/framework", "vendor/pocketjs"],
+  ["node_modules/@pocket-shell/runtime", "runtime"],
   ["node_modules/solid-js", "vendor/pocketjs/node_modules/solid-js"],
   ["node_modules/@napi-rs/canvas", "vendor/pocketjs/node_modules/@napi-rs/canvas"],
   ["node_modules/bun-types", "vendor/pocketjs/node_modules/bun-types"],

@@ -5,9 +5,10 @@ services a console offers its guests besides the UI. Each source implements
 one contract and calls the platform only through `host_services.h`, which
 every program implements once.
 
-The directory was imported from PocketJS `engine/host-services` at
-`806ac202`. A path below with "PocketJS" before it is read from
-`vendor/pocketjs`; `runtime/`, `link/` and `docs/` are this repository's.
+The directory was imported from `engine/host-services` of PocketJS at
+`806ac202`; PocketJS has since removed that directory. A path below with
+"PocketJS" before it is read from `vendor/pocketjs`; `runtime/`, `link/`,
+`devices/` and `docs/` are this repository's.
 
 | Source | Contract | What it does |
 | --- | --- | --- |
@@ -26,9 +27,10 @@ The directory was imported from PocketJS `engine/host-services` at
 | `quirc/` | | QR-code recognition, vendored unmodified (`quirc/VENDORED.txt`). |
 
 **Pocket Link 1's C client was not imported.** `link.c`, `link_proto.c`,
-`link_proto.h`, `link.h` and version 1's `link_http.c` stay in PocketJS
-`engine/host-services`: no program here compiles them. `link_http.h` is here
-because `link2_http.c` implements it.
+`link_proto.h`, `link.h` and version 1's `link_http.c` were left out because
+no program here compiles them, and PocketJS removed them with
+`engine/host-services`. `link_http.h` is here because `link2_http.c`
+implements it.
 
 ## Programs
 
@@ -37,10 +39,10 @@ because `link2_http.c` implements it.
 | Nintendo 3DS product | `devices/3ds/Makefile` (`SHARED`) | `devices/3ds/src/services_host.c`: libctru clocks and `ps:ps` randomness, the CFG owner name, `soc:U`, the SD card runtime slots (`runtime.c`), the agent channel (`agent.c`) |
 | M5Stack Tab5 | `devices/m5stack/programs/m5stack-tab5/components/pocket_system`, `pocket_camera`, `pocket_media` (each `CMakeLists.txt` sets `shared`) | `src/services_host.c` in `pocket_system`: `esp_timer`, `esp_fill_random`, lwIP, the `/pocket` store; the camera and media components compile the photo, QR and media sources |
 
-Two PocketJS sources read headers from this directory through the 3DS
-Makefile's include path: `platforms/3ds/media.c` includes `media_wire.h` and
-`media_adpcm.h`, and `platforms/3ds/worker.c` includes `host_services.h` and
-`link_http.h`.
+Two sources of the 3DS platform read headers from this directory through the
+3DS Makefile's include path: `devices/3ds/platform/media.c` includes
+`media_wire.h` and `media_adpcm.h`, and `devices/3ds/platform/worker.c`
+includes `host_services.h` and `link_http.h`.
 
 ## Tests
 

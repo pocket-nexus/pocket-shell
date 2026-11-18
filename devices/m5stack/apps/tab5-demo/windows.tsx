@@ -4,13 +4,13 @@
 import { createMemo, createSignal, For, Index, onCleanup, Show } from "solid-js";
 import { Image, View } from "@pocketjs/framework/components";
 import { openAudioInput, type AudioInputSource } from "@pocketjs/framework/audio";
-import { closeCamera, openCamera, pollQrCode } from "@pocketjs/framework/camera";
+import { closeCamera, openCamera, pollQrCode } from "@pocket-shell/runtime/camera";
 import {
   listDirectory, powerOff, releasePin, setBrightness, setPin, setSwitch, type DeviceDirectory,
-} from "@pocketjs/framework/device";
+} from "@pocket-shell/runtime/device";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 import { registerTexture } from "@pocketjs/framework/renderer";
-import { connectSavedNetwork, joinNetwork, scanNetworks, startAccessPoint, stopAccessPoint } from "@pocketjs/framework/wifi";
+import { connectSavedNetwork, joinNetwork, scanNetworks, startAccessPoint, stopAccessPoint } from "@pocket-shell/runtime/wifi";
 import {
   Bus, Command, RtcSetting, SEND_PAYLOAD, ScanState, SerialKind, Wake, ascii, asciiBytes, encodeClock,
   type ClockFields,

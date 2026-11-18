@@ -5,9 +5,9 @@
 // input, and quirc decodes a code of the test's encoder (test/qr.ts) in a
 // frame of the camera's size.
 //
-// This is the part of PocketJS tests/3ds-link.test.ts that needs no Pocket
-// Link 1 source. Its proof, pairing URI and beacon cases compile
-// link_proto.c, which stays in PocketJS.
+// This is the part of PocketJS tests/3ds-link.test.ts (at 806ac202) that
+// needs no Pocket Link 1 source. Its proof, pairing URI and beacon cases
+// compiled link_proto.c, which PocketJS removed with that test.
 
 import { afterAll,beforeAll,describe,expect,test } from "bun:test";
 import { randomBytes } from "node:crypto";

@@ -4,7 +4,7 @@
 // auxiliary surface of the tab5-home host (640x360).
 import { createMemo, createSignal, For, Index, Match, Show, Switch, type JSX } from "solid-js";
 import { AuxiliarySurface, Text, View } from "@pocketjs/framework/components";
-import { deviceStatus, setSwitch } from "@pocketjs/framework/device";
+import { deviceStatus, setSwitch } from "@pocket-shell/runtime/device";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 import { mount } from "@pocketjs/framework/solid";
 import { worker } from "@pocketjs/framework/worker/channels";

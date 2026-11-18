@@ -17,7 +17,7 @@
 // module-level code must not, because it runs before readScreen() and would
 // see 320x240.
 
-import { appletOnAuxiliary, appletViewport } from "@pocketjs/framework/applet";
+import { appletOnAuxiliary, appletViewport } from "@pocket-shell/runtime/applet";
 import { hasFeature } from "@pocketjs/framework/platform";
 
 export let SCREEN_W = 320;

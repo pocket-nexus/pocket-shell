@@ -12,10 +12,11 @@
 // runtime/package and runtime/spec/pocket-package.ts. PocketJS supplies the
 // host contract (tools/profile-resolver.ts), the type check
 // (framework/compiler/app-check.ts) and the compiler: this program writes the
-// resolved plan to a file and runs `tools/build.ts --plan=<file>`, which
-// writes the JavaScript bundle and the asset pack. Every other command is
-// PocketJS's own and runs in vendor/pocketjs/tools/pocket.ts with the same
-// arguments.
+// resolved plan to a file and runs `tools/build.ts --plan=<file>`, with a
+// `--layer` for each system layer the plan gets
+// (runtime/manifest/system-layers.ts), which writes the JavaScript bundle and
+// the asset pack. Every other command is PocketJS's own and runs in
+// vendor/pocketjs/tools/pocket.ts with the same arguments.
 
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -26,6 +27,7 @@ import { profileRegistry, resolveProfile } from "../vendor/pocketjs/tools/profil
 import { readAuthoredManifest } from "../runtime/manifest/load.ts";
 import { canonicalJson } from "../runtime/manifest/plan.ts";
 import { validateAndResolveBuildPlan } from "../runtime/manifest/resolve.ts";
+import { systemLayerArguments } from "../runtime/manifest/system-layers.ts";
 import { checkAppletBundle, checkAppletSources, formatAppletDiagnostics } from "../runtime/package/applet-check.ts";
 import { makeVariant } from "../runtime/package/pocket-pack.ts";
 import { encodePocketPackage } from "../runtime/spec/pocket-package.ts";
@@ -132,9 +134,10 @@ async function run(command: "check" | "compile", argv: string[]): Promise<void> 
     extraDependencies.push(...tools.paths());
   }
 
-  // PocketJS compiles the plan into <output>.js, <output>.pak and, with a worker domain, <output>.worker.js.
+  // PocketJS compiles the plan into <output>.js, <output>.pak and, with a worker domain, <output>.worker.js;
+  // the plan's system layers (the agent's overlay) go ahead of the entry.
   const inputsFile = resolve(outdir, `${plan.app.output}.inputs.json`);
-  const child = Bun.spawn([process.execPath, POCKETJS_COMPILER, `--plan=${planPath}`, `--project-root=${projectRoot}`, `--outdir=${outdir}`, ...(dependencies ? [`--inputs-file=${inputsFile}`] : [])], { cwd: projectRoot, stdout: "inherit", stderr: "inherit" });
+  const child = Bun.spawn([process.execPath, POCKETJS_COMPILER, `--plan=${planPath}`, `--project-root=${projectRoot}`, `--outdir=${outdir}`, ...systemLayerArguments(plan), ...(dependencies ? [`--inputs-file=${inputsFile}`] : [])], { cwd: projectRoot, stdout: "inherit", stderr: "inherit" });
   const status = await child.exited;
   if (status !== 0 || child.signalCode) throw new Error(`PocketJS compiler failed: ${child.signalCode ?? status}`);
   const js = new Uint8Array(readFileSync(resolve(outdir, `${plan.app.output}.js`)));

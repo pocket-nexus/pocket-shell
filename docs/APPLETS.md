@@ -17,12 +17,11 @@ The contract is `runtime/spec/applet.ts`. The rules run in two places:
   backend builds it.
 - **The build** (`cli/pocket-shell.ts compile` and `devices/3ds/build.ts` → `runtime/package/applet-check.ts`): the source rules
   over the applet's import graph and the bundle budgets. A violation fails the
-  build after pass 2. The pinned PocketJS compiler (`tools/build.ts`) runs its
-  own copy of the check (PocketJS `tools/applet-check.ts`) before that.
+  build after pass 2.
 
 `bun runtime/package/applet-check.ts <pocket.app.json> [--project-root=<dir>] [--js=<bundle>
 --pak=<pak>]` runs every rule outside a build; `checkApplet` is the same check
-as a library. pocket-nexus/applets runs PocketJS's copy over every applet in `bun run
+as a library. pocket-nexus/applets runs it over every applet in `bun run
 check` (`test/applets.test.ts`).
 
 ## The app contract section
@@ -132,11 +131,11 @@ does not count.
 | Rule | Reason |
 | --- | --- |
 | Relative imports stay inside the project root | The applet's code is what the package carries; a shared kit (`ui/` and `kit/` in pocket-nexus/applets) lives inside the root. |
-| Bare imports: `solid-js` and `@pocketjs/framework/*` modules on the applet list; `camera` with a `camera.*` capability, `fs` with `data.fs`, `worker/channels` with `net.http` | The framework surface is the portability layer. `launcher`, `wifi`, `agent`, `devtools`, `offload` and `config` are system or build modules. |
+| Bare imports: `solid-js`; the `@pocketjs/framework/*` modules on the applet list (the UI framework), `fs` with `data.fs` and `worker/channels` with `net.http`; `@pocket-shell/runtime/applet` and `@pocket-shell/runtime/link`, and `@pocket-shell/runtime/camera` with a `camera.*` capability | The framework surface and the Runtime's applet modules are the portability layer. `@pocket-shell/runtime/launcher`, `wifi`, `device`, `agent`, `system` and `channel`, and `@pocketjs/framework/devtools`, `offload` and `config`, are system or build modules. An import of a Runtime module by its former PocketJS name (`@pocketjs/framework/applet`, `link`, `camera`, …) is refused with the `@pocket-shell/runtime/<module>` specifier that replaces it. |
 | No dynamic `import()` | The bundle is the whole program, checked once. |
 | No `eval` and no `Function` constructor | A checked applet runs the code that was checked and nothing else. |
-| No `installApp`, `removeApp`, `pairCompanion`, `forgetCompanion` or `requestCatalog` from `@pocketjs/framework/link` | Installing, removing and pairing belong to the launcher. |
-| The UI draws inside `AppletSurface` (`@pocketjs/framework/applet`) or `AuxiliarySurface` | The applet draws on its surface, not on the system's display. `AppletSurface` mounts on the auxiliary surface when the plan has one and on the full screen otherwise. |
+| No `installApp`, `removeApp`, `pairCompanion`, `forgetCompanion` or `requestCatalog` from `@pocket-shell/runtime/link` | Installing, removing and pairing belong to the launcher. |
+| The UI draws inside `AppletSurface` (`@pocket-shell/runtime/applet`) or `AuxiliarySurface` | The applet draws on its surface, not on the system's display. `AppletSurface` mounts on the auxiliary surface when the plan has one and on the full screen otherwise. |
 
 ## Bundle budgets
 
@@ -147,7 +146,7 @@ does not count.
 
 ## One program on two surfaces
 
-`@pocketjs/framework/applet` gives an applet its surface:
+`@pocket-shell/runtime/applet` gives an applet its surface:
 
 | Export | Value |
 | --- | --- |

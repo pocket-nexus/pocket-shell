@@ -11,7 +11,7 @@
 
 import { createSignal, type Accessor } from "solid-js";
 import { getOps } from "@pocketjs/framework/host";
-import { launchApp } from "../../../runtime/src/launcher.ts";
+import { launchApp } from "@pocket-shell/runtime/launcher";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 import {
   forgetCompanion,
@@ -26,7 +26,7 @@ import {
   requestCatalog,
   type LinkCatalogApp,
   type LinkStatus,
-} from "../../../runtime/src/link.ts";
+} from "@pocket-shell/runtime/link";
 import {
   connectSavedNetwork,
   forgetNetwork,
@@ -37,7 +37,7 @@ import {
   wifiHost,
   wifiStatus,
   type WifiStatus,
-} from "../../../runtime/src/wifi.ts";
+} from "@pocket-shell/runtime/wifi";
 import { DEFAULT_OFFSET } from "./clock.ts";
 import { toAscii } from "../../../ui/text.ts";
 
@@ -246,7 +246,7 @@ export type CatalogState = "idle" | "loading" | "ready" | "error";
 // camera reads. Pocket Link 2 (the 3DS program from PocketJS db995a4) has no
 // pairing on the wire: Pocket Hub writes the pairing files onto the SD card
 // through ftpd while it installs the program, and `link.pair` answers false
-// (PocketJS docs/POCKET-LINK.md §3, §12.2). `globalThis.link` keeps version
+// (docs/POCKET-LINK.md §3, §12.2). `globalThis.link` keeps version
 // 1's shape and names no version, so the launcher reads it from the status.
 
 /** Whether this console's link pairs by a scanned code. A version 2 client's

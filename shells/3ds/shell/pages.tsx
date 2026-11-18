@@ -7,9 +7,9 @@
 import { createSignal, onMount, type Accessor } from "solid-js";
 import { View } from "@pocketjs/framework/components";
 import { getOps } from "@pocketjs/framework/host";
-import type { LinkStatus } from "../../../runtime/src/link.ts";
+import type { LinkStatus } from "@pocket-shell/runtime/link";
 import { createOsk, Osk, oskHeight } from "@pocketjs/framework/osk";
-import type { WifiNetwork } from "../../../runtime/src/wifi.ts";
+import type { WifiNetwork } from "@pocket-shell/runtime/wifi";
 import { offsetText, TIME_ZONES } from "./clock.ts";
 import { displayApi } from "./display.ts";
 import { LINK_PAIRING, LINK_STATE, linkOffers, sizeText, type ShellApp, type ShellSystem } from "./system.ts";
@@ -273,7 +273,7 @@ const SET_UP_FROM_HUB =
 const ANOTHER_MAC =
   "To add another Mac, set this console up from Pocket Hub on it, with ftpd running here or the SD card in the Mac's reader.";
 
-/** On a console that pairs by a code it shows (PocketJS docs/POCKET-LINK.md
+/** On a console that pairs by a code it shows (docs/POCKET-LINK.md
  *  §3.11): the sections of the Mac page for the code. The console lists the
  *  computers whose Pocket Hub it hears, its owner chooses one, and the code
  *  it then shows is entered in Pocket Hub there. */
@@ -348,7 +348,7 @@ function macPage(env: PageEnv, stack: NavStack, layer: LayerContext): PageSpec {
       // A link that pairs by a code (Pocket Link 1) pairs from the scanner
       // here. Pocket Link 2 has no pairing on the wire: Pocket Hub writes the
       // pairing onto the SD card through ftpd as it installs Pocket Shell, so
-      // this page says so and offers no scanner (PocketJS docs/POCKET-LINK.md §3).
+      // this page says so and offers no scanner (docs/POCKET-LINK.md §3).
       const byCode = sys.pairsByCode();
       // A console that shows a code (§3.11) is paired from this page as well,
       // with no camera: it has the sections of pairCodeSections below.

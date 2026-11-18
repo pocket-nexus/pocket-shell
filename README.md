@@ -75,7 +75,7 @@ shells/
   touch/     src (gesture model and mock apps), scripts, test, manifest
   desktop/   src/system-ui, scripts, test, assets, docs, preview, site, manifests
 devices/
-  3ds/       the Nintendo 3DS host program (C, a Rust archive, its Makefile and build), host contract, tests
+  3ds/       the Nintendo 3DS host program (C, the platform's media, offload, SOC and worker sources, a Rust archive, its Makefile and build), host contract, tests
   services/  portable C host services both device programs compile: the Pocket Link 2 client, launcher, fs, JSON, SHA-256, photo images, quirc
   m5stack/   M5Stack Tab5 firmware (ESP-IDF): programs, platforms, apps, tools, tests, docs
 ui/          the iOS 6 kit the launcher and the applets draw with: navigation, tables, alerts, text, touch; art/icons, the icon family
@@ -96,7 +96,7 @@ link/
 docs/        APP-CONTRACT.md, POCKET-PACKAGE.md, POCKET-LINK.md, APPLETS.md, POCKET-AGENT.md; asset policy; explorations
 scripts/     setup, desktop command dispatch, repository paths and process helpers
 vendor/
-  pocketjs/  PocketJS submodule: the UI framework, the compiler and host contracts, the engine crates, the 3DS platform and PICA renderer
+  pocketjs/  PocketJS submodule: the UI framework, the compiler and host contracts, the engine crates, the 3DS platform's hooks and input, the PICA renderer
 ```
 
 The three shells have separate Bun packages and TypeScript configurations;
@@ -109,7 +109,8 @@ packages: `devices/3ds` builds in the devkitARM container with a Rust archive
 [asset policy and review](docs/ASSETS.md) for generated outputs,
 source inputs and retained documentation fixtures. Application code is separate;
 UI APIs come from `@pocketjs/framework/*`, the launcher's applet surface,
-link, launcher, agent, Wi-Fi and camera modules come from `runtime/src`, and
+link, launcher, agent, Wi-Fi and camera modules come from `runtime/src` as
+`@pocket-shell/runtime/<module>` (`bun run setup` links the package), and
 its navigation, tables, alerts and icon tiles come from `ui/`.
 
 ## Development
@@ -170,21 +171,23 @@ names the variable and the path it read.
 [shells/3ds](shells/3ds/README.md#commands) has what the checkout needs.
 
 PocketJS is pinned through `vendor/pocketjs`, the one submodule. Changes to
-the UI framework, the engine and the 3DS platform and renderer belong
-upstream; this repository selects their commit through its submodule pin.
+the UI framework, the compiler, the engine, the 3DS platform's hooks and
+input and the PICA renderer belong upstream; this repository selects their
+commit through its submodule pin.
 The applets depend on this repository and not the reverse: the kit and the
 icon family were imported from pocket-nexus/applets at `4660dfe`, and a
 change to either lands here. The Pocket Link's contract, TypeScript reference
 implementation and [specification](docs/POCKET-LINK.md), the
 [applet rules](docs/APPLETS.md) and the [agent](docs/POCKET-AGENT.md)'s
 contract and guest modules are in `runtime/`, `link/` and `docs/`: they were
-imported from PocketJS at `89e10438`, and PocketJS keeps its own copies until
-it removes them. The 3DS host program (the agent stage, the launcher's
-storage, the program's side of the Pocket Link) is
+imported from PocketJS at `89e10438`, and PocketJS removed its copies at
+`89162fb7`. The 3DS host program (the agent stage, the launcher's storage,
+the program's side of the Pocket Link) is
 [devices/3ds](devices/3ds/README.md) and the Pocket Link's C client with the
 other portable host services is [devices/services](devices/services/README.md):
-they were imported from PocketJS at `806ac202`, and the `.3dsx` and the Tab5
-firmware build from these copies. The 3DS build reads the platform
+they were imported from PocketJS at `806ac202`, with the 3DS platform's
+media, offload, SOC and worker sources (`devices/3ds/platform`), and PocketJS
+has removed them. The 3DS build reads the platform's hooks and input source
 (`platforms/3ds`), the PICA renderer, the QuickJS facade and the engine
 crates from `vendor/pocketjs`.
 
@@ -192,12 +195,15 @@ The [app contract](docs/APP-CONTRACT.md) (`pocket.app.json`: its schema,
 loader and resolver), the [`.pocket` package format](docs/POCKET-PACKAGE.md)
 with its admission rules, the applet check and the [CLI](cli/README.md) that
 compiles an application into a package are in `runtime/` and `cli/`. They
-were imported from PocketJS at `806ac202`, and PocketJS keeps its own copies
-until it removes them. The 3DS, Tab5 and PSP packages and the Tab5 firmware
-build from the copies here; `shells/desktop` and `shells/touch` call
-PocketJS's. PocketJS supplies the host contracts and the compiler: the CLI
-writes the resolved build plan to a file, and `vendor/pocketjs/tools/build.ts
---plan=<file>` turns it into the JavaScript bundle and the asset pack.
+were imported from PocketJS at `806ac202`. PocketJS keeps its own app
+contract and package format: the 3DS, Tab5 and PSP packages, the Tab5
+firmware and pocket-nexus/applets build with the copies here, and
+`shells/desktop` and `shells/touch` call PocketJS's. PocketJS supplies the
+host contracts and the compiler: the CLI writes the resolved build plan to a
+file, and `vendor/pocketjs/tools/build.ts --plan=<file>` turns it into the
+JavaScript bundle and the asset pack, with the agent's overlay
+(`runtime/src/agent-layer.tsx`) as a `--layer` for a Solid app that declares
+`system.agent`.
 
 ## Releases
 

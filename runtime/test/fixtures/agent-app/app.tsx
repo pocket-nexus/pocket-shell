@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // runtime/test/fixtures/agent-app — the app runtime/test/agent-layer.test.ts
-// runs the system agent's overlay over. Its entry (main.tsx) imports the
-// overlay; this module imports nothing of the agent.
+// runs the system agent's overlay over. Its app contract declares
+// "system.agent" and the build adds the overlay; the app imports nothing of
+// the agent.
 //
 // The touch screen shows a header with a count of R presses and six rows; a
 // tap on a row names it in the footer. The top screen is the system's.

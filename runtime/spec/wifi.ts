@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// PocketJS wifi spec — the console's own wireless settings (`globalThis.wifi`,
+// Wi-Fi spec — the console's own wireless settings (`globalThis.wifi`,
 // capability "system.wifi").
 //
 // The console owns the radio and its saved connections; this module reads

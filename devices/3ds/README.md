@@ -2,9 +2,11 @@
 
 This directory is the program `bun run 3ds` builds into `pocket-shell.3dsx`:
 the native host of Pocket Shell and the applets on the Nintendo 3DS. It was
-imported from PocketJS `products/3ds` at `806ac202`, with the host contract
-(PocketJS `hosts/3ds-dev/pocket.host.json`) and three tools (PocketJS
-`tools/3ds-profile.ts`, `tools/3ds-contracts.ts`, `tools/3ds-stage-art.ts`).
+imported from PocketJS at `806ac202`: the program (`products/3ds`), its host
+contract (`hosts/3ds-dev/pocket.host.json`), three tools
+(`tools/3ds-profile.ts`, `tools/3ds-contracts.ts`, `tools/3ds-stage-art.ts`)
+and the platform's media, offload, SOC and worker sources with the SOC test
+(`platforms/3ds`, `tests/3ds-soc.test.ts`). PocketJS has removed all of them.
 **A path below with "PocketJS" before it is read in place from
 `vendor/pocketjs`**; a path without it is relative to this directory, or
 names `devices/services`, `runtime/`, `link/` or `docs/` of this repository.
@@ -60,6 +62,12 @@ src/photos.c          camera.photo: JPEG save, list, decode, thumbnails
 src/photos_jpeg.c     JPEG through libjpeg for photos.c
 src/input_policy.c    reserved product chords and development-menu input latch
 src/packs_delivery.c  Pocket3D pack delivery over the LAN; no program links it today
+platform/media.c      media.playback: a worker thread owns sockets, MVD and NDSP; the UI copies snapshots
+platform/offload.c    io.offload: a worker thread owns the network calls; the UI reads fixed-size slots
+platform/soc.c        one SOC instance shared by the link, the companion transport and offload
+platform/worker.c     the app's worker domain on a thread, its HTTP through link_http.h
+platform/*.h          their headers; offload_queue.h and offload_coverage.h include
+                      PocketJS engine/modules/offload/include
 Makefile              native build driven by build.ts
 app.rsf               the CIA descriptor makerom reads
 test/                 host tests of the sources above (bun run check:devices)
@@ -69,7 +77,7 @@ test/                 host tests of the sources above (bun run check:devices)
 From PocketJS, compiled by the Makefile from `vendor/pocketjs`:
 
 ```
-platforms/3ds/                   hooks, unreserved HID facts, input source, media, offload, SOC, worker; the SMDH icons
+platforms/3ds/                   hooks, unreserved HID facts, input source; the SMDH icons and their drawings
 devices/3ds/pocket-3ds-pica/     PICA renderer and vertex shader
 programs/native/quickjs/         the QuickJS facade (pocket_qjs_program.c)
 programs/native/runtime/include/ the native program's header
@@ -83,9 +91,10 @@ The independent renderer lives in PocketJS `devices/3ds/pocket-3ds-pica`. It lin
 public runtime ABI helpers for DrawList decoding and guarded glyph pages; it has
 no dependency on `Ui`, QuickJS, camera, media or the launcher.
 
-[icon.svg](icon.svg) and [icon-small.svg](icon-small.svg) are the drawings of
-the 48 px and 24 px SMDH icons. The Makefile reads their rasters, PocketJS
-`platforms/3ds/icon.png` and `icon-small.png` (`ICON`, `SMALL_ICON`).
+PocketJS `platforms/3ds/icon.svg` and `icon-small.svg` are the drawings of
+the 48 px and 24 px SMDH icons, and PocketJS `tools/device-icons.ts` renders
+them into `icon.png` and `icon-small.png` beside them. The Makefile reads
+those rasters (`ICON`, `SMALL_ICON`).
 
 ## Building
 
@@ -467,7 +476,7 @@ port, and exchanges `ctrl` JSON-line frames. `ping` is answered with `pong`;
 `file`/`stream` frame types are skipped by length and left unimplemented.
 
 **The link, the companion transport and the offload worker share one SOC
-instance** through PocketJS `platforms/3ds/soc.c`. An atomic state selects one initializer; a
+instance** through `platform/soc.c`. An atomic state selects one initializer; a
 competing caller returns without waiting. Failed initialization retries after
 a three-second cooldown. Offload initializes and retries on its worker. The
 process releases SOC after every transport stops and the worker is joined.
@@ -492,10 +501,11 @@ the new guest draws blanks where the old one drew CJK.
 
 ## Installed apps and the launcher
 
-**The embedded ROMFS guest is the launcher** (PocketJS docs/LAUNCHER.md, "Nintendo
-3DS"). Every other directory under `sdmc:/pocketjs/runtime/apps/` whose state
-names a committed active package is an installed app: `ui.appTable()` lists
-them (never the launcher's own slot) with `output`, `id`, `title`,
+**The embedded ROMFS guest is the launcher** (the app-switching operations
+are PocketJS docs/LAUNCHER.md's). Every other directory under
+`sdmc:/pocketjs/runtime/apps/` whose state names a committed active package
+is an installed app: `ui.appTable()` lists them (never the launcher's own
+slot) with `output`, `id`, `title`,
 `version` and `bytes` from the `app` object of the package plan, plus
 `current`, `resume`, `launcher` (the embedded output) and `lastError`. The
 facts are cached per slot in `app.txt`, keyed by the package hash, so a table
@@ -609,7 +619,7 @@ A push goes into the staging file and through the admission in `main.c`, a
   the namespace at all.
 - **`globalThis.link.channel`**, for a package that declares
   `link.channel`: the applet's channel to its daemon, read through
-  `@pocketjs/framework/channel` (`docs/POCKET-LINK.md` §7.3). The bindings
+  `@pocket-shell/runtime/channel` (`docs/POCKET-LINK.md` §7.3). The bindings
   are `devices/services/link2_channel_qjs.c`; the program asks for the
   channel each frame until it opens, so a guest that boots while the
   previous guest's close still waits for room gets its channel.
@@ -826,7 +836,8 @@ title/00040000/0ffc1900/content/0429b6bc.app"
 `00040000` is the application category and `0ffc1900` is this demo's unique id
 shifted up by its 8-bit variation; `build.ts` prints the whole title id when
 it writes the file. A capture build installed and booted this way produced
-frames **byte-identical to the `.3dsx` goldens** in PocketJS `tests/goldens/3ds/`.
+frames **byte-identical to the `.3dsx` goldens** in PocketJS `tests/goldens/3ds/`
+(at `806ac202`; PocketJS removed them with its Azahar drivers).
 
 ## Guest metadata and operations
 
@@ -936,7 +947,7 @@ the screen travels; the alpha byte it drops was never read, because the decode
 takes R, G and B only.
 
 ```sh
-bun tests/e2e/azahar.ts    # in a PocketJS checkout, which keeps the driver
+bun tests/e2e/azahar.ts    # in a PocketJS checkout at 806ac202; later PocketJS has no Azahar driver
 ```
 
 **Azahar's two renderers agree on the picture but not on every byte.** With the
@@ -997,10 +1008,9 @@ compiler PocketJS pins (`STABLE_RUST_TOOLCHAIN`).
 | `3ds-transition.test.ts` | `src/transition.c`: the phases' timing, the scrim's opacity, the indicator's dots |
 | `3ds-bundle-compile.test.ts` | `src/bundle_compile.c` against the pinned QuickJS, on a thread with the 3DS stack limit |
 | `3ds-composition.test.ts` | `core/` linked with `src/instance.c` and PocketJS `platforms/3ds/hooks.c`, `input_source.c`: package admission, the product's providers, exact input |
+| `3ds-soc.test.ts` | `platform/soc.c` against a fake libctru (`test/fixtures/3ds-soc`) under ASan and UBSan: concurrent initialization, the cooldown, recovery and shutdown |
 | `camera-photo.test.ts` | `devices/services/photos_image.c` and `src/photos_jpeg.c`, the C constants against `runtime/spec/camera.ts`, the sim's camera host |
 | `pocket3d-delivery.test.ts` | `src/packs_delivery.c` against PocketJS `tools/pocket3d-delivery.ts` over loopback |
 
-PocketJS keeps the tests of what it keeps: `tests/3ds-soc.test.ts`
-(`platforms/3ds/soc.c`), `tests/pica-driver.test.ts` (the renderer),
-`tests/3ds-minimal.test.ts` (`programs/3ds`) and the Azahar drivers
-(`tests/e2e/azahar*.ts`), which build a capture `.3dsx` and need the emulator.
+PocketJS keeps the tests of what it keeps: `tests/pica-driver.test.ts` (the
+renderer) and `tests/3ds-minimal.test.ts` (`programs/3ds`).

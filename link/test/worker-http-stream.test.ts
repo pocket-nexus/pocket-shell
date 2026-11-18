@@ -3,9 +3,10 @@
 // link/v2/cli.ts runs for net.http): the headers reach the sink before the
 // body ends, and the sink's pace is the body's.
 //
-// This is one case of PocketJS tests/worker-http-stream.test.ts. Its stream
-// credit case tests tools/pocket-link/stream-credit.ts and its native case
-// compiles Pocket Link 1's link_http.c; both stay in PocketJS.
+// This is one case of PocketJS tests/worker-http-stream.test.ts at 806ac202.
+// Its stream credit case tested tools/pocket-link/stream-credit.ts and its
+// native case compiled Pocket Link 1's link_http.c; PocketJS removed the test
+// with both.
 
 import { expect, test } from "bun:test";
 import { performNet } from "../fetch.ts";

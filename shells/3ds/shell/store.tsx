@@ -10,7 +10,7 @@
 import { createMemo, For, Show, type Accessor } from "solid-js";
 import { Text, View } from "@pocketjs/framework/components";
 import { ClassicSpinner } from "@pocketjs/framework/classic";
-import type { LinkCatalogApp } from "../../../runtime/src/link.ts";
+import type { LinkCatalogApp } from "@pocket-shell/runtime/link";
 import { LINK_STATE, linkOffers, progressText, sizeText, type ShellSystem, type Install } from "./system.ts";
 import { appTint, Tile } from "../../../ui/icons.tsx";
 import { SCREEN_W } from "../../../ui/screen.ts";

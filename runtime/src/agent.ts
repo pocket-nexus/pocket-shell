@@ -20,8 +20,8 @@ import {
   type AgentStatus,
   type AgentText,
 } from "../spec/agent.ts";
-import { BTN } from "../../vendor/pocketjs/contracts/spec/spec.ts";
-import { __packTouch } from "../../vendor/pocketjs/framework/src/touch.ts";
+import { BTN } from "@pocketjs/framework/input";
+import { packTouch } from "@pocketjs/framework/system-layers";
 
 export { AGENT_MODE, AGENT_SCREEN };
 export type { AgentDisplay, AgentEvent, AgentStatus, AgentText };
@@ -180,7 +180,7 @@ const AUXILIARY = [1] as const;
 /** The packed contact words and surfaces of a played frame. */
 export function playedTouches(frame: PlayedFrame): { touches: readonly number[]; surfaces: readonly number[] } | null {
   if (!frame.touch) return null;
-  return { touches: [__packTouch(PLAYED_TOUCH_ID, frame.touch.x, frame.touch.y)], surfaces: AUXILIARY };
+  return { touches: [packTouch(PLAYED_TOUCH_ID, frame.touch.x, frame.touch.y)], surfaces: AUXILIARY };
 }
 
 // ---------------------------------------------------------------------------

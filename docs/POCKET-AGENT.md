@@ -20,11 +20,14 @@ stage on the top screen, turns stereo on (`gfxSet3D`), publishes
 it. The app's whole interface lives on the touch screen. A guest without the
 capability keeps the top screen as before.
 
-The build adds the overlay to every Solid app whose plan has the feature:
-PocketJS `tools/build.ts` walks PocketJS `framework/src/agent-layer.tsx` in pass 1 (its classes
-and glyphs compile with the app's) and bundles an entry that imports it ahead
-of the app, so it registers with PocketJS `framework/src/system-layers.ts` before the
-app mounts. `render()` mounts registered system layers after the app. The app
+The build adds the overlay, `runtime/src/agent-layer.tsx`, to every Solid
+app whose plan has the feature: `runtime/manifest/system-layers.ts` passes it
+to PocketJS's compiler as `tools/build.ts --layer=<module>`, for
+`pocket-shell compile` and `devices/3ds/build.ts` alike. The compiler walks
+it in pass 1 (its classes and glyphs compile with the app's) and bundles an
+entry that imports it ahead of the app, so it registers with
+`registerSystemLayer` (`@pocketjs/framework/system-layers`) before the app
+mounts. `render()` mounts registered system layers after the app. The app
 does not import anything.
 
 ## The stage
@@ -69,7 +72,7 @@ an orange block with two upright eyes, two arm stubs and four legs.
 shows two key caps, L and R, and "Ask Claude". While an applet other than the
 launcher runs (`launcher_home_running()` is false), or while the launcher
 shows a page other than its first and has said so with `agent.homeHint(true)`
-(`setHomeHint` in `@pocketjs/framework/agent`; every guest boot clears it), a
+(`setHomeHint` in `@pocket-shell/runtime/agent`; every guest boot clears it), a
 second pill 6 px above it shows a SELECT key cap and "Home": SELECT returns to
 the launcher, or to the launcher's first page. Both
 pills are one 128×64 RGBA8 texture baked from Inter Bold by
@@ -105,8 +108,8 @@ screen.
   and a guest without the capability or `agent_shutdown` powers it on, so no
   other program inherits a dark top screen. The chord, the microphone and
   the mirror capture work as in dual mode.
-- **The framework** exports `displayMode()` and `setDisplayMode(mode)` from
-  `@pocketjs/framework/agent`; Pocket Shell's Settings has the switch.
+- **The guest module** `@pocket-shell/runtime/agent` exports `displayMode()`
+  and `setDisplayMode(mode)`; Pocket Shell's Settings has the switch.
 
 ## The host's agent channel
 
@@ -208,4 +211,4 @@ app's `3ds-dev` bundle in the sim host with the 3DS geometry of
 Mac. Pocket Hub's documentation describes the model runtime, the order of a
 turn's messages, the tools, the glyph atlas and speech. Its tests drive the
 companion with the reference console client
-(PocketJS `tools/pocket-link/console-client.ts`).
+(PocketJS `tools/pocket-link/console-client.ts` at `806ac202`).

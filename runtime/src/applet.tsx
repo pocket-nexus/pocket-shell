@@ -11,11 +11,11 @@
 // by then and absent before.
 
 import type { JSX as SolidJSX } from "solid-js";
-import { SCREEN_H, SCREEN_W } from "../../vendor/pocketjs/contracts/spec/spec.ts";
 import { AuxiliarySurface, View } from "@pocketjs/framework/components";
 import { auxiliaryViewport, hasAuxiliarySurface } from "@pocketjs/framework/display";
 import { getOps, hostViewport } from "@pocketjs/framework/host";
 import { surfaceHasTouch } from "@pocketjs/framework/modality";
+import { SCREEN_H, SCREEN_W } from "@pocketjs/framework/system-layers";
 
 export interface AppletViewport {
   readonly width: number;

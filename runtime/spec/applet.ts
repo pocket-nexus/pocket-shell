@@ -83,7 +83,7 @@ const APPLET_REQUIRED = ["display.auxiliary", "input.touch.auxiliary"] as const;
 /** The one presentation an applet may add: the full screen of a device with
  *  one screen and no touch (the PSP), driven by its buttons. The entry is
  *  app.entry, so one program lays out for either surface
- *  (@pocketjs/framework/applet). */
+ *  (@pocket-shell/runtime/applet). */
 export const APPLET_FULL_SCREEN_MODALITY = { screens: 1, touch: "none", buttons: true } as const;
 /** What the baseline serves when the full-screen presentation exists. */
 const APPLET_BASELINE_MODALITY = { touch: "auxiliary" } as const;
@@ -116,10 +116,10 @@ const APPLET_STORE_CAPABILITIES = ["data.fs"] as const;
 /** Size budgets of a built applet (the guest bundle and its pak). */
 export const APPLET_BUDGET = { jsBytes: 640 * 1024, pakBytes: 3 * 1024 * 1024 } as const;
 
-/** `@pocketjs/framework/<subpath>` modules an applet may import. */
+/** `@pocketjs/framework/<subpath>` modules an applet may import: the UI
+ *  framework. */
 export const APPLET_MODULES = [
   "solid",
-  "applet",
   "modality",
   "components",
   "lifecycle",
@@ -128,7 +128,6 @@ export const APPLET_MODULES = [
   "clock",
   "host",
   "renderer",
-  "link",
   "gesture",
   "kinetics",
   "osk",
@@ -141,20 +140,32 @@ export const APPLET_MODULES = [
   "display",
   "platform",
 ] as const;
-/** Modules allowed when the manifest declares the capability that gates them.
- *  `worker/channels` is the UI's side of the applet's own worker
- *  (`domains.worker`): an applet's network is that worker's `io.http`
- *  resource, the only node an applet's capabilities admit, so the UI module
- *  that reads the worker comes with `net.http`. */
+/** `@pocketjs/framework/<subpath>` modules allowed when the manifest declares
+ *  the capability that gates them. `worker/channels` is the UI's side of the
+ *  applet's own worker (`domains.worker`): an applet's network is that
+ *  worker's `io.http` resource, the only node an applet's capabilities admit,
+ *  so the UI module that reads the worker comes with `net.http`. */
 export const APPLET_GATED_MODULES: Readonly<Record<string, readonly string[]>> = {
-  camera: APPLET_CAPABILITY_PREFIXES,
   fs: ["data.fs"],
   "worker/channels": ["net.http"],
 };
-/** Exports of @pocketjs/framework/link that act for the system: installing,
+/** `@pocket-shell/runtime/<module>` modules an applet may import: the
+ *  Runtime's guest modules (runtime/src) that serve an applet. */
+export const APPLET_RUNTIME_MODULES = ["applet", "link"] as const;
+/** `@pocket-shell/runtime/<module>` modules allowed when the manifest
+ *  declares a capability that gates them. */
+export const APPLET_RUNTIME_GATED_MODULES: Readonly<Record<string, readonly string[]>> = {
+  camera: APPLET_CAPABILITY_PREFIXES,
+};
+/** The Runtime's guest modules, `@pocket-shell/runtime/<module>`. PocketJS
+ *  published them as `@pocketjs/framework/<module>` until it removed them, so
+ *  an import of the old specifier names the new one. */
+export const RUNTIME_GUEST_MODULES = ["applet", "link", "channel", "launcher", "system", "agent", "wifi", "device", "camera"] as const;
+/** Exports of @pocket-shell/runtime/link that act for the system: installing,
  *  removing and pairing belong to the launcher. */
 export const APPLET_SYSTEM_LINK_EXPORTS = ["installApp", "removeApp", "pairCompanion", "forgetCompanion", "requestCatalog"] as const;
-/** Bare packages an applet may import besides @pocketjs/framework. */
+/** Bare packages an applet may import besides @pocketjs/framework and
+ *  @pocket-shell/runtime. */
 export const APPLET_PACKAGES = ["solid-js", "solid-js/store"] as const;
 
 /** A broken contract rule in a manifest, a platform registry or an applet's

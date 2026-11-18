@@ -7,7 +7,7 @@
  *   link-host pair <store> <beacon-port> <hub id>
  *
  * `setup` links from the pairing files Hub's setup writes; `pair` pairs by a
- * code the device shows (pocketjs docs/POCKET-LINK.md §3.11). Each step
+ * code the device shows (the root docs/POCKET-LINK.md §3.11). Each step
  * prints one line. A `wait <name>` line asks the test to act; the harness
  * pumps the link until it reads one line from stdin:
  *

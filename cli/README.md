@@ -8,7 +8,7 @@ the package ([docs/POCKET-PACKAGE.md](../docs/POCKET-PACKAGE.md)). **It runs on
 Bun**, after `bun run setup` has initialized `vendor/pocketjs`.
 
 ```sh
-bun cli/pocket-shell.ts check   --manifest pocket.app.json --target 3ds-dev
+bun cli/pocket-shell.ts check   --manifest pocket.app.json --target psp
 bun cli/pocket-shell.ts compile --manifest pocket.app.json --host-config pocket.host.config.ts --output dist/app.pocket
 bun run pocket-shell compile …   # the root script, from the repository root
 ```
@@ -26,7 +26,7 @@ all of them and writes one package with one variant.
 | Compare the framework runtime the application resolves with the one the compiler bundles | PocketJS `framework/compiler/runtime-packages.ts` |
 | Type-check `app.entry` and the worker entry | PocketJS `framework/compiler/app-check.ts` |
 | Write `<plan-dir>/<host id>/plan.json` | `cli/pocket-shell.ts` |
-| Compile the plan into `<output>.js`, `<output>.pak` and, with `domains.worker`, `<output>.worker.js` | PocketJS `tools/build.ts --plan=<plan.json> --project-root=<dir> --outdir=<dir>` |
+| Compile the plan into `<output>.js`, `<output>.pak` and, with `domains.worker`, `<output>.worker.js`; a Solid plan with `system.agent` gets the agent's overlay (`runtime/src/agent-layer.tsx`) as a system layer | PocketJS `tools/build.ts --plan=<plan.json> --project-root=<dir> --outdir=<dir>`, with `--layer=<module>` from `runtime/manifest/system-layers.ts` |
 | Check an applet's sources and bundle sizes | `runtime/package/applet-check.ts` |
 | Assemble the variant's sections | `runtime/package/pocket-pack.ts` |
 | Compile sections 6 and 9 when the host contract names `bytecode.engine` | `runtime/package/bytecode.ts`, PocketJS `tools/quickjs-bytecode.ts` |
@@ -40,7 +40,7 @@ from it.
 | Option | Default | Value |
 | --- | --- | --- |
 | `--manifest FILE` | `pocket.app.json` | The app contract, relative to the current directory. |
-| `--target ID\|FILE` | `POCKET_TARGET`, then the one host contract of the host config | A PocketJS host id (`3ds-dev`, `psp`) or the path of a `pocket.host.json`. With `--host-config`, the id of one of its host contracts. |
+| `--target ID\|FILE` | `POCKET_TARGET`, then the one host contract of the host config | A PocketJS host id (`psp`, `vita`) or the path of a `pocket.host.json` (`devices/3ds/pocket.host.json` for the 3DS). With `--host-config`, the id of one of its host contracts. |
 | `--host-config FILE` | Without `--target`, the nearest `pocket.host.config.ts` above the manifest | The host config whose host contract the application compiles against. A host config with several host contracts needs `--target`. |
 | `--project-root DIR` | The manifest's directory | The directory `app.entry` and the worker entry are relative to, and the compiler's working directory. |
 | `--outdir DIR` | `dist` | Compiler outputs, relative to the project root. |

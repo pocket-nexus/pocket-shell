@@ -12,7 +12,7 @@
 // store shows until a newer one arrives.
 
 import { createSignal } from "solid-js";
-import { AppletSurface, appletViewport } from "@pocketjs/framework/applet";
+import { AppletSurface, appletViewport } from "@pocket-shell/runtime/applet";
 import { Text, View } from "@pocketjs/framework/components";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 import { openFeed } from "../lib/feed.ts";

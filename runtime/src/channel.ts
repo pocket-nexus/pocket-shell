@@ -8,7 +8,7 @@
 // chunks. It polls the host once per tick while a request is open, a handler
 // is registered or a stream is in use.
 
-import { registerServicePump } from "../../vendor/pocketjs/framework/src/services.ts";
+import { registerServicePump } from "@pocketjs/framework/system-layers";
 
 export type ChannelJson = null | boolean | number | string | ChannelJson[] | { [key: string]: ChannelJson };
 export type ChannelArgs = { [key: string]: ChannelJson };

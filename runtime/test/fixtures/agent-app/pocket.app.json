@@ -11,6 +11,9 @@
         "input.buttons",
         "display.auxiliary",
         "input.touch.auxiliary"
+      ],
+      "enhances": [
+        "system.agent"
       ]
     }
   },

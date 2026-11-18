@@ -22,8 +22,41 @@
       "@pocketjs/framework/input": [
         "../../vendor/pocketjs/framework/src/input-api.ts"
       ],
+      "@pocketjs/framework/system-layers": [
+        "../../vendor/pocketjs/framework/src/system-layers-api.ts"
+      ],
+      "@pocketjs/framework/sim": [
+        "../../vendor/pocketjs/programs/sim/sim.ts"
+      ],
       "@pocketjs/framework/*": [
         "../../vendor/pocketjs/framework/src/*"
+      ],
+      "@pocket-shell/runtime/applet": [
+        "../../runtime/src/applet.tsx"
+      ],
+      "@pocket-shell/runtime/link": [
+        "../../runtime/src/link.ts"
+      ],
+      "@pocket-shell/runtime/channel": [
+        "../../runtime/src/channel.ts"
+      ],
+      "@pocket-shell/runtime/launcher": [
+        "../../runtime/src/launcher.ts"
+      ],
+      "@pocket-shell/runtime/system": [
+        "../../runtime/src/system.ts"
+      ],
+      "@pocket-shell/runtime/agent": [
+        "../../runtime/src/agent.ts"
+      ],
+      "@pocket-shell/runtime/wifi": [
+        "../../runtime/src/wifi.ts"
+      ],
+      "@pocket-shell/runtime/device": [
+        "../../runtime/src/device.ts"
+      ],
+      "@pocket-shell/runtime/camera": [
+        "../../runtime/src/camera.ts"
       ]
     }
   },

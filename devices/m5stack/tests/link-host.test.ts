@@ -2,7 +2,7 @@
 // (programs/m5stack-tab5/components/pocket_system/src/link2_host.c) and its
 // route for the worker's requests to companion.pocket (companion.c): built
 // with the Pocket Link 2 client of devices/services under ASan and UBSan by
-// tests/link-host.c, against pocketjs's reference Hub in this process.
+// tests/link-host.c, against the reference Hub (link/v2) in this process.
 //
 // A store Hub has not set up holds no pairing; after Hub's setup wrote the
 // pairing files and the firmware started again, it links, reports its status
@@ -10,8 +10,8 @@
 // each companion.pocket request as net.http for the app that runs. With the
 // link down, a request fails with a message the app can show.
 //
-// A store no Hub has set up also pairs by a code the device shows (pocketjs
-// docs/POCKET-LINK.md §3.11): the firmware writes the key file itself, links,
+// A store no Hub has set up also pairs by a code the device shows
+// (docs/POCKET-LINK.md §3.11): the firmware writes the key file itself, links,
 // and links again from that file at its next start.
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
@@ -19,8 +19,8 @@ import { createSocket } from "node:dgram";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { type HubDevice, LinkHub, MemoryStore, directoryStorage } from "../../../vendor/pocketjs/tools/pocket-link/v2/hub.ts";
-import { LinkError } from "../../../vendor/pocketjs/tools/pocket-link/v2/peer.ts";
+import { type HubDevice, LinkHub, MemoryStore, directoryStorage } from "../../../link/v2/hub.ts";
+import { LinkError } from "../../../link/v2/peer.ts";
 
 const ROOT = join(import.meta.dir, "..");
 const POCKETJS = join(ROOT, "../../vendor/pocketjs");
@@ -145,7 +145,7 @@ describe("the Tab5 on Pocket Link 2", () => {
         lines.push(line);
         if (line === "wait setup") {
           // The first start made device.txt; Hub's setup keeps that id and
-          // writes its key file beside it (pocketjs docs/POCKET-LINK.md §3.2).
+          // writes its key file beside it (docs/POCKET-LINK.md §3.2).
           deviceId = readFileSync(join(linkDir, "device.txt"), "utf8").trim();
           const setup = await hub.setup(directoryStorage(linkDir), { kind: "card", addresses: ["127.0.0.1"] });
           expect(setup.failed).toBe(false);
