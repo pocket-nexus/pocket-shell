@@ -1,13 +1,15 @@
 // Packages a built Tab5 firmware for distribution.
 //   bun tools/firmware-dist.ts [--build programs/m5stack-tab5/build] [--out .pocket-build/dist]
 // Run with the ESP-IDF environment exported (esptool on PATH). Writes, for
-// the build's project version <v>:
-//   pocket-m5-tab5-<v>.bin   bootloader, partition table and app merged from
-//                            0x0, padded with 0xFF (erases nvs and phy_init)
-//   pocket-m5-tab5-<v>.zip   the three images and flash_args, for an update
-//                            that keeps nvs (saved Wi-Fi networks)
-//   SHA256SUMS               SHA-256 of the .bin and the .zip
-//   RELEASE.md               versions and flashing commands
+// the build's project version <v> (ESP-IDF takes it from `git describe` of
+// this repository, such as v0.2.0-12-g1a2b3c4):
+//   pocket-shell-tab5-<v>.bin   bootloader, partition table and app merged
+//                               from 0x0, padded with 0xFF (erases nvs and
+//                               phy_init)
+//   pocket-shell-tab5-<v>.zip   the three images and flash_args, for an
+//                               update that keeps nvs (saved Wi-Fi networks)
+//   SHA256SUMS                  SHA-256 of the .bin and the .zip
+//   RELEASE.md                  versions and flashing commands
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -45,7 +47,7 @@ const project = JSON.parse(readFileSync(join(build, "project_description.json"),
 };
 const chip = flasher.extra_esptool_args.chip;
 const version = project.project_version;
-const name = `pocket-m5-tab5-${version}`;
+const name = `pocket-shell-tab5-${version}`;
 const pocketjs = run("git", ["-C", resolve(root, "../../vendor/pocketjs"), "rev-parse", "--short=8", "HEAD"], root);
 
 rmSync(out, { recursive: true, force: true });
@@ -73,7 +75,7 @@ writeFileSync(join(out, "RELEASE.md"), `PocketJS firmware for the M5Stack Tab5 (
 
 | Component | Version |
 | --- | --- |
-| pocket-m5 | \`${version}\` |
+| pocket-shell | \`${version}\` |
 | pocketjs | \`${pocketjs}\` |
 | ESP-IDF | \`${project.git_revision}\` |
 

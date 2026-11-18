@@ -1,17 +1,38 @@
-name: Firmware
+name: M5Stack firmware
 
+# Host checks and the Tab5 firmware build of devices/m5stack. The firmware
+# compiles the launcher from shells/3ds and the runtime from vendor/pocketjs,
+# so a change to either builds it again. This workflow publishes no release:
+# the packaged firmware is a workflow artifact.
 on:
   pull_request:
+    paths:
+      - '.github/workflows/firmware-m5stack.yml'
+      - '.bun-version'
+      - 'bun.lock'
+      - 'package.json'
+      - 'scripts/**'
+      - 'devices/m5stack/**'
+      - 'shells/3ds/**'
+      - 'vendor/**'
   push:
     branches: [main]
-    tags: ["v*"]
+    paths:
+      - '.github/workflows/firmware-m5stack.yml'
+      - '.bun-version'
+      - 'bun.lock'
+      - 'package.json'
+      - 'scripts/**'
+      - 'devices/m5stack/**'
+      - 'shells/3ds/**'
+      - 'vendor/**'
   workflow_dispatch: {}
 
 permissions:
   contents: read
 
 concurrency:
-  group: firmware-${{ github.ref }}
+  group: firmware-m5stack-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -26,15 +47,19 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
+      # vendor/pocketjs and vendor/applets; the applets' own pocketjs
+      # submodule is not needed here.
       - uses: actions/checkout@v7
         with:
           submodules: true
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: .bun-version
-      - run: bun install --frozen-lockfile
+      - run: bun run setup
       - run: bun run format:check
+        working-directory: devices/m5stack
       - run: sh tools/test-worker-io.sh
+        working-directory: devices/m5stack
 
   tab5:
     name: Tab5 firmware
@@ -46,13 +71,10 @@ jobs:
           submodules: true
           # The firmware version is `git describe` of the checkout.
           fetch-depth: 0
-      # Pocket Shell builds with its applets submodule (the iOS 6 kit and the
-      # icons); its own pocketjs submodule is not needed here.
-      - run: git -C third_party/pocket-shell submodule update --init vendor/applets
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: .bun-version
-      - run: bun install --frozen-lockfile
+      - run: bun run setup
 
       - name: Install ESP-IDF host packages
         run: |
@@ -81,7 +103,7 @@ jobs:
 
       - name: Install the pocketjs Rust toolchain
         run: |
-          channel=$(sed -n 's/^channel = "\(.*\)"$/\1/p' third_party/pocketjs/rust-toolchain.toml)
+          channel=$(sed -n 's/^channel = "\(.*\)"$/\1/p' vendor/pocketjs/rust-toolchain.toml)
           rustup toolchain install "$channel" --profile minimal \
             --target riscv32imafc-unknown-none-elf
 
@@ -92,45 +114,21 @@ jobs:
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
             ~/.cargo/git/db
-          key: cargo-${{ runner.os }}-${{ hashFiles('third_party/pocketjs/Cargo.lock') }}
+          key: cargo-${{ runner.os }}-${{ hashFiles('vendor/pocketjs/Cargo.lock') }}
           restore-keys: cargo-${{ runner.os }}-
 
       - name: Build
         run: |
           . ~/esp-idf/export.sh
-          idf.py -C programs/m5stack-tab5 set-target esp32p4 build
+          idf.py -C devices/m5stack/programs/m5stack-tab5 set-target esp32p4 build
 
       - name: Package
         run: |
           . ~/esp-idf/export.sh
-          bun tools/firmware-dist.ts --out dist
+          bun devices/m5stack/tools/firmware-dist.ts --out dist
 
       - uses: actions/upload-artifact@v7
         with:
-          name: pocket-m5-tab5
+          name: pocket-shell-tab5
           path: dist/
           if-no-files-found: error
-
-  release:
-    name: Release
-    needs: [checks, tab5]
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v8
-        with:
-          name: pocket-m5-tab5
-          path: dist
-      - name: Publish the release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          # A tag with a suffix (v0.2.0-rc1) is a prerelease.
-          prerelease=""
-          case "$GITHUB_REF_NAME" in *-*) prerelease="--prerelease" ;; esac
-          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
-            --verify-tag $prerelease --title "pocket-m5 $GITHUB_REF_NAME" \
-            --notes-file dist/RELEASE.md dist/*.bin dist/*.zip dist/SHA256SUMS
