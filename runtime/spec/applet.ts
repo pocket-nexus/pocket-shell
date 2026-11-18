@@ -15,11 +15,11 @@
 //     alone: a capability allowlist, declared companion services, no
 //     native code, no code evaluation, size budgets.
 //
-// The manifest rules below are checked when a plan resolves (PocketJS
-// framework/src/manifest/resolve.ts); the source and bundle rules when the
-// build runs (PocketJS tools/applet-check.ts, called by tools/build.ts).
+// The manifest rules below are checked when a plan resolves
+// (runtime/manifest/resolve.ts); the source and bundle rules when the build
+// runs (runtime/package/applet-check.ts, called by cli/pocket-shell.ts).
 
-import type { JsonSchema, PocketManifestV2 } from "../../vendor/pocketjs/contracts/spec/pocket-manifest.ts";
+import type { JsonSchema, PocketManifestV2 } from "./pocket-manifest.ts";
 
 const APPLET_VERSION = 1 as const;
 
@@ -158,7 +158,7 @@ export const APPLET_SYSTEM_LINK_EXPORTS = ["installApp", "removeApp", "pairCompa
 export const APPLET_PACKAGES = ["solid-js", "solid-js/store"] as const;
 
 /** A broken contract rule in a manifest, a platform registry or an applet's
- *  code (PocketJS framework/src/manifest/validate.ts re-exports it). */
+ *  code (runtime/manifest/validate.ts re-exports it). */
 export interface ContractDiagnostic {
   readonly code: string;
   /** RFC 6901 JSON Pointer into the manifest (the root is the empty
