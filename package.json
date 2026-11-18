@@ -30,10 +30,13 @@
     "touch": "bun run --cwd shells/touch touch",
     "check:touch": "bun run --cwd shells/touch check",
     "touch:e7": "bun run --cwd shells/touch e7",
+    "m5stack": "bun run --cwd devices/m5stack",
+    "check:m5stack": "bun run --cwd devices/m5stack check",
     "release": "bun scripts/release/prepare.ts"
   },
   "workspaces": [
-    "shells/*"
+    "shells/*",
+    "devices/*"
   ],
   "devDependencies": {
     "wrangler": "4.125.0"

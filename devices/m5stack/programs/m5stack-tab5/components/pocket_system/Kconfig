@@ -1,0 +1,10 @@
+menu "Pocket system services"
+
+    config POCKET_SYSTEM_SNTP_SERVER
+        string "SNTP server"
+        default "pool.ntp.org"
+        help
+            The NTP server the wall clock synchronizes with each time the
+            radio is assigned an address.
+
+endmenu

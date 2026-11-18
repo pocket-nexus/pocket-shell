@@ -1,0 +1,18 @@
+{
+  "art/bg_00.png": { "psm": 0 },
+  "art/bg_10.png": { "psm": 0 },
+  "art/bg_01.png": { "psm": 0 },
+  "art/bg_11.png": { "psm": 0 },
+  "art/internal_i2c_dev_chart.png": { "psm": 0 },
+  "art/porta_i2c_dev_chart.png": { "psm": 0 },
+  "art/sw_on.png": { "psm": 0 },
+  "art/sw_off.png": { "psm": 0 },
+  "art/sw_chg_on.png": { "psm": 0 },
+  "art/sw_chg_off.png": { "psm": 0 },
+  "art/sw_qc_on.png": { "psm": 0 },
+  "art/sw_qc_off.png": { "psm": 0 },
+  "art/sw_rf_h.png": { "psm": 0 },
+  "art/sw_rf_l.png": { "psm": 0 },
+  "art/logo_tab.png": { "psm": 0 },
+  "art/logo_5.png": { "psm": 0 }
+}

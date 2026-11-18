@@ -61,7 +61,7 @@ performs, and only while Hub lists `net.http` (PocketJS
 `docs/POCKET-LINK.md` §6.1, §6.5); without it the request fails at once.
 On the Tab5 it is the firmware's HTTP over
 Wi-Fi, and a request to `companion.pocket` goes over the Pocket Link to the
-paired Mac (pocket-m5 v0.1.2).
+paired Mac (since pocket-m5 v0.1.2).
 
 ### Surfaces
 
@@ -145,17 +145,18 @@ pspsh -e "ldstart host0:/pocketjs-psp.prx"   # after copying the PRX into the sh
 
 ### The M5Stack Tab5
 
-The Tab5 target is pocket-m5's `programs/m5stack-tab5` with the host
+The Tab5 target is `devices/m5stack/programs/m5stack-tab5` with the host
 contract `tab5-home` (`pocket.host.json`, which its `pocket.host.config.ts`
 names): an ESP32-P4 whose 1280x720 panel
 shows the auxiliary surface at **640x360 logical, presented at 2x**, turned
-onto the portrait panel. The firmware builds this launcher (`shell/`, from
-its `third_party/pocket-shell` submodule) and embeds it, keeps the installed
+onto the portrait panel. The firmware builds this launcher (`shell/`) and
+embeds it, keeps the installed
 applets on its `apps` flash partition and their data on the microSD card,
 and boots one runtime per app; the applets install from the Mac's catalog as
 on the 3DS, or from an install code (below). The six
-pictures at the top of the repository README are this surface. pocket-m5's
-releases are the firmware.
+pictures at the top of the repository README are this surface.
+[devices/m5stack](../../devices/m5stack/README.md) has the firmware build;
+the firmware releases up to `v0.1.4` are pocket-m5's.
 
 - `bun run tab5 [app…]` compiles each app against the Tab5 host config
   into `dist/tab5/<output>.pocket` and refuses a package the host contract
@@ -165,32 +166,33 @@ releases are the firmware.
   viewport, presentation and auxiliary surface match, the tick rate is a
   whole multiple of a host cadence (an applet's 60 Hz runs two core ticks
   per 30 Hz frame on the Tab5), and every enabled feature is a host
-  capability. The host config is read from a
-  [pocket-m5](https://github.com/pocket-nexus/pocket-m5) checkout:
-  `POCKET_M5_ROOT` when set (relative to the repository root), else
-  `../pocket-m5` beside this repository. A firmware built with
+  capability. The host config is read from `devices/m5stack`;
+  `POCKET_M5_ROOT`, relative to the repository root, names another firmware
+  tree. A firmware built with
   `-DPOCKETJS_TAB5_SHELL_PACKAGE=<package.pocket>` embeds a launcher package
-  from here in place of the one it compiles from its submodule.
+  from here in place of the one it compiles from `shell/`.
 - **Installs from a code.** Where the firmware binds `globalThis.installer`
   into the launcher (the Tab5), the Mac store shows a Scan a Code... row
   above its list. The scanner reads an install URI
   (`pocketlink://install?v=1&a=<app id>&s=<sha256>[&n=<title>]&u=<url>`,
-  pocket-m5 `components/pocket_system/README.md`, "Installs from a code"),
+  [pocket_system](../../devices/m5stack/programs/m5stack-tab5/components/pocket_system/README.md#installs-from-a-code)),
   closes the camera and shows the app's title and the server's host with
   Install and Cancel; the download's progress, then Open or the firmware's
   error, follow on that page. `shell/system.ts` parses the URI, starts the
   download and polls the installer every frame while it runs. Either scanner
-  entry takes either code: a pairing code pairs where the link pairs by code
-  (Pocket Link 1, the Tab5's), and gets a hint on a Pocket Link 2 console. A
-  host without the installer shows no row.
+  entry takes either code: a pairing code pairs where the link pairs by a
+  scanned code (Pocket Link 1, a Tab5 on a firmware before pocket-m5 v0.1.3),
+  and gets a hint on a Pocket Link 2 console. A host without the installer
+  shows no row.
 - The Pocket Hub app carries the applets and offers them to a paired Tab5
-  or 3DS, each over the version of the Pocket Link it speaks. `bun run
+  or 3DS over Pocket Link 2. `bun run
   offer` builds both the 3DS and the Tab5 package of every applet into
   `dist/3ds/apps/` and serves that folder as the catalog of PocketJS's
   reference Pocket Link 2 Hub (`tools/3ds-dev.ts serve --apps`), which lists
   to each console the files with a variant for its target. That Hub speaks
-  version 2 only, so it reaches a 3DS; a Tab5 needs a Hub that speaks
-  version 1.
+  version 2, which the 3DS program and the Tab5 firmware both compile; a
+  Tab5 pairs with it by the code it shows
+  ([Pairing a computer](../../devices/m5stack/README.md#pairing-a-computer)).
 - The Tab5 has no buttons. The firmware paints a **floating home ball** over
   the picture: a tap sends SELECT (back to Home, or the launcher summoned
   from an app), a finger that moves at once drags the ball inside the
@@ -230,8 +232,8 @@ version 1 client has none):
   says so and lists the paired Macs with Forget; forgetting one deletes its
   file on the card, and linking to it again takes another setup from that
   Mac. `link.pair` answers false there, so the page offers no scanner.
-- **Pocket Link 2, a console that shows a code** (a Tab5 on pocket-m5's
-  firmware with PocketJS `docs/POCKET-LINK.md` §3.11). Its host's link has
+- **Pocket Link 2, a console that shows a code** (a Tab5 on the firmware
+  of `devices/m5stack`, PocketJS `docs/POCKET-LINK.md` §3.11). Its host's link has
   `pairOpen`, `pairAsk` and `pairClose`, and its status carries `pair`
   (`shell/system.ts` `showsPairCode`). Settings > Mac > Pair a Computer...
   makes a code and lists the computers whose Pocket Hub the console hears on
@@ -239,8 +241,9 @@ version 1 client has none):
   Hub there asks for them. The page says how long the code lasts and how many
   wrong entries it still takes, and, when a code paired nothing, why. No
   camera, no ftpd and no card are involved.
-- **Pocket Link 1, a Tab5 on an earlier firmware.** Settings > Mac > Pair a
-  Mac... opens the camera on the code Pocket Hub shows, as before.
+- **Pocket Link 1, a Tab5 on a firmware before pocket-m5 v0.1.3.** Settings
+  > Mac > Pair a Mac... opens the camera on the code Pocket Hub shows, as
+  before.
 
 The Mac page and the store follow the features the link lists (§6.1): a
 linked Mac that lists no `catalog` gets "No Applets Offered" in the store

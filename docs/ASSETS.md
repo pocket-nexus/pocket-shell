@@ -12,6 +12,8 @@ Build intermediates and individual validation runs stay ignored.
 | 3DS `shell/art/*.svg` and `shell/images.json` | The launcher's vector pictures (chevrons, checks, glows, the camera), rasterized by the PocketJS build. |
 | 3DS `media/hw/*.png`, desktop `docs/*-theme.png` | Console screenshots embedded in the 3DS README and selected desktop pictures; desktop theme images are also shipped on the site. These are reviewed documentation assets. |
 | Touch `src/art/*.png`, `src/images.json` and `art/` | Shipped wallpaper and sixteen Blender-baked icon textures, plus their authoring recipes. Normal builds consume the committed PNGs without requiring Blender. Editable scene exports and render sheets stay in ignored `.pocket-build/touch-art/`. |
+| M5Stack `apps/tab5-demo/art/*.png`, `images.json`, `art/LICENSE` and `tools/tab5-demo-art.ts` | The Tab5 demo's twenty pictures, M5Stack's under MIT, and the script that converts them from an M5Tab5-UserDemo checkout. The app's sources name every picture and `images.json` stores the sixteen opaque ones as PSM_5650; the firmware build reads the committed PNGs. |
+| M5Stack `programs/m5stack-tab5` CMake files, `sdkconfig.defaults`, `partitions.csv`, `idf_component.yml` manifests and `dependencies.lock` | ESP-IDF project inputs. `build/`, `sdkconfig` and `managed_components/` are ignored build output. |
 | TypeScript/TSX, C, HTML, CSS and preview JavaScript | Maintained application, daemon, build or site source. Wayland protocol XML is the input to the pointer helper's build and retains its embedded MIT notice. |
 | Package/runtime manifests, tsconfigs, CI, Bun lockfile and `.gitmodules` | Build and dependency inputs. There are two root gitlinks, PocketJS and pocket-nexus/applets, and one workspace lockfile. |
 | GPL texts and third-party notices | Distribution terms; generated font atlases keep the source fonts' OFL terms. See [LICENSING.md](../LICENSING.md). |
@@ -41,4 +43,7 @@ or `.pocket-build/`.
 
 `bun run check:assets` rejects tracked ignored files, broken local Markdown
 links, missing source inputs and media with no documentation, test or declared
-source consumer. It runs as part of `bun run check` and in CI.
+source consumer. A declared source consumer is an `images.json` key, an app
+contract's `icon` or, in an app under `devices/m5stack/apps`, a picture a
+TypeScript source names in a string literal, which is how the PocketJS build
+finds it. It runs as part of `bun run check` and in CI.

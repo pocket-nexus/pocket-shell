@@ -1,0 +1,19 @@
+{
+  "name": "@pocket-shell/m5stack",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "PocketJS firmware, board support and drivers for M5Stack devices",
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "format": "bun tools/format.ts",
+    "format:check": "bun tools/format.ts --check",
+    "pocket": "bun ../../vendor/pocketjs/tools/pocket.ts",
+    "app": "bun tools/app.ts",
+    "test": "sh tools/test-worker-io.sh",
+    "check": "bun run format:check && bun run test"
+  },
+  "devDependencies": {
+    "clang-format-node": "4.0.3"
+  }
+}

@@ -1,0 +1,20 @@
+# The link's static state: the worker's two HTTP requests (20,668 bytes),
+# the guest namespace's buffers, and the records of the client and of
+# link2_host.c, 26,193 bytes in all, read and written on the system task
+# alone. Internal RAM that DMA reaches is what the Wi-Fi coprocessor's driver
+# takes a buffer from for every packet, so this state goes to PSRAM.
+[scheme:pocket_system_extram_bss]
+entries:
+    bss -> extern_ram
+    common -> extern_ram
+
+[mapping:pocket_system]
+archive: libpocket_system.a
+entries:
+    if SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY = y:
+        link2 (pocket_system_extram_bss)
+        link2_guest (pocket_system_extram_bss)
+        link2_http (pocket_system_extram_bss)
+        link2_host (pocket_system_extram_bss)
+    else:
+        * (default)

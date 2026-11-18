@@ -1,0 +1,6 @@
+---
+# C and C headers. The formatter version is pinned by clang-format-node in
+# package.json; run it through `bun run format` or the pre-commit hook.
+Language: Cpp
+BasedOnStyle: LLVM
+...

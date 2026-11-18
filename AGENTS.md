@@ -7,8 +7,8 @@ Pocket Shell is a product built on PocketJS, which arrives as the
 [pocket-nexus/pocketjs](https://github.com/pocket-nexus/pocketjs) or
 pocket-nexus/applets first, and this repository moves its pin.
 
-The repository holds **three shells**, and a change belongs
-to one of them:
+The repository holds **three shells and one device firmware**, and a change
+belongs to one of them:
 
 - `shells/3ds/`: Pocket Shell, the launcher (`shell/`), and the scripts that
   build it with the **Pocket Applets** of `vendor/applets` (Hacker News, X,
@@ -20,9 +20,9 @@ to one of them:
   buttons; on the Tab5 one 640x360 touch surface, a host-drawn home ball and
   a keyboard; on the PSP one 480x272 screen and buttons, with the launcher
   alone (the pinned PocketJS gives the PSP no worker, and every networked
-  applet needs one). The Tab5 firmware (pocket-m5) builds this launcher
-  from its `third_party/pocket-shell` submodule, so a launcher change for the
-  Tab5 lands here; `bun run tab5` builds this launcher and the applets as
+  applet needs one). The Tab5 firmware (`devices/m5stack`) compiles this
+  launcher into its image, so a launcher change reaches the 3DS and the Tab5
+  builds; `bun run tab5` builds this launcher and the applets as
   Tab5 packages. Each program reads its surface size at
   start (`ui/screen.ts`) and lays out by size class. Every applet draws on
   the touch surface and declares `system.agent`; the 3DS's top screen and the
@@ -35,13 +35,21 @@ to one of them:
   computers in Pocket Studio. It owns windows, application presentation and
   themes. PocketJS supplies the browser runtime and shared rendering APIs;
   the embedding product owns its display and input adapters.
+- `devices/m5stack/`: the M5Stack Tab5 firmware (ESP-IDF, C and TypeScript):
+  the program `programs/m5stack-tab5`, the ESP-IDF components in
+  `platforms/esp-idf`, the two apps the image bundles (`apps/`), its tools
+  and host tests. Its build compiles the launcher from `shells/3ds/shell` and
+  the runtime from `vendor/pocketjs`. Its C, formatting and ESP-IDF rules are
+  in `devices/m5stack/AGENTS.md`.
 
-Each shell owns its sources, manifests, scripts, tests, assets and documentation.
-Root scripts provide setup and command routing. They share one runtime
-submodule; application code stays separate until a concrete shared need exists.
+Each shell and the firmware owns its sources, manifests, scripts, tests, assets
+and documentation. Root scripts provide setup and command routing. They share
+one runtime submodule; application code stays separate until a concrete shared
+need exists.
 
-This project is distributed under **GPLv3**. Root, 3DS and touch code remains
-**GPL-3.0-or-later**; imported desktop code retains **GPL-3.0-only**. New source
+This project is distributed under **GPLv3**. Root, 3DS, touch and M5Stack
+firmware code is **GPL-3.0-or-later** (the firmware since its import from
+pocket-m5, which was MIT); imported desktop code retains **GPL-3.0-only**. New source
 files carry the corresponding SPDX line. PocketJS remains MIT and third-party
 fonts retain their own licenses. See `LICENSING.md`.
 
@@ -67,9 +75,10 @@ fonts retain their own licenses. See `LICENSING.md`.
 - An app contract's entry is relative to its project root: `shells/3ds/` for
   the launcher, `vendor/applets` for an applet. `shells/3ds/scripts/apps.ts`
   lists the launcher and the applets and resolves their plans.
-- A Tab5 package is built against pocket-m5's host config and must be
-  admitted by its host contract (`bun run tab5` checks with PocketJS's
-  admission); the profile hash only orders variants.
+- A Tab5 package is built against the host config in
+  `devices/m5stack/programs/m5stack-tab5` and must be admitted by its host
+  contract (`bun run tab5` checks with PocketJS's admission); the profile
+  hash only orders variants.
 - Lone L and R presses reach an applet six frames late (the host waits for
   the L+R chord), so do not bind frequent actions to them.
 
@@ -84,6 +93,7 @@ documentation or tests. New validation runs stay in ignored artifact folders.
 
 ```sh
 bun run check                        # typecheck + all three shells' unit and sim tests
+bun run check:m5stack                # the Tab5 firmware's clang-format check and host tests (needs a C compiler)
 bun run pair --host <console-ip>     # once per computer, while ftpd runs: write its pairing onto the card
 bun run push                         # rebuild the launcher's package and hot-push it
 bun run push hn                      # rebuild Hacker News, install it into its slot and start it
@@ -123,11 +133,11 @@ connection (port 8131, `dev.key`) and no pairing by code on the 3DS: **ftpd
 is needed to set a console up for a computer** (`bun run pair`, which writes
 the pairing files onto the card), and to copy a first `.3dsx` onto a console
 whose program predates Pocket Link 2 (ftpd and Pocket Runtime are both
-homebrew, and one runs at a time). The Tab5 and the PSP build this launcher
-against PocketJS commits that speak Pocket Link 1, so the launcher reads
-from the running host whether it pairs by code (`shell/system.ts`
-`linkPairsByCode`) instead of assuming one version. The console takes
-`.3dsx` files only.
+homebrew, and one runs at a time). The Tab5 firmware compiles the Pocket
+Link 2 client and pairs by a code it shows; the PSP keeps Pocket Link 1. The
+launcher reads from the running host how it pairs (`shell/system.ts`
+`linkPairsByCode`, `showsPairCode`) instead of assuming one version. The
+console takes `.3dsx` files only.
 
 **Recovery state is isolated per app** in
 `/pocketjs/runtime/apps/<slot>/` (the slot is the first 16 hex digits of the

@@ -30,18 +30,32 @@ const sourceInputs = new Set([
   "shells/desktop/assets/fonts/W95FA.otf",
 ]);
 // Each 3DS app's pictures (the launcher's icons are pocket-nexus/applets'
-// icon family, like the applets themselves): the images.json beside an app's manifest names
-// what its build reads, and the app contract names its package icon.
-for (const app of readdirSync(resolve(ROOT, "shells/3ds"), { withFileTypes: true })) {
-  if (!app.isDirectory()) continue;
-  const manifest = resolve(ROOT, "shells/3ds", app.name, "images.json");
-  if (existsSync(manifest)) {
-    for (const key of Object.keys(JSON.parse(readFileSync(manifest, "utf8")))) sourceInputs.add(`shells/3ds/${app.name}/${key}`);
+// icon family, like the applets themselves) and each app the Tab5 firmware
+// bundles: the images.json beside an app's manifest names what its build
+// reads, and the app contract names its package icon.
+const M5STACK_APPS = "devices/m5stack/apps";
+for (const apps of ["shells/3ds", M5STACK_APPS]) {
+  for (const app of readdirSync(resolve(ROOT, apps), { withFileTypes: true })) {
+    if (!app.isDirectory()) continue;
+    const manifest = resolve(ROOT, apps, app.name, "images.json");
+    if (existsSync(manifest)) {
+      for (const key of Object.keys(JSON.parse(readFileSync(manifest, "utf8")))) sourceInputs.add(`${apps}/${app.name}/${key}`);
+    }
+    // An app contract's icon is the package's cover picture.
+    const contract = resolve(ROOT, apps, app.name, "pocket.app.json");
+    const icon = existsSync(contract) ? (JSON.parse(readFileSync(contract, "utf8")) as { icon?: string }).icon : undefined;
+    if (icon) sourceInputs.add(relative(ROOT, resolve(dirname(contract), icon)));
   }
-  // An app contract's icon is the package's cover picture.
-  const contract = resolve(ROOT, "shells/3ds", app.name, "pocket.app.json");
-  const icon = existsSync(contract) ? (JSON.parse(readFileSync(contract, "utf8")) as { icon?: string }).icon : undefined;
-  if (icon) sourceInputs.add(relative(ROOT, resolve(dirname(contract), icon)));
+}
+// A Tab5 app's images.json holds options for some pictures only (tab5-demo
+// stores its sixteen opaque ones as PSM_5650). The PocketJS build reads
+// every picture a source names in a string literal, relative to the app's
+// directory (tools/build.ts), so those literals name inputs too.
+for (const source of tracked.filter((path) => path.startsWith(`${M5STACK_APPS}/`) && /\.tsx?$/.test(path))) {
+  const app = source.split("/").slice(0, 4).join("/");
+  for (const match of readFileSync(resolve(ROOT, source), "utf8").matchAll(/["'`]([\w./-]+\.(?:png|svg))["'`]/gi)) {
+    if (tracked.includes(`${app}/${match[1]}`)) sourceInputs.add(`${app}/${match[1]}`);
+  }
 }
 const touchImages = JSON.parse(readFileSync(resolve(ROOT, "shells/touch/src/images.json"), "utf8"));
 for (const key of Object.keys(touchImages)) sourceInputs.add(`shells/touch/src/${key}`);

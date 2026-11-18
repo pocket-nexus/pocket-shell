@@ -1,0 +1,60 @@
+{
+  "$schema": "https://pocketjs.dev/schema/pocket-2.json",
+  "pocket": 2,
+  "id": "dev.pocket-nexus.m5.tab5-demo",
+  "title": "Tab5 Demo",
+  "version": "0.1.0",
+  "engine": {
+    "capabilities": {
+      "requires": [
+        "runtime.worker",
+        "io.i2c",
+        "io.uart",
+        "system.device",
+        "audio.pcm",
+        "audio.capture",
+        "camera.qr",
+        "system.wifi",
+        "display.auxiliary",
+        "input.touch.auxiliary",
+        "text.glyphs.baked"
+      ]
+    }
+  },
+  "app": {
+    "entry": "main.tsx",
+    "output": "tab5-demo",
+    "framework": "solid",
+    "tickHz": 30,
+    "surfaces": {
+      "auxiliary": {
+        "fixed": {
+          "logical": [640, 360],
+          "presentation": "native"
+        }
+      }
+    },
+    "viewport": {
+      "fixed": {
+        "logical": [400, 240],
+        "presentation": "native"
+      }
+    }
+  },
+  "domains": {
+    "worker": {
+      "entry": "worker.ts",
+      "nodes": [
+        { "name": "sys", "kind": "i2c" },
+        { "name": "porta", "kind": "i2c" },
+        { "name": "rs485", "kind": "uart" }
+      ],
+      "channels": [
+        { "name": "sensors", "kind": "snapshot", "direction": "worker-to-ui", "recordBytes": 64, "capacity": 1 },
+        { "name": "scan", "kind": "snapshot", "direction": "worker-to-ui", "recordBytes": 24, "capacity": 1 },
+        { "name": "serial", "kind": "ring", "direction": "worker-to-ui", "recordBytes": 64, "capacity": 8 },
+        { "name": "commands", "kind": "ring", "direction": "ui-to-worker", "recordBytes": 32, "capacity": 8 }
+      ]
+    }
+  }
+}

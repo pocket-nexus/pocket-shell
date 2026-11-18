@@ -1,0 +1,47 @@
+{
+  "format": "pocket-host/2",
+  "id": "tab5-home",
+  "platform": "esp-idf",
+  "form": "takeover",
+  "cadences": [30],
+  "display": {
+    "logicalViewports": [[400, 240]],
+    "presentations": ["native"],
+    "rasterDensity": 1,
+    "animation": "repaint",
+    "auxiliary": {
+      "logicalViewports": [[640, 360]],
+      "presentations": ["native"],
+      "rasterDensity": 1
+    }
+  },
+  "panel": {
+    "primary": [400, 240],
+    "auxiliary": [640, 360]
+  },
+  "capabilities": [
+    "input.buttons",
+    "input.text",
+    "input.touch.auxiliary",
+    "display.auxiliary",
+    "text.glyphs.baked",
+    "link.companion",
+    "system.wifi",
+    "camera.qr",
+    "camera.photo",
+    "data.fs",
+    "media.playback",
+    "runtime.worker",
+    "net.http",
+    "net.mqtt",
+    "io.i2c",
+    "io.uart",
+    "audio.pcm",
+    "audio.capture",
+    "system.device"
+  ],
+  "worker": {
+    "nodes": { "http": 1, "mqtt": 1, "i2c": 2, "uart": 1 }
+  },
+  "bytecode": { "engine": "esp-idf-quickjs-ng-0.14.0", "source": "drop" }
+}

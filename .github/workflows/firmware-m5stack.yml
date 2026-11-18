@@ -1,0 +1,134 @@
+name: M5Stack firmware
+
+# Host checks and the Tab5 firmware build of devices/m5stack. The firmware
+# compiles the launcher from shells/3ds and the runtime from vendor/pocketjs,
+# so a change to either builds it again. This workflow publishes no release:
+# the packaged firmware is a workflow artifact.
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/firmware-m5stack.yml'
+      - '.bun-version'
+      - 'bun.lock'
+      - 'package.json'
+      - 'scripts/**'
+      - 'devices/m5stack/**'
+      - 'shells/3ds/**'
+      - 'vendor/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/firmware-m5stack.yml'
+      - '.bun-version'
+      - 'bun.lock'
+      - 'package.json'
+      - 'scripts/**'
+      - 'devices/m5stack/**'
+      - 'shells/3ds/**'
+      - 'vendor/**'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firmware-m5stack-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # ESP-IDF master (6.2.0-dev) at the commit programs/m5stack-tab5 is
+  # validated with: pocket_worker_esp needs 6.2, which has no release branch.
+  IDF_COMMIT: 188e3e55bb20505b5fa9dc49ee390bf42c58b4ee
+  IDF_TARGETS: esp32p4
+
+jobs:
+  checks:
+    name: Host checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      # vendor/pocketjs and vendor/applets; the applets' own pocketjs
+      # submodule is not needed here.
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+      - run: bun run setup
+      - run: bun run format:check
+        working-directory: devices/m5stack
+      - run: sh tools/test-worker-io.sh
+        working-directory: devices/m5stack
+
+  tab5:
+    name: Tab5 firmware
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+          # The firmware version is `git describe` of the checkout.
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+      - run: bun run setup
+
+      - name: Install ESP-IDF host packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            flex bison gperf ccache libffi-dev libssl-dev dfu-util libusb-1.0-0
+
+      - name: Restore ESP-IDF
+        id: idf-cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/esp-idf
+            ~/.espressif
+          key: esp-idf-${{ runner.os }}-${{ env.IDF_COMMIT }}-${{ env.IDF_TARGETS }}
+
+      - name: Install ESP-IDF
+        if: steps.idf-cache.outputs.cache-hit != 'true'
+        run: |
+          git init -q ~/esp-idf
+          git -C ~/esp-idf remote add origin https://github.com/espressif/esp-idf.git
+          git -C ~/esp-idf fetch -q --depth 1 origin "$IDF_COMMIT"
+          git -C ~/esp-idf checkout -q --detach FETCH_HEAD
+          git -C ~/esp-idf submodule --quiet update --init --recursive --depth 1 --jobs 8
+          ~/esp-idf/install.sh "$IDF_TARGETS"
+
+      - name: Install the pocketjs Rust toolchain
+        run: |
+          channel=$(sed -n 's/^channel = "\(.*\)"$/\1/p' vendor/pocketjs/rust-toolchain.toml)
+          rustup toolchain install "$channel" --profile minimal \
+            --target riscv32imafc-unknown-none-elf
+
+      - name: Restore the Cargo registry
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: cargo-${{ runner.os }}-${{ hashFiles('vendor/pocketjs/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-
+
+      - name: Build
+        run: |
+          . ~/esp-idf/export.sh
+          idf.py -C devices/m5stack/programs/m5stack-tab5 set-target esp32p4 build
+
+      - name: Package
+        run: |
+          . ~/esp-idf/export.sh
+          bun devices/m5stack/tools/firmware-dist.ts --out dist
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pocket-shell-tab5
+          path: dist/
+          if-no-files-found: error
