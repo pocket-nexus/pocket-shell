@@ -89,6 +89,36 @@ copies, and `vendor/applets` imports those (`@pocketjs/framework/applet`,
 `docs/POCKET-LINK.md`, `docs/APPLETS.md` and `docs/POCKET-AGENT.md` are the
 specifications of the link, the applet rules and the agent.
 
+The app contract and the package are this repository's too, imported from
+PocketJS at `806ac202`; PocketJS at that commit has its own copies, which
+`shells/desktop`, `shells/touch` and `vendor/applets` use:
+
+- `runtime/spec/pocket-manifest.ts`, `runtime/manifest/` and
+  `runtime/schema/pocket-2.json`: the app contract (`pocket.app.json`), its
+  schema, loader, validation and resolution against a host contract into a
+  build plan, and the inputs a native host build reads from a plan.
+  `bun runtime/schema/generate.ts` writes the JSON schema from the schema
+  object; `bun run check:schemas` fails when the two differ.
+- `runtime/spec/pocket-package.ts`, `runtime/spec/admission.ts` and
+  `runtime/package/`: the `.pocket` container, the selection of the variant a
+  host admits, a variant's sections (`pocket-pack.ts`), its bytecode sections
+  (`bytecode.ts`) and the applet check (`applet-check.ts`).
+- `cli/`: the command line (`cli/pocket-shell.ts`, `bun run pocket-shell`).
+  `check` and `compile` read an app contract with the modules above, write
+  the resolved plan to a file, run PocketJS's compiler
+  (`vendor/pocketjs/tools/build.ts --plan=<file>`, which writes the bundle
+  and the asset pack) and encode the `.pocket`. Every other command runs
+  PocketJS's CLI with the same arguments. `bun run tab5`, `bun run psp` and
+  the Tab5 firmware's CMake build (`devices/m5stack/tools/pocket`) compile
+  through it; `devices/3ds/build.ts` uses the same modules without the CLI.
+  `cli/README.md` lists the options.
+
+PocketJS keeps the host contracts and their hashing, the type check, the
+compiler, the QuickJS bytecode compiler and the worker, modality, animation
+and platform specifications; the modules above reach them by path into
+`vendor/pocketjs`. `docs/APP-CONTRACT.md` and `docs/POCKET-PACKAGE.md` are
+the specifications of the app contract and the package.
+
 This project is distributed under **GPLv3**. Root, 3DS, touch and M5Stack
 firmware code is **GPL-3.0-or-later** (the firmware since its import from
 pocket-m5, which was MIT); imported desktop code retains **GPL-3.0-only**. New source
@@ -96,7 +126,10 @@ files carry the corresponding SPDX line. PocketJS remains MIT and third-party
 fonts retain their own licenses. `runtime/`, `link/` and the three
 specifications came from PocketJS under MIT and are distributed here under
 **GPL-3.0-or-later**; `runtime/LICENSE.pocketjs-MIT` keeps the original
-notice. `devices/3ds` and `devices/services` came from PocketJS at `806ac202`
+notice. `devices/3ds`, `devices/services`, `cli/`, `runtime/manifest`,
+`runtime/package`, `runtime/schema`, the app contract, package and admission
+specifications in `runtime/spec` and the two documents on them came from
+PocketJS at `806ac202`
 on the same terms, and their sources carry the SPDX line; the vendored
 `devices/services/quirc` keeps its ISC notice and gets none. See
 `LICENSING.md`.
@@ -136,15 +169,18 @@ on the same terms, and their sources carry the SPDX line; the vendored
   (`pocket.app.json`) declares `applet` (summary, services, hosts, store)
   and meets the applet rules in `docs/APPLETS.md`: one 320×240
   touch surface, a capability allowlist, declared companion services, no
-  native code, no `eval`, size budgets. The PocketJS build refuses a broken
-  applet, and pocket-nexus/applets checks every one (`bun run check`
+  native code, no `eval`, size budgets. A build refuses a broken applet:
+  the resolver checks the contract rules, and `pocket-shell compile` and
+  `devices/3ds/build.ts` check the sources and the bundle sizes
+  (`runtime/package/applet-check.ts`; the pinned PocketJS compiler runs its
+  own copy first). pocket-nexus/applets checks every one (`bun run check`
   there). The launcher (`shell/`) declares no `applet`.
 - An app contract's entry is relative to its project root: `shells/3ds/` for
   the launcher, `vendor/applets` for an applet. `shells/3ds/scripts/apps.ts`
   lists the launcher and the applets and resolves their plans.
 - A Tab5 package is built against the host config in
   `devices/m5stack/programs/m5stack-tab5` and must be admitted by its host
-  contract (`bun run tab5` checks with PocketJS's admission); the profile
+  contract (`bun run tab5` checks with `runtime/spec/admission.ts`); the profile
   hash only orders variants.
 - Lone L and R presses reach an applet six frames late (the host waits for
   the L+R chord), so do not bind frequent actions to them.
@@ -159,7 +195,7 @@ documentation or tests. New validation runs stay in ignored artifact folders.
 ## The loop
 
 ```sh
-bun run check                        # typecheck + the link, runtime and three shells' unit and sim tests
+bun run check                        # typecheck + the link, runtime, CLI and three shells' unit and sim tests
 bun run check:m5stack                # the Tab5 firmware's clang-format check and host tests (needs a C compiler)
 bun run check:devices                # devices/3ds and devices/services: generated headers and host tests (needs a C compiler, Rust, libjpeg, pkg-config)
 bun run pair --host <console-ip>     # once per computer, while ftpd runs: write its pairing onto the card
@@ -168,6 +204,7 @@ bun run push hn                      # rebuild Hacker News, install it into its 
 bun run deploy                       # rebuild the .3dsx, install it over the Pocket Link, restart into it
 bun run shot                         # a screenshot of both screens
 bun run offer                        # build the applets' 3DS and Tab5 packages and serve them from the reference Pocket Link 2 Hub
+bun run pocket-shell compile …       # one app contract into a .pocket for a host contract (cli/README.md)
 bun run tab5                         # the launcher and the applets as Tab5 packages in dist/tab5
 bun run psp                          # the PSP EBOOT in dist/psp
 bun run 3ds                          # the full .3dsx in dist/3ds

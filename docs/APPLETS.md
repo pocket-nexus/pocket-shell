@@ -12,16 +12,17 @@ itself is an app, not an applet: it pairs, installs and switches.
 
 The contract is `runtime/spec/applet.ts`. The rules run in two places:
 
-- **Plan resolution** (PocketJS `framework/src/manifest/resolve.ts`): the app contract
+- **Plan resolution** (`runtime/manifest/resolve.ts`): the app contract
   rules. An app contract that breaks one does not resolve on any target, so no
   backend builds it.
-- **The build** (PocketJS `tools/build.ts` → PocketJS `tools/applet-check.ts`): the source rules
+- **The build** (`cli/pocket-shell.ts compile` and `devices/3ds/build.ts` → `runtime/package/applet-check.ts`): the source rules
   over the applet's import graph and the bundle budgets. A violation fails the
-  build after pass 2.
+  build after pass 2. The pinned PocketJS compiler (`tools/build.ts`) runs its
+  own copy of the check (PocketJS `tools/applet-check.ts`) before that.
 
-PocketJS `bun tools/applet-check.ts <pocket.app.json> [--project-root=<dir>] [--js=<bundle>
+`bun runtime/package/applet-check.ts <pocket.app.json> [--project-root=<dir>] [--js=<bundle>
 --pak=<pak>]` runs every rule outside a build; `checkApplet` is the same check
-as a library, which pocket-nexus/applets runs over every applet in `bun run
+as a library. pocket-nexus/applets runs PocketJS's copy over every applet in `bun run
 check` (`test/applets.test.ts`).
 
 ## The app contract section
@@ -124,7 +125,7 @@ exit stops it.
 
 ## Source rules
 
-PocketJS `tools/applet-check.ts` walks the import graph from `app.entry`. Comments and
+`runtime/package/applet-check.ts` walks the import graph from `app.entry`. Comments and
 types are removed by Bun's transpiler before any check, so a URL in a comment
 does not count.
 

@@ -25,7 +25,7 @@ is resolved against a registry of this one target.
 
 ```
 pocket.host.json      the 3ds-dev host contract: screens, cadence, capabilities
-pocket.host.config.ts the host config PocketJS's `pocket compile` and `pocket build` read
+pocket.host.config.ts the host config `pocket-shell compile` and PocketJS's `pocket build` read
 build.ts              the build: guest package, Rust archive, QuickJS, Makefile in the container
 recipe.ts             the native recipe of pocket.host.config.ts, which calls build.ts
 tools/profile.ts      the host contract as a build target; resolves build plans
@@ -200,13 +200,13 @@ program.
 In a PocketJS checkout, `pocket build --target 3ds --generic` builds that
 runtime and `pocket pack --runtime <build-directory> --pocket
 <application.pocket>` replaces its RomFS. See [the minimal
-program](../../vendor/pocketjs/programs/3ds/README.md). PocketJS's CLI
-(`bun vendor/pocketjs/tools/pocket.ts`) builds this product from its host
-config: `pocket compile --host-config devices/3ds/pocket.host.config.ts`
-resolves an app against `pocket.host.json` and writes its package, and
-`pocket build --config devices/3ds/pocket.host.config.ts --pocket
-<application.pocket>` runs `recipe.ts`, which hands the admitted package to
-`build.ts`.
+program](../../vendor/pocketjs/programs/3ds/README.md). This repository's CLI
+(`bun cli/pocket-shell.ts`, [cli/README.md](../../cli/README.md)) builds this
+product from its host config: `compile --host-config
+devices/3ds/pocket.host.config.ts` resolves an app against `pocket.host.json`
+and writes its package, and `build --config devices/3ds/pocket.host.config.ts
+--pocket <application.pocket>`, which the CLI passes to PocketJS's, runs
+`recipe.ts`, which hands the admitted package to `build.ts`.
 
 ## Updating the guest from SD
 
