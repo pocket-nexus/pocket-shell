@@ -5,7 +5,7 @@ a GT911 touch controller and an ESP32-C6 Wi-Fi coprocessor. The program
 composes the runtime with `pocket_guest_quickjs`, two `pocket_render_esp_ppa`
 renderers split across the cores (`pocketjs_esp32p4_ppa_lanes`), the
 `pocket_display_esp_dpi` output and `pocket_runner`. Those components, the
-IDF archive and `engine/host-services` come from `third_party/pocketjs`; the
+IDF archive and `engine/host-services` come from `vendor/pocketjs`; the
 program, its components and its host contract live here.
 
 The program was imported from pocket-nexus/pocketjs#616 (`df0d434a`), whose
@@ -14,7 +14,7 @@ pocket-nexus/pocketjs#617.
 
 | Host contract | Launcher | Picture |
 | --- | --- | --- |
-| `tab5-home` (`pocket.host.json`, through `pocket.host.config.ts`) | Pocket Shell from `third_party/pocket-shell` (`shells/3ds/shell`) | the auxiliary surface, 640x360 at raster density 1, turned and presented at 2x |
+| `tab5-home` (`pocket.host.json`, through `pocket.host.config.ts`) | Pocket Shell from `shells/3ds/shell` | the auxiliary surface, 640x360 at raster density 1, turned and presented at 2x |
 
 `pocket.host.json` (format `pocket-host/2`) states the facts: one cadence,
 30 Hz; a 400x240 primary viewport and the 640x360 auxiliary surface, both
@@ -29,8 +29,8 @@ place through one mapping, and the launcher's cached facts, each app's
 `storage` flash partition without a card); it also keeps the Pocket Link 2
 client to a paired Hub, the Wi-Fi radio on the ESP32-C6 (esp_hosted) and the
 wall clock from SNTP. The build compiles Pocket Shell
-(`third_party/pocket-shell/shells/3ds/shell`, project root `shells/3ds`, whose
-`ui`, `lib`, `kit` and `shell/art/icons` are links into its `vendor/applets`)
+(`shells/3ds/shell`, project root `shells/3ds`, whose
+`ui`, `lib`, `kit` and `shell/art/icons` are links into `vendor/applets`)
 with `pocket.host.config.ts`, embeds it as the
 launcher and boots one runtime per app; SELECT from the home control returns
 to the launcher. The build also compiles the apps that
@@ -39,8 +39,9 @@ to the launcher. The build also compiles the apps that
 and embeds them; `pocketjs_system_start` admits each once and serves it from
 flash as an installed app, so a bundled app is never copied to the card or
 into PSRAM. `POCKETJS_TAB5_BUNDLED_PACKAGES` lists prebuilt packages
-(`.pocket` files the host contract admits, such as the applets pocket-shell's
-`bun run tab5` builds) that are embedded and served the same way.
+(`.pocket` files the host contract admits, such as the applets that
+`bun run tab5` at the repository root builds) that are embedded and served
+the same way.
 `-DPOCKETJS_TAB5_SHELL_PACKAGE=<package.pocket>` embeds a package
 the host contract admits in place of Pocket Shell. The primary surface is
 laid out into a PSRAM buffer that nothing scans out.
@@ -146,9 +147,10 @@ a 192 KB stack in PSRAM (`task_stack_caps`), with the QuickJS stack limit at
 144 KB: evaluating a deep Solid tree throws a RangeError before it reaches
 the task's guard page.
 
+From the repository root, after `bun run setup`:
+
 ```sh
-git submodule update --init third_party/pocketjs
-cd programs/m5stack-tab5
+cd devices/m5stack/programs/m5stack-tab5
 idf.py -p /dev/cu.usbmodem1201 build flash monitor
 ```
 
@@ -198,8 +200,8 @@ The applets install from a paired Hub's catalog over Pocket Link 2
 the microSD card), and an app installs from an install QR code that Pocket
 Shell scans (`components/pocket_system`, "Installs from a code"). An applet compiled with
 `--host-config programs/m5stack-tab5/pocket.host.config.ts` by a pocketjs at
-or after pocket-nexus/pocketjs#631 installs here. pocket-shell's `bun run
-tab5` and pocket-nexus/applets' `bun tools/build.ts tab5` compile against
+or after pocket-nexus/pocketjs#631 installs here. `bun run tab5` at the
+repository root and pocket-nexus/applets' `bun tools/build.ts tab5` compile against
 this host config and check each package with PocketJS's admission. A UI realm
 has no network module: an app reaches the network through its worker's
 `io.http`, and one that imports `@pocketjs/framework/net`, removed from

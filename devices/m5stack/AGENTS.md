@@ -1,59 +1,50 @@
-# Engineering conventions
+# Working in devices/m5stack
 
-These rules bind every change to this repository, by people and by agents.
-Architecture and implementation notes belong in `docs/`, not here.
+The repository's [AGENTS.md](../../AGENTS.md) applies here: Conventional
+Commits, draft pull requests, the prose rules, and no edits under `vendor/`.
+This file adds the rules of the firmware tree. Architecture and
+implementation notes belong in `docs/`, not here.
 
-## Commits and pull requests
+## Commits
 
-- Commit messages and pull request titles use Conventional Commits:
-  `type(scope): summary`. Types: `feat`, `fix`, `perf`, `refactor`, `docs`,
-  `test`, `build`, `ci`, `chore`, `style`, `revert`. The `commit-msg` hook
-  runs commitlint with `commitlint.config.mjs`.
-- The scope names the directory the change touches: a component
-  (`worker-esp`, `http-esp`, `pocket-system`), a program (`m5stack-tab5`), an
-  app (`unit-swap`), `tools`, `docs` or `deps`. Omit the scope only for
-  repository-wide changes.
-- The header is at most 72 characters; the summary is imperative, lower case,
-  without a trailing period.
-- One logical change per commit. Formatting-only changes to existing code go
-  in their own `style` commit.
-- A `third_party/pocketjs` bump is its own commit,
-  `build(deps): bump pocketjs to <short-sha>`, with the upstream commit range
-  in the body.
+- The scope names what the change touches: `m5stack` for the tree, a
+  component (`worker-esp`, `http-esp`, `pocket-system`), the program
+  (`m5stack-tab5`) or an app (`unit-swap`).
+- Formatting-only changes to existing code go in their own `style` commit.
+- Moving `IDF_COMMIT` in `.github/workflows/firmware-m5stack.yml` is its own
+  commit, validated on a device.
 
 ## Formatting
 
 - C and C++ sources are formatted by the clang-format version pinned in
-  `package.json` (`clang-format-node`) with the root `.clang-format`. Do not
-  reformat with another clang-format binary.
-- The `pre-commit` hook formats staged C and C++ files and stages the result.
-  Do not bypass hooks (`--no-verify`, `LEFTHOOK=0`). Run `bun run format:check`
-  before pushing.
+  `package.json` (`clang-format-node`) with `.clang-format` in this
+  directory. Do not reformat with another clang-format binary.
+- No git hook formats a commit. Run `bun run format`, then
+  `bun run format:check`, in this directory before pushing; CI runs the
+  check.
 - Wrap large static tables (panel init sequences, lookup tables, generated
   data) in `// clang-format off` and `// clang-format on`. The markers enclose
   the table and nothing else.
 
 ## Tooling
 
-- `bun install` installs the JavaScript dependencies and the git hooks.
-  `lefthook.yml` is the only hook definition; do not add scripts to
-  `.git/hooks`.
-- Use the Bun version in `.bun-version` and an ESP-IDF release within the
-  range declared in the components' `idf_component.yml` (`>=6.0,<6.3`).
-  CI and releases build with the ESP-IDF commit in `IDF_COMMIT` of
-  `.github/workflows/firmware.yml`; moving it is its own commit, validated on
-  a device.
+- `bun run setup` at the repository root installs the JavaScript dependencies
+  and links the runtime. Use the Bun version in the root `.bun-version` and
+  an ESP-IDF release within the range declared in the components'
+  `idf_component.yml` (`>=6.0,<6.3`). CI builds with the ESP-IDF commit in
+  `IDF_COMMIT`.
+- `bun run check:m5stack` at the repository root runs the format check and
+  `tools/test-worker-io.sh`: the host C tests under ASan and UBSan and the
+  Pocket Link 2 host test against PocketJS's reference Hub. It needs a C
+  compiler. `bun run m5stack <script>` runs any script of this package.
 
 ## Dependencies and third-party code
 
-- `third_party/pocketjs` and `third_party/pocket-shell` are pinned
-  submodules. Do not edit files in them from this repository; land the
-  change upstream, then bump the submodule. Pocket Shell, the launcher, is
-  compiled from `third_party/pocket-shell/shells/3ds/shell` with its
-  `vendor/applets` (the iOS 6 kit and the icons); a launcher change for the
-  Tab5 lands in pocket-shell. A pocketjs bump rebuilds every app, Pocket
-  Shell included, so a breaking change updates the apps in the same pull
-  request.
+- PocketJS is `vendor/pocketjs` and the applets are `vendor/applets`, the
+  repository's pinned submodules. Pocket Shell, the launcher, is compiled
+  from `shells/3ds/shell` with the iOS 6 kit and the icons of
+  `vendor/applets`. A pocketjs bump rebuilds every app, Pocket Shell
+  included, so a breaking change updates the apps in the same pull request.
 - ESP-IDF registry dependencies are declared with exact versions in
   `idf_component.yml`. Each program commits its `dependencies.lock`.
 - Code derived from third-party sources keeps its original copyright and
@@ -61,6 +52,8 @@ Architecture and implementation notes belong in `docs/`, not here.
   and version.
 
 ## Directory placement
+
+Paths are relative to `devices/m5stack`.
 
 - Board support for one board: `platforms/esp-idf/m5_bsp_<board>/`.
 - Drivers implementing PocketJS contracts: `platforms/esp-idf/pocket_<name>/`.
@@ -70,7 +63,7 @@ Architecture and implementation notes belong in `docs/`, not here.
   several programs goes in `hosts/<host-id>/pocket.host.json`.
 - Components that only one program uses: `programs/<program>/components/`.
 - Apps: `apps/<name>/` with a `pocket.app.json`.
-- Build, packaging and repository scripts: `tools/`.
+- Build, packaging and test scripts: `tools/`.
 
 ## C code
 

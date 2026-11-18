@@ -122,6 +122,6 @@ texture the PPA copies; both are in PocketJS now.
 
 Since then the applets, `ui/`, `kit/` and `lib/` have moved to
 pocket-nexus/applets (`vendor/applets` here), which Omarchy Pocket builds as
-well, and the Tab5 firmware keeps its own copy of the launcher in pocket-m5
-(`apps/pocket-shell`). The scripts here still build the 3DS and the Tab5
-variants from those sources.
+well. The Tab5 firmware is in this repository (`devices/m5stack`, imported
+from pocket-m5) and compiles the launcher from `shells/3ds/shell`. The
+scripts here still build the 3DS and the Tab5 variants from those sources.

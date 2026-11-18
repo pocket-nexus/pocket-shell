@@ -4,4 +4,4 @@ An ESP-IDF 6.2.x FreeRTOS owner for the shared PocketJS worker core and isolated
 
 `stop` interrupts a turn in progress, joins native users and the timer callback before freeing the core and realm. A timeout preserves all resources and requires another `stop` call. The runner mounts the worker transport and console only. It does not mount UI, files, databases, or network APIs.
 
-The shared sources come from `POCKETJS_ROOT/engine/worker`, defaulting to the pinned submodule. See [configuration, limits and validation](../../../docs/WORKER.md).
+The shared sources come from `POCKETJS_ROOT/engine/worker`, defaulting to the repository's `vendor/pocketjs` submodule. See [configuration, limits and validation](../../../docs/WORKER.md).

@@ -6,12 +6,12 @@ The `pocket_worker_esp` component owns a second QuickJS runtime on a FreeRTOS ta
 
 ## Source checkout and builds
 
-The worker core, runner and `tools/build-worker.ts` come from PocketJS `engine/worker`, which reached pocketjs `main` through pocket-nexus/pocketjs#623; the await-based SDK and the removal of the turn time limits come from pocket-nexus/pocketjs#626. The I2C `receive` step comes from pocket-nexus/pocketjs#639. The `mqtt` resource kind, its layouts (`contracts/spec/mqtt.ts`) and the SDK's `io.mqtt` come from pocket-nexus/pocketjs#655. The pinned `third_party/pocketjs` includes them; `POCKETJS_ROOT` selects another checkout for `pocket_worker_esp`.
+The worker core, runner and `tools/build-worker.ts` come from PocketJS `engine/worker`, which reached pocketjs `main` through pocket-nexus/pocketjs#623; the await-based SDK and the removal of the turn time limits come from pocket-nexus/pocketjs#626. The I2C `receive` step comes from pocket-nexus/pocketjs#639. The `mqtt` resource kind, its layouts (`contracts/spec/mqtt.ts`) and the SDK's `io.mqtt` come from pocket-nexus/pocketjs#655. `vendor/pocketjs` at the repository's pin includes them; `POCKETJS_ROOT` selects another checkout for `pocket_worker_esp`. From the repository root:
 
 ```sh
-bun install --frozen-lockfile
+bun run setup
 . /absolute/path/to/esp-idf/export.sh
-idf.py -C programs/m5stack-tab5 build
+idf.py -C devices/m5stack/programs/m5stack-tab5 build
 ```
 
 The runner uses `esp_timer_stop_blocking` and requires ESP-IDF **6.2.x**; the remaining components accept their declared IDF ranges. Only ESP32-P4 was exercised on hardware. QuickJS-NG is pinned to 0.14.0. The runner builds its QuickJS dependency with `-fno-strict-aliasing`, matching the existing guest component.
@@ -41,6 +41,8 @@ The UART node fixes a port and its pins; the worker selects the baud rate (at mo
 On the Tab5 the `sys` node shares the BSP's system bus with the IO expanders, touch controller, codecs, camera, RX8130CE, BMI270 and INA226. The worker's transfers share the PSRAM cache with the renderer: the Tab5 demo held 30 fps with no I2C traffic and 17 fps with the BMI270 read at 50 Hz on its own timer, 23 fps after one 20 Hz tick read the IMU and the battery monitor together.
 
 ## Validation
+
+In `devices/m5stack` (`bun run check:m5stack` at the repository root runs both):
 
 ```sh
 ./tools/test-worker-io.sh

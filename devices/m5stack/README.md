@@ -1,6 +1,7 @@
-# pocket-m5
+# M5Stack firmware
 
-PocketJS firmware for M5Stack boards. Apps are TypeScript/JSX packages that
+PocketJS firmware for M5Stack boards, imported from the pocket-m5 repository
+with its history. Apps are TypeScript/JSX packages that
 run in a QuickJS guest on the PocketJS runtime; the firmware embeds Pocket
 Shell as its launcher, installs packages from a paired computer over Pocket
 Link 2 and switches between them on the device.
@@ -14,13 +15,13 @@ firmware: Pocket Shell 640×360 at 2x, turned onto the panel; installs over the
 Pocket Link; a floating home ball; Wi-Fi with an optional access point,
 SNTP clock, worker HTTP, MQTT, I2C and RS485 nodes, camera, media, PCM audio and
 microphones, board controls and keyboard. Pocket Shell, the launcher, is
-compiled from the [pocket-shell](https://github.com/pocket-nexus/pocket-shell)
-submodule at `third_party/pocket-shell` (`shells/3ds/shell`); the applets
+compiled from this repository's [`shells/3ds`](../../shells/3ds/README.md)
+(`shells/3ds/shell`); the applets
 (Hacker News, YouTube, Notes and the others), the iOS 6 kit they share with
 the launcher and every icon live in
-[pocket-nexus/applets](https://github.com/pocket-nexus/applets), pocket-shell's
-`vendor/applets`. A launcher change lands in pocket-shell, then this
-repository bumps the submodule.
+[pocket-nexus/applets](https://github.com/pocket-nexus/applets), the
+`vendor/applets` submodule. The next firmware build compiles a launcher
+change in `shells/3ds/shell`.
 App workers get an `http` node (`pocket_http_esp`), an `mqtt` node
 (`pocket_mqtt_esp`, MQTT 3.1.1 and 5.0) and `i2c` and `uart` nodes
 (`pocket_io_esp`); see [Worker domain](docs/WORKER.md).
@@ -32,36 +33,36 @@ launcher (M5Tab5-UserDemo) on PocketJS.
 - ESP-IDF 6.2.x with the `esp32p4` target (`pocket_worker_esp` needs 6.2;
   the other components declare `>=6.0,<6.3`). 6.2 has no release branch;
   CI builds with ESP-IDF `master` at the commit in `IDF_COMMIT` of
-  `.github/workflows/firmware.yml`.
-- Bun, version in `.bun-version`
+  `.github/workflows/firmware-m5stack.yml`.
+- Bun, version in the repository root's `.bun-version`
 - Rust through rustup, with `riscv32imafc-unknown-none-elf` installed for the
-  toolchain pinned in `third_party/pocketjs/rust-toolchain.toml`
+  toolchain pinned in `vendor/pocketjs/rust-toolchain.toml`
 
 ## Quick start
 
 ```sh
-git clone <repository-url> pocket-m5
-cd pocket-m5
-git submodule update --init third_party/pocketjs third_party/pocket-shell
-git -C third_party/pocket-shell submodule update --init vendor/applets
-bun install                         # JavaScript dependencies and git hooks
+git clone --recurse-submodules https://github.com/pocket-nexus/pocket-shell.git
+cd pocket-shell
+bun run setup                       # JavaScript dependencies, submodules and runtime links
 rustup target add riscv32imafc-unknown-none-elf --toolchain 1.98.1
 
 . $IDF_PATH/export.sh
-cd programs/m5stack-tab5
+cd devices/m5stack/programs/m5stack-tab5
 idf.py set-target esp32p4
 idf.py build
 idf.py -p <port> flash monitor
 ```
 
-The firmware embeds this repository's apps (`apps/tab5-demo`,
+The firmware embeds this directory's apps (`apps/tab5-demo`,
 `apps/unit-swap`) and installs them at boot, so Pocket Shell lists them without
 a computer. The applets install beside them from a paired computer's
 Hub over Pocket Link 2 (pocketjs `docs/POCKET-LINK.md`); the Mac icon on the
 home screen lists what that Hub offers. The home ball returns to Pocket
 Shell.
-`bun run app build <pocket.app.json>` compiles an app of this repository
-with the firmware's host config into `.pocket-build/apps/`.
+`bun run app build <pocket.app.json>`, run in `devices/m5stack`, compiles
+one of these apps with the firmware's host config into `.pocket-build/apps/`;
+at the repository root the command is `bun run m5stack app build
+apps/<name>/pocket.app.json`.
 
 ### Pairing a computer
 
@@ -76,17 +77,18 @@ computer:
 The Hub mints the link key and sends it under the code; the Tab5 stores it
 in its store's `link/` directory and links by itself, now and at every later
 start. No card, cable or camera is involved: without a card the store is the
-`storage` flash partition. With the reference Hub in the pocketjs checkout:
+`storage` flash partition. With the reference Hub in `vendor/pocketjs`, from
+the repository root:
 
 ```sh
-bun run --cwd third_party/pocketjs link2 serve --apps <folder of .pocket files>
-bun run --cwd third_party/pocketjs link2 pair --code <the 6 digits>
+bun run --cwd vendor/pocketjs link2 serve --apps <folder of .pocket files>
+bun run --cwd vendor/pocketjs link2 pair --code <the 6 digits>
 ```
 
 `serve` stays in the foreground and names a Tab5 that asks to be paired;
 `pair` is run beside it. `link2 status` and `link2 apps` then answer from the
-Tab5, and pocket-shell's `bun run offer --tab5` builds the applets for this
-host and serves them from the same Hub.
+Tab5, and `bun run offer --tab5` at the repository root builds the applets
+for this host and serves them from the same Hub.
 
 A Hub can also write the pairing files itself, as it does for a 3DS, onto a
 microSD card in the computer's reader (`link2 setup --card <mounted card>
@@ -99,9 +101,9 @@ has the groups the firmware serves.
 
 ### Applets without a computer
 
-A Tab5 can carry the applets without a Mac. pocket-shell's `bun run tab5
-<applet>…` compiles them from its `vendor/applets` against this host config
-(`POCKET_M5_ROOT`); `-DPOCKETJS_TAB5_BUNDLED_PACKAGES="<a.pocket>;<b.pocket>"`
+A Tab5 can carry the applets without a Mac. `bun run tab5 <applet>…` at the
+repository root compiles them from `vendor/applets` against this host config
+into `dist/tab5/`; `-DPOCKETJS_TAB5_BUNDLED_PACKAGES="<a.pocket>;<b.pocket>"`
 embeds packages in the firmware image, served from flash like the bundled
 apps (the `factory` partition has room for about 3.5 MiB of them beside Pocket
 Shell when `POCKETJS_TAB5_BUNDLED_APPS` is empty), and `bun
@@ -109,40 +111,34 @@ tools/apps-partition.ts <out.bin> <package.pocket>… --flash <port>` writes
 packages onto the 4 MiB `apps` partition as installs would, where a paired
 Mac can replace or remove them.
 
-## Firmware releases
+## Firmware builds
 
-`.github/workflows/firmware.yml` runs on pull requests, on pushes to `main`
-and on `v*` tags:
+`.github/workflows/firmware-m5stack.yml` runs on pull requests and on pushes
+to `main` that change `devices/m5stack`, `shells/3ds`, a submodule pin or
+the root setup inputs:
 
 - **Host checks**: `bun run format:check` and `tools/test-worker-io.sh`.
 - **Tab5 firmware**: installs ESP-IDF at `IDF_COMMIT` (cached per commit) and
-  the Rust toolchain of `third_party/pocketjs/rust-toolchain.toml`, runs
+  the Rust toolchain of `vendor/pocketjs/rust-toolchain.toml`, runs
   `idf.py build` in `programs/m5stack-tab5`, and packages the build with
-  `tools/firmware-dist.ts` into the `pocket-m5-tab5` workflow artifact.
-- **Release**, on a `v*` tag only: publishes the packaged files as a GitHub
-  release of that tag; a tag with a suffix (`v0.2.0-rc1`) is a prerelease.
+  `tools/firmware-dist.ts` into the `pocket-shell-tab5` workflow artifact.
 
-The firmware version is `git describe` of the checkout, so a tagged build is
-`pocket-m5-tab5-v0.1.0`. To publish one:
+The workflow publishes no release. The releases up to `v0.1.4` are
+[pocket-m5's](https://github.com/pocket-nexus/pocket-m5/releases); Pocket
+Studio offers the latest of them at <https://studio.pocket.nexus/apps/shell>,
+with the install steps at <https://studio.pocket.nexus/docs/install/#tab5>.
 
-```sh
-git tag -a v0.1.0 -m "pocket-m5 v0.1.0"
-git push origin v0.1.0
-```
-
-A release holds:
+The firmware version is `git describe` of the checkout: the latest tag of
+this repository, the number of commits since and the commit, such as
+`v0.2.0-12-g1a2b3c4`. The packaged files are:
 
 | File | Use |
 | --- | --- |
-| `pocket-m5-tab5-<version>.bin` | bootloader, partition table and app merged from 0x0; `write-flash 0x0` installs it and erases `nvs` (saved Wi-Fi networks) |
-| `pocket-m5-tab5-<version>.zip` | the three images and `flash_args`; `write-flash @flash_args` updates and keeps `nvs` |
+| `pocket-shell-tab5-<version>.bin` | bootloader, partition table and app merged from 0x0; `write-flash 0x0` installs it and erases `nvs` (saved Wi-Fi networks) |
+| `pocket-shell-tab5-<version>.zip` | the three images and `flash_args`; `write-flash @flash_args` updates and keeps `nvs` |
 | `SHA256SUMS` | SHA-256 of both |
 
-Pocket Studio offers the latest release at
-<https://studio.pocket.nexus/apps/shell>, with the install steps at
-<https://studio.pocket.nexus/docs/install/#tab5>.
-
-The release notes (`RELEASE.md` from `tools/firmware-dist.ts`) give the
+`RELEASE.md`, which `tools/firmware-dist.ts` writes beside them, gives the
 pocketjs and ESP-IDF versions and the `esptool` commands. Neither image
 writes the `apps` and `storage` partitions or the microSD card, so installed
 apps and their data stay. `bun tools/firmware-dist.ts` packages a local build the same
@@ -150,16 +146,16 @@ way (into `.pocket-build/dist/`) with the ESP-IDF environment exported.
 
 ## Documentation
 
-- [Repository structure](docs/STRUCTURE.md)
+- [Directory structure](docs/STRUCTURE.md)
 - [M5Stack Tab5 firmware](programs/m5stack-tab5/README.md): host contract,
   presentation, launcher services, home ball, keyboard
 - [Worker domain](docs/WORKER.md): worker runtime, HTTP and MQTT nodes and validation
-- [Engineering conventions](AGENTS.md): commits, formatting, dependencies
+- [Engineering conventions](AGENTS.md): formatting, dependencies, C code
 
 ## Pinned dependencies
 
-`third_party/pocketjs` is pinned to a commit on pocketjs `main`, the commit
-pocket-shell pins. It carries Pocket Link 2 (pocket-nexus/pocketjs#678): the
+`vendor/pocketjs`, the repository's one PocketJS checkout, is pinned to a
+commit on pocketjs `main`. It carries Pocket Link 2 (pocket-nexus/pocketjs#678): the
 specification, the C client `pocket_system` compiles and the reference Hub
 the host test runs against. It
 includes the host-facts admission, host contracts and app contracts of
@@ -175,8 +171,9 @@ driver contracts and directory layout come from pocket-nexus/pocketjs#603.
 
 ## License
 
-`GPL-3.0-or-later`, like the launcher (`shells/3ds`) and the applets the
-firmware image embeds; see [LICENSING.md](../../LICENSING.md). The code was
+`GPL-3.0-or-later`, the terms of the launcher (`shells/3ds`) that every
+firmware image embeds and of the applets; see
+[LICENSING.md](../../LICENSING.md). The code was
 imported from pocket-m5, which was MIT licensed, and that notice is kept as
 [LICENSE.pocket-m5-MIT](LICENSE.pocket-m5-MIT). The Tab5 demo pictures and the
 BMI270 feature image keep their own notices

@@ -5,7 +5,8 @@ Pocket Shell is a launcher for the **Pocket Applets**, small apps built on
 of packages on the Nintendo 3DS's touch screen and on the M5Stack Tab5's
 landscape panel. This repository holds the launcher and builds it, with the
 applets of [pocket-nexus/applets](https://github.com/pocket-nexus/applets)
-(the `vendor/applets` submodule), for the 3DS, the Tab5 and the PSP.
+(the `vendor/applets` submodule), for the 3DS, the Tab5 and the PSP. The
+Tab5's firmware is in [devices/m5stack](devices/m5stack/README.md).
 
 | Home | Hacker News | Notes |
 | --- | --- | --- |
@@ -30,11 +31,11 @@ and carries the applets. On the 3DS, which speaks Pocket Link 2, Hub writes
 the console's pairing onto its SD card through ftpd during that install;
 there is no code to scan, and the console links to the Mac by itself when
 Pocket Shell starts. Tap Mac on the home screen to install the applets the
-Mac offers. A Tab5 speaks Pocket Link 1 and pairs in Settings > Mac > Pair
-a Mac... by the code that a Hub speaking version 1 shows. Pocket Hub is not
-released yet. The Tab5 firmware is
-[pocket-m5](https://github.com/pocket-nexus/pocket-m5)'s, which builds this
-launcher from a submodule.
+Mac offers. A Tab5 speaks Pocket Link 2 and pairs by a code it shows:
+Settings > Mac > Pair a Computer... lists the computers whose Hub it hears
+and shows 6 digits for the one chosen, and Hub on that computer asks for
+them. Pocket Hub is not released yet. The Tab5 firmware's build compiles
+this launcher from `shells/3ds/shell` and embeds it.
 
 ## The shells as explorations
 
@@ -58,6 +59,12 @@ desktop artifact names remain stable. The archived shells are `main` at
 work on one starts from the archive branch, whose README and `AGENTS.md`
 describe that tree.
 
+The former **pocket-m5** project is the M5Stack firmware in this repository,
+under `devices/m5stack/`. The import preserves its Git history. Its app ids
+(`dev.pocket-nexus.m5.tab5-demo`, `dev.pocket-nexus.m5.unit-swap`) and its
+host id (`tab5-home`) are unchanged. Firmware releases up to `v0.1.4` are
+pocket-m5's; this repository publishes none.
+
 ## Repository layout
 
 ```text
@@ -65,6 +72,8 @@ shells/
   3ds/       shell (the launcher), scripts, test, media; ui and lib link into vendor/applets
   touch/     src (gesture model and mock apps), scripts, test, manifest
   desktop/   src/system-ui, scripts, test, assets, docs, preview, site, manifests
+devices/
+  m5stack/   M5Stack Tab5 firmware (ESP-IDF): programs, platforms, apps, tools, tests, docs
 scripts/     setup, desktop command dispatch, repository paths and process helpers
 vendor/
   pocketjs/  shared runtime submodule
@@ -72,7 +81,9 @@ vendor/
 ```
 
 The three shells have separate Bun packages and TypeScript configurations.
-See the [asset policy and review](docs/ASSETS.md) for generated outputs,
+`devices/m5stack` is a fourth Bun package in the same workspace; its C
+sources build with ESP-IDF. See the
+[asset policy and review](docs/ASSETS.md) for generated outputs,
 source inputs and retained documentation fixtures. Application code is separate;
 runtime APIs come from `@pocketjs/framework/*`.
 
@@ -81,7 +92,9 @@ runtime APIs come from `@pocketjs/framework/*`.
 Run commands from the repository root. Bun (the version in `.bun-version`,
 which the pinned PocketJS runs on), Rust and the `wasm32-unknown-unknown`
 Rust target are required for the complete check.
-Native targets have additional requirements in their shell's README.
+Native targets have additional requirements in their shell's README; the
+Tab5 firmware needs ESP-IDF, as [devices/m5stack](devices/m5stack/README.md)
+describes.
 
 ```sh
 git clone --recurse-submodules https://github.com/pocket-nexus/pocket-shell.git
@@ -114,6 +127,8 @@ bun run shot                     # capture both console screens
 bun run 3ds                      # full console binary in dist/3ds
 bun run touch guest
 bun run touch deploy             # portrait gesture shell on the connected iPod
+bun run check:m5stack            # Tab5 firmware: clang-format check and host tests (needs a C compiler)
+bun run m5stack app build apps/unit-swap/pocket.app.json   # compile one of the firmware's own apps
 ```
 
 PocketJS is pinned through `vendor/pocketjs`, including the 3DS host's agent
@@ -148,9 +163,14 @@ prerelease. A published release is never replaced. If a run fails after
 tagging, run the workflow by hand with that version to publish the tag again.
 Releases up to `v2026.11.12` were named by their date.
 
+The Tab5 firmware has no release here. **M5Stack firmware**
+(`.github/workflows/firmware-m5stack.yml`) builds it on pull requests and on
+pushes to `main` and uploads the packaged files as the `pocket-shell-tab5`
+workflow artifact.
+
 ## License
 
-**GNU GPL version 3.** Root, 3DS and touch code uses
+**GNU GPL version 3.** Root, 3DS, touch and M5Stack firmware code uses
 `GPL-3.0-or-later`; imported desktop code retains `GPL-3.0-only`.
 PocketJS and third-party fonts retain their own licenses. See
 [LICENSING.md](LICENSING.md), [LICENSE](LICENSE) and
