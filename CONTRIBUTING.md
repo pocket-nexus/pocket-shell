@@ -10,8 +10,10 @@ the applet contract and the agent's guest modules are in `runtime/` and
 with are in `ui/`: a change there reaches the launcher and every applet of
 [pocket-nexus/applets](https://github.com/pocket-nexus/applets), which builds
 against this repository, and a change to one applet goes to that repository.
-UI framework, engine, 3DS platform and renderer changes land in
-PocketJS first, followed by a submodule pin update here.
+Changes to the UI framework, the compiler, the engine, the 3DS platform's
+hooks and input (`platforms/3ds`) and the PICA renderer land in PocketJS
+first, followed by a submodule pin update here; the 3DS platform's media,
+offload, SOC and worker sources are `devices/3ds/platform`.
 
 Use Conventional Commit titles and open a draft pull request. Describe the
 behavior that changed and the checks performed. Preserve the applicable GPL

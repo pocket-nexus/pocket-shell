@@ -7,8 +7,8 @@ on the touch screen and nowhere else. The top screen belongs to the system: for 
 capability `system.agent`), the 3DS host program
 ([devices/3ds](../../devices/3ds/README.md)) draws Claude's room
 there, and **L+R opens the agent over any applet**. The room is the host program's, the
-overlay is `runtime/src/agent-layer.tsx` (the pinned PocketJS build adds its
-own copy to each app that declares the capability) and the model runs in
+overlay is `runtime/src/agent-layer.tsx` (each build of an app that declares
+the capability adds it, `runtime/manifest/system-layers.ts`) and the model runs in
 Pocket Hub; [POCKET-AGENT.md](../../docs/POCKET-AGENT.md) describes the
 console side. On the Tab5 the same programs lay out for its one landscape panel;
 see [The M5Stack Tab5](#the-m5stack-tab5).
@@ -194,8 +194,8 @@ the firmware releases up to `v0.1.4` are pocket-m5's.
 - The Pocket Hub app carries the applets and offers them to a paired Tab5
   or 3DS over Pocket Link 2. `bun run
   offer` builds both the 3DS and the Tab5 package of every applet into
-  `dist/3ds/apps/` and serves that folder as the catalog of PocketJS's
-  reference Pocket Link 2 Hub (`tools/3ds-dev.ts serve --apps`), which lists
+  `dist/3ds/apps/` and serves that folder as the catalog of the
+  reference Pocket Link 2 Hub (`link/3ds-dev.ts serve --apps`), which lists
   to each console the files with a variant for its target. That Hub speaks
   version 2, which the 3DS program and the Tab5 firmware both compile; a
   Tab5 pairs with it by the code it shows

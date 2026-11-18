@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// PocketJS device spec — the board's own controls (`globalThis.device`,
+// Device spec — the board's own controls (`globalThis.device`,
 // capability "system.device").
 //
 // The module reads and sets what the board itself owns: the display

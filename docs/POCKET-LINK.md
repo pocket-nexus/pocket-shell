@@ -13,7 +13,12 @@ This page is the specification. The wire constants and types are
 `runtime/spec/link2.ts`, the reference codec, endpoints and command line
 `link/v2/`, the vectors `link/vectors/`, the C
 client `devices/services/link2*.c` (§12). Statements about version 1 and
-the development connection cite the code at `becc0e21`.
+the development connection cite the code at `becc0e21`. A path or a command
+with PocketJS before it that PocketJS has since removed (the version 1 C
+client in `engine/host-services`, `tools/pocket-link`, the 3DS program, demo
+and tests, `bun run link2` and `bun run 3ds:dev`) names PocketJS at
+`806ac202`; their successors in this repository are `devices/`, `link/` and
+`runtime/`.
 
 The first device is the Nintendo 3DS over Wi-Fi, the Old 3DS included
 (**64 MB RAM**, a QuickJS guest, a worker realm with a **512 KiB heap**,
@@ -2144,8 +2149,8 @@ On a New 3DS a JavaScript loop over 32 KiB of bytes takes **52 ms**, a
 spend the frame budget on bookkeeping.
 
 The guest API is small. **The capability is `link.channel`, the host
-namespace `globalThis.link.channel`, and the framework module
-`@pocketjs/framework/channel`** (§12.2 for the names of
+namespace `globalThis.link.channel`, and the guest module
+`@pocket-shell/runtime/channel`** (§12.2 for the names of
 its functions); its shape:
 
 | Guest call | Link |
@@ -2640,7 +2645,7 @@ TypeScript console client, as Hub's version 1 tests do with
   *Recommendation:* keep 8 KiB until the Old 3DS number exists.
 - **The guest API's names.** The capability `link.channel`, the host
   namespace `globalThis.link.channel` and the functions of
-  `@pocketjs/framework/channel` (§12.2) are in one build on one host and no
+  `@pocket-shell/runtime/channel` (§12.2) are in one build on one host and no
   released package uses them: they can change until this version merges.
   Undecided: whether a worker realm gets the same module (only the UI realm
   has it), and the page of the app contract's reference that documents it.
@@ -2840,9 +2845,11 @@ against them. The version-1 files go in the change that replaces `link.c`.
 ### 12.2 3DS C client (`devices/services`, `devices/3ds`)
 
 **Built, and wired into the 3DS program beside the development
-connection.** Version 1's `link.c`, `link_proto.c` and `link_http.c` stay in
-PocketJS `engine/host-services` for the programs that still compile them and are out
-of the 3DS build; `devserver.c` stays in it until item 4 below.
+connection.** Version 1's `link.c`, `link_proto.c` and `link_http.c` stayed in
+PocketJS `engine/host-services` for the programs that still compiled them and
+were out of the 3DS build; `devserver.c` stayed in it until item 4 below.
+PocketJS removed that directory after `806ac202`; `devices/services` holds
+the version 2 client.
 
 - `devices/services/link2_proto.{h,c}`: the wire layer, with no socket,
   clock or allocation: beacon, preamble, the 12-byte header and a streaming
@@ -2912,7 +2919,7 @@ of the 3DS build; `devserver.c` stays in it until item 4 below.
   handles that carry the channel's generation (§7.4); **a call converts its
   handle before it takes a buffer's address**, because the conversion can run
   the guest's `valueOf`, which may detach the buffer.
-  **`@pocketjs/framework/channel`** (`runtime/src/channel.ts`) gives the
+  **`@pocket-shell/runtime/channel`** (`runtime/src/channel.ts`) gives the
   shape of §7.3 on top: `request(t, args, {body, onProgress})`,
   `onRequest(t, handler)`, `emit`, `emitStream`, `onEvent`,
   `channelState()`, and `ChannelReader` / `ChannelWriter` driven by the
@@ -2957,7 +2964,7 @@ of the 3DS build; `devserver.c` stays in it until item 4 below.
     with `-DPOCKETJS_PUSH_TRACE` it sends a line per step and keeps them in
     `sdmc:/pocketjs/runtime/push-timing.txt`.
 - **A guest's stop with a worker request in flight**
-  (PocketJS `platforms/3ds/worker.c`). The worker thread's destroy retries while the
+  (`devices/3ds/platform/worker.c`). The worker thread's destroy retries while the
   main thread still has a request of that worker to end, and each retry
   signalled the thread's own wake event, so its wait returned at once and
   the retry never yielded. **The worker thread and the main thread run at
@@ -3214,7 +3221,7 @@ they were chosen**, by arithmetic or from version 1. Each row says which.
 | The `PING` wait before a replacement counts | **2 s** (§2.4) | estimate. The worst round trip seen is under a quarter of it; no run made two connections with one device id |
 | Replacements before the duplicate-id refusal | **3 in 30 s** (§2.4) | estimate; not exercised on the device |
 | The receive windows of a push and of an install | as in §5.6 | not varied. A push of 312 KB took 1.44 s; an install of 2.93 MB took 5.55 s with its SD writes |
-| The catalog snapshot's life | **30 s** (§6.4) | estimate. The 3DS program offers a payload limit of 16,384 and has no setting for a smaller one, so a catalog paged at a small limit ran on the POSIX build of the client alone (PocketJS `tests/pocket-link-2-client.test.ts`) |
+| The catalog snapshot's life | **30 s** (§6.4) | estimate. The 3DS program offers a payload limit of 16,384 and has no setting for a smaller one, so a catalog paged at a small limit ran on the POSIX build of the client alone (`devices/services/test/pocket-link-2-client.test.ts`) |
 | The 30 s request stall and stream limit against a guest at a breakpoint | **30 s** (§5.5) | estimate; no run paused the guest |
 | Every limit that rests on guest speed | LINK_APP_MSG **8 KiB**, the hand-over of **16 messages or 8 KiB** a frame, **16 KiB** of stream bytes a frame (§7.3) | the same runs on an **Old 3DS**, which this section does not hold |
 

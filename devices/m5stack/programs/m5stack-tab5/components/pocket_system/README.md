@@ -258,8 +258,8 @@ removal, the companion route and a link that closes under a request.
 ## Companion services
 
 A worker reaches the paired Hub's services at
-`https://companion.pocket/<service>/...` (pocketjs `docs/APPLETS.md`;
-`LINK_SERVICES_HOST` in `contracts/spec/link.ts`) through its `http` node.
+`https://companion.pocket/<service>/...` (Pocket Shell `docs/APPLETS.md`;
+`LINK_SERVICES_HOST` in `runtime/spec/link.ts`) through its `http` node.
 `pocketjs_system_companion` is the `pocket_http_esp` transport for that host:
 `companion.c` sends the request over the Pocket Link as a `net.http` request
 (§6.5) with devices/services `link2_http.c`. The request names the

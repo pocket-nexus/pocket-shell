@@ -9,8 +9,8 @@
  * compiles it on the build machine and checks it against the conformance
  * vectors of link/vectors/ and the reference codec.
  *
- * Version 1 (link_proto.h) stays in PocketJS engine/host-services; no
- * program here compiles it.
+ * Version 1's wire half (link_proto.h) was not imported: no program here
+ * compiles it.
  */
 
 #ifndef POCKETJS_LINK2_PROTO_H

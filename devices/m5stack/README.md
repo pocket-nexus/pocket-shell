@@ -55,7 +55,7 @@ idf.py -p <port> flash monitor
 The firmware embeds this directory's apps (`apps/tab5-demo`,
 `apps/unit-swap`) and installs them at boot, so Pocket Shell lists them without
 a computer. The applets install beside them from a paired computer's
-Hub over Pocket Link 2 (pocketjs `docs/POCKET-LINK.md`); the Mac icon on the
+Hub over Pocket Link 2 (Pocket Shell `docs/POCKET-LINK.md`); the Mac icon on the
 home screen lists what that Hub offers. The home ball returns to Pocket
 Shell.
 `bun run app build <pocket.app.json>`, run in `devices/m5stack`, compiles
@@ -65,7 +65,7 @@ apps/<name>/pocket.app.json`.
 
 ### Pairing a computer
 
-**The Tab5 pairs by a code it shows** (pocketjs `docs/POCKET-LINK.md` §3.11).
+**The Tab5 pairs by a code it shows** (Pocket Shell `docs/POCKET-LINK.md` §3.11).
 With the Tab5 and the computer on one network and a Hub running on the
 computer:
 

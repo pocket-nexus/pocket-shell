@@ -5,10 +5,8 @@
 // service fetches on the owner's consent (tools), and something the owner
 // does elsewhere (the prompt). These are the shapes and the words of the
 // setup page (ui/setup.tsx), apart from any view. The wire types copy
-// PocketJS's contracts/spec/owner-setup.ts (pocketjs #673); they become an
-// `import type` from vendor/pocketjs once this repository's pin moves past
-// pocketjs #672, which moved tools/companion/glyphs.ts (test/net.test.ts
-// imports it) to Pocket Hub.
+// runtime/spec/owner-setup.ts, which came from PocketJS's
+// contracts/spec/owner-setup.ts (pocketjs #673).
 
 export interface SetupFieldState {
   id: string;

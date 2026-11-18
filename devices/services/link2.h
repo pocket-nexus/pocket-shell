@@ -7,7 +7,7 @@
  * credit, catalog and install, net.http, the runtime operations, the DevTools
  * stream and the host half of applet channels (§7.3).
  *
- * Version 1 (link.h) stays in PocketJS engine/host-services; no program here compiles it.
+ * Version 1's client (link.h) was not imported: no program here compiles it.
  *
  * The client never blocks a frame: every socket is non-blocking and
  * link2_pump handles at most LINK2_RX_BUDGET received bytes per call. It

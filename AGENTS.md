@@ -32,10 +32,11 @@ services they share**, and a change belongs to one of them:
   start (`ui/screen.ts`) and lays out by size class. Every applet draws on
   the touch surface and declares `system.agent`; the 3DS's top screen belongs
   to the 3DS host program (`devices/3ds`). The L+R agent
-  overlay is `runtime/src/agent-layer.tsx`; the pinned PocketJS build adds
-  its own copy (`vendor/pocketjs/framework/src/agent-layer.tsx`) to every app
-  that declares `system.agent`, so the launcher and the applets run that
-  copy and `runtime/test/agent-layer.test.ts` runs this repository's.
+  overlay is `runtime/src/agent-layer.tsx`: for every Solid app that
+  declares `system.agent`, `runtime/manifest/system-layers.ts` passes it to
+  PocketJS's compiler as a system layer (`tools/build.ts --layer`), and
+  `pocket-shell compile` and `devices/3ds/build.ts` both take their
+  arguments from it.
 - `shells/touch/`: Pocket Shell Touch, a full-screen gesture shell with
   retained mock apps on iPod touch 4 and Nokia E7. It owns navigation, window
   recency and its device tests.
@@ -49,10 +50,11 @@ services they share**, and a change belongs to one of them:
   camera and photos), the Rust archive (`core/`, a Cargo workspace of its own
   with its own lockfile), the host contract `pocket.host.json` (id `3ds-dev`),
   the Makefile, `build.ts` and host tests. `build.ts` compiles the guest with
-  PocketJS's toolchain and the C half in the devkitARM container, and reads
-  the platform (`platforms/3ds`), the PICA renderer
-  (`devices/3ds/pocket-3ds-pica`), the QuickJS facade and the engine crates
-  from `vendor/pocketjs`; `devices/3ds/README.md` lists each.
+  PocketJS's toolchain and the C half in the devkitARM container. The
+  platform's media, offload, SOC and worker sources are `platform/`; the
+  platform's hooks, HID facts and input source (`platforms/3ds`), the PICA
+  renderer (`devices/3ds/pocket-3ds-pica`), the QuickJS facade and the engine
+  crates are read from `vendor/pocketjs`; `devices/3ds/README.md` lists each.
 - `devices/services/`: portable C both device programs compile: the Pocket
   Link 2 client (`link2*.c`), the launcher's app table, `data.fs`, a JSON
   reader, SHA-256, photo images, the media stream's headers and the vendored
@@ -79,23 +81,25 @@ size classes (`screen.ts`), the button legend and the icon tiles
 (`icons.tsx`), with its pictures in `ui/art` and the icon family in
 `ui/art/icons`. It was imported from pocket-nexus/applets at `4660dfe`, and
 a change to it reaches the launcher and every applet. Its modules import
-PocketJS and Solid and nothing else in this repository. Three modules of the
+PocketJS, Solid and the applet surface (`@pocket-shell/runtime/applet`, in
+`screen.ts`) and nothing else in this repository. Three modules of the
 applets' `ui/` stayed there because they import the applets' own `lib/net.ts`
 or `kit/qr.ts`: `glyphs.ts`, `setup.tsx` and `qr.tsx`. The icon PNGs are
 rendered in pocket-nexus/applets (`tools/icons`, Blender) and committed here.
 
 Two directories beside the shells hold the Pocket Runtime's TypeScript,
-imported from PocketJS at `89e10438`. PocketJS at that commit has its own
-copies, and pocket-nexus/applets imports those (`@pocketjs/framework/applet`,
-`@pocketjs/framework/link`); `ui/screen.ts` imports PocketJS's `applet` too:
+imported from PocketJS at `89e10438`; PocketJS removed its copies at
+`89162fb7`. Guest code, here and in pocket-nexus/applets, imports the guest
+modules as `@pocket-shell/runtime/<module>` (the exports of
+`runtime/package.json`):
 
 - `runtime/`: the contracts (`spec/`: Pocket Link 1 and 2, the applet
   contract, the agent, owner setup, Wi-Fi, device, camera), the guest modules
   (`src/`: the applet surface, link, applet channel, launcher, system sheet,
   agent and its overlay, Wi-Fi, device, camera), the 3DS console simulator
   with its link, Wi-Fi, camera and agent fakes (`sim/`), and their tests
-  (`test/`). `shells/3ds/shell` imports its applet surface, link, launcher,
-  agent, Wi-Fi and camera modules from `runtime/src`.
+  (`test/`). `shells/3ds/shell` imports the applet surface, link, launcher,
+  agent, Wi-Fi and camera modules and `ui/screen.ts` the applet surface.
 - `link/`: the Pocket Link 2 reference implementation (`v2/`: codec, device,
   Hub and the Hub's command line), the Hub's destination policy (`fetch.ts`),
   the 3DS development tool (`3ds-dev.ts`), the conformance
@@ -107,8 +111,9 @@ copies, and pocket-nexus/applets imports those (`@pocketjs/framework/applet`,
 specifications of the link, the applet rules and the agent.
 
 The app contract and the package are this repository's too, imported from
-PocketJS at `806ac202`; PocketJS at that commit has its own copies, which
-`shells/desktop`, `shells/touch` and pocket-nexus/applets use:
+PocketJS at `806ac202`. PocketJS keeps its own app contract and package
+format, which `shells/desktop` and `shells/touch` use; the launcher and
+pocket-nexus/applets build with these:
 
 - `runtime/spec/pocket-manifest.ts`, `runtime/manifest/` and
   `runtime/schema/pocket-2.json`: the app contract (`pocket.app.json`), its
@@ -123,9 +128,10 @@ PocketJS at `806ac202`; PocketJS at that commit has its own copies, which
 - `cli/`: the command line (`cli/pocket-shell.ts`, `bun run pocket-shell`).
   `check` and `compile` read an app contract with the modules above, write
   the resolved plan to a file, run PocketJS's compiler
-  (`vendor/pocketjs/tools/build.ts --plan=<file>`, which writes the bundle
-  and the asset pack) and encode the `.pocket`. Every other command runs
-  PocketJS's CLI with the same arguments. `bun run tab5`, `bun run psp` and
+  (`vendor/pocketjs/tools/build.ts --plan=<file>`, with `--layer` for the
+  plan's system layers, which writes the bundle and the asset pack) and
+  encode the `.pocket`. Every other command runs PocketJS's CLI with the
+  same arguments. `bun run tab5`, `bun run psp` and
   the Tab5 firmware's CMake build (`devices/m5stack/tools/pocket`) compile
   through it; `devices/3ds/build.ts` uses the same modules without the CLI.
   `cli/README.md` lists the options.
@@ -159,21 +165,29 @@ in each source. See `LICENSING.md`.
 - Import PocketJS runtime, host component, lifecycle, input and animation APIs
   from `@pocketjs/framework/*`; import Solid primitives and control flow from
   `solid-js`.
-- Guest code imports a `runtime/src` module by relative path
-  (`../../../runtime/src/link.ts`), not by a package name or a tsconfig
-  alias: pass 1 of the PocketJS build walks relative imports and
-  `@pocketjs/framework/*` and treats every other bare specifier as external,
-  so a module behind one is bundled without its class strings and glyphs
-  compiled. The launcher imports the kit the same way
-  (`../../../ui/nav.tsx`).
-- Inside `runtime/`, a PocketJS module with a package export is imported as
-  `@pocketjs/framework/<subpath>`; one without is imported by relative path
-  into `vendor/pocketjs`. A module that holds state (`services.ts`,
-  `frame.ts`, `system-layers.ts`) is reached by one file path, or the bundle
-  holds two instances of it.
-- `devices/3ds` and `devices/services` read what stays in PocketJS (the 3DS
-  platform, the PICA renderer, the QuickJS facade, the engine crates, the
-  toolchain pins) by path into `vendor/pocketjs` and copy none of it. When
+- Guest code imports a `runtime/src` module as
+  `@pocket-shell/runtime/<module>` (`applet`, `link`, `channel`, `launcher`,
+  `system`, `agent`, `wifi`, `device`, `camera`). `bun run setup` links
+  `node_modules/@pocket-shell/runtime` to `runtime/` and the tsconfigs map
+  the same files. Pass 1 of the PocketJS build follows the link to the
+  module's real path, outside `node_modules`, and walks it like a relative
+  import, so its class strings and glyphs compile with the app's; the
+  bundle holds one copy of each module. The launcher imports the kit by
+  relative path (`../../../ui/nav.tsx`).
+- Guest code inside `runtime/` imports PocketJS by its package exports:
+  `@pocketjs/framework/system-layers` (layer registration, the frame input
+  filter, the service pump, app suspension, `packTouch`, `openOsk`, the
+  screen size and the property enums) and the public subpaths. Each
+  stateful module (`services.ts`, `frame.ts`, `system-layers.ts`) is behind
+  those exports once. The manifest resolver, the package code, the tools and
+  the tests read PocketJS contracts and tools by relative path into
+  `vendor/pocketjs`.
+- `devices/3ds` and `devices/services` read the 3DS platform's hooks, HID
+  facts, input source and icons, the PICA renderer, the QuickJS facade, the
+  engine crates and the toolchain pins by path into `vendor/pocketjs`.
+  `devices/3ds/platform` holds the platform's media, offload, SOC and worker
+  sources, imported from PocketJS `platforms/3ds` at `806ac202` before
+  PocketJS removed them. When
   the PocketJS pin moves, copy `vendor/pocketjs/Cargo.lock` to
   `devices/3ds/core/Cargo.lock` and run `cargo metadata --manifest-path
   devices/3ds/core/Cargo.toml` once (Cargo removes the packages that graph
@@ -191,9 +205,8 @@ in each source. See `LICENSING.md`.
   native code, no `eval`, size budgets. A build refuses a broken applet:
   the resolver checks the contract rules, and `pocket-shell compile` and
   `devices/3ds/build.ts` check the sources and the bundle sizes
-  (`runtime/package/applet-check.ts`; the pinned PocketJS compiler runs its
-  own copy first). pocket-nexus/applets checks every one (`bun run check`
-  there). The launcher (`shell/`) declares no `applet`.
+  (`runtime/package/applet-check.ts`). pocket-nexus/applets checks every
+  one (`bun run check` there). The launcher (`shell/`) declares no `applet`.
 - An app contract's entry is relative to its project root: `shells/3ds/` for
   the launcher, the applets checkout for an applet (`POCKET_APPLETS_ROOT`,
   default `../applets` beside this repository). `shells/3ds/scripts/apps.ts`

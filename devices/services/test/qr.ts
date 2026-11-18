@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // A QR code encoder for the decoder's test (jscan-quirc.test.ts), imported from
-// PocketJS tools/pocket-link/qr.ts: byte mode, error correction level M,
-// versions 1–10 (ISO/IEC 18004). The smallest version that holds the data is
-// chosen, then the mask with the lowest penalty score.
+// PocketJS tools/pocket-link/qr.ts at 806ac202: byte mode, error correction
+// level M, versions 1–10 (ISO/IEC 18004). The smallest version that holds the
+// data is chosen, then the mask with the lowest penalty score.
 
 /** Level M block structure per version: [ec codewords per block, [blocks, data codewords per block]...]. */
 const M_BLOCKS: readonly (readonly [number, readonly (readonly [number, number])[]])[] = [

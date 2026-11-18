@@ -13,7 +13,8 @@
  * each surface's guest coordinates landscape. Touch belongs only to the
  * auxiliary surface.
  *
- * The embedded guest is also the LAUNCHER (PocketJS docs/LAUNCHER.md "3DS"): every
+ * The embedded guest is also the LAUNCHER (README.md, "Installed apps and the
+ * launcher"; the switch operations are PocketJS docs/LAUNCHER.md's): every
  * other runtime slot with a committed active package is an installed app it
  * can switch to (launcher.c). A switch happens at the top of a frame, after
  * the previous one presented: teardown, select the target slot, boot its
@@ -244,7 +245,7 @@ static void read_surface_rgb8(
 }
 
 // ---------------------------------------------------------------------------
-// capture build (PocketJS tests/e2e/azahar.ts)
+// capture build (PocketJS tests/e2e/azahar.ts at 806ac202)
 // ---------------------------------------------------------------------------
 
 #ifdef POCKETJS_CAPTURE
@@ -263,7 +264,8 @@ static void read_surface_rgb8(
 #endif
 
 /* Everything the driver reads lives in one directory, so a run's frames can
- * never be confused with a previous run's (PocketJS tests/e2e/azahar.ts). */
+ * never be confused with a previous run's (PocketJS tests/e2e/azahar.ts at
+ * 806ac202). */
 #define CAPTURE_DIR "sdmc:/pocketjs-captures"
 
 /* The PPF's own RGB8 staging buffer, and the A,B,G,R buffer the file holds. */
