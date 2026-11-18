@@ -1,0 +1,7 @@
+version: "0.1.0"
+description: Event-driven PocketJS worker runner with an internal-memory QuickJS realm
+license: MIT
+targets: [esp32p4, esp32s3, esp32c3, esp32c6]
+dependencies:
+  idf: ">=6.2,<6.3"
+  espressif/quickjs-ng: "0.14.0"

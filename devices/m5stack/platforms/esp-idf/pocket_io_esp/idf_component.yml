@@ -1,0 +1,6 @@
+version: "0.1.0"
+description: Bounded I2C transactions and UART streams for PocketJS workers
+license: MIT
+targets: [esp32p4, esp32s3, esp32c3, esp32c6]
+dependencies:
+  idf: ">=6.0,<6.3"

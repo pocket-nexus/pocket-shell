@@ -1,0 +1,51 @@
+{
+  "$schema": "https://pocketjs.dev/schema/pocket-2.json",
+  "pocket": 2,
+  "id": "dev.pocket-nexus.m5.unit-swap",
+  "title": "Unit Swap",
+  "version": "0.1.0",
+  "engine": {
+    "capabilities": {
+      "requires": [
+        "runtime.worker",
+        "io.i2c",
+        "system.device",
+        "display.auxiliary",
+        "input.touch.auxiliary",
+        "text.glyphs.baked"
+      ]
+    }
+  },
+  "app": {
+    "entry": "main.tsx",
+    "output": "unit-swap",
+    "framework": "solid",
+    "tickHz": 30,
+    "surfaces": {
+      "auxiliary": {
+        "fixed": {
+          "logical": [640, 360],
+          "presentation": "native"
+        }
+      }
+    },
+    "viewport": {
+      "fixed": {
+        "logical": [400, 240],
+        "presentation": "native"
+      }
+    }
+  },
+  "domains": {
+    "worker": {
+      "entry": "worker.ts",
+      "nodes": [{ "name": "porta", "kind": "i2c" }],
+      "channels": [
+        { "name": "state", "kind": "snapshot", "direction": "worker-to-ui", "recordBytes": 96, "capacity": 1 },
+        { "name": "history", "kind": "snapshot", "direction": "worker-to-ui", "recordBytes": 260, "capacity": 1 },
+        { "name": "events", "kind": "ring", "direction": "worker-to-ui", "recordBytes": 16, "capacity": 8 },
+        { "name": "commands", "kind": "ring", "direction": "ui-to-worker", "recordBytes": 8, "capacity": 4 }
+      ]
+    }
+  }
+}

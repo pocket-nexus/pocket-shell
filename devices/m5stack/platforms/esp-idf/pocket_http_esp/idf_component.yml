@@ -1,0 +1,6 @@
+version: "0.1.0"
+description: Streaming HTTP and HTTPS requests for PocketJS workers over esp_http_client
+license: MIT
+targets: [esp32p4, esp32s3, esp32c3, esp32c6]
+dependencies:
+  idf: ">=6.0,<6.3"

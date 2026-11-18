@@ -1,0 +1,15 @@
+# Git hooks. `bun install` installs them; `bunx lefthook install` reinstalls.
+pre-commit:
+  parallel: true
+  jobs:
+    - name: clang-format
+      glob: "*.{c,h,cc,cpp,hpp}"
+      exclude:
+        - "third_party/**"
+      run: node_modules/.bin/clang-format -i --style=file {staged_files}
+      stage_fixed: true
+
+commit-msg:
+  jobs:
+    - name: commitlint
+      run: node_modules/.bin/commitlint --edit {1}

@@ -1,0 +1,9 @@
+version: "0.1.0"
+description: system.device on the M5Stack Tab5 (backlight, speaker level, power rails, plug detection, header pins, card listing, power off)
+targets:
+  - esp32p4
+dependencies:
+  idf: ">=6.0,<6.3"
+  espressif/m5stack_tab5_noglib: "1.3.2"
+  pocket-nexus/pocket_guest_quickjs:
+    override_path: ../../../../third_party/pocketjs/platforms/esp-idf/pocket_guest_quickjs
