@@ -11,6 +11,7 @@ text is in [LICENSE](LICENSE).
 | PocketJS runtime submodule | MIT |
 | `runtime/`, `link/`, `docs/POCKET-LINK.md`, `docs/APPLETS.md` and `docs/POCKET-AGENT.md` | Imported from PocketJS (MIT) at commit `89e1043830434e07926e520d129c4fe0fccdcd48`; distributed here under GPL-3.0-or-later. The original notice is [runtime/LICENSE.pocketjs-MIT](runtime/LICENSE.pocketjs-MIT) |
 | `devices/3ds` and `devices/services`, except `devices/services/quirc`; `cli/`, `runtime/manifest`, `runtime/package`, `runtime/schema`, `runtime/spec/pocket-manifest.ts`, `runtime/spec/pocket-package.ts`, `runtime/spec/admission.ts` and their tests in `runtime/test`; `docs/APP-CONTRACT.md` and `docs/POCKET-PACKAGE.md` | Imported from PocketJS (MIT) at commit `806ac202141ece274f47c938c2899ffe8d30921d`; distributed here under GPL-3.0-or-later. The original notice is [runtime/LICENSE.pocketjs-MIT](runtime/LICENSE.pocketjs-MIT) |
+| `ui/`: the iOS 6 kit's sources, its pictures and the icon family | Imported from [pocket-nexus/applets](https://github.com/pocket-nexus/applets) (GPL-3.0-or-later) at commit `4660dfe66e361e850f47e13b8da4dbad357e7594`; distributed here under GPL-3.0-or-later. Each source carries the SPDX line it had there |
 | `devices/services/quirc`: the quirc QR decoder, vendored unmodified | ISC, [devices/services/quirc/LICENSE](devices/services/quirc/LICENSE) |
 | Third-party fonts and derived font atlases | Their accompanying font licenses |
 | Third-party files in `devices/m5stack`: M5Stack's Tab5 demo pictures, Bosch's BMI270 feature image | Their accompanying notices (MIT, BSD-3-Clause) |
@@ -41,3 +42,8 @@ Source history from pocket-m5 is preserved as the second parent of the import
 merge: one commit that moves the tree to `devices/m5stack/`, on top of
 pocket-m5 commit `db98ac45916a8ec4a2d85fa2a7e9cb09fa95bd1c`. Historical
 licensing documents remain in that history.
+
+`ui/` was copied from pocket-nexus/applets at commit
+`4660dfe66e361e850f47e13b8da4dbad357e7594` with its files unchanged; its
+source history is in that repository. Three modules of that directory were
+not copied (`glyphs.ts`, `setup.tsx`, `qr.tsx`).

@@ -24,12 +24,12 @@ import { scannerPage, type ScanState } from "./scanner.tsx";
 import { createSpringboard } from "./springboard.tsx";
 import { codeInstallPage, storeAppPage, storePage } from "./store.tsx";
 import { createShellSystem } from "./system.ts";
-import { createAlerts } from "../ui/alert.tsx";
-import { Pinstripes } from "../ui/chrome.tsx";
-import { Legend } from "../ui/legend.tsx";
-import { createNavStack } from "../ui/nav.tsx";
-import { SCREEN_H, SCREEN_W, appletTouch, appletSurfaceId } from "../ui/screen.ts";
-import { createPress, createTouchRouter } from "../ui/touch.ts";
+import { createAlerts } from "../../../ui/alert.tsx";
+import { Pinstripes } from "../../../ui/chrome.tsx";
+import { Legend } from "../../../ui/legend.tsx";
+import { createNavStack } from "../../../ui/nav.tsx";
+import { SCREEN_H, SCREEN_W, appletTouch, appletSurfaceId } from "../../../ui/screen.ts";
+import { createPress, createTouchRouter } from "../../../ui/touch.ts";
 
 const ALL_BUTTONS = 0xffff;
 const ZOOM_MS = 280;

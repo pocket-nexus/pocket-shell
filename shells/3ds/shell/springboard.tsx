@@ -58,12 +58,12 @@ import {
 } from "./layout.ts";
 import { ICONS } from "./pages.tsx";
 import { type ShellApp, type ShellSystem } from "./system.ts";
-import { StatusBar, Wallpaper } from "../ui/chrome.tsx";
-import { appTint, Tile, type TileProps } from "../ui/icons.tsx";
-import { setLegend } from "../ui/legend.tsx";
-import { appletTouch, COMPACT, SCREEN_H, SCREEN_W, TALL } from "../ui/screen.ts";
-import { ellipsize, FONT } from "../ui/text.ts";
-import type { Press, Target, TargetDrag, TouchPage } from "../ui/touch.ts";
+import { StatusBar, Wallpaper } from "../../../ui/chrome.tsx";
+import { appTint, Tile, type TileProps } from "../../../ui/icons.tsx";
+import { setLegend } from "../../../ui/legend.tsx";
+import { appletTouch, COMPACT, SCREEN_H, SCREEN_W, TALL } from "../../../ui/screen.ts";
+import { ellipsize, FONT } from "../../../ui/text.ts";
+import type { Press, Target, TargetDrag, TouchPage } from "../../../ui/touch.ts";
 
 export { COLS, PER_PAGE } from "./layout.ts";
 const ICON = 46;

@@ -29,10 +29,9 @@ for (const path of tracked.filter((path) => path.endsWith(".md"))) {
 const sourceInputs = new Set([
   "shells/desktop/assets/fonts/W95FA.otf",
 ]);
-// Each 3DS app's pictures (the launcher's icons are pocket-nexus/applets'
-// icon family, like the applets themselves) and each app the Tab5 firmware
-// bundles: the images.json beside an app's manifest names what its build
-// reads, and the app contract names its package icon.
+// Each 3DS app's pictures and each app the Tab5 firmware bundles: the
+// images.json beside an app's manifest names what its build reads, and the
+// app contract names its package icon.
 const M5STACK_APPS = "devices/m5stack/apps";
 for (const apps of ["shells/3ds", M5STACK_APPS]) {
   for (const app of readdirSync(resolve(ROOT, apps), { withFileTypes: true })) {
@@ -47,31 +46,41 @@ for (const apps of ["shells/3ds", M5STACK_APPS]) {
     if (icon) sourceInputs.add(relative(ROOT, resolve(dirname(contract), icon)));
   }
 }
-// A Tab5 app's images.json holds options for some pictures only (tab5-demo
-// stores its sixteen opaque ones as PSM_5650). The PocketJS build reads
-// every picture a source names in a string literal, relative to the app's
-// directory (tools/build.ts), so those literals name inputs too.
-for (const source of tracked.filter((path) => path.startsWith(`${M5STACK_APPS}/`) && /\.tsx?$/.test(path))) {
-  const app = source.split("/").slice(0, 4).join("/");
-  for (const match of readFileSync(resolve(ROOT, source), "utf8").matchAll(/["'`]([\w./-]+\.(?:png|svg))["'`]/gi)) {
-    if (tracked.includes(`${app}/${match[1]}`)) sourceInputs.add(`${app}/${match[1]}`);
+// The PocketJS build reads every picture a source names in a string
+// literal, relative to the entry's directory (tools/build.ts), so those
+// literals name inputs too: the ones `directory(source)` holds, for each
+// tracked TypeScript source under `prefix`.
+const namedPictures = (prefix: string, directory: (source: string) => string): void => {
+  for (const source of tracked.filter((path) => path.startsWith(`${prefix}/`) && /\.tsx?$/.test(path))) {
+    const base = directory(source);
+    for (const match of readFileSync(resolve(ROOT, source), "utf8").matchAll(/["'`]([\w./-]+\.(?:png|svg))["'`]/gi)) {
+      if (tracked.includes(`${base}/${match[1]}`)) sourceInputs.add(`${base}/${match[1]}`);
+    }
   }
-}
+};
+// A Tab5 app's images.json holds options for some pictures only (tab5-demo
+// stores its sixteen opaque ones as PSM_5650).
+namedPictures(M5STACK_APPS, (source) => source.split("/").slice(0, 4).join("/"));
+// The kit (ui/) and its pictures are this repository's: the launcher here
+// and the applets of pocket-nexus/applets draw with them. ui/images.json
+// holds the options of the kit's marks, and the kit's sources name the rest:
+// the icon family (ui/icons.tsx) and the table's checkmarks. An app's build
+// finds them through its own art directory, which links to ui/art.
+const KIT = "ui";
+for (const key of Object.keys(JSON.parse(readFileSync(resolve(ROOT, KIT, "images.json"), "utf8")))) sourceInputs.add(`${KIT}/${key}`);
+namedPictures(KIT, () => KIT);
 const touchImages = JSON.parse(readFileSync(resolve(ROOT, "shells/touch/src/images.json"), "utf8"));
 for (const key of Object.keys(touchImages)) sourceInputs.add(`shells/touch/src/${key}`);
 
-// A picture behind a link into a submodule is committed there: the
-// launcher's icons are vendor/applets/ui/art/icons, through shell/art/icons.
+// A picture behind a link is committed where the link points, and is an
+// input under that name too: the launcher's shell/art/icons is ui/art/icons.
 const realRoot = realpathSync(ROOT);
-const committed = (path: string): boolean => {
+for (const path of [...sourceInputs]) {
+  if (tracked.includes(path)) continue;
   const absolute = resolve(ROOT, path);
-  if (tracked.includes(path)) return true;
-  if (!existsSync(absolute)) return false;
-  const real = relative(realRoot, realpathSync(absolute));
-  return real.startsWith("vendor/") || tracked.includes(real);
-};
-for (const path of sourceInputs) {
-  if (!committed(path)) failures.push(`missing committed input: ${path}`);
+  const real = existsSync(absolute) ? relative(realRoot, realpathSync(absolute)) : "";
+  if (tracked.includes(real)) sourceInputs.add(real);
+  else failures.push(`missing committed input: ${path}`);
 }
 // A build at raster density N reads `<name>@Nx.png` beside a declared PNG
 // (PocketJS density variants), so those variants are inputs too.

@@ -29,8 +29,7 @@
   },
   "include": [
     "shell",
-    "ui",
-    "lib",
+    "../../ui",
     "scripts",
     "test"
   ]

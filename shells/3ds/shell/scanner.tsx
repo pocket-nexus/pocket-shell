@@ -25,10 +25,10 @@ import { onFrame } from "@pocketjs/framework/lifecycle";
 import { registerTexture } from "@pocketjs/framework/renderer";
 import { ClassicSpinner } from "@pocketjs/framework/classic";
 import { isInstallCode, LINK_PAIRING, type ShellSystem } from "./system.ts";
-import { NAV_H } from "../ui/bar.tsx";
-import type { NavStack, PageSpec } from "../ui/nav.tsx";
-import { COMPACT, SCREEN_H, SCREEN_W, TALL } from "../ui/screen.ts";
-import { ellipsize, FONT, toAscii } from "../ui/text.ts";
+import { NAV_H } from "../../../ui/bar.tsx";
+import type { NavStack, PageSpec } from "../../../ui/nav.tsx";
+import { COMPACT, SCREEN_H, SCREEN_W, TALL } from "../../../ui/screen.ts";
+import { ellipsize, FONT, toAscii } from "../../../ui/text.ts";
 
 export const PREVIEW_KEY = "camera.preview";
 
