@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Product runtime archive with private recovery package inspection and the
+# native program the QuickJS facade composes.
+#
+# The crate is its own Cargo workspace. In PocketJS it was a member of the
+# root workspace (products/3ds/core) and inherited its package fields,
+# dependency table and profiles from there; here each is written out. Every
+# dependency is a PocketJS crate read in place from vendor/pocketjs, and
+# Cargo.lock beside this file holds the versions vendor/pocketjs/Cargo.lock
+# pins for the same graph. After a PocketJS pin moves, copy that lockfile
+# here and run `cargo metadata --manifest-path devices/3ds/core/Cargo.toml`
+# once so Cargo drops the packages this graph does not reach.
+[package]
+name = "pocketjs-3ds-core"
+edition = "2021"
+# Not the repository's version (the root package.json): the archive is linked
+# into the .3dsx and published nowhere.
+version = "0.0.0"
+repository = "https://github.com/pocket-nexus/pocket-shell"
+rust-version = "1.93"
+license = "GPL-3.0-or-later"
+description = "Pocket Shell 3DS host: the PocketJS runtime archive with package recovery inspection"
+publish = false
+
+[lib]
+name = "pocketjs_3ds_core"
+crate-type = ["staticlib"]
+
+# PocketJS's [workspace.dependencies] gives every crate `default-features =
+# false`; a line there that named `default-features = true` keeps its
+# defaults here.
+[dependencies]
+pocket-archive = { path = "../../../vendor/pocketjs/programs/sdk/archive", default-features = false }
+# No built-in output: devices/3ds registers the PICA renderer and both
+# displays. PocketJS platforms/3ds/hooks.c supplies the six pocket_host_* hooks.
+pocket-native-program = { path = "../../../vendor/pocketjs/programs/native/runtime", default-features = false, features = ["host-backend", "host-hooks"] }
+pocket-drivers = { path = "../../../vendor/pocketjs/engine/drivers" }
+pocket-runtime = { path = "../../../vendor/pocketjs/engine/runtime" }
+pocket-package = { path = "../../../vendor/pocketjs/engine/package" }
+
+# An empty table makes this directory the workspace root, so Cargo does not
+# search the parent directories for one.
+[workspace]
+
+# The release profile PocketJS's root Cargo.toml gives the packages of this
+# graph. The build adds panic=abort and LTO through the environment
+# (PocketJS tools/build/3ds/native.ts).
+[profile.release.package."pocket-native-program"]
+opt-level = "s"
+codegen-units = 1
+
+[profile.release.package."pocketjs-3ds-core"]
+opt-level = 3
+codegen-units = 1

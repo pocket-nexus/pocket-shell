@@ -9,3 +9,6 @@ dist/
 # Deterministic desktop assets: keep generators and original font inputs.
 /shells/desktop/src/system-ui/icons/
 /shells/desktop/src/system-ui/fonts/
+
+# Cargo output of a host `cargo check` or `cargo test` in the 3DS archive crate.
+/devices/3ds/core/target/

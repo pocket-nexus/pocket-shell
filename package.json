@@ -34,6 +34,8 @@
     "touch:e7": "bun run --cwd shells/touch e7",
     "m5stack": "bun run --cwd devices/m5stack",
     "check:m5stack": "bun run --cwd devices/m5stack check",
+    "test:devices": "bun test ./devices/services/test ./devices/3ds/test",
+    "check:devices": "bun devices/3ds/tools/contracts.ts --check && bun devices/3ds/tools/stage-art.ts --check && bun run test:devices",
     "release": "bun scripts/release/prepare.ts"
   },
   "workspaces": [
