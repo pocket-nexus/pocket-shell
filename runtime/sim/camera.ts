@@ -6,7 +6,7 @@
 // uploadTexture; poll() returns the payloads a test shows it.
 //
 // camera.photo keeps photos in memory: capture() adds one named the way
-// PocketJS products/3ds/src/photos.c names them, and its "saved" event is ready on the next events()
+// devices/3ds/src/photos.c names them, and its "saved" event is ready on the next events()
 // call; load() answers PHOTO_PENDING and a "loaded" event with a texture of
 // a picture derived from the name.
 

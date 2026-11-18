@@ -12,12 +12,12 @@ development connection do not work against it.
 This page is the specification. The wire constants and types are
 `runtime/spec/link2.ts`, the reference codec, endpoints and command line
 `link/v2/`, the vectors `link/vectors/`, the C
-client PocketJS `engine/host-services/link2*.c` (§12). Statements about version 1 and
+client `devices/services/link2*.c` (§12). Statements about version 1 and
 the development connection cite the code at `becc0e21`.
 
 The first device is the Nintendo 3DS over Wi-Fi, the Old 3DS included
 (**64 MB RAM**, a QuickJS guest, a worker realm with a **512 KiB heap**,
-PocketJS `products/3ds/README.md` "Worker scheduling"). Limits are chosen for it. **The
+`devices/3ds/README.md` "Worker scheduling"). Limits are chosen for it. **The
 numbers of §13 were measured on a New 3DS XL; an Old 3DS is slower and has
 not been measured** (§11).
 
@@ -25,7 +25,7 @@ not been measured** (§11).
 
 | Side | Process | Sockets |
 | --- | --- | --- |
-| Device | the host runtime (3DS: PocketJS `products/3ds` with PocketJS `engine/host-services/link.c`) | On TCP: UDP **8627** for beacons, one outgoing TCP connection. **No listening socket.** |
+| Device | the host runtime (3DS: `devices/3ds` with `devices/services/link2.c`) | On TCP: UDP **8627** for beacons, one outgoing TCP connection. **No listening socket.** |
 | Hub | Pocket Hub's resident core process, written in Rust: the Pocket Link endpoint | On TCP: TCP **8628** listener, UDP beacon sender |
 
 The sockets column is the TCP carrier's; §2.0 says what a carrier is. The
@@ -67,7 +67,7 @@ endpoint (§12).
   program through ftpd or through files on the SD card; **Hub writes the
   pairing the same way** (§3.2). Hub does both outside the link.
 - **Hub's local IPC** to its UI, CLI and daemons.
-- **The SVC wire** (`PKNT`, PocketJS `products/3ds/src/svcwire.c`, PocketJS `contracts/spec/spec.ts`
+- **The SVC wire** (`PKNT`, `devices/3ds/src/svcwire.c`, PocketJS `contracts/spec/spec.ts`
   "SVC WIRE protocol") and the PSP USB carrier of version 1
   (`runtime/spec/link.ts` "USB carrier"). **Neither stays outside for
   good**: each becomes a carrier of this protocol or is retired (§2.0, §11).
@@ -133,7 +133,7 @@ has no listener (§12.2).
 | `log` records (`devserver_report_log`, the shim's console bridge) | `log` events while `runtime.logs` is on (§6.2) |
 | `eval`, `getTree`, `inspect`, `pause`, `resume`, `step`, `dumpTape`, `devStats`, `replay` | DevTools lines, unchanged |
 | `ui.__dbgActive` / `ui.__dbgConnected` | The shim's question as it installs, which lists `devtools` for that guest (§12.2) / `devtools.listen` is on |
-| `pocket3d.packs` control lines (PocketJS `products/3ds/src/packs_delivery.c`) | Not carried in this version: the C and the tool remain and take their connection from the program that uses them (§12.2) |
+| `pocket3d.packs` control lines (`devices/3ds/src/packs_delivery.c`) | Not carried in this version: the C and the tool remain and take their connection from the program that uses them (§12.2) |
 | PocketJS `bun run 3ds:dev pair / discover / push / install / launch / probe / dev` | The same commands on the reference Hub's command line (`link/3ds-dev.ts` over `link/v2/cli.ts`): `setup` writes the pairing, `devices` lists the records, the rest are the runtime operations. A thin client of Pocket Hub's own command line once Hub has an endpoint (§12.1 item 6) |
 
 ## 2. Carriers and discovery
@@ -1357,7 +1357,7 @@ and against debugging:
 
 | Fact | Source | Bearing |
 | --- | --- | --- |
-| The device firmware already links a bounded JSON reader and writer, PocketJS `engine/host-services/jscan.c` (**351 lines**). The reader walks one object's top-level members and returns spans: no tree, no allocation | `jscan.h` | JSON control costs the C client no new code and no heap |
+| The device firmware already links a bounded JSON reader and writer, `devices/services/jscan.c` (**351 lines**). The reader walks one object's top-level members and returns spans: no tree, no allocation | `jscan.h` | JSON control costs the C client no new code and no heap |
 | Version 1's C client reads every control message with it (`json_find_string` on `t`, then the fields) and the build machine tests it | `link.c` `handle_ctrl`, PocketJS `tests/3ds-link.test.ts` | the parser is exercised and known |
 | DevTools lines and agent messages are JSON made and read by guest JavaScript: the shim sends `JSON.stringify` output, the agent's guest API passes JSON through `agent.send` | PocketJS `framework/src/devtools.ts` `send`, `runtime/spec/agent.ts` "Guest namespace" | a binary encoding would make the C client translate two groups in both directions |
 | The development connection's binary begin records (package 12 bytes, `.3dsx` 76, launch 68, screenshot 24) each needed a C parser and a TS encoder, **274 lines** of `dev_protocol.c`, and its answers came back as JSON records anyway (`runtime.install`, `runtime.native`, built with `snprintf`) | `pocket-runtime-wire.ts`, `dev_protocol.c`, `devserver.c` | these messages occur once per operation; binary saved nothing measurable there |
@@ -1794,7 +1794,7 @@ parse DevTools lines**; it moves bytes between the stream and the shim's
   `runtime.screenshot`, converted to the panel's PNG message; Hub does not
   forward it.
 - `devStats` stays a line: the shim reads `ops.debugStats`
-  (PocketJS `products/3ds/src/instance.c` → `devserver_debug_stats`), whose `net`
+  (`devices/3ds/src/instance.c` → `devserver_debug_stats`), whose `net`
   block reports the link's counters in version 2.
 - `listening` off keeps the shim from serializing tree snapshots, which cost
   about **30 ms of JS on an Old 3DS** once per 30 frames (PocketJS `docs/DEVTOOLS.md`
@@ -2120,7 +2120,7 @@ progress events as it likes.
   (§4.7); it checks the frame's length and parses nothing for that. The
   guest parses 2 KiB in about 0.6 ms and
   16 KiB in about 4.8 ms on a New 3DS (§13), against a worker turn of 5 ms
-  (PocketJS `products/3ds/README.md` "Worker scheduling"); a message is meant to stay
+  (`devices/3ds/README.md` "Worker scheduling"); a message is meant to stay
   under 2 KiB (§11).
 - A frame for a channel that is not open, or for an id of a closed channel,
   follows §4.7: an `APP` request gets `ERROR` `no_channel`, the rest is
@@ -2609,7 +2609,7 @@ accept any key order and whitespace, and tests compare parsed values.
 **Scenarios that need two live endpoints are not vector files.** A vector
 fixes bytes and the decisions a single side takes; these rows of the table
 are run by an endpoint against the reference peer of the other side (the C
-client against `hub.ts` in PocketJS `tests/pocket-link-2-client.test.ts`, Hub's
+client against `hub.ts` in `devices/services/test/pocket-link-2-client.test.ts`, Hub's
 endpoint against `device.ts` in its own repository):
 
 - counted replacements, the `refused` `busy` after the third and the three
@@ -2837,24 +2837,24 @@ against them. The version-1 files go in the change that replaces `link.c`.
    it** over a socket in the store's folder, because a device links to one
    Hub at a time.
 
-### 12.2 3DS C client (PocketJS `engine/host-services`, PocketJS `products/3ds`)
+### 12.2 3DS C client (`devices/services`, `devices/3ds`)
 
 **Built, and wired into the 3DS program beside the development
 connection.** Version 1's `link.c`, `link_proto.c` and `link_http.c` stay in
 PocketJS `engine/host-services` for the programs that still compile them and are out
 of the 3DS build; `devserver.c` stays in it until item 4 below.
 
-- PocketJS `engine/host-services/link2_proto.{h,c}`: the wire layer, with no socket,
+- `devices/services/link2_proto.{h,c}`: the wire layer, with no socket,
   clock or allocation: beacon, preamble, the 12-byte header and a streaming
   reader that checks the limit in force before it buffers a payload, the
   binary control frames, a bounded JSON writer, the handshake messages and
   proofs, the pairing files' readers and the load of `companions/`, the
   four steps of reading an `EVENT`, keepalive, credit, the applet stream
   window, the `runtime.apps` pages and the `log` event.
-  PocketJS `tests/pocket-link-2-c.test.ts` compiles it with PocketJS `tests/fixtures/link2-proto-harness.c`
+  `devices/services/test/pocket-link-2-c.test.ts` compiles it with `fixtures/link2-proto-harness.c`
   under ASan and UBSan and checks it against every vector file and the
   reference codec.
-- PocketJS `engine/host-services/link2.{h,c}`: the client, items 1 and 2 below as
+- `devices/services/link2.{h,c}`: the client, items 1 and 2 below as
   one module with the host's operations as callbacks (`Link2Host`): the
   phase machine, the handshake from the pairing files, the fixed buffers of
   §9 allocated once, the send buffer with its reserve and the read pause
@@ -2866,8 +2866,8 @@ of the 3DS build; `devserver.c` stays in it until item 4 below.
   Sockets, the clock and randomness come through `Link2Platform`;
   `link2_bsd.c` fills the socket half from BSD sockets, which POSIX and the
   3DS both have.
-- PocketJS `tests/pocket-link-2-client.test.ts` runs the client as a process
-  (PocketJS `tests/fixtures/link2-client-harness.c`, ASan and UBSan) against
+- `devices/services/test/pocket-link-2-client.test.ts` runs the client as a process
+  (`fixtures/link2-client-harness.c`, ASan and UBSan) against
   `link/v2/hub.ts` on loopback.
 - **A host that admits a package or captures a frame at its own frame
   boundary reports later.** `Link2Host.push_admit` and
@@ -2877,18 +2877,18 @@ of the 3DS build; `devserver.c` stays in it until item 4 below.
   `link2_screenshot_ready` or `link2_screenshot_failed` from its loop. The
   `REPLY` of `runtime.push` therefore leaves at the admission's outcome
   (§6.2), and the harness's `--deferred` mode tests both.
-- PocketJS `engine/host-services/link2_guest.{h,c}`: `globalThis.link` on the
+- `devices/services/link2_guest.{h,c}`: `globalThis.link` on the
   client, in version 1's shape (`runtime/spec/link.ts` `LinkStatus`,
   `LinkEvent`): the pages of a catalog fetch gathered into one `catalog`
   event, an install streamed into the app's own slot and committed through
   `link_host_install`, `forget`, `remove`, `poll`. **`pair` has nothing to
   start** (§3): the host keeps the name, because the framework's
   `linkHost()` of packages already built requires it, and answers false.
-- PocketJS `engine/host-services/link2_http.c`: the worker's HTTP stream
+- `devices/services/link2_http.c`: the worker's HTTP stream
   (`link_http.h`: validate, start, peek, consume, close) on `net.http`.
   A consumed block returns its bytes with `link2_http_consumed`, so the
   8 KiB window is the stream's whole credit.
-- PocketJS `products/3ds/src/link2_host.{h,c}`: the program's side. libctru's clock,
+- `devices/3ds/src/link2_host.{h,c}`: the program's side. libctru's clock,
   randomness and `soc:U` sockets as the platform (a socket call answers
   "gone" while the service is down, so turning the radio off drops the
   link at once); `runtime.status` and `runtime.apps` from the runtime's
@@ -2905,7 +2905,7 @@ of the 3DS build; `devserver.c` stays in it until item 4 below.
   host's own lines.
 - **Applet channels for guests.** A package that declares the capability
   **`link.channel`** gets its channel opened before it boots and sees
-  **`globalThis.link.channel`** (PocketJS `engine/host-services/link2_channel_qjs.c`,
+  **`globalThis.link.channel`** (`devices/services/link2_channel_qjs.c`,
   called from `qjs.c`): `state`, `poll`, `request`, `cancel`, `emit`,
   `progress`, `reply`, `read`, `write`, `end`, `close`, each one call into
   `link2_channel_*` / `link2_stream_*`. The ids it gives the guest are
@@ -2989,7 +2989,7 @@ PocketJS `tests/e2e/azahar-link2.ts` checks that port 8131 is closed. What the
 development server did beyond the connection has a place:
 
 - **Frame timing and counters** (`OP.debugStats`, `ui.__dbgFrames`) are
-  PocketJS `products/3ds/src/devstats.c`; `net` in the snapshot holds the link's
+  `devices/3ds/src/devstats.c`; `net` in the snapshot holds the link's
   `connected`, `connects`, `uploads` and `screenshots`.
 - **The dev menu** reads a snapshot `link2_host.c` fills (linked, paired,
   the console's address and device id, generation, running hash, counts).

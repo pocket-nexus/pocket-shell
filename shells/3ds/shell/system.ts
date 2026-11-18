@@ -251,7 +251,7 @@ export type CatalogState = "idle" | "loading" | "ready" | "error";
 
 /** Whether this console's link pairs by a scanned code. A version 2 client's
  *  status carries `limit`, the payload limit it negotiates per connection
- *  (POCKET-LINK.md §4.4, engine/host-services/link2_guest.c); a version 1
+ *  (POCKET-LINK.md §4.4, devices/services/link2_guest.c); a version 1
  *  client's has no such field. A console without a link pairs with nothing. */
 export function linkPairsByCode(): boolean {
   const raw = linkHost()?.status();

@@ -593,7 +593,7 @@ describe("pairing a Mac", () => {
 });
 
 /** Boot with the sim's link answering as a Pocket Link 2 client
- *  (engine/host-services/link2_guest.c): its status carries `limit`, the
+ *  (devices/services/link2_guest.c): its status carries `limit`, the
  *  payload limit it negotiated, and `pair` starts nothing and answers false,
  *  because Pocket Hub writes the pairing onto the SD card (PocketJS
  *  docs/POCKET-LINK.md §3). `features`, when given, is what the linked Hub

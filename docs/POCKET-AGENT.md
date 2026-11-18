@@ -6,7 +6,7 @@ text or microphone audio) over the [Pocket Link](POCKET-LINK.md) to the
 companion; the companion runs the model, and the model acts on the console's
 touch screen through tool calls the console answers. The wire contract is
 `runtime/spec/agent.ts`. This page describes the console side (the 3DS host
-in PocketJS `products/3ds/src/stage.c` and `agent.c`, the guest overlay in
+in `devices/3ds/src/stage.c` and `agent.c`, the guest overlay in
 `runtime/src/agent-layer.tsx`). The companion side runs in Pocket Hub
 (`pocket-nexus/pocket-hub`).
 
@@ -73,12 +73,12 @@ shows a page other than its first and has said so with `agent.homeHint(true)`
 second pill 6 px above it shows a SELECT key cap and "Home": SELECT returns to
 the launcher, or to the launcher's first page. Both
 pills are one 128×64 RGBA8 texture baked from Inter Bold by
-PocketJS `tools/3ds-stage-art.ts` into PocketJS `products/3ds/src/stage_hint.h` (the L+R pill in
+`devices/3ds/tools/stage-art.ts` into `devices/3ds/src/stage_hint.h` (the L+R pill in
 the top half, the SELECT pill from row `STAGE_SELECT_Y`), drawn as two quads
 after each eye with an orthographic projection at the screen's pixels (zero
 parallax), each with its own opacity in the texture combiner's constant
 colour. It fades out in **about 0.2 s** when the mode
-leaves `idle` and back in over **about 0.6 s**. PocketJS `bun tools/3ds-stage-art.ts
+leaves `idle` and back in over **about 0.6 s**. `bun devices/3ds/tools/stage-art.ts
 --check` fails when either header is stale.
 
 On an Old 3DS the stage adds about **0.4 ms** to the frame's GPU phase (3.0 ms

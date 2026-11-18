@@ -3,7 +3,7 @@
 //
 // The mechanism is docs/POCKET-LINK.md; section numbers below are that
 // page's. Version 1 (runtime/spec/link.ts) stays beside this file while the
-// C client in PocketJS engine/host-services speaks it; the two share ports,
+// C client in devices/services speaks it; the two share ports,
 // the beacon layout and the id conventions.
 //
 // All integers are little-endian.

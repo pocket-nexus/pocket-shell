@@ -4,8 +4,9 @@ This shell is **Pocket Shell**, the console's launcher, and the scripts that
 build it with the **Pocket Applets** of pocket-nexus/applets for the
 Nintendo 3DS, the M5Stack Tab5 and the PSP. On the 3DS every applet draws
 on the touch screen and nowhere else. The top screen belongs to the system: for each applet (each declares the
-capability `system.agent`), the PocketJS 3DS host draws Claude's room
-there, and **L+R opens the agent over any applet**. The room is the PocketJS 3DS host's, the
+capability `system.agent`), the 3DS host program
+([devices/3ds](../../devices/3ds/README.md)) draws Claude's room
+there, and **L+R opens the agent over any applet**. The room is the host program's, the
 overlay is `runtime/src/agent-layer.tsx` (the pinned PocketJS build adds its
 own copy to each app that declares the capability) and the model runs in
 Pocket Hub; [POCKET-AGENT.md](../../docs/POCKET-AGENT.md) describes the
@@ -360,8 +361,8 @@ computer, so `--host` only adds its address as a beacon target, and each
 command waits for the console to link (`docs/POCKET-LINK.md`
 §12.1, items 6 and 7). The program has no development connection any more
 (no port 8131, no `dev.key`). A change under `shell/` or `vendor/applets`
-reaches a console with `push`. A change in the runtime
-(`vendor/pocketjs/products/3ds`) needs `deploy`. `pair` needs ftpd running
+reaches a console with `push`. A change in the host program (`devices/3ds`,
+`devices/services`) needs `deploy`. `pair` needs ftpd running
 on the console (or `--card <dir>` with its SD card mounted) once per
 computer; it keeps this computer's record in `$POCKETJS_LINK_HOME`, else
 `~/.pocketjs/link/`. A console whose program predates Pocket Link 2 never
@@ -372,6 +373,12 @@ bundle, on threads of their own while the program keeps the link pumped
 (about 4 s per folder on the measured SD card), so the console no longer
 goes silent past the link's 10 s limit (`docs/POCKET-LINK.md`
 §12.2).
+
+`bun run 3ds --pocket-only` compiles a package with PocketJS's guest
+toolchain alone. Without the flag, `bun run 3ds` and `bun run deploy` build
+the host program from `devices/3ds` and `devices/services`: they need Docker
+with the pinned devkitARM image and the pinned Rust nightly with `rust-src`
+([devices/3ds, Building](../../devices/3ds/README.md#building)).
 
 The launcher's recovery state is in `/pocketjs/runtime/apps/<slot>/`, where
 the slot is the first 16 hex digits of the SHA-256 of `dev.pocket-nexus.shell`.

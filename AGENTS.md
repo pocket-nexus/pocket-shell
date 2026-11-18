@@ -7,8 +7,8 @@ Pocket Shell is a product built on PocketJS, which arrives as the
 [pocket-nexus/pocketjs](https://github.com/pocket-nexus/pocketjs) or
 pocket-nexus/applets first, and this repository moves its pin.
 
-The repository holds **three shells and one device firmware**, and a change
-belongs to one of them:
+The repository holds **three shells, two device programs and the host
+services they share**, and a change belongs to one of them:
 
 - `shells/3ds/`: Pocket Shell, the launcher (`shell/`), and the scripts that
   build it with the **Pocket Applets** of `vendor/applets` (Hacker News, X,
@@ -26,7 +26,7 @@ belongs to one of them:
   Tab5 packages. Each program reads its surface size at
   start (`ui/screen.ts`) and lays out by size class. Every applet draws on
   the touch surface and declares `system.agent`; the 3DS's top screen belongs
-  to the PocketJS 3DS host (`vendor/pocketjs/products/3ds`). The L+R agent
+  to the 3DS host program (`devices/3ds`). The L+R agent
   overlay is `runtime/src/agent-layer.tsx`; the pinned PocketJS build adds
   its own copy (`vendor/pocketjs/framework/src/agent-layer.tsx`) to every app
   that declares `system.agent`, so the launcher and the applets run that
@@ -38,17 +38,34 @@ belongs to one of them:
   computers in Pocket Studio. It owns windows, application presentation and
   themes. PocketJS supplies the browser runtime and shared rendering APIs;
   the embedding product owns its display and input adapters.
+- `devices/3ds/`: the Nintendo 3DS host program, the `.3dsx` that embeds
+  the launcher: its C sources (`src/`: boot and frame loop, package storage
+  and recovery, the program's side of Pocket Link 2, the agent stage, Wi-Fi,
+  camera and photos), the Rust archive (`core/`, a Cargo workspace of its own
+  with its own lockfile), the host contract `pocket.host.json` (id `3ds-dev`),
+  the Makefile, `build.ts` and host tests. `build.ts` compiles the guest with
+  PocketJS's toolchain and the C half in the devkitARM container, and reads
+  the platform (`platforms/3ds`), the PICA renderer
+  (`devices/3ds/pocket-3ds-pica`), the QuickJS facade and the engine crates
+  from `vendor/pocketjs`; `devices/3ds/README.md` lists each.
+- `devices/services/`: portable C both device programs compile: the Pocket
+  Link 2 client (`link2*.c`), the launcher's app table, `data.fs`, a JSON
+  reader, SHA-256, photo images, the media stream's headers and the vendored
+  quirc. A source calls the platform through `host_services.h`, which each
+  program implements once. A change here reaches the `.3dsx` and the Tab5
+  firmware.
 - `devices/m5stack/`: the M5Stack Tab5 firmware (ESP-IDF, C and TypeScript):
   the program `programs/m5stack-tab5`, the ESP-IDF components in
   `platforms/esp-idf`, the two apps the image bundles (`apps/`), its tools
-  and host tests. Its build compiles the launcher from `shells/3ds/shell` and
-  the runtime from `vendor/pocketjs`. Its C, formatting and ESP-IDF rules are
-  in `devices/m5stack/AGENTS.md`.
+  and host tests. Its build compiles the launcher from `shells/3ds/shell`,
+  the host services from `devices/services` and the runtime from
+  `vendor/pocketjs`. Its C, formatting and ESP-IDF rules are in
+  `devices/m5stack/AGENTS.md`.
 
-Each shell and the firmware owns its sources, manifests, scripts, tests, assets
-and documentation. Root scripts provide setup and command routing. They share
-one runtime submodule; application code stays separate until a concrete shared
-need exists.
+Each shell and each device program owns its sources, manifests, scripts,
+tests, assets and documentation. Root scripts provide setup and command
+routing. They share one runtime submodule; application code stays separate
+until a concrete shared need exists.
 
 Two directories beside the shells hold the Pocket Runtime's TypeScript,
 imported from PocketJS at `89e10438`. PocketJS at that commit has its own
@@ -65,8 +82,9 @@ copies, and `vendor/applets` imports those (`@pocketjs/framework/applet`,
 - `link/`: the Pocket Link 2 reference implementation (`v2/`: codec, device,
   Hub and the Hub's command line), version 1's codec, destination policy and
   QR encoder, the 3DS development tool (`3ds-dev.ts`), the conformance
-  vectors (`vectors/`) and the tests (`test/`). The C client stays in
-  `vendor/pocketjs/engine/host-services`.
+  vectors (`vectors/`) and the tests (`test/`). The C client is
+  `devices/services` (`link2*.c`); `devices/services/test` runs it against
+  this Hub and these vectors.
 
 `docs/POCKET-LINK.md`, `docs/APPLETS.md` and `docs/POCKET-AGENT.md` are the
 specifications of the link, the applet rules and the agent.
@@ -78,7 +96,10 @@ files carry the corresponding SPDX line. PocketJS remains MIT and third-party
 fonts retain their own licenses. `runtime/`, `link/` and the three
 specifications came from PocketJS under MIT and are distributed here under
 **GPL-3.0-or-later**; `runtime/LICENSE.pocketjs-MIT` keeps the original
-notice. See `LICENSING.md`.
+notice. `devices/3ds` and `devices/services` came from PocketJS at `806ac202`
+on the same terms, and their sources carry the SPDX line; the vendored
+`devices/services/quirc` keeps its ISC notice and gets none. See
+`LICENSING.md`.
 
 ## Conventions
 
@@ -98,6 +119,14 @@ notice. See `LICENSING.md`.
   into `vendor/pocketjs`. A module that holds state (`services.ts`,
   `frame.ts`, `system-layers.ts`) is reached by one file path, or the bundle
   holds two instances of it.
+- `devices/3ds` and `devices/services` read what stays in PocketJS (the 3DS
+  platform, the PICA renderer, the QuickJS facade, the engine crates, the
+  toolchain pins) by path into `vendor/pocketjs` and copy none of it. When
+  the PocketJS pin moves, copy `vendor/pocketjs/Cargo.lock` to
+  `devices/3ds/core/Cargo.lock` and run `cargo metadata --manifest-path
+  devices/3ds/core/Cargo.toml` once (Cargo removes the packages that graph
+  does not reach), run `bun devices/3ds/tools/contracts.ts`, then
+  `bun run check:devices`.
 - Preserve installed package IDs and device identities when moving code.
 - Desktop colors, fonts, icons and chrome belong in its theme boundary.
   Themes must not determine package identity or embedding host behavior.
@@ -132,6 +161,7 @@ documentation or tests. New validation runs stay in ignored artifact folders.
 ```sh
 bun run check                        # typecheck + the link, runtime and three shells' unit and sim tests
 bun run check:m5stack                # the Tab5 firmware's clang-format check and host tests (needs a C compiler)
+bun run check:devices                # devices/3ds and devices/services: generated headers and host tests (needs a C compiler, Rust, libjpeg, pkg-config)
 bun run pair --host <console-ip>     # once per computer, while ftpd runs: write its pairing onto the card
 bun run push                         # rebuild the launcher's package and hot-push it
 bun run push hn                      # rebuild Hacker News, install it into its slot and start it
@@ -161,7 +191,7 @@ package.json; desktop artifacts land in `shells/desktop/dist/`.
 
 Changes under `shells/3ds/shell` or `vendor/applets` are hot pushes, and an
 accepted push persists on the card for that app. A change under
-`vendor/pocketjs/products/3ds` is native: `bun run deploy` writes the new
+`devices/3ds` or `devices/services` is native: `bun run deploy` writes the new
 `.3dsx` to `sdmc:/3ds/` over the Pocket Link and restarts into it, and the
 restarted `.3dsx` boots the guest it embeds. The 3DS program speaks **Pocket
 Link 2** (`docs/POCKET-LINK.md`): it dials this computer, and the
