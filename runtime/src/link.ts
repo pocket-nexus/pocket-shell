@@ -12,7 +12,7 @@ import {
   type LinkEvent,
   type LinkStatus,
 } from "../spec/link.ts";
-import { registerServicePump } from "../../vendor/pocketjs/framework/src/services.ts";
+import { registerServicePump } from "@pocketjs/framework/system-layers";
 
 export { LINK_PAIR_SCHEME, LINK_PAIRING, LINK_STATE };
 export type { LinkCatalogApp, LinkCompanion, LinkEvent, LinkStatus };

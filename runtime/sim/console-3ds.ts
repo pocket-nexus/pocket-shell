@@ -13,7 +13,7 @@
 //   console3ds.texts("auxiliary");           // every painted text
 //   console3ds.launches                      // appLaunch() calls
 
-import { bootBundle, type BundleWorld, type SimNode, type SimSurface } from "../../vendor/pocketjs/programs/sim/sim.ts";
+import { bootBundle, type BundleWorld, type SimNode, type SimSurface } from "@pocketjs/framework/sim";
 import { createSimLinkHost, type SimInstalledApp, type SimLinkFixture, type SimLinkHost } from "./link.ts";
 import { createSimWifiHost, type SimWifiFixture, type SimWifiHost } from "./wifi.ts";
 import { createSimCameraHost, type SimCameraHost, type SimCameraOptions } from "./camera.ts";

@@ -18,15 +18,16 @@
 //   });
 
 import { createSignal, For, onCleanup, Show, type Accessor, type JSX as SolidJSX } from "solid-js";
-import { BTN, SCREEN_H, SCREEN_W } from "../../vendor/pocketjs/contracts/spec/spec.ts";
 import { simulationHz } from "@pocketjs/framework/clock";
 import { AuxiliaryPortal, Focusable, FocusScope, Portal, Text, View } from "@pocketjs/framework/components";
 import { auxiliaryViewport, type SurfaceId } from "@pocketjs/framework/display";
-import { onButtonPress, onFrame, pushButtonHandlerBlock } from "../../vendor/pocketjs/framework/src/frame.ts";
 import { pushTouchBlock } from "@pocketjs/framework/gesture";
 import { getOps, hostViewport } from "@pocketjs/framework/host";
-import { appTable, launchApp, launcherActive } from "./launcher.ts";
+import { BTN } from "@pocketjs/framework/input";
+import { onButtonPress, onFrame, pushButtonHandlerBlock } from "@pocketjs/framework/lifecycle";
 import { glyph, modality } from "@pocketjs/framework/modality";
+import { SCREEN_H, SCREEN_W } from "@pocketjs/framework/system-layers";
+import { appTable, launchApp, launcherActive } from "./launcher.ts";
 
 export interface SystemItem {
   label: string;
