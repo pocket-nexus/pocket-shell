@@ -2,7 +2,7 @@
 // The bounded JSON reader and writer (devices/services/jscan.c) and the
 // vendored QR decoder (devices/services/quirc), compiled for the build machine
 // under ASan and UBSan: the reader finds members and survives malformed
-// input, and quirc decodes a code of the reference encoder (link/qr.ts) in a
+// input, and quirc decodes a code of the test's encoder (test/qr.ts) in a
 // frame of the camera's size.
 //
 // This is the part of PocketJS tests/3ds-link.test.ts that needs no Pocket
@@ -14,8 +14,7 @@ import { randomBytes } from "node:crypto";
 import { mkdtempSync,rmSync,writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join,resolve } from "node:path";
-import { buildPairUri } from "../../../link/protocol.ts";
-import { encodeQr,rasterizeQr } from "../../../link/qr.ts";
+import { encodeQr,rasterizeQr } from "./qr.ts";
 
 /** devices/services: jscan.c and quirc. */
 const shared = resolve(import.meta.dir, "..");
@@ -137,14 +136,12 @@ describe("host services: JSON and QR", () => {
     expect(JSON.parse(run("write", tricky))).toEqual({ s: tricky });
   });
 
-  test("the vendored quirc decodes the companion's pairing code at camera size", () => {
-    const uri = buildPairUri({
-      companion: "197eb66ee556b70b",
-      hosts: ["192.168.8.159", "192.168.8.158", "10.0.0.2"],
-      port: 8628,
-      secret: randomBytes(16).toString("hex"),
-      name: "Evan's MacBook Pro",
-    });
+  test("the vendored quirc decodes an install code at camera size", () => {
+    // The payload a launcher's scanner reads: an install code. At 145 bytes it
+    // is a version 8 code, 228 pixels wide at this scale, inside the 240 rows.
+    const uri = `pocketlink://install?v=1&a=dev.pocket-nexus.hn&s=${randomBytes(32).toString("hex")}` +
+      "&u=https://example.org/hn.pocket";
+    expect(uri.length).toBe(145);
     const raster = rasterizeQr(encodeQr(uri), 4, 4);
     // Centre it in a mid-grey 320x240 frame, as the outer camera delivers.
     const width = 320, height = 240;
