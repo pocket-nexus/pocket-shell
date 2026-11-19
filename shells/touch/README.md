@@ -121,7 +121,12 @@ The shell owns its app, sixteen mockups, gesture model, assets and tests.
 The Omarchy companion remains in `shells/ipod`. The shared runtime, renderer,
 UIKit host and installer come from the pinned `vendor/pocketjs` submodule.
 
-`ipodtouch4.json` supplies the external-app descriptor to PocketJS. The native
+`pocket.host.config.ts` holds the app's build inputs for both devices: its
+`hosts` are PocketJS's `ipodtouch4-dev` and `symbian-e7-dev` contracts, and
+its `app` section names the entry, the output, the viewports (fixed 320x480
+on the iPod, live between 320x320 and 640x640 on the E7) and the features.
+`ipodtouch4.json` supplies the external-app descriptor to PocketJS and names
+that config. The native
 bundle is `PocketShellTouch.app`; `pocketjs-shell-touch://launch` opens it and
 `shell_touch_gesture` identifies completed actions. The installed package ID
 `dev.pocket-nexus.fluid` remains stable so deployment updates the existing app
@@ -155,8 +160,12 @@ bun run touch:e7 launch
 bun run touch:e7 status
 ```
 
-Build uses the PocketJS Docker toolchain and writes the signed SIS and receipt
-to `.pocket-build/symbian/touch/`. Deploy creates a local Python environment
+Build compiles the app section of `pocket.host.config.ts` for
+`symbian-e7-dev` into a bundle (`pocketshell-touch.pkb`, PocketJS
+`pocket compile`), builds the SIS from it with the PocketJS Docker toolchain
+(`pocket symbian build app --bundle`) and writes the signed SIS and receipt
+to `.pocket-build/symbian/touch/`. The E7 container script changed with
+PocketJS #708: run `setup` once before the first build on this pin. Deploy creates a local Python environment
 with PyUSB 1.3.1, transfers the SIS through CODA in 1 KiB router frames, reads
 back its bytes, stops this package's old process, installs it and queries the
 installed package. The staging filename contains the package UID and build
@@ -180,13 +189,19 @@ Build the diagnostic SIS with the pinned PocketJS toolchain and install it
 before profiling:
 
 ```sh
-bun vendor/pocketjs/tools/symbian.ts build app --manifest shells/touch/pocket.app.json \
+bun vendor/pocketjs/tools/pocket.ts compile --config shells/touch/pocket.host.config.ts \
+  --target symbian-e7-dev --project-root shells/touch \
+  --outdir .pocket-build/validation/touch/e7-performance/compile \
+  --output .pocket-build/validation/touch/e7-performance/pocketshell-touch.pkb
+bun vendor/pocketjs/tools/symbian.ts build app \
+  --bundle .pocket-build/validation/touch/e7-performance/pocketshell-touch.pkb -- \
   --project-root shells/touch --outdir .pocket-build/validation/touch/e7-performance \
   --sis-version 0.3.68 --frame-rate 60 --perf-trace
 ```
 
 Use matching viewport dimensions and keep the phone in that orientation during the run.
-Replay builds fix orientation to the manifest's initial viewport. The analyzer
+Replay builds fix orientation to the initial viewport of the app section of
+`pocket.host.config.ts`. The analyzer
 rejects inactive-window samples, mismatched viewport dimensions, missing replay,
 non-finite timing values and incomplete or unordered frame rows; pass the
 same width and height to `make` and `analyze` for landscape workloads.

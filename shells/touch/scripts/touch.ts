@@ -1,21 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Build and deploy the touch shell through the pinned PocketJS runtime.
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { $ } from "bun";
 import { resolveIPodTouch4BuildPlan } from "../../../vendor/pocketjs/tools/ipodtouch4-profile.ts";
+import { loadHostConfig } from "../../../vendor/pocketjs/tools/profile-resolver.ts";
 import { passThrough } from "../../../scripts/run.ts";
 import { PLAN_DIR, ROOT, VENDOR } from "./paths.ts";
 
 const DESCRIPTOR = resolve(ROOT, "ipodtouch4.json");
-const MANIFEST = resolve(ROOT, "pocket.app.json");
+const CONFIG = resolve(ROOT, "pocket.host.config.ts");
 
-/** Bundle the guest alone into the submodule's dist, under the manifest's
- *  output name: that is where the headless sim looks for a bundle it did not
- *  build itself, so this is what test/mounted.test.ts needs. */
+/** Bundle the guest alone into the submodule's dist, under the output name of
+ *  the host config's app section: that is where the headless sim looks for a
+ *  bundle it did not build itself, so this is what test/mounted.test.ts
+ *  needs. */
 async function guest(): Promise<void> {
-  const manifest = JSON.parse(readFileSync(MANIFEST, "utf8"));
-  const plan = resolveIPodTouch4BuildPlan(manifest);
+  const plan = resolveIPodTouch4BuildPlan((await loadHostConfig(CONFIG)).value.app);
   mkdirSync(PLAN_DIR, { recursive: true });
   const planPath = resolve(PLAN_DIR, `${plan.app.output}.ipod.plan.json`);
   writeFileSync(planPath, `${JSON.stringify(plan, null, 2)}\n`);

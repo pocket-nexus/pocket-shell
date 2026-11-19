@@ -1,7 +1,7 @@
 {
   "id": "touch",
   "projectRoot": ".",
-  "manifest": "pocket.app.json",
+  "config": "pocket.host.config.ts",
   "bundleId": "dev.pocket-nexus.fluid",
   "bundleName": "PocketShellTouch.app",
   "executable": "PocketShellTouch",

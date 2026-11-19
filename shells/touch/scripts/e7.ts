@@ -1,16 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+// bun run touch:e7 setup|doctor|guest|build|deploy|install|launch|status —
+// Pocket Shell Touch on PocketJS's stock Nokia E7 program. `build` compiles
+// the app section of pocket.host.config.ts for symbian-e7-dev into a bundle
+// (PocketJS `pocket compile`) and builds its SIS from that bundle (`pocket
+// symbian build app --bundle`).
 import { resolve } from 'node:path';
 import { existsSync, mkdirSync } from 'node:fs';
 import { ROOT, VENDOR } from './paths.ts';
 import { symbianPackageIdentity } from '../../../vendor/pocketjs/tools/symbian-package.ts';
 import { resolveSymbianE7BuildPlan } from '../../../vendor/pocketjs/tools/symbian-profile.ts';
+import { loadHostConfig } from '../../../vendor/pocketjs/tools/profile-resolver.ts';
 import { pocketNexusCacheRoot } from '../../../vendor/pocketjs/tools/targets/cache.ts';
 import { withArtifactLock } from '../../../vendor/pocketjs/tools/targets/lock.ts';
 
-const manifest = resolve(ROOT, 'pocket.app.json');
-const plan = resolveSymbianE7BuildPlan(await Bun.file(manifest).json());
+const config = resolve(ROOT, 'pocket.host.config.ts');
+const plan = resolveSymbianE7BuildPlan((await loadHostConfig(config)).value.app);
 const identity = symbianPackageIdentity(plan);
 const output = resolve(ROOT, '../../.pocket-build/symbian/touch');
+const bundle = resolve(output, `${plan.app.output}.pkb`);
 const [command = 'help', ...args] = process.argv.slice(2);
 async function run(cmd: string[], cwd = VENDOR) {
   const child = Bun.spawn(cmd, { cwd, stdout: 'inherit', stderr: 'inherit', stdin: 'inherit' });
@@ -31,7 +38,7 @@ async function device(action: 'deploy' | 'install' | 'status') {
 const actions: Record<string, string[]> = {
   setup: ['setup', '--yes'],
   doctor: ['doctor', '--device', '--coda-usb'],
-  build: ['build', 'app', '--manifest', manifest, '--project-root', ROOT, '--outdir', output, '--frame-rate', '60', '--sis-version', '0.3.67'],
+  build: ['build', 'app', '--bundle', bundle, '--', '--project-root', ROOT, '--outdir', output, '--frame-rate', '60', '--sis-version', '0.3.67'],
   launch: ['coda', 'usb', 'launch', identity.executable + '.exe'],
 };
 if (command === 'deploy' || command === 'install' || command === 'status') {
@@ -52,5 +59,10 @@ if (command === 'deploy' || command === 'install' || command === 'status') {
   if (command !== 'help') process.exit(1);
 } else {
   if (command === 'doctor') await run(['python3', '-c', 'import sys; assert sys.version_info >= (3, 9), "Python 3.9+ is required"']);
+  if (command === 'build') {
+    mkdirSync(output, { recursive: true });
+    await run(['bun', resolve(VENDOR, 'tools/pocket.ts'), 'compile', '--config', config, '--target', 'symbian-e7-dev',
+      '--project-root', ROOT, '--outdir', resolve(output, 'compile'), '--output', bundle]);
+  }
   await run(['bun', resolve(VENDOR, 'tools/symbian.ts'), ...actions[command], ...args]);
 }
