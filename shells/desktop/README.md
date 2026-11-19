@@ -7,6 +7,14 @@ taskbar, application presentation and theme selection. The browser host owns
 AppInstance isolation, scheduling and composition. An embedding product owns
 its display, input and application services.
 
+**This shell does not build against the pinned PocketJS** (`vendor/pocketjs`
+at `3730d94d`). It reads the manifests (`pocket.app.json`) of PocketJS's demo
+apps and imports PocketJS's manifest module and its Pocket System
+(`contracts/spec/pocket-system.ts`, `programs/web/system-engine`); PocketJS
+removed all of them in pocket-nexus/pocketjs#705. Its sources stay in the
+tree. The root checks, the workspaces, the release's version files and the
+CI jobs leave it out, and nothing else in the repository depends on it.
+
 ## Themes
 
 Pocket Shell Desktop ships three System UI themes: Classic 98, XP and Aqua.

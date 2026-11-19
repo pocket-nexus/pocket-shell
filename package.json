@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "license": "GPL-3.0-only",
-  "description": "Pocket Shell for Nintendo 3DS, touch navigation and embedded desktop interfaces",
+  "description": "Pocket Shell for the Nintendo 3DS, the M5Stack Tab5 and the PSP, and the touch shell",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/pocket-nexus/pocket-shell.git"
@@ -21,15 +21,13 @@
     "offer": "bun run --cwd shells/3ds offer",
     "probe": "bun run --cwd shells/3ds probe",
     "shot": "bun run --cwd shells/3ds shot",
-    "typecheck": "bun vendor/pocketjs/node_modules/typescript/bin/tsc --noEmit && bun run --cwd shells/3ds typecheck && bun run --cwd shells/desktop typecheck && bun run --cwd shells/touch typecheck",
-    "test": "bun test ./scripts && bun run test:link && bun run test:runtime && bun run test:cli && bun run --cwd shells/3ds test && bun run --cwd shells/desktop test && bun run --cwd shells/desktop test:sim && bun run --cwd shells/desktop test:wrap && bun run --cwd shells/desktop test:text && bun run --cwd shells/touch test",
+    "typecheck": "bun vendor/pocketjs/node_modules/typescript/bin/tsc --noEmit && bun run --cwd shells/3ds typecheck && bun run --cwd shells/touch typecheck",
+    "test": "bun test ./scripts && bun run test:link && bun run test:runtime && bun run test:cli && bun run --cwd shells/3ds test && bun run --cwd shells/touch test",
     "test:link": "bun test ./link",
     "test:runtime": "bun vendor/pocketjs/tools/wasm.ts && bun test --conditions=browser ./runtime",
     "test:cli": "bun test ./cli",
     "check": "bun run check:assets && bun run check:schemas && bun run typecheck && bun run test",
-    "desktop": "bun scripts/desktop.ts",
     "check:3ds": "bun run --cwd shells/3ds check",
-    "check:desktop": "bun run --cwd shells/desktop check",
     "check:assets": "bun scripts/check-assets.ts",
     "check:schemas": "bun runtime/schema/generate.ts --check",
     "touch": "bun run --cwd shells/touch touch",
@@ -42,10 +40,8 @@
     "release": "bun scripts/release/prepare.ts"
   },
   "workspaces": [
-    "shells/*",
+    "shells/3ds",
+    "shells/touch",
     "devices/*"
-  ],
-  "devDependencies": {
-    "wrangler": "4.125.0"
-  }
+  ]
 }
