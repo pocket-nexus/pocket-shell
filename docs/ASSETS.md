@@ -23,11 +23,13 @@ The kit's pictures and the icon family are tracked here, in `ui/art`. An
 applet's own pictures are in pocket-nexus/applets.
 
 The SVG and atlas generators reproduced all 110 previously committed outputs
-byte-for-byte during this cleanup. Web and simulator builds now invoke
-them automatically; the standalone wrap test and site build with
-`--reuse-preview` also prepare their inputs. Run `bun run desktop assets` to
-regenerate explicitly. Each generator replaces its own output directory so
-removed source definitions cannot leave stale assets behind.
+byte-for-byte during this cleanup. The desktop's web and simulator builds
+invoke them; the standalone wrap test and site build with `--reuse-preview`
+also prepare their inputs. The root checks run none of them: the desktop
+shell does not build against the pinned PocketJS
+([shells/desktop](../shells/desktop/README.md)). Each generator replaces its
+own output directory so removed source definitions cannot leave stale assets
+behind.
 
 Seven unused PNGs and the old portable-runtime integration report, its machine
 receipt and three device screenshots were removed from the current tree. They

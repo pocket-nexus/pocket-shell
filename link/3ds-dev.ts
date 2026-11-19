@@ -5,15 +5,16 @@
 //
 //   bun link/3ds-dev.ts setup   --host 192.168.8.102     while ftpd runs on the 3DS, once
 //   bun link/3ds-dev.ts devices
-//   bun link/3ds-dev.ts push    --app 3ds-demo
-//   bun link/3ds-dev.ts install --app 3ds-demo
-//   bun link/3ds-dev.ts launch  pocket3ds-demo-main.3dsx
+//   bun link/3ds-dev.ts push    --app hn
+//   bun link/3ds-dev.ts install
+//   bun link/3ds-dev.ts launch  pocket-shell.3dsx
 //   bun link/3ds-dev.ts probe
-//   bun link/3ds-dev.ts dev     --app 3ds-demo
+//   bun link/3ds-dev.ts dev     --app shell
 //
 // This is the reference Hub's command line (link/v2/cli.ts) with what a 3DS
-// checkout adds: `--app <name>` builds the guest or the .3dsx of a PocketJS
-// app first (devices/3ds/build.ts), `probe` is a status and a
+// checkout adds: `--app <name>` builds the package or the .3dsx of an app of
+// shells/3ds first (shells/3ds/scripts/3ds.ts: the launcher `shell`, the
+// default, or an applet of the applets checkout), `probe` is a status and a
 // screenshot, and `dev` stays linked with the Pocket DevTools panel and one
 // key per step. Every other command and option goes to that command line
 // unchanged. The scripts of shells/3ds/scripts pass their own package or
@@ -32,21 +33,22 @@ import { EXIT, main as link } from "./v2/cli.ts";
 import { linkHome } from "./v2/store.ts";
 
 const ROOT = new URL("..", import.meta.url).pathname;
-/** PocketJS, whose demo apps `--app` names; an app's entry is relative to it. */
-const POCKETJS = join(ROOT, "vendor/pocketjs");
-/** The 3DS program's build: the guest package, or the .3dsx that embeds it. */
-const BUILD_3DS = join(ROOT, "devices/3ds/build.ts");
+/** The 3DS build of the apps `--app` names (the launcher, `shell`, and the
+ *  applets): the guest package, or the .3dsx that embeds it. */
+const BUILD_3DS = join(ROOT, "shells/3ds/scripts/3ds.ts");
+/** The app built when `--app` names none. */
+const DEFAULT_APP = "shell";
 
 const USAGE = `Nintendo 3DS development over Pocket Link 2
 
   setup --host <3ds-ip> [--ftp-port 5000]   pair, once, while ftpd runs on the 3DS (was: pair)
   setup --card <dir>                        the same onto the mounted SD card
   devices                                   the paired consoles (was: discover)
-  push    [--app 3ds-demo | --package file.pocket]
-  install [--app 3ds-demo | --file app.3dsx] [--name app.3dsx] [--no-launch]
+  push    [--app shell | --package file.pocket]
+  install [--app shell | --file app.3dsx] [--name app.3dsx] [--no-launch]
   launch  <app.3dsx | applet id>
   probe   [--out screenshot.png]            runtime.status and one screenshot
-  dev     [--app 3ds-demo] [--no-push] [--panel-port 8130]
+  dev     [--app shell] [--no-push] [--panel-port 8130]
                                             stay linked with the Pocket DevTools panel;
                                             keys: r rebuild+push, i install .3dsx+restart,
                                             s screenshot, o open the panel, q quit
@@ -78,7 +80,7 @@ function fail(message: string): never {
 }
 
 async function buildPackage(app: string): Promise<string> {
-  const result = await $`bun ${BUILD_3DS} ${app} --pocket-only --project-root=${POCKETJS}`.cwd(ROOT).quiet().nothrow();
+  const result = await $`bun ${BUILD_3DS} ${app} --pocket-only`.cwd(ROOT).quiet().nothrow();
   if (result.exitCode !== 0) throw new Error(`3DS guest build failed\n${result.stdout}${result.stderr}`);
   const path = [...`${result.stdout}\n${result.stderr}`.matchAll(/^output: (.+\.pocket) \(/gm)].at(-1)?.[1];
   if (!path || !existsSync(path)) throw new Error("3DS guest build did not report a .pocket output");
@@ -86,7 +88,7 @@ async function buildPackage(app: string): Promise<string> {
 }
 
 async function buildNative(app: string): Promise<string> {
-  const result = await $`bun ${BUILD_3DS} ${app} --project-root=${POCKETJS}`.cwd(ROOT).quiet().nothrow();
+  const result = await $`bun ${BUILD_3DS} ${app}`.cwd(ROOT).quiet().nothrow();
   if (result.exitCode !== 0) throw new Error(`3DS build failed\n${result.stdout}${result.stderr}`);
   const path = [...`${result.stdout}\n${result.stderr}`.matchAll(/^output: (.+\.3dsx)$/gm)].at(-1)?.[1];
   if (!path || !existsSync(path)) throw new Error("3DS build did not report a .3dsx output");
@@ -135,14 +137,14 @@ async function run(argv: string[]): Promise<number> {
   if (command === "push") {
     const explicit = take(rest, "--package", true);
     const app = take(rest, "--app", true);
-    const file = typeof explicit === "string" ? existing(explicit, "package") : rest.find((word) => word.endsWith(".pocket")) ? null : await buildPackage(typeof app === "string" ? app : "3ds-demo");
+    const file = typeof explicit === "string" ? existing(explicit, "package") : rest.find((word) => word.endsWith(".pocket")) ? null : await buildPackage(typeof app === "string" ? app : DEFAULT_APP);
     return explain(await link(["push", ...(file === null ? [] : [file]), ...rest]));
   }
   if (command === "install") {
     if (take(rest, "--ftp", false)) fail("install --ftp is gone: copy the .3dsx to sdmc:/3ds/ with any FTP client while ftpd runs, or install over the link");
     const explicit = take(rest, "--file", true);
     const app = take(rest, "--app", true);
-    const file = typeof explicit === "string" ? existing(explicit, ".3dsx") : rest.find((word) => word.endsWith(".3dsx")) ? null : await buildNative(typeof app === "string" ? app : "3ds-demo");
+    const file = typeof explicit === "string" ? existing(explicit, ".3dsx") : rest.find((word) => word.endsWith(".3dsx")) ? null : await buildNative(typeof app === "string" ? app : DEFAULT_APP);
     return explain(await link(["install", ...(file === null ? [] : [file]), ...rest]));
   }
   if (command === "probe") {
@@ -161,7 +163,7 @@ async function dev(rest: string[]): Promise<number> {
   const file = take(rest, "--file", true);
   const app = take(rest, "--app", true);
   const noPush = take(rest, "--no-push", false) === true;
-  const name = typeof app === "string" ? app : "3ds-demo";
+  const name = typeof app === "string" ? app : DEFAULT_APP;
   const home = (() => {
     const at = rest.indexOf("--home");
     return at >= 0 && rest[at + 1] !== undefined ? rest[at + 1]! : linkHome();

@@ -32,6 +32,10 @@ ${CC:-cc} -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
   platforms/esp-idf/pocket_mqtt_esp/src/record.c -o "$validation_dir/mqtt-record"
 "$validation_dir/mqtt-record"
 bun test ./tests/sensors.test.ts ./tests/rtc-setting.test.ts ./tests/unit-swap.test.ts
+# pocket_system's .pocket admission and the package source the runtime boots
+# (package.c) on the shared reader, against the exported host contract and a
+# stand-in for PocketJS's admission.
+bun test ./tests/package.test.ts
 # The Tab5's side of Pocket Link 2 and its companion.pocket route on the
 # link client, against pocketjs's reference Hub (it builds its own native
 # harness).

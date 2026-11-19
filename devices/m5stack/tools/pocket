@@ -1,8 +1,9 @@
 #!/bin/sh
-# Pocket Shell's CLI (cli/pocket-shell.ts at the repository root). CMake
-# helpers in PocketJS's pocket_runtime component invoke this script through
-# POCKETJS_CLI: `compile` runs in that CLI, and `host export` is forwarded by
-# it to the pinned vendor/pocketjs checkout.
+# Pocket Shell's CLI (cli/pocket-shell.ts at the repository root), the
+# POCKETJS_CLI of programs/m5stack-tab5. pocket_system's
+# pocket_shell_compile_app (project_include.cmake) runs `compile`, which
+# writes a .pocket; PocketJS's pocketjs_profile_header runs `host export`,
+# which the CLI passes to the pinned vendor/pocketjs checkout.
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 exec bun "$root/../../cli/pocket-shell.ts" "$@"

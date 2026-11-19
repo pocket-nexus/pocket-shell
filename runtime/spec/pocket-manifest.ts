@@ -7,48 +7,13 @@ import {
 import { appletSchema, type AppletDeclaration } from "./applet.ts";
 import { modalityRequirementSchema, type ModalityRequirement } from "../../vendor/pocketjs/contracts/spec/modality.ts";
 import { workerDeclarationSchema, type WorkerDeclarationSource } from "../../vendor/pocketjs/contracts/spec/worker.ts";
+import type { JsonSchema } from "../../vendor/pocketjs/contracts/spec/json-schema.ts";
+import { animationThemeSchema, type AnimationTheme } from "../../vendor/pocketjs/contracts/spec/animation-theme.ts";
 
 export const POCKET_MANIFEST_VERSION = 2 as const;
 export const POCKET_MANIFEST_SCHEMA_ID = "https://pocketjs.dev/schema/pocket-2.json";
 
-export type JsonPrimitive = boolean | number | string;
-export type JsonValue = JsonPrimitive | null | JsonValue[] | { [key: string]: JsonValue };
-
-export interface JsonSchemaObject {
-  readonly $schema?: string;
-  readonly $id?: string;
-  readonly title?: string;
-  readonly description?: string;
-  /** Schema annotation; model/build resolution supplies runtime defaults. */
-  readonly default?: JsonValue;
-  readonly type?: "array" | "boolean" | "integer" | "number" | "object" | "string";
-  readonly const?: JsonValue;
-  readonly enum?: readonly JsonValue[];
-  readonly anyOf?: readonly JsonSchema[];
-  readonly properties?: Readonly<Record<string, JsonSchema>>;
-  readonly required?: readonly string[];
-  readonly additionalProperties?: boolean | JsonSchema;
-  readonly items?: JsonSchema;
-  readonly minItems?: number;
-  readonly maxItems?: number;
-  readonly uniqueItems?: boolean;
-  readonly minLength?: number;
-  readonly maxLength?: number;
-  readonly pattern?: string;
-  readonly minimum?: number;
-  readonly maximum?: number;
-}
-
-export type JsonSchema = boolean | JsonSchemaObject;
-
 export type PocketFramework = "solid" | "vue-vapor" | "octane";
-export type KeyframeProps = Record<string, string | number>;
-export type Keyframes = Record<string, KeyframeProps>;
-/** Application animation content baked into the style table. */
-export interface AnimationTheme {
-  keyframes?: Record<string, Keyframes>;
-  animation?: Record<string, string | { value: string; loop?: string | number }>;
-}
 
 export interface PocketManifestV2 {
   readonly $schema: typeof POCKET_MANIFEST_SCHEMA_ID;
@@ -213,29 +178,6 @@ export type ManifestViewport =
       readonly fixed?: FixedViewportSpec;
       readonly dynamic?: DynamicViewportSpec;
     };
-
-export const animationThemeSchema = {
-  type: "object", additionalProperties: false,
-  properties: {
-    keyframes: {
-      type: "object", additionalProperties: {
-        type: "object", additionalProperties: {
-          type: "object", additionalProperties: { anyOf: [{ type: "string" }, { type: "number" }] },
-        },
-      },
-    },
-    animation: {
-      type: "object", additionalProperties: {
-        anyOf: [
-          { type: "string" },
-          { type: "object", additionalProperties: false, required: ["value"], properties: {
-            value: { type: "string" }, loop: { anyOf: [{ type: "string" }, { type: "number" }] },
-          } },
-        ],
-      },
-    },
-  },
-} as const satisfies JsonSchema;
 
 const capabilityIdSchema = {
   type: "string",

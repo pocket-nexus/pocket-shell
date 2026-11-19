@@ -1,20 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // The media stream's C headers (devices/services/media_wire.h, media_adpcm.h),
-// compiled for the build machine against the producer's TypeScript (PocketJS
-// tools/media-stream.ts, contracts/spec/media-adpcm.ts): both sides validate
+// compiled for the build machine against the producer's TypeScript
+// (link/media-stream.ts, runtime/spec/media-adpcm.ts): both sides validate
 // the same header and packets, PAL8 deltas rebuild the producer's picture, and
 // an ADPCM block decodes to the producer's PCM.
 //
-// These are the three cases of PocketJS tests/media.test.ts that compile the
-// headers. Its player, scrubber and stream server cases stay there.
+// The player, scrubber and stream server cases are runtime/test/media.test.ts.
 
 import { expect, test } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { MEDIA } from "../../../vendor/pocketjs/contracts/spec/media.ts";
-import { encodeMediaAudio } from "../../../vendor/pocketjs/contracts/spec/media-adpcm.ts";
-import { createPal8Encoder, mediaHeader, mediaPacket, PAL8_CUBE, quantizeCube } from "../../../vendor/pocketjs/tools/media-stream.ts";
+import { MEDIA } from "../../../runtime/spec/media.ts";
+import { encodeMediaAudio } from "../../../runtime/spec/media-adpcm.ts";
+import { createPal8Encoder, mediaHeader, mediaPacket, PAL8_CUBE, quantizeCube } from "../../../link/media-stream.ts";
 
 /** devices/services: the two headers. */
 const SHARED = resolve(import.meta.dir, "..");

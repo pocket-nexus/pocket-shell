@@ -5,7 +5,10 @@ reads the app contract (`pocket.app.json`,
 [docs/APP-CONTRACT.md](../docs/APP-CONTRACT.md)), resolves it against a host
 contract into a build plan, runs PocketJS's compiler on the plan and encodes
 the package ([docs/POCKET-PACKAGE.md](../docs/POCKET-PACKAGE.md)). **It runs on
-Bun**, after `bun run setup` has initialized `vendor/pocketjs`.
+Bun**, after `bun run setup` has initialized `vendor/pocketjs`. PocketJS has
+no app contract and no `.pocket`: its own CLI compiles the `app` section of a
+`pocket.host.config.ts` into a bundle (`.pkb`, PocketJS
+`contracts/spec/bundle.ts`).
 
 ```sh
 bun cli/pocket-shell.ts check   --manifest pocket.app.json --target psp
@@ -21,7 +24,7 @@ all of them and writes one package with one variant.
 | Step | Code |
 | --- | --- |
 | Select the host contract from `--target`, `POCKET_TARGET` or a host config | PocketJS `tools/profile-resolver.ts` |
-| Read the app contract, validate it against the schema, load the `app.theme` module and the `icon` | `runtime/manifest/load.ts` |
+| Read the app contract, validate it against the schema, load the `app.theme` module and the `icon` | `runtime/manifest/load.ts`, with PocketJS's validator `contracts/spec/json-schema.ts` |
 | Resolve the build plan for the host contract | `runtime/manifest/resolve.ts` |
 | Compare the framework runtime the application resolves with the one the compiler bundles | PocketJS `framework/compiler/runtime-packages.ts` |
 | Type-check `app.entry` and the worker entry | PocketJS `framework/compiler/app-check.ts` |
@@ -59,7 +62,8 @@ refuses prints one line per diagnostic, `<code> <JSON pointer>: <message>`;
 lists the codes.
 
 `--aot` and `--out DIR` are refused: AOT sources come from PocketJS's CLI,
-`bun vendor/pocketjs/tools/pocket.ts compile --aot --out DIR`.
+`bun vendor/pocketjs/tools/pocket.ts compile --aot --out DIR`, which compiles
+the `app` section of a `pocket.host.config.ts`, not an app contract.
 
 ## Forwarded commands
 
@@ -68,7 +72,10 @@ Every command other than `check` and `compile` runs
 environment and standard streams, and this CLI exits with that process's exit
 code. PocketJS's commands at the pinned commit are `host export`, `host
 fetch`, `build`, `pack`, `target`, `sdk`, `doctor`, `catalog`, `project` and
-`status`.
+`status`. **`build` and `pack` take a compiled bundle, `--bundle FILE.pkb`,
+and refuse `--pocket`**: a `.pocket` this CLI writes is not their input.
+`runtime/package/bundle.ts` writes an admitted variant as a bundle, section
+for section.
 
 ```sh
 bun cli/pocket-shell.ts host export --config pocket.host.config.ts --out build/profile --depfile build/profile/pocket-profile.d
@@ -78,12 +85,18 @@ bun cli/pocket-shell.ts catalog --json
 ## Callers
 
 - `bun run tab5` and `bun run psp` (`shells/3ds/scripts/tab5.ts`, `psp.ts`)
-  compile each app with `compile --host-config`.
-- The Tab5 firmware's CMake helpers (PocketJS
-  `platforms/esp-idf/pocket_runtime/project_include.cmake`) call
-  `devices/m5stack/tools/pocket`, which runs this CLI: `compile … --depfile`
-  for the launcher and each bundled app, and `host export` for the profile
-  header. `bun run m5stack app build <pocket.app.json>` runs `compile` too.
+  compile each app with `compile --host-config`; `bun run psp` writes each
+  admitted variant as a bundle (`runtime/package/bundle.ts`) for the PSP
+  program to embed.
+- The Tab5 firmware's CMake helpers
+  (`devices/m5stack/programs/m5stack-tab5/components/pocket_system/project_include.cmake`)
+  call `devices/m5stack/tools/pocket`, which runs this CLI:
+  `pocket_shell_compile_app` runs `compile --manifest … --host-config …
+  --depfile …` for the launcher and each bundled app into a `.pocket`, and
+  `pocket_shell_embed_package` embeds a prebuilt `.pocket`. Both export the
+  host contract through PocketJS's `pocketjs_profile_header` and check the
+  package against it with `devices/m5stack/tools/embed-package.ts`. `bun run m5stack app build <pocket.app.json>`
+  runs `compile` too.
 - `bun run 3ds` does not start this CLI: `devices/3ds/build.ts` resolves the
   plan with `runtime/manifest`, runs PocketJS's compiler and encodes the
   package with the same modules.

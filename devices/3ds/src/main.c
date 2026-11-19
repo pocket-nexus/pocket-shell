@@ -80,7 +80,7 @@
 #endif
 
 /* The guest surfaces come from the plan of the package in the .3dsx's RomFS
- * (pocket_package_open reads them), never from a literal or a compile flag:
+ * (pocket_package_open_source reads them), never from a literal or a compile flag:
  * one runtime binary serves every game. surfaces_admit() holds them to the
  * two screens, and every later guest (a push, a recovery) to the surfaces the
  * render targets were created with. */

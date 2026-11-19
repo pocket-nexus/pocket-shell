@@ -8,9 +8,12 @@ into the next.
 
 ## Windows, a pointer and a keyboard: the embedded desktop shell
 
-`shells/desktop/`, on `main`. The browser preview runs isolated Pocket apps from a
-Pocket System manifest. The shell owns windows, the taskbar, launching and themes; PocketJS supplies package isolation and the browser scheduler and compositor.
+`shells/desktop/`, on `main`. The browser preview ran isolated Pocket apps from a
+Pocket System manifest. The shell owns windows, the taskbar, launching and themes; PocketJS supplied package isolation and the browser scheduler and compositor.
 Pocket Studio embeds the shell through its own display and input adapters.
+**The shell does not build against the pinned PocketJS**, which removed the
+Pocket System and the manifests it reads (pocket-nexus/pocketjs#705); its
+sources stay on `main`.
 **Three period desktops, Classic 98, XP and Aqua, run on one semantic
 shell**: every part, from a caption to a file manager's sidebar, is one slot
 the active theme paints and places through its own chrome metrics, and the

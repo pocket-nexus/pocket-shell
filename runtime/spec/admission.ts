@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Device admission: whether a host provides what a package variant was
 // compiled to use. PocketJS engine/package/src/admission.rs is the device
-// implementation; this module applies the same rules for tools that pick a
-// variant for a device, and both read PocketJS
-// engine/package/tests/fixtures/admission.
+// implementation of the rules for one variant, and the device programs' C
+// reader of `.pocket` (devices/services/pocket_container.c) tries the
+// variants in the order below; this module applies the same rules for tools
+// that pick a variant for a device. Both read
+// runtime/test/fixtures/admission.
 //
 //   bindingGeneration  variant.hostAbi equals the host's binding generation
 //   rasterDensity      plan.viewport.rasterDensity equals the host's density

@@ -31,8 +31,10 @@ pocket-shell/
    │  └─ tab5-demo/             the Tab5 factory launcher (M5Tab5-UserDemo) on PocketJS
    ├─ tests/                    host tests: HTTP and MQTT records, I2C descriptors, sensor drivers,
    │                            Unit Swap's conversions and records, the package store on a
-   │                            flash image, the Pocket Link 2 host against the reference Hub
-   ├─ tools/                    pocket CLI wrapper, app packaging, formatter, host tests,
+   │                            flash image, .pocket admission and the package source, the
+   │                            Pocket Link 2 host against the reference Hub
+   ├─ tools/                    pocket CLI wrapper, app packaging, the .pocket embedding the
+   │                            build runs (embed-package.ts), formatter, host tests,
    │                            tab5-demo artwork conversion, firmware packaging
    │                            (firmware-dist.ts), the apps partition image (apps-partition.ts)
    └─ docs/                     structure and worker reference
@@ -53,7 +55,8 @@ runtime per app. The program owns its host contract (`pocket.host.json`);
 the host config `pocket.host.config.ts` names it. The build exports
 `pocket_profile.h`, whose `pocket_profile.facts` record the runtime admits
 packages against, and compiles Pocket Shell (`shells/3ds/shell`) and
-the bundled apps with the same host config.
+the bundled apps with the same host config into `.pocket` packages
+(`pocket_system`'s `project_include.cmake`).
 
 **Components one program uses stay with that program.**
 `programs/m5stack-tab5/components/` holds the launcher services, camera,
@@ -78,7 +81,7 @@ The program adds these `vendor/pocketjs` components through
 
 | Component | Use |
 | --- | --- |
-| `pocket_runtime` | one Rust archive (runtime, software renderer, PPA factory), host hooks, memory package source, CMake package helpers |
+| `pocket_runtime` | one Rust archive (runtime, software renderer, PPA factory, `pocket_idf_package_open_source`), host hooks, the profile export (`pocketjs_profile_header`) |
 | `pocket_guest_quickjs` | QuickJS realm with the generated guest bindings |
 | `pocket_runner` | the task that ticks a runtime |
 | `pocket_render_esp_ppa` | ESP32-P4 PPA renderer with software fallback |
@@ -96,6 +99,8 @@ the repository root installs PocketJS's dependencies in `vendor/pocketjs`
 and links `@pocketjs/framework` and `solid-js` into the root `node_modules`
 (`scripts/setup.ts`). `tools/pocket` runs the repository's CLI
 (`cli/pocket-shell.ts`, which passes `host export` to the CLI of
-`vendor/pocketjs`); the CMake helpers call it through `POCKETJS_CLI`. The apps
-under `apps/` and Pocket Shell compile with that CLI, and their imports
+`vendor/pocketjs`); the build calls it through `POCKETJS_CLI`:
+`pocket_system`'s `pocket_shell_compile_app` runs `compile`, PocketJS's
+`pocketjs_profile_header` runs `host export`. The apps under `apps/` and
+Pocket Shell compile with that CLI into `.pocket` packages, and their imports
 resolve to the root's `node_modules`.

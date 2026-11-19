@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import type { AnimationTheme } from "../spec/pocket-manifest.ts";
+import type { AnimationTheme } from "../../vendor/pocketjs/contracts/spec/animation-theme.ts";
 import { isHostExtension, type HostExtension } from "./host-extension.ts";
 import { canonicalJson } from "./plan.ts";
 import {

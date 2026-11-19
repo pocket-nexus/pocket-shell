@@ -31,8 +31,12 @@ const char *runtime_upload_path(void);
 #define POCKET_RUNTIME_UPLOAD runtime_upload_path()
 
 typedef struct {
+  /* The whole `.pocket` file. */
   uint8_t *bytes;
   size_t length;
+  /* Where the admitted variant's sections lie in `bytes`
+   * (pocket_container.h); the package source states them to PocketJS. */
+  pocket_package_sections sections;
   PocketGuestPackage guest;
   char origin[192];
 } PocketRuntimePackage;

@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Host test of the program's Pocket Link and media code (../program/src):
+# PocketJS's PSP composition files compile here for the build machine as in
+# PocketJS's tests/fixtures/psp-runtime, with device services substituted;
+# QuickJS, the generated bindings, the runtime and the core are real.
+# devices/psp/test/host.test.ts runs it (`bun run check:devices`).
+
+[package]
+name = "pocket-shell-psp-host-test"
+version = "0.0.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+publish = false
+
+# A standalone graph: Cargo does not search the directories above for a workspace.
+[workspace]
+
+[dependencies]
+pocket-spec = { path = "../../../vendor/pocketjs/engine/spec" }
+libquickjs-sys = { git = "https://github.com/pocket-nexus/quickjs-rs.git", rev = "a5cac5d8631bdc068b43af93355b9f82d666949e" }
+pocket-drivers = { path = "../../../vendor/pocketjs/engine/drivers" }
+pocket-runtime = { path = "../../../vendor/pocketjs/engine/runtime" }
+pocket-archive = { path = "../../../vendor/pocketjs/programs/sdk/archive" }
+pocket-package = { path = "../../../vendor/pocketjs/engine/package" }
+pocketjs-core = { path = "../../../vendor/pocketjs/engine/core" }
+
+[build-dependencies]
+pocket-profile-build = { path = "../../../vendor/pocketjs/engine/profile-build" }
+cc = "1"

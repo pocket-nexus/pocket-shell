@@ -2,6 +2,7 @@
 #define _POSIX_C_SOURCE 200112L
 #include "../../../src/instance.c"
 #include "package_fixture.h"
+#include "pocket_container.h"
 #include "pocket_native_program.h"
 #include <assert.h>
 #include <stdlib.h>
@@ -177,6 +178,32 @@ static PocketNativeProgram *create(PocketRuntimePackage *package) {
 int main(void) {
   PocketRuntimePackage package = {.bytes = (uint8_t *)package_bytes,
                                   .length = sizeof package_bytes};
+  /* runtime.c's path: the container reader states the variant's sections
+   * and the archive's inspection admits them through the package source. */
+  PocketContainer container;
+  PocketContainerVariant variant;
+  assert(!pocket_container_open(package.bytes, package.length, &container));
+  assert(container.variant_count == 1 &&
+         pocket_container_variant(&container, 0, &variant));
+  package.sections = variant.sections;
+  assert(!pocket_package_open_source(
+      instance_package_source(), &package, &pocket_3ds_profile,
+      POCKETJS_HOST_ABI, pocket_3ds_profile_hash, &package.guest));
+  assert(package.guest.javascript_length == 5 &&
+         package.guest.javascript == package.bytes + variant.sections.js_offset);
+  assert(package.guest.view_width == 400 && package.guest.view_height == 240 &&
+         package.guest.raster_density == 1);
+  assert(package.guest.aux_width == 320 && package.guest.aux_height == 240);
+  assert(package.guest.features == POCKET_GUEST_FEATURE_FS);
+  assert(package.guest.package_hash == 0 && package.guest.variant_hash == 0);
+  assert(!strcmp(package.guest.slot, FIXTURE_SLOT));
+  /* A source that states no sections is refused. */
+  PocketRuntimePackage unstated = package;
+  memset(&unstated.sections, 0, sizeof unstated.sections);
+  PocketGuestPackage refused;
+  assert(pocket_package_open_source(instance_package_source(), &unstated,
+                                    &pocket_3ds_profile, POCKETJS_HOST_ABI,
+                                    pocket_3ds_profile_hash, &refused) != 0);
   PocketNativeProgram *program = create(&package);
   assert(program);
   pocket_runtime *runtime = pocket_native_program_runtime(program);

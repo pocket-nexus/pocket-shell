@@ -49,8 +49,8 @@ test("a version is written in place and every version file agrees", () => {
   expect(() => withVersion('{ "app": { "version": "1.0.0" } }', "0.2.0")).toThrow();
   expect(sharedVersion(fromTree(ROOT))).toBe(parseVersion(JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8")).version));
   const files: Record<string, string> = Object.fromEntries(VERSION_FILES.map((path) => [path, '{ "version": "0.2.0" }']));
-  files["shells/touch/pocket.app.json"] = '{ "version": "0.1.0" }';
-  expect(() => sharedVersion((path) => files[path]!)).toThrow(/shells\/touch\/pocket\.app\.json: 0\.1\.0/);
+  files["shells/touch/package.json"] = '{ "version": "0.1.0" }';
+  expect(() => sharedVersion((path) => files[path]!)).toThrow(/shells\/touch\/package\.json: 0\.1\.0/);
 });
 
 test("the release command takes one bump or version", () => {

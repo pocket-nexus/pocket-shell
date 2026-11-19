@@ -1,6 +1,8 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
+    "target": "ESNext",
+    "lib": ["ESNext"],
+    "skipLibCheck": true,
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "preserve",
@@ -57,6 +59,9 @@
       ],
       "@pocket-shell/runtime/camera": [
         "../../runtime/src/camera.ts"
+      ],
+      "@pocket-shell/runtime/media": [
+        "../../runtime/src/media.ts"
       ]
     }
   },

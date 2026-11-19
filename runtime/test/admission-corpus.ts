@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // The admission corpus: one package and the hosts that admit or refuse its
-// variants. PocketJS commits the generated files beside its device reader
-// (vendor/pocketjs/engine/package/tests/fixtures/admission: package.pocket,
-// cases.json), which reads them in its own tests; package-admission.test.ts
-// checks that this generator, with the encoder of runtime/spec, writes the
-// same bytes and that the selection of runtime/spec/admission.ts gives every
-// recorded result. From PocketJS tools/package-corpus.ts (`admissionCorpus`).
+// variants. The generated files are committed in fixtures/admission
+// (package.pocket, cases.json); package-admission.test.ts checks that this
+// generator, with the encoder of runtime/spec, writes the same bytes and that
+// the selection of runtime/spec/admission.ts gives every recorded result, and
+// the C reader of devices/services is tested against the same files. From
+// PocketJS tools/package-corpus.ts (`admissionCorpus`) at 89162fb7, whose
+// committed corpus these files are byte for byte.
 
 import { POCKET_BINDING_GENERATION } from "../../vendor/pocketjs/contracts/spec/binding-generation.ts";
 import type { AdmissionHost, AdmissionItem, AdmissionTiming } from "../spec/admission.ts";

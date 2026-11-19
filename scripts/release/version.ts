@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// The repository's one version. The root package.json, each shell's
-// package.json and each app contract name the same SemVer; `bun run release`
+// The repository's one version. The root package.json, the 3DS and touch
+// shells' package.json and the launcher's app contract name the same SemVer
+// (the touch shell's host config reads its package.json; shells/desktop, which
+// does not build against the pinned PocketJS, takes no part); `bun run release`
 // raises all of them in one pull request, and the merge that changes the root
 // package.json's version is the release (.github/workflows/release-3ds.yml).
 
@@ -15,12 +17,7 @@ export const VERSION_FILES = [
   "package.json",
   "shells/3ds/package.json",
   "shells/3ds/shell/pocket.app.json",
-  "shells/desktop/package.json",
-  "shells/desktop/pocket.app.json",
-  "shells/desktop/pocket.app.studio.json",
-  "shells/desktop/pocket.system.json",
   "shells/touch/package.json",
-  "shells/touch/pocket.app.json",
 ] as const;
 
 // SemVer 2.0.0 without build metadata: the version is also the tag

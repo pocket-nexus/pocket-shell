@@ -5,7 +5,7 @@
  * staging file; install_pump, on the system task once per frame, checks the
  * SHA-256 the URI declared and commits the package as a companion install
  * does: link_host_install admits it by the firmware's host facts
- * (pocket_idf_package_open) and its slot, and launcher_note_installed lists
+ * (package_open, package.c) and its slot, and launcher_note_installed lists
  * it. Events wait for installer.poll() in one JSON array, shaped as the
  * link's install events.
  *

@@ -27,20 +27,20 @@ is resolved against a registry of this one target.
 
 ```
 pocket.host.json      the 3ds-dev host contract: screens, cadence, capabilities
-pocket.host.config.ts the host config `pocket-shell compile` and PocketJS's `pocket build` read
+pocket.host.config.ts the host config `pocket-shell compile --host-config` reads; it names the host contract only
 build.ts              the build: guest package, Rust archive, QuickJS, Makefile in the container
-recipe.ts             the native recipe of pocket.host.config.ts, which calls build.ts
 tools/profile.ts      the host contract as a build target; resolves build plans
 tools/contracts.ts    writes include/pocket_profile.h
 tools/stage-art.ts    bakes src/stage_hint.h and src/stage_saver.h
 core/                 one runtime staticlib, its own Cargo workspace and lockfile:
                       package recovery inspection ABI and pocket-native-program
                       with host-backend and host-hooks
-include/pocket_core.h package inspection and native resource convenience calls
+include/pocket_core.h pocket_package_open_source and native resource convenience calls
 include/pocket_profile.h generated host contract facts, hash and operation identifiers
-src/instance.c        package source; input, provider and output registration
+src/instance.c        package source, whose sections callback states the admitted variant;
+                      input, provider and output registration
 src/main.c            process boot, reusable guest lifecycle, frame boundary
-src/runtime.c         immutable package storage, active/rollback state
+src/runtime.c         .pocket reading and admission, immutable package storage, active/rollback state
 src/link2_host.c      the program's side of Pocket Link 2: identity, runtime operations, screenshots, DevTools
 src/devstats.c        frame timing and counters for a DevTools panel
 src/devmenu.c         host-owned bottom-screen development DrawList
@@ -71,7 +71,7 @@ platform/*.h          their headers; offload_queue.h and offload_coverage.h incl
 Makefile              native build driven by build.ts
 app.rsf               the CIA descriptor makerom reads
 test/                 host tests of the sources above (bun run check:devices)
-../services/          devices/services: link, launcher, fs, JSON, SHA-256, photo images, quirc
+../services/          devices/services: the .pocket reader, link, launcher, fs, JSON, SHA-256, photo images, quirc
 ```
 
 From PocketJS, compiled by the Makefile from `vendor/pocketjs`:
@@ -166,14 +166,16 @@ bun run 3ds hn --pocket-only           # an applet's package
 
 `bun run 3ds` resolves the app's plan (`shells/3ds/scripts/apps.ts`) and calls
 `build.ts` with `--plan` and the app's project root. `build.ts` also takes an
-app by name: `apps/<name>/pocket.app.json` under `--project-root`, else a
-PocketJS demo, whose project root is `vendor/pocketjs`:
+app by name, `<project-root>/apps/<name>/pocket.app.json`. PocketJS's demos
+(`3ds-demo` among them) have no app contract since pocket-nexus/pocketjs#705
+and do not build here:
 
 ```sh
-bun devices/3ds/build.ts 3ds-demo --project-root=vendor/pocketjs               # dist/3ds/<output>.3dsx
-bun devices/3ds/build.ts 3ds-demo --project-root=vendor/pocketjs --capture     # the deterministic e2e binary
-bun devices/3ds/build.ts 3ds-demo --project-root=vendor/pocketjs --cia         # also dist/3ds/<output>.cia
-bun devices/3ds/build.ts 3ds-demo --project-root=vendor/pocketjs --pocket-only # rebuild only dist/3ds/<output>.pocket
+bun devices/3ds/build.ts --plan=<plan.json> --project-root=<dir>  # dist/3ds/<output>.3dsx
+bun devices/3ds/build.ts <app> --project-root=<dir>               # the same, from <dir>/apps/<app>/pocket.app.json
+bun devices/3ds/build.ts <app> --project-root=<dir> --capture     # the deterministic e2e binary
+bun devices/3ds/build.ts <app> --project-root=<dir> --cia         # also dist/3ds/<output>.cia
+bun devices/3ds/build.ts <app> --project-root=<dir> --pocket-only # rebuild only dist/3ds/<output>.pocket
 ```
 
 Every build writes a target-thinned `.pocket` next to the native artifact.
@@ -184,9 +186,14 @@ recovery guest; it no longer embeds independent `app.js` and `app.pak` files.
 ## One runtime for every game
 
 **Nothing in the program depends on the game.** At boot `main.c` reads
-`romfs:/app.pocket` before it creates a render target: `pocket_package_open`
-admits the package against the program's exported facts
-(`pocket_3ds_profile`) and returns the plan's `viewport` and
+`romfs:/app.pocket` before it creates a render target. `src/runtime.c`
+verifies the file with `devices/services/pocket_container.c` (layout, target
+ids, the footer and every variant's payload hash) and offers its variants in
+the order `runtime/spec/admission.ts` selects them; for each, the core's
+`pocket_package_open_source` admits the variant through the package source of
+`src/instance.c`, whose `sections` callback states where the variant's
+sections lie, against the program's exported facts (`pocket_3ds_profile`).
+The first admitted variant returns the plan's `viewport` and
 `surfaces.auxiliary` (logical size and raster density), its `io.offload` and
 `media.playback` features, and the first 16 hex digits of SHA-256 over the
 variant identity's app id. The surfaces must be the 400x240 top screen and the
@@ -197,8 +204,9 @@ have the same surfaces. A `.3dsx` with no RomFS, or no `app.pocket` in it,
 writes `this .3dsx carries no game: romfs:/app.pocket is missing` to the bottom
 screen and to `sdmc:/pocketjs-error.txt`, and waits for HOME.
 
-**The generic runtime is a separate program.** PocketJS `programs/3ds` reads a file
-package and registers the generated guest, input source and two PICA displays
+**The generic runtime is a separate program.** PocketJS `programs/3ds` reads a
+bundle, `romfs:/app.pkb` (PocketJS `contracts/spec/bundle.ts`), not a
+`.pocket`, and registers the generated guest, input source and two PICA displays
 through the same QuickJS facade. It has no product services, development
 server, camera, launcher or recovery state. Its `3ds-runtime` host
 contract accepts only the capabilities implemented by that program. The
@@ -207,15 +215,15 @@ product links `core/` for its recovery inspection interface and the same native
 program.
 
 In a PocketJS checkout, `pocket build --target 3ds --generic` builds that
-runtime and `pocket pack --runtime <build-directory> --pocket
-<application.pocket>` replaces its RomFS. See [the minimal
+runtime and `pocket pack --runtime <build-directory> --bundle
+<application.pkb>` replaces its RomFS. See [the minimal
 program](../../vendor/pocketjs/programs/3ds/README.md). This repository's CLI
-(`bun cli/pocket-shell.ts`, [cli/README.md](../../cli/README.md)) builds this
-product from its host config: `compile --host-config
-devices/3ds/pocket.host.config.ts` resolves an app against `pocket.host.json`
-and writes its package, and `build --config devices/3ds/pocket.host.config.ts
---pocket <application.pocket>`, which the CLI passes to PocketJS's, runs
-`recipe.ts`, which hands the admitted package to `build.ts`.
+(`bun cli/pocket-shell.ts`, [cli/README.md](../../cli/README.md)) compiles an
+app for this product from its host config: `compile --host-config
+devices/3ds/pocket.host.config.ts` resolves the app against
+`pocket.host.json` and writes its package. The host config names no native
+recipe, so PocketJS's `pocket build` does not build this product; `bun run
+3ds` and `build.ts` build the `.3dsx`.
 
 ## Updating the guest from SD
 
@@ -230,13 +238,14 @@ With an FTP server running as a separate homebrew application, build and upload
 the guest package, then exit the FTP server and start Pocket Runtime:
 
 ```sh
-bun devices/3ds/build.ts 3ds-demo --project-root=vendor/pocketjs --pocket-only
-curl --ftp-create-dirs -T dist/3ds/pocket3ds-demo-main.pocket \
+bun run 3ds --pocket-only
+curl --ftp-create-dirs -T dist/3ds/pocket-shell.pocket \
   ftp://<device>/pocketjs/runtime/apps/<runtime-slot>/pending.pocket
 ```
 
-The runtime verifies the package footer, exact `3ds-dev` target, host ABI,
-identity, resolved plan and NUL-terminated JS section before it can boot. A
+The runtime verifies the package footer and every variant's payload hash,
+then admits a variant's host ABI, resolved plan, identity and NUL-terminated
+JS section against the `3ds-dev` facts before it can boot. A
 complete pending package is renamed to
 `sdmc:/pocketjs/runtime/apps/<runtime-slot>/packages/<hash>.pocket`; package
 blobs are immutable.
@@ -338,11 +347,15 @@ After the setup, ftpd is not part of the development loop:
 
 ```sh
 bun link/3ds-dev.ts devices
-bun link/3ds-dev.ts push    --app 3ds-demo
-bun link/3ds-dev.ts install --app 3ds-demo
+bun link/3ds-dev.ts push    --app hn
+bun link/3ds-dev.ts install
 bun link/3ds-dev.ts probe
-bun link/3ds-dev.ts dev     --app 3ds-demo
+bun link/3ds-dev.ts dev     --app shell
 ```
+
+**`--app <name>` builds an app of `shells/3ds`** through
+`shells/3ds/scripts/3ds.ts`: the launcher `shell`, the default, or an applet
+of the applets checkout.
 
 **No command needs the console's address.** The computer sends a beacon once
 a second to each interface's broadcast address and to the last address of
@@ -411,9 +424,9 @@ that admits and rolls it back.
 ### Installing and launching `.3dsx` files
 
 ```sh
-bun link/3ds-dev.ts install --app 3ds-demo               # build, install, restart into it
+bun link/3ds-dev.ts install                              # build the launcher's .3dsx, install, restart into it
 bun link/3ds-dev.ts install --file app.3dsx --no-launch  # install for the next start
-bun link/3ds-dev.ts launch pocket3ds-demo-main.3dsx      # start a .3dsx already on the card
+bun link/3ds-dev.ts launch pocket-shell.3dsx             # start a .3dsx already on the card
 ```
 
 **`install` streams a `.3dsx` to `sdmc:/3ds/<name>` over the link
@@ -502,7 +515,9 @@ the new guest draws blanks where the old one drew CJK.
 ## Installed apps and the launcher
 
 **The embedded ROMFS guest is the launcher** (the app-switching operations
-are PocketJS docs/LAUNCHER.md's). Every other directory under
+are 39 `appTable`, 40 `appLaunch` and 41 `appShot`, whose numbers PocketJS
+keeps for a product host; `runtime/src/launcher.ts` is their guest module).
+Every other directory under
 `sdmc:/pocketjs/runtime/apps/` whose state names a committed active package
 is an installed app: `ui.appTable()` lists them (never the launcher's own
 slot) with `output`, `id`, `title`,
@@ -575,7 +590,7 @@ store wait for them while the link is pumped.
 
 **A push of another app installs into that app's own slot**, commits
 it as the slot's active package and launches it, so
-`bun link/3ds-dev.ts push --app nexus` works while the launcher runs. A push of the
+`bun link/3ds-dev.ts push --app hn` works while the launcher runs. A push of the
 running app keeps the candidate → accepted lifecycle; when that app is not the
 launcher, a failing candidate returns to the launcher instead of a rollback.
 
@@ -824,7 +839,8 @@ product code is `CTR-P-` plus four characters of the app id. The RSF's
 happens in TypeScript rather than silently inside makerom, and the title HOME
 Menu shows is the SMDH's, still whole.
 
-Azahar installs one and then boots the installed title from its own SD card:
+Azahar installs one and then boots the installed title from its own SD card;
+for PocketJS's `3ds-demo`, which no longer builds here:
 
 ```sh
 azahar -i dist/3ds/pocket3ds-demo-main.cia
@@ -1002,12 +1018,12 @@ compiler PocketJS pins (`STABLE_RUST_TOOLCHAIN`).
 | --- | --- |
 | `3ds-profile.test.ts` | `pocket.host.json` as a build target: the plans it resolves and refuses; `build.ts`'s arguments, capture defines and CIA identity |
 | `3ds-extension.test.ts` | the extension's build arguments; `include/pocket_extension.h` declares every `pocket_extension_*` function the product calls |
-| `3ds-runtime-state.test.ts` | `src/runtime.c` with `devices/services/fs.c`: staging, immutable packages, active and last-good generations |
+| `3ds-runtime-state.test.ts` | `src/runtime.c` with `devices/services/fs.c` and `pocket_container.c`: staging, immutable packages, active and last-good generations |
 | `3ds-native-install.test.ts` | `src/native.c`: `.3dsx` staging, verification, swap and the deferred file of the running program |
 | `3ds-devmenu.test.ts` | `src/devmenu.c`: one bounded DrawList of rectangles |
 | `3ds-transition.test.ts` | `src/transition.c`: the phases' timing, the scrim's opacity, the indicator's dots |
 | `3ds-bundle-compile.test.ts` | `src/bundle_compile.c` against the pinned QuickJS, on a thread with the 3DS stack limit |
-| `3ds-composition.test.ts` | `core/` linked with `src/instance.c` and PocketJS `platforms/3ds/hooks.c`, `input_source.c`: package admission, the product's providers, exact input |
+| `3ds-composition.test.ts` | `core/` linked with `src/instance.c`, `devices/services/pocket_container.c` and PocketJS `platforms/3ds/hooks.c`, `input_source.c`: package admission at the stated sections, the product's providers, exact input |
 | `3ds-soc.test.ts` | `platform/soc.c` against a fake libctru (`test/fixtures/3ds-soc`) under ASan and UBSan: concurrent initialization, the cooldown, recovery and shutdown |
 | `camera-photo.test.ts` | `devices/services/photos_image.c` and `src/photos_jpeg.c`, the C constants against `runtime/spec/camera.ts`, the sim's camera host |
 | `pocket3d-delivery.test.ts` | `src/packs_delivery.c` against PocketJS `tools/pocket3d-delivery.ts` over loopback |

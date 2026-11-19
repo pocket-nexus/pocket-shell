@@ -1,7 +1,8 @@
-# devices/services holds the Pocket Link 2 client, the launcher and the
-# data.fs state machines every native program compiles; this component adds
-# the store, the radio, the SNTP clock, installs from an address over
-# esp_http_client and the QuickJS bindings.
+# devices/services holds the Pocket Link 2 client, the launcher, the data.fs
+# state machines and the .pocket reader every native program compiles; this
+# component adds the store, the package source the runtime boots, the radio,
+# the SNTP clock, installs from an address over esp_http_client and the
+# QuickJS bindings.
 set(shared "${CMAKE_CURRENT_LIST_DIR}/../../../../../services")
 
 idf_component_register(
@@ -16,6 +17,7 @@ idf_component_register(
         "src/install.c"
         "src/install_uri.c"
         "src/link2_host.c"
+        "src/package.c"
         "src/qjs.c"
         "${shared}/fs.c"
         "${shared}/jscan.c"
@@ -25,6 +27,7 @@ idf_component_register(
         "${shared}/link2_guest.c"
         "${shared}/link2_http.c"
         "${shared}/link2_proto.c"
+        "${shared}/pocket_container.c"
         "${shared}/sha256.c"
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "src" "${shared}"

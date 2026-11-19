@@ -7,9 +7,10 @@
 // 64 KiB pages, a 64-byte header ("PKAP", version 1, size, pages, sequence,
 // the package's FNV-1a64 footer, the slot) then the package from offset 64;
 // every other byte 0xFF, as erased flash reads. The slot is the first 16 hex
-// digits of SHA-256 of the app id, the slot the firmware names. Each package
-// must be admitted by this repository's host contract (tab5-home), the check
-// the firmware makes when it reads the partition at start.
+// digits of SHA-256 of the app id in the admitted variant's plan, the slot the
+// firmware names. Each package must be admitted by this repository's host
+// contract (tab5-home), the check the firmware makes when it reads the
+// partition at start.
 //
 // --flash writes the image at the partition's offset with esptool (`python
 // -m esptool`, the ESP-IDF environment exported). The other partitions, the
@@ -22,8 +23,9 @@ import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { admissionHost, describeRejection, selectVariant } from "../../../runtime/spec/admission.ts";
-import { decodeIdentity, decodePocketPackage, POCKET_SECTION } from "../../../runtime/spec/pocket-package.ts";
+import { decodePocketPackage, POCKET_SECTION } from "../../../runtime/spec/pocket-package.ts";
 import { hashPocketProfile, readPocketProfile } from "../../../vendor/pocketjs/framework/src/profile.ts";
+import { appId } from "./embed-package.ts";
 
 const root = resolve(import.meta.dir, "..");
 const program = join(root, "programs", "m5stack-tab5");
@@ -63,9 +65,7 @@ for (const path of packages) {
   const pkg = decodePocketPackage(bytes); // magic, layout and the FNV-1a64 footer
   const selection = selectVariant(pkg, host);
   if (!selection.ok) throw new Error(`${path}: ${describeRejection(selection)}`);
-  const identity = selection.variant.sections.find((section) => section.kind === POCKET_SECTION.identity);
-  if (!identity) throw new Error(`${path}: the admitted variant has no identity section`);
-  const id = decodeIdentity(identity.bytes).id;
+  const id = appId(selection.variant.sections.find((section) => section.kind === POCKET_SECTION.plan)?.bytes);
   const slot = createHash("sha256").update(id).digest("hex").slice(0, 16);
   if (slots.has(slot)) throw new Error(`${path}: ${id} is already in the image`);
   slots.add(slot);

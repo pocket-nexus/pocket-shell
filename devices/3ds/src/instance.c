@@ -47,6 +47,15 @@ static int32_t package_range(void *context, size_t offset, uint8_t *bytes,
   *read = n;
   return 0;
 }
+/* The admitted variant of the `.pocket` (runtime.c, pocket_container.h):
+ * PocketJS reads the program at these offsets. */
+static int32_t package_sections(void *context, pocket_package_sections *out) {
+  const PocketRuntimePackage *source = context;
+  if (source->sections.struct_size == 0)
+    return POCKET_STATUS_INVALID;
+  *out = source->sections;
+  return 0;
+}
 void instance_input(uint32_t held, uint32_t analog, const uint32_t *touches,
                     size_t count, uint32_t right) {
   pocket_3ds_input_source_set(&input, held, analog, touches, count, right);
@@ -116,7 +125,8 @@ static int32_t provider(void *context, uint16_t op, const pocket_op_arg *args,
   return 0;
 }
 static const pocket_package_source_v1 source_api = {
-    sizeof source_api, package_length, package_all, package_range, NULL, NULL};
+    sizeof source_api, package_length, package_all,
+    package_range,     NULL,           package_sections};
 static const pocket_op_provider_v1 provider_api = {sizeof provider_api,
                                                    provider};
 const pocket_package_source_v1 *instance_package_source(void) {

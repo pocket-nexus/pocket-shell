@@ -2,9 +2,9 @@
 // shells/3ds/test/psp-sim.test.ts — what the PSP build carries, on the PSP's
 // full screen (test/psp.ts): 480x272, no auxiliary surface, no touch, the
 // link over the USB share. The build is Pocket Shell plus every applet of
-// pocket-nexus/applets that resolves for the psp host contract
-// (scripts/psp.ts), when a checkout of it is at hand (scripts/apps.ts). At
-// this PocketJS none does: an applet with a network fetches through a worker,
+// pocket-nexus/applets that resolves for the PSP program's host contract
+// (devices/psp/pocket-shell-psp.host.json, scripts/psp.ts), when a checkout
+// of it is at hand (scripts/apps.ts). None does: an applet with a network fetches through a worker,
 // which the PSP host does not run, and one without the full-screen
 // presentation needs touch. So the launcher is all there is to drive. The
 // tests read every page by buttons alone, through the button legend along

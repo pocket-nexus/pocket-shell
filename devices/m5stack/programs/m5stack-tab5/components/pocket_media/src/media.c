@@ -2,7 +2,7 @@
  * `globalThis.media` on ESP-IDF — see pocketjs/media.h.
  *
  * The stream task owns the socket. It reads the companion's PKMV stream
- * (tools/media-stream.ts): PAL8 pictures are applied to a reference picture
+ * (link/media-stream.ts): PAL8 pictures are applied to a reference picture
  * and expanded into a ring of PSM_5650 frames, IMA ADPCM blocks are decoded
  * into a ring of PCM blocks, and every packet returns one credit. The audio
  * task writes the PCM ring to the board's speaker and keeps the clock: the

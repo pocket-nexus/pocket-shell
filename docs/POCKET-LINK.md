@@ -55,7 +55,7 @@ endpoint (§12).
 ### What does not run on the link
 
 - **Media streams, in this version.** A service's `MediaSource` opens a separate TCP
-  connection to the media provider (PocketJS `docs/MEDIA.md` "Transport and
+  connection to the media provider (`docs/MEDIA.md` "Transport and
   ownership"), and **version 2 keeps that side connection: decided, not
   open**. It exists on the TCP carrier alone. The link as the only transport
   is the end state (§2.0); the side connection is a bulk path that the TCP
@@ -64,7 +64,7 @@ endpoint (§12).
   the link. When media moves onto the link is open (§11).
   **The source's `host` keeps its
   meaning** ("Numeric IPv4 address of the paired companion's media
-  endpoint", PocketJS `contracts/spec/media.ts` `MediaSource`): in the link's terms,
+  endpoint", `runtime/spec/media.ts` `MediaSource`): in the link's terms,
   Hub fills it with **its own address on the device's link connection** (the
   local address of that TCP connection on Hub's side), the address the device
   is known to reach, and `port` with the media endpoint's port.
@@ -2684,7 +2684,8 @@ TypeScript console client, as Hub's version 1 tests do with
 - **The carriers beyond TCP.** §2.0 says the link is the only transport,
   and phase one specifies TCP. Still outside it, and each to become a
   carrier of this protocol or be retired:
-  - **The PSP's USB carrier** (`link.ts` "USB carrier"): files in a
+  - **The PSP's USB carrier** (`link.ts` "USB carrier", the PSP program's
+    `devices/psp/program/src/link.rs`): files in a
     PSPLINK share with its own records. As a carrier it needs an adapter
     that turns the share into an ordered byte stream, and a payload limit
     for its polling rate. Undecided: adapt it or retire it with version 1.
@@ -2696,7 +2697,7 @@ TypeScript console client, as Hub's version 1 tests do with
     device with its own key. An applet channel covers the same ground.
     Undecided: whether offload becomes a channel or stays for worker
     compute.
-  - **The Vita's USB share** (PocketJS `docs/VITA-USB.md`), which carries updates,
+  - **The Vita's USB share** (pocket-nexus/pocket-devkit since PocketJS #707), which carries updates,
     status and captures and is no link host today.
   - **Bluetooth and UART** themselves: no adapter is specified, and the
     UART adapter's framing, checksum and retransmission are not designed.

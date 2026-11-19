@@ -41,11 +41,13 @@
 extern "C" {
 #endif
 
-/** A package the firmware embeds as an installed app. */
+/** A .pocket in the firmware image, read from flash in place: the launcher
+ * or a bundled app. pocket_shell_compile_app and pocket_shell_embed_package
+ * (project_include.cmake) define one as `pocketjs_package_<name>`. */
 typedef struct {
-  const void *bytes;
+  const uint8_t *bytes;
   size_t size;
-} pocketjs_system_bundled_t;
+} pocketjs_system_package_t;
 
 typedef struct {
   size_t struct_size;
@@ -55,14 +57,13 @@ typedef struct {
    * a package boots its first variant the facts satisfy. */
   const pocket_profile_facts *facts;
   uint32_t host_abi;
-  /** 32 bytes or NULL: orders the variants admission tries. */
+  /** 32 bytes or NULL: the variants compiled against it are tried first. */
   const uint8_t *profile_hash;
   /** The launcher package the firmware embeds. */
-  const void *launcher;
-  size_t launcher_size;
+  pocketjs_system_package_t launcher;
   /** Packages served from flash as installed apps: start admits each once
    * and refreshes its slot's cached facts. */
-  const pocketjs_system_bundled_t *bundled;
+  const pocketjs_system_package_t *bundled;
   size_t bundled_count;
   /** A mounted directory holding the store. */
   const char *root;
@@ -98,9 +99,13 @@ bool pocketjs_system_take_switch(char slot[17], bool *launcher);
 esp_err_t pocketjs_system_load_slot(const char *slot,
                                     pocketjs_system_app_t **out_app);
 void pocketjs_system_app_free(pocketjs_system_app_t *app);
-/** The whole .pocket, for the runtime's package source. */
-const uint8_t *pocketjs_system_app_bytes(const pocketjs_system_app_t *app,
-                                         size_t *size);
+/** The package source the runtime boots `app` from
+ * (pocket_runtime_set_package_source with `*context`): the whole .pocket,
+ * read in place, stating the sections of the variant admission took. The
+ * runtime checks no container hash; the admission that loaded `app`
+ * verified them. The source and its context live as long as the app. */
+const pocket_package_source_v1 *
+pocketjs_system_app_source(pocketjs_system_app_t *app, void **context);
 const pocket_idf_package_facts *
 pocketjs_system_app_facts(const pocketjs_system_app_t *app);
 bool pocketjs_system_app_is_launcher(const pocketjs_system_app_t *app);

@@ -8,8 +8,9 @@
 #define INSTANCE_HEAP_LIMIT (64u * 1024u * 1024u)
 #define INSTANCE_FRAME_BUFFER_BUDGET (400u * 240u * 4u + 320u * 240u * 4u)
 /* The package source over the PocketRuntimePackage passed as its context,
- * which stays live until the program is destroyed. Runtime keeps native asset
- * loading on for it. */
+ * which stays live until the program is destroyed: the whole `.pocket`, and
+ * the sections of its admitted variant (PocketRuntimePackage.sections).
+ * Runtime keeps native asset loading on for it. */
 const pocket_package_source_v1 *instance_package_source(void);
 /* Register the input source, product op provider, PICA renderer and both
  * displays on a program's runtime before boot. One runtime at a time; false

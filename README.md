@@ -49,12 +49,15 @@ explored one way of operating a small computer; what each taught is in
 | --- | --- | --- |
 | Pocket Shell on the 3DS and the Tab5 | A touch-screen launcher with installed applets; on the 3DS, Claude's room on the top screen and L+R to talk or type; on the Tab5, a floating home ball and a keyboard | [shells/3ds](shells/3ds/README.md) |
 | Touch navigation | Full-screen gestures over sixteen mock apps on the iPod touch 4 and the Nokia E7 | [shells/touch](shells/touch/README.md) |
-| Embedded desktop | Windows, a pointer and a keyboard, with Classic 98, XP and Aqua themes in the browser preview and Pocket Studio computers | [shells/desktop](shells/desktop/README.md) |
+| Embedded desktop | Windows, a pointer and a keyboard, with Classic 98, XP and Aqua themes in the browser preview and Pocket Studio computers; **does not build against the pinned PocketJS** | [shells/desktop](shells/desktop/README.md) |
 | The Omarchy-style 3DS shell and the iPod touch 4 remote (archived) | Tiling windows on the top screen with shoulder chords and a deck on the touch screen; a handheld that mirrors and controls a Linux desktop | branch [`archive/3ds-omarchy-ipod-remote`](https://github.com/pocket-nexus/pocket-shell/tree/archive/3ds-omarchy-ipod-remote) |
 
 The former **pocket-desktop** project is the embedded desktop interface in this
 repository. Its application code, assets, tests, browser build scripts, browser
-preview and website are maintained under `shells/desktop/`.
+preview and website are under `shells/desktop/`. **They do not build against
+the pinned PocketJS**, which removed the demo manifests, the manifest module
+and the Pocket System they read (pocket-nexus/pocketjs#705); the root checks,
+the workspaces, the release's version files and CI leave the directory out.
 The import preserves its Git history. Existing installed package IDs and
 desktop artifact names remain stable. The archived shells are `main` at
 `78b94b2` before they were removed; they are not built or tested on `main`, and
@@ -72,40 +75,45 @@ pocket-m5's; this repository publishes none.
 ```text
 shells/
   3ds/       shell (the launcher), scripts, test, media
-  touch/     src (gesture model and mock apps), scripts, test, manifest
-  desktop/   src/system-ui, scripts, test, assets, docs, preview, site, manifests
+  touch/     src (gesture model and mock apps), scripts, test, host config
+  desktop/   src/system-ui, scripts, test, assets, docs, preview, site, manifests; does not build at this pin
 devices/
   3ds/       the Nintendo 3DS host program (C, the platform's media, offload, SOC and worker sources, a Rust archive, its Makefile and build), host contract, tests
-  services/  portable C host services both device programs compile: the Pocket Link 2 client, launcher, fs, JSON, SHA-256, photo images, quirc
+  psp/       the PSP program (a Rust crate over PocketJS's PSP library), its host contract, host tests
+  services/  portable C host services the 3DS program and the Tab5 firmware compile: the .pocket reader, the Pocket Link 2 client, launcher, fs, JSON, SHA-256, photo images, media stream headers, quirc
   m5stack/   M5Stack Tab5 firmware (ESP-IDF): programs, platforms, apps, tools, tests, docs
 ui/          the iOS 6 kit the launcher and the applets draw with: navigation, tables, alerts, text, touch; art/icons, the icon family
 cli/         pocket-shell.ts: check an app contract and compile it into a .pocket package; other commands go to PocketJS's CLI
 runtime/
-  spec/      contracts: the app contract, the .pocket package and its admission, Pocket Link 1 and 2, applet, agent, owner setup, Wi-Fi, device, camera
+  spec/      contracts: the app contract, the .pocket package and its admission, Pocket Link 1 and 2, applet, agent, owner setup, Wi-Fi, device, camera, media
   manifest/  the app contract's loader, validation and resolution into a build plan; host build inputs
-  package/   a package variant's sections, bytecode sections, package tools, the applet check
+  package/   a package variant's sections, bytecode sections, a variant as a PocketJS bundle, package tools, the applet check
   schema/    pocket-2.json, the app contract's JSON schema, and its generator
-  src/       guest modules: applet surface, link, channel, launcher, system sheet, agent, Wi-Fi, device, camera
+  src/       guest modules: applet surface, link, channel, launcher, system sheet, agent, Wi-Fi, device, camera, media
   sim/       the 3DS console simulator and its link, Wi-Fi, camera and agent fakes
-  test/      tests of the modules above
+  test/      tests of the modules above; fixtures, the admission corpus among them
 link/
   v2/        Pocket Link 2 reference codec, device, Hub and the Hub's command line
-  *.ts       fetch.ts, the Hub's destination policy; 3ds-dev.ts, the 3DS development tool
+  *.ts       fetch.ts, the Hub's destination policy; media-stream.ts, the companion's media stream; 3ds-dev.ts, the 3DS development tool
   vectors/   Pocket Link 2 conformance vectors
   test/      tests of the reference implementation
-docs/        APP-CONTRACT.md, POCKET-PACKAGE.md, POCKET-LINK.md, APPLETS.md, POCKET-AGENT.md; asset policy; explorations
-scripts/     setup, desktop command dispatch, repository paths and process helpers
+docs/        APP-CONTRACT.md, POCKET-PACKAGE.md, POCKET-LINK.md, APPLETS.md, POCKET-AGENT.md, MEDIA.md; asset policy; explorations
+scripts/     setup, the asset check, the release, repository paths and process helpers
 vendor/
-  pocketjs/  PocketJS submodule: the UI framework, the compiler and host contracts, the engine crates, the 3DS platform's hooks and input, the PICA renderer
+  pocketjs/  PocketJS submodule: the UI framework, the compiler and host contracts, the engine crates, the PSP library, the 3DS platform's hooks and input, the PICA renderer
 ```
 
-The three shells have separate Bun packages and TypeScript configurations;
-the root configuration type-checks `scripts`, `cli`, `runtime`, `link`, `ui` and the
-TypeScript of `devices/3ds` and `devices/services`.
-`devices/m5stack` is a fourth Bun package in the same workspace; its C
-sources build with ESP-IDF. `devices/3ds` and `devices/services` are not Bun
-packages: `devices/3ds` builds in the devkitARM container with a Rust archive
-(`bun run 3ds`), and both device programs compile `devices/services`. See the
+`shells/3ds` and `shells/touch` are Bun packages of the root workspace with
+their own TypeScript configurations; `shells/desktop` is outside the
+workspace and the checks. The root configuration type-checks `scripts`,
+`cli`, `runtime`, `link`, `ui` and the TypeScript of `devices/3ds`,
+`devices/services` and `devices/psp`.
+`devices/m5stack` is a third Bun package in the same workspace; its C
+sources build with ESP-IDF. `devices/3ds`, `devices/psp` and
+`devices/services` are not Bun packages: `devices/3ds` builds in the
+devkitARM container with a Rust archive (`bun run 3ds`), `devices/psp` with
+PocketJS's PSP toolchain (`bun run psp`), and the 3DS program and the Tab5
+firmware compile `devices/services`. See the
 [asset policy and review](docs/ASSETS.md) for generated outputs,
 source inputs and retained documentation fixtures. Application code is separate;
 UI APIs come from `@pocketjs/framework/*`, the launcher's applet surface,
@@ -127,21 +135,13 @@ git clone --recurse-submodules https://github.com/pocket-nexus/pocket-shell.git
 cd pocket-shell
 bun run setup
 rustup target add wasm32-unknown-unknown
-bun run check                    # types, unit and simulator tests for the link, the runtime and all shells
-bun run check:3ds                # or check:touch / check:desktop
-bun run check:devices            # host tests of devices/3ds and devices/services (needs a C compiler, Rust, libjpeg and pkg-config)
+bun run check                    # types, unit and simulator tests for the link, the runtime, the CLI and the 3DS and touch shells
+bun run check:3ds                # or check:touch
+bun run check:devices            # host tests of devices/3ds, devices/psp and devices/services (needs a C compiler, Rust, libjpeg and pkg-config)
 ```
 
-```sh
-bun run desktop web              # interactive browser preview
-bun run desktop build:web        # build the browser preview
-bun run desktop test:web         # browser interaction smoke test
-bun run desktop build:site
-bun run desktop test:site
-```
-
-Desktop outputs are in `shells/desktop/dist/`. Use `bun run desktop --help`
-to list its commands, including captures and the text companion.
+`shells/desktop` has no root commands at this pin; its
+[README](shells/desktop/README.md) says why it does not build.
 
 ```sh
 bun run pair --host <console-ip> # once, while ftpd runs on the 3DS: write this computer's pairing onto its card
@@ -149,7 +149,7 @@ bun run deploy                   # build Pocket Shell's .3dsx, install it over t
 bun run push [hn]                # rebuild and hot-push the launcher (or install Hacker News)
 bun run offer                    # build the applets (3DS and Tab5 packages) and serve them from the reference Pocket Link 2 Hub
 bun run tab5 [app…]              # build the launcher and the applets for the M5Stack Tab5 into dist/tab5
-bun run psp                      # build the PSP EBOOT (the launcher) into dist/psp
+bun run psp                      # build the PSP EBOOT (the launcher) from devices/psp; packages and bundles in dist/psp
 bun run shot                     # capture both console screens
 bun run 3ds                      # full console binary in dist/3ds
 bun run touch guest
@@ -170,10 +170,13 @@ no checkout there, `bun run tab5` and `bun run psp` build the launcher, and
 names the variable and the path it read.
 [shells/3ds](shells/3ds/README.md#commands) has what the checkout needs.
 
-PocketJS is pinned through `vendor/pocketjs`, the one submodule. Changes to
-the UI framework, the compiler, the engine, the 3DS platform's hooks and
-input and the PICA renderer belong upstream; this repository selects their
-commit through its submodule pin.
+PocketJS is pinned through `vendor/pocketjs`, the one submodule. **PocketJS
+is UI infrastructure and this repository is the Runtime built on it**: the
+app contract, the `.pocket` container, Pocket Link, the applets, the
+application catalog and switching between applications on a device are here.
+Changes to the UI framework, the compiler, the engine, the PSP library, the
+3DS platform's hooks and input and the PICA renderer belong upstream; this
+repository selects their commit through its submodule pin.
 The applets depend on this repository and not the reverse: the kit and the
 icon family were imported from pocket-nexus/applets at `4660dfe`, and a
 change to either lands here. The Pocket Link's contract, TypeScript reference
@@ -189,28 +192,42 @@ they were imported from PocketJS at `806ac202`, with the 3DS platform's
 media, offload, SOC and worker sources (`devices/3ds/platform`), and PocketJS
 has removed them. The 3DS build reads the platform's hooks and input source
 (`platforms/3ds`), the PICA renderer, the QuickJS facade and the engine
-crates from `vendor/pocketjs`.
+crates from `vendor/pocketjs`. Companion media playback
+(`runtime/spec/media.ts`, `@pocket-shell/runtime/media`,
+`link/media-stream.ts`, [docs/MEDIA.md](docs/MEDIA.md)) and the PSP program's
+app switching, veil, Pocket Link carrier and media player
+([devices/psp](devices/psp/README.md)) came from PocketJS before
+pocket-nexus/pocketjs#708 and #710 removed them.
 
 The [app contract](docs/APP-CONTRACT.md) (`pocket.app.json`: its schema,
 loader and resolver), the [`.pocket` package format](docs/POCKET-PACKAGE.md)
 with its admission rules, the applet check and the [CLI](cli/README.md) that
 compiles an application into a package are in `runtime/` and `cli/`. They
-were imported from PocketJS at `806ac202`. PocketJS keeps its own app
-contract and package format: the 3DS, Tab5 and PSP packages, the Tab5
-firmware and pocket-nexus/applets build with the copies here, and
-`shells/desktop` and `shells/touch` call PocketJS's. PocketJS supplies the
-host contracts and the compiler: the CLI writes the resolved build plan to a
-file, and `vendor/pocketjs/tools/build.ts --plan=<file>` turns it into the
-JavaScript bundle and the asset pack, with the agent's overlay
-(`runtime/src/agent-layer.tsx`) as a `--layer` for a Solid app that declares
-`system.agent`.
+were imported from PocketJS at `806ac202`. **PocketJS has neither an app
+contract nor a `.pocket` container** since pocket-nexus/pocketjs#705 and
+#706: its applications put their build inputs in the `app` section of
+`pocket.host.config.ts`, and its programs boot one compiled application, a
+bundle (`.pkb`, PocketJS `contracts/spec/bundle.ts`). The 3DS, Tab5 and PSP
+packages and pocket-nexus/applets build with the app contract here;
+`shells/touch` builds from the `app` section of its host config with
+PocketJS's CLI. The 3DS program and the Tab5 firmware boot and install
+`.pocket` files: they read them with `devices/services/pocket_container.c`,
+and PocketJS admits and boots the variant the reader states. The PSP
+program embeds admitted variants as bundles.
+PocketJS supplies the host contracts, the JSON Schema subset and its
+validator, the animation theme and the compiler: the CLI writes the resolved
+build plan to a file, and `vendor/pocketjs/tools/build.ts --plan=<file>`
+turns it into the JavaScript bundle and the asset pack, with the agent's
+overlay (`runtime/src/agent-layer.tsx`) as a `--layer` for a Solid app that
+declares `system.agent`.
 
 ## Releases
 
-The repository has one SemVer version: the root `package.json`, each shell's
-`package.json` and each app contract (`pocket.app.json` and the desktop's
-system and Studio manifests) name it, and About on the console shows it. A
-release is a pull request that raises it:
+The repository has one SemVer version: the root `package.json`, the 3DS and
+touch shells' `package.json` and the launcher's app contract
+(`shells/3ds/shell/pocket.app.json`) name it, the touch shell's host config
+reads it from its `package.json`, and About on the console shows it.
+`shells/desktop` takes no part. A release is a pull request that raises it:
 
 ```sh
 bun run release                  # auto: the bump the Conventional Commits since the last tag ask for
@@ -239,12 +256,12 @@ workflow artifact.
 
 ## License
 
-**GNU GPL version 3.** Root, 3DS, touch and M5Stack firmware code uses
+**GNU GPL version 3.** Root, 3DS, PSP, touch and M5Stack firmware code uses
 `GPL-3.0-or-later`; imported desktop code retains `GPL-3.0-only`.
-`runtime/`, `link/`, `devices/3ds`, `devices/services` and the three
-specifications imported from PocketJS (MIT) are distributed under
-`GPL-3.0-or-later`. `ui/` was imported from pocket-nexus/applets, which is
-`GPL-3.0-or-later`.
+`runtime/`, `link/`, `devices/3ds`, `devices/services`, the PSP program's
+sources from PocketJS and the specifications imported from PocketJS (MIT)
+are distributed under `GPL-3.0-or-later`. `ui/` was imported from
+pocket-nexus/applets, which is `GPL-3.0-or-later`.
 PocketJS and third-party fonts retain their own licenses. See
 [LICENSING.md](LICENSING.md), [LICENSE](LICENSE) and
 [contribution rules](CONTRIBUTING.md).

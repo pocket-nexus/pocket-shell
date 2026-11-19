@@ -8,42 +8,94 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "instance.h"
+#include "pocket_container.h"
 #include "runtime.h"
 
-/* Host-test stand-in for the Rust package admission FFI. runtime.c still owns
- * every filesystem transition; this stub only supplies a deterministic footer
- * identity after checking the fixture marker, the 3DS facts and the exact
- * host ABI. */
-int32_t pocket_package_open(
-  const uint8_t *bytes,
-  size_t length,
+/* Host-test stand-in for the Rust inspection (pocket_package_open_source).
+ * runtime.c still owns every filesystem transition and reads the `.pocket`
+ * with the real container reader (pocket_container.c); this stub checks the
+ * 3DS facts, the exact host ABI and that the source states a plan section
+ * inside the file, and admits a plan that starts with "ok". */
+int32_t pocket_package_open_source(
+  const pocket_package_source_v1 *source,
+  void *context,
   const pocket_profile_facts *facts,
   uint32_t host_abi, const uint8_t *profile_hash,
   PocketGuestPackage *out
 ) {
   (void)profile_hash;
-  if (length != 32 || bytes[0] != 0x50 || host_abi != POCKET_BINDING_GENERATION ||
-      facts == NULL || facts->id_length != 7 || memcmp(facts->id, "3ds-dev", 7) != 0) {
-    return 4;
+  pocket_package_sections sections = {0};
+  const uint8_t *bytes = NULL;
+  size_t length = 0;
+  if (source == NULL || source->sections == NULL || source->all == NULL ||
+      source->sections(context, &sections) != 0 || source->all(context, &bytes, &length) != 0 ||
+      host_abi != POCKET_BINDING_GENERATION || sections.host_abi != POCKET_BINDING_GENERATION ||
+      facts == NULL || facts->id_length != 7 || memcmp(facts->id, "3ds-dev", 7) != 0 ||
+      sections.plan_length < 2 || sections.plan_offset + sections.plan_length > length) {
+    return POCKET_PACKAGE_OPEN_SOURCE;
   }
-  uint64_t hash = 0;
-  memcpy(&hash, bytes + 24, sizeof hash);
+  if (memcmp(bytes + sections.plan_offset, "ok", 2) != 0) return POCKET_PACKAGE_OPEN_VIEWPORT;
   memset(out, 0, sizeof *out);
-  out->javascript = bytes + 1;
+  out->javascript = bytes + sections.plan_offset;
   out->javascript_length = 1;
-  out->package_hash = hash;
-  out->variant_hash = hash ^ 0x55aa;
   return 0;
 }
 
-static void write_package(const char *path, uint64_t hash, int valid) {
-  uint8_t bytes[32] = {0};
-  bytes[0] = valid ? 0x50 : 0x00;
-  memcpy(bytes + 24, &hash, sizeof hash);
+/* The package source instance.c supplies in the program. */
+static int32_t source_length(void *context, size_t *out) {
+  *out = ((const PocketRuntimePackage *)context)->length;
+  return 0;
+}
+static int32_t source_all(void *context, const uint8_t **out, size_t *length) {
+  *out = ((const PocketRuntimePackage *)context)->bytes;
+  *length = ((const PocketRuntimePackage *)context)->length;
+  return 0;
+}
+static int32_t source_sections(void *context, pocket_package_sections *out) {
+  *out = ((const PocketRuntimePackage *)context)->sections;
+  return 0;
+}
+static const pocket_package_source_v1 source_api = {sizeof source_api, source_length, source_all, NULL, NULL,
+                                                    source_sections};
+const pocket_package_source_v1 *instance_package_source(void) { return &source_api; }
+
+static void le32(uint8_t *p, uint32_t value) {
+  for (int i = 0; i < 4; ++i) p[i] = (uint8_t)(value >> (8 * i));
+}
+static void le64(uint8_t *p, uint64_t value) {
+  for (int i = 0; i < 8; ++i) p[i] = (uint8_t)(value >> (8 * i));
+}
+
+/* Write a one-variant `.pocket` for 3ds-dev whose plan section is "ok" (or
+ * "no" when `admitted` is 0) followed by `seed`, and return its footer
+ * hash; a `valid` of 0 damages the footer. */
+static uint64_t write_package(const char *path, uint64_t seed, int valid, int admitted) {
+  uint8_t bytes[152] = {0};
+  le32(bytes, POCKET_CONTAINER_MAGIC);
+  le32(bytes + 4, POCKET_CONTAINER_VERSION);
+  le32(bytes + 12, 1);   /* one variant */
+  le32(bytes + 16, 96);  /* string table */
+  le32(bytes + 20, 7);
+  le32(bytes + 32, 96);  /* target "3ds-dev" */
+  le32(bytes + 36, 7);
+  le32(bytes + 40, POCKET_BINDING_GENERATION);
+  le32(bytes + 44, 1);   /* one section */
+  le32(bytes + 48, 112);
+  memcpy(bytes + 96, "3ds-dev", 7);
+  le32(bytes + 112, POCKET_CONTAINER_PLAN);
+  le32(bytes + 120, 128);
+  le32(bytes + 124, 16);
+  memcpy(bytes + 128, admitted ? "ok" : "no", 2);
+  le64(bytes + 136, seed);
+  le64(bytes + 56, pocket_container_fnv1a64(POCKET_CONTAINER_FNV_OFFSET, bytes + 128, 16));
+  uint64_t footer = pocket_container_fnv1a64(POCKET_CONTAINER_FNV_OFFSET, bytes, 144);
+  le64(bytes + 144, valid ? footer : footer ^ 1);
   FILE *file = fopen(path, "wb");
   assert(file != NULL);
   assert(fwrite(bytes, 1, sizeof bytes, file) == sizeof bytes);
   assert(fclose(file) == 0);
+  return footer;
 }
 
 static int exists(const char *path) {
@@ -87,21 +139,23 @@ int main(int argc, char **argv) {
   assert(state.generation == 0 && state.active_hash == 0 && state.last_good_hash == 0);
   assert(strcmp(POCKET_RUNTIME_APP_ROOT, "sdmc:/pocketjs/runtime/apps/0123456789abcdef") == 0);
 
-  const uint64_t first_hash = 0x1111222233334444ULL;
-  write_package(POCKET_RUNTIME_PENDING, first_hash, 1);
+  const uint64_t first_hash = write_package(POCKET_RUNTIME_PENDING, 0x1111222233334444ULL, 1, 1);
+  char first_blob[160];
+  snprintf(first_blob, sizeof first_blob,
+           "sdmc:/pocketjs/runtime/apps/0123456789abcdef/packages/%016llx.pocket",
+           (unsigned long long)first_hash);
   PocketRuntimePackage *first = NULL;
   assert(runtime_prepare_pending(&first, error, sizeof error) == RUNTIME_PENDING_READY);
   assert(first != NULL && first->guest.package_hash == first_hash);
+  assert(first->guest.variant_hash != 0 && first->sections.plan_offset == 128);
   assert(!exists(POCKET_RUNTIME_PENDING));
-  assert(exists(
-    "sdmc:/pocketjs/runtime/apps/0123456789abcdef/packages/1111222233334444.pocket"
-  ));
+  assert(exists(first_blob));
   runtime_package_free(first);
   assert(runtime_commit(&state, first_hash, 0, error, sizeof error));
 
   /* Re-uploading the active bytes verifies the immutable blob and removes only
    * the duplicate staging file; it does not create a second blob. */
-  write_package(POCKET_RUNTIME_PENDING, first_hash, 1);
+  assert(write_package(POCKET_RUNTIME_PENDING, 0x1111222233334444ULL, 1, 1) == first_hash);
   PocketRuntimePackage *duplicate = NULL;
   assert(runtime_prepare_pending(&duplicate, error, sizeof error) == RUNTIME_PENDING_READY);
   assert(duplicate != NULL && duplicate->guest.package_hash == first_hash);
@@ -113,8 +167,7 @@ int main(int argc, char **argv) {
   assert(reloaded.generation == 1);
   assert(reloaded.active_hash == first_hash && reloaded.last_good_hash == 0);
 
-  const uint64_t second_hash = 0xaaaabbbbccccddddULL;
-  write_package(POCKET_RUNTIME_PENDING, second_hash, 1);
+  const uint64_t second_hash = write_package(POCKET_RUNTIME_PENDING, 0xaaaabbbbccccddddULL, 1, 1);
   PocketRuntimePackage *second = NULL;
   assert(runtime_prepare_pending(&second, error, sizeof error) == RUNTIME_PENDING_READY);
   runtime_package_free(second);
@@ -147,15 +200,22 @@ int main(int argc, char **argv) {
   runtime_package_free(last_good);
 
   /* A partial/bad FTP upload is never renamed or deleted. */
-  write_package(POCKET_RUNTIME_PENDING, 0x9999, 0);
+  write_package(POCKET_RUNTIME_PENDING, 0x9999, 0, 1);
   PocketRuntimePackage *invalid = NULL;
   assert(runtime_prepare_pending(&invalid, error, sizeof error) == RUNTIME_PENDING_ERROR);
   assert(invalid == NULL && exists(POCKET_RUNTIME_PENDING));
+  assert(strstr(error, "package integrity hash mismatch") != NULL);
+
+  /* A whole file whose only variant the host does not admit. */
+  write_package(POCKET_RUNTIME_PENDING, 0x8888, 1, 0);
+  assert(runtime_prepare_pending(&invalid, error, sizeof error) == RUNTIME_PENDING_ERROR);
+  assert(invalid == NULL && exists(POCKET_RUNTIME_PENDING));
+  assert(strstr(error, "does not provide the package's viewport") != NULL);
 
   /* The transport-declared footer is an independent admission check. A
    * mismatch remains inspectable at its staging path and creates no blob. */
   const char *network = POCKET_RUNTIME_UPLOAD;
-  write_package(network, 0x123456789abcdef0ULL, 1);
+  write_package(network, 0x123456789abcdef0ULL, 1, 1);
   PocketRuntimePackage *mismatch = NULL;
   assert(runtime_prepare_file(
     network,

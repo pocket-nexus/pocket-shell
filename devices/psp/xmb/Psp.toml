@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# XMB metadata of Pocket Shell's PSP EBOOT; buildPspProgram() writes it to
+# program/Psp.toml, which cargo-psp packs into PARAM.SFO.
+title = "Pocket Shell"
