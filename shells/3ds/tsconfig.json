@@ -57,6 +57,9 @@
       ],
       "@pocket-shell/runtime/camera": [
         "../../runtime/src/camera.ts"
+      ],
+      "@pocket-shell/runtime/media": [
+        "../../runtime/src/media.ts"
       ]
     }
   },

@@ -55,7 +55,7 @@ endpoint (§12).
 ### What does not run on the link
 
 - **Media streams, in this version.** A service's `MediaSource` opens a separate TCP
-  connection to the media provider (PocketJS `docs/MEDIA.md` "Transport and
+  connection to the media provider (`docs/MEDIA.md` "Transport and
   ownership"), and **version 2 keeps that side connection: decided, not
   open**. It exists on the TCP carrier alone. The link as the only transport
   is the end state (§2.0); the side connection is a bulk path that the TCP
@@ -64,7 +64,7 @@ endpoint (§12).
   the link. When media moves onto the link is open (§11).
   **The source's `host` keeps its
   meaning** ("Numeric IPv4 address of the paired companion's media
-  endpoint", PocketJS `contracts/spec/media.ts` `MediaSource`): in the link's terms,
+  endpoint", `runtime/spec/media.ts` `MediaSource`): in the link's terms,
   Hub fills it with **its own address on the device's link connection** (the
   local address of that TCP connection on Hub's side), the address the device
   is known to reach, and `port` with the media endpoint's port.

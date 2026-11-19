@@ -24,7 +24,7 @@ The directory was imported from `engine/host-services` of PocketJS at
 | `jscan.c`, `jscan.h` | | A bounded JSON reader and a growable JSON writer for the program's own records. |
 | `sha256.c`, `sha256.h` | | SHA-256, HMAC-SHA256, hex, and the slot of an app id (the first 16 hex digits of SHA-256 of the id). |
 | `photos_image.c`, `photos_image.h` | `runtime/spec/camera.ts` | DCF photo names, RGB565 to RGB888 for the encoder, and the box-filtered thumbnail and full view in `PSM_5650`. Each program brings its own JPEG codec. |
-| `media_wire.h`, `media_adpcm.h` | PocketJS `contracts/spec/media.ts`, `contracts/spec/media-adpcm.ts` | The media stream's header and packet layouts, PAL8 frame expansion, and the IMA ADPCM block decoder. |
+| `media_wire.h`, `media_adpcm.h` | `runtime/spec/media.ts`, `runtime/spec/media-adpcm.ts`, `docs/MEDIA.md` | The media stream's header and packet layouts, PAL8 frame expansion, and the IMA ADPCM block decoder. |
 | `quirc/` | | QR-code recognition, vendored unmodified (`quirc/VENDORED.txt`). |
 
 **Pocket Link 1's C client was not imported.** `link.c`, `link_proto.c`,
@@ -56,7 +56,7 @@ runs them (`test/`, with a C compiler):
 | `pocket-link-2-client.test.ts` | `link2.c`, `link2_bsd.c`, `link2_proto.c`, `sha256.c`, `jscan.c` as a process under ASan and UBSan | the reference Hub (`link/v2/hub.ts`) on loopback |
 | `fs-3ds.test.ts` | `fs.c`, `jscan.c` under ASan and UBSan | PocketJS's sim fs host (`platforms/sim/fs.ts`), op by op |
 | `jscan-quirc.test.ts` | `jscan.c`, `quirc/` under ASan and UBSan | a code of the reference QR encoder (`link/qr.ts`) in a 320x240 frame |
-| `media-wire.test.ts` | `media_wire.h`, `media_adpcm.h` | PocketJS's producer (`tools/media-stream.ts`, `contracts/spec/media-adpcm.ts`) |
+| `media-wire.test.ts` | `media_wire.h`, `media_adpcm.h` | the producer (`link/media-stream.ts`, `runtime/spec/media-adpcm.ts`) |
 | `pocket-container-c.test.ts` | `pocket_container.c` under ASan and UBSan | the TypeScript codec (`runtime/spec/pocket-package.ts`) on the admission corpus (`runtime/test/fixtures/admission`) and generated packages, damaged packages, the selection order of `runtime/spec/admission.ts` |
 
 `devices/3ds/test` compiles `fs.c`, `jscan.c`, `link2_proto.c`, `sha256.c`

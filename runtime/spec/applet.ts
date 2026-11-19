@@ -136,7 +136,6 @@ export const APPLET_MODULES = [
   "touch",
   "virtual-list",
   "physics",
-  "media",
   "audio",
   "display",
   "platform",
@@ -152,7 +151,7 @@ export const APPLET_GATED_MODULES: Readonly<Record<string, readonly string[]>> =
 };
 /** `@pocket-shell/runtime/<module>` modules an applet may import: the
  *  Runtime's guest modules (runtime/src) that serve an applet. */
-export const APPLET_RUNTIME_MODULES = ["applet", "link"] as const;
+export const APPLET_RUNTIME_MODULES = ["applet", "link", "media"] as const;
 /** `@pocket-shell/runtime/<module>` modules allowed when the manifest
  *  declares a capability that gates them. */
 export const APPLET_RUNTIME_GATED_MODULES: Readonly<Record<string, readonly string[]>> = {
@@ -161,7 +160,7 @@ export const APPLET_RUNTIME_GATED_MODULES: Readonly<Record<string, readonly stri
 /** The Runtime's guest modules, `@pocket-shell/runtime/<module>`. PocketJS
  *  published them as `@pocketjs/framework/<module>` until it removed them, so
  *  an import of the old specifier names the new one. */
-export const RUNTIME_GUEST_MODULES = ["applet", "link", "channel", "launcher", "system", "agent", "wifi", "device", "camera"] as const;
+export const RUNTIME_GUEST_MODULES = ["applet", "link", "channel", "launcher", "system", "agent", "wifi", "device", "camera", "media"] as const;
 /** Exports of @pocket-shell/runtime/link that act for the system: installing,
  *  removing and pairing belong to the launcher. */
 export const APPLET_SYSTEM_LINK_EXPORTS = ["installApp", "removeApp", "pairCompanion", "forgetCompanion", "requestCatalog"] as const;
