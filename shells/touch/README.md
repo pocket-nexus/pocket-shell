@@ -118,7 +118,7 @@ sampling windows. Per-journey `postCaptureFps` includes screenshot overhead;
 use `quickFps`, `stackFps` and `homeFps` for continuous-motion cadence.
 
 The shell owns its app, sixteen mockups, gesture model, assets and tests.
-The Omarchy companion remains in `shells/ipod`. The shared runtime, renderer,
+The Omarchy companion is on the branch `archive/3ds-omarchy-ipod-remote`. The shared runtime, renderer,
 UIKit host and installer come from the pinned `vendor/pocketjs` submodule.
 
 `pocket.host.config.ts` holds the app's build inputs for both devices: its

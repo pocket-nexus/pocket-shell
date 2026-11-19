@@ -5,12 +5,16 @@ text is in [LICENSE](LICENSE).
 
 | Scope | License |
 | --- | --- |
-| Root tooling and documentation, 3DS and touch code and original assets | GPL-3.0-or-later |
+| Root tooling and documentation, 3DS, PSP and touch code and original assets | GPL-3.0-or-later |
 | Imported desktop shell code, documentation and original assets | GPL-3.0-only |
 | M5Stack firmware in `devices/m5stack`: code, documentation and original assets | GPL-3.0-or-later |
 | PocketJS runtime submodule | MIT |
 | `runtime/`, `link/`, `docs/POCKET-LINK.md`, `docs/APPLETS.md` and `docs/POCKET-AGENT.md` | Imported from PocketJS (MIT) at commit `89e1043830434e07926e520d129c4fe0fccdcd48`; distributed here under GPL-3.0-or-later. The original notice is [runtime/LICENSE.pocketjs-MIT](runtime/LICENSE.pocketjs-MIT) |
 | `devices/3ds` and `devices/services`, except `devices/services/quirc`; `cli/`, `runtime/manifest`, `runtime/package`, `runtime/schema`, `runtime/spec/pocket-manifest.ts`, `runtime/spec/pocket-package.ts`, `runtime/spec/admission.ts` and their tests in `runtime/test`; `docs/APP-CONTRACT.md` and `docs/POCKET-PACKAGE.md` | Imported from PocketJS (MIT) at commit `806ac202141ece274f47c938c2899ffe8d30921d`; distributed here under GPL-3.0-or-later. The original notice is [runtime/LICENSE.pocketjs-MIT](runtime/LICENSE.pocketjs-MIT) |
+| Companion media playback: `runtime/spec/media.ts`, `runtime/spec/media-adpcm.ts`, `runtime/src/media.ts`, `link/media-stream.ts`, `runtime/test/media.test.ts` and `docs/MEDIA.md` | Imported from PocketJS (MIT) at commit `e95942c339d748773c4e7ad103b8b67075320062`, which PocketJS's next commit (#710) removed them from; distributed here under GPL-3.0-or-later. The original notice is [runtime/LICENSE.pocketjs-MIT](runtime/LICENSE.pocketjs-MIT) |
+| The PSP program's `devices/psp/program/src/switch.rs` and `veil.rs` | Imported from PocketJS (MIT) `programs/psp/src` at commit `a8f2bcdd9b8e3e88b7a2acfb800185617b1d8765`, before #708 removed them; distributed here under GPL-3.0-or-later. The original notice is [runtime/LICENSE.pocketjs-MIT](runtime/LICENSE.pocketjs-MIT) |
+| The PSP program's `devices/psp/program/src/link.rs` and `link_record.rs` (from PocketJS `platforms/psp/io/src/link.rs`), `media.rs`, `media_wire.rs` and `bindings.rs` (from PocketJS `programs/psp/src`, its media player and service bindings) | Imported from PocketJS (MIT) at commit `e95942c339d748773c4e7ad103b8b67075320062`, before #710 removed them; distributed here under GPL-3.0-or-later. The original notice is [runtime/LICENSE.pocketjs-MIT](runtime/LICENSE.pocketjs-MIT) |
+| `runtime/test/fixtures/admission`: the admission corpus | Imported from PocketJS (MIT) `engine/package/tests/fixtures/admission` at commit `89162fb71f718af37e0e39b3ddba2d5ee0e050f9`; distributed here under GPL-3.0-or-later. The original notice is [runtime/LICENSE.pocketjs-MIT](runtime/LICENSE.pocketjs-MIT) |
 | `ui/`: the iOS 6 kit's sources, its pictures and the icon family | Imported from [pocket-nexus/applets](https://github.com/pocket-nexus/applets) (GPL-3.0-or-later) at commit `4660dfe66e361e850f47e13b8da4dbad357e7594`; distributed here under GPL-3.0-or-later. Each source carries the SPDX line it had there |
 | `devices/services/quirc`: the quirc QR decoder, vendored unmodified | ISC, [devices/services/quirc/LICENSE](devices/services/quirc/LICENSE) |
 | Third-party fonts and derived font atlases | Their accompanying font licenses |

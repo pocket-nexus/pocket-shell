@@ -4,16 +4,20 @@
 application.** It names the entry module, the framework, the viewport the
 layout is written for, the APIs the application calls and the rate it is
 compiled at. The format is **2**, the schema is `runtime/schema/pocket-2.json`
-(published at `https://pocketjs.dev/schema/pocket-2.json`), and **the schema
-rejects any property it does not list**. The resolver combines the app
+in this repository (written by `bun runtime/schema/generate.ts`, checked by
+`bun run check:schemas`), and **the schema rejects any property it does not
+list**. Its identifier, `https://pocketjs.dev/schema/pocket-2.json`, is the
+value `$schema` must hold; the URL identifies the schema and is not served.
+The resolver combines the app
 contract with a host contract into a build plan at `.pocket/<target>/plan.json`;
 see PocketJS [Platform contracts](../vendor/pocketjs/site/content/docs/platform-contracts.md) for the host
 side and [cli/README.md](../cli/README.md) for the commands.
 
-PocketJS `pocket create <name>` writes an app contract with `id`, `title`, `version`,
-`engine.capabilities.requires`, `app.entry`, `app.output`, `app.framework` and
-`app.viewport`. `bun cli/pocket-shell.ts check --manifest pocket.app.json --target <id>` validates
-one by hand.
+PocketJS has no app contract: its `pocket create <name>` writes a
+`pocket.host.config.ts` whose `app` section holds an application's build
+inputs. Write `pocket.app.json` from the example below;
+`bun cli/pocket-shell.ts check --manifest pocket.app.json --target <id>`
+validates it.
 
 ```json
 {
@@ -55,11 +59,11 @@ selected host contract cannot satisfy.
 | --- | --- | --- |
 | `$schema` | yes | `https://pocketjs.dev/schema/pocket-2.json` |
 | `pocket` | yes | `2` |
-| `id` | yes | Reverse-domain name, lowercase, at least two dot-separated labels: `dev.example.notes`. The package identity; PocketJS's Vita backend derives the installed Title ID from it. |
+| `id` | yes | Reverse-domain name, lowercase, at least two dot-separated labels: `dev.example.notes`. The package identity; a device names the app's state slot after it (the first 16 hex digits of its SHA-256). |
 | `title` | yes | Display name, 1 to 128 characters. Written into the plan and the package identity. |
 | `version` | yes | Semantic version string. |
-| `author` | no | Who publishes the application, 1 to 128 characters. PocketJS `pocket pack` records it when `--author` is absent. |
-| `icon` | no | Path to a square PNG, relative to the app contract, inside the project. `pocket-shell compile` stores it as each variant's cover section; PocketJS `pocket pack` uses it when `--icon` is absent. The loader checks the PNG signature and that width equals height. |
+| `author` | no | Who publishes the application, 1 to 128 characters. The package's copy of the app contract keeps it. |
+| `icon` | no | Path to a square PNG, relative to the app contract, inside the project. `pocket-shell compile` stores it as each variant's cover section, which a bundle written from the variant (`runtime/package/bundle.ts`) carries as its icon section. The loader checks the PNG signature and that width equals height. |
 | `engine` | yes | The capability declaration, below. |
 | `app` | yes | The application section, below. |
 | `domains` | no | Execution domains beside the UI realm; today `worker`. |
@@ -132,7 +136,7 @@ observable behavior share an id, and a different guarantee gets a new id.
 | `ui.physics` | 2D bodies stepped by the UI core: worlds, jelly bodies, colliders, zones and particle emitters (PocketJS `contracts/spec/physics.ts`). |
 | `ui.compositor-surfaces` | A System UI can place installed applications into native compositor surfaces. |
 | `audio.pcm` | Credit-based s16 PCM streaming through `globalThis.audio`. |
-| `media.playback` | Native encoded-media playback with audio clock, pause, volume and texture output. |
+| `media.playback` | Native encoded-media playback with audio clock, pause, volume and texture output ([docs/MEDIA.md](MEDIA.md)). |
 | `data.fs` | A per-app file tree behind `globalThis.fs`; paths are confined to the app's own root. |
 | `data.pack` | Read-only files under the game data root behind `globalThis.pack`: chapter textures and streamed PCM kept outside the program image (PocketJS `docs/PACKS.md`). |
 | `host.clipboard` | Copy, cut and paste with the OS clipboard. |
@@ -153,7 +157,7 @@ observable behavior share an id, and a different guarantee gets a new id.
 | `framework` | yes | `solid`, `vue-vapor` or `octane`. See PocketJS [Frameworks](../vendor/pocketjs/site/content/docs/frameworks.md). |
 | `tickHz` | no | Core ticks per virtual second the package is compiled at, **1 through 60, default 60**. Resolution fails with `app.tickHz` when no cadence of the target divides it. A host presents at the largest cadence the rate is a multiple of and advances the core `tickHz ÷ cadence` ticks per frame. |
 | `theme` | no | Path to a `.ts` module or `.json` file whose default export holds the animation theme, below. |
-| `aot` | no | `true` admits the Solid component graph to the AOT view subset; PocketJS `pocket compile --aot` requires it. See PocketJS [MicroTS](../vendor/pocketjs/site/content/docs/microts.md). |
+| `aot` | no | `true` admits the Solid component graph to the AOT view subset; a resolution for the AOT execution class requires it. PocketJS `pocket compile --aot` reads the `app` section of a host config, not this field. See PocketJS [MicroTS](../vendor/pocketjs/site/content/docs/microts.md). |
 | `model` | no | `rust` (default) or `compiled`: with `aot`, compile the `.ts` model beside the entry. |
 | `recursionLimit` | no | Default 256. Development AOT builds enforce it; release builds omit the guard. |
 | `viewport` | yes | The primary viewport, below. |
@@ -404,6 +408,6 @@ reports every diagnostic with a JSON pointer into the app contract:
 | `app.outputUnderivable` | The entry's basename is not a valid artifact name. |
 | `app.themeUnresolved` | The theme path was not loaded before resolution; use `readPocketManifest`. |
 | `app.tickHz` | No target cadence divides the rate. |
-| `execution.aotDisabled` | PocketJS `pocket compile --aot` without `app.aot`. |
+| `execution.aotDisabled` | A resolution for the AOT execution class without `app.aot`. |
 | `worker.entry`, `worker.execution`, `worker.duplicate`, `worker.nodeLimit`, `worker.channelLimit` | Worker rules above. |
 | `target.unknown` | `--target` names no built-in host id and no host contract. |
