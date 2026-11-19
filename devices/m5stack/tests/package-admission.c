@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* A stand-in for PocketJS's pocket_idf_package_open_source
- * (pocket/package_facts.h) that tests/package.c links on the build machine.
+/* A stand-in for PocketJS's pocket_idf_package_open_source and
+ * pocket_idf_package_feature (pocket/package_facts.h) that tests/package.c
+ * links on the build machine.
  * It reads the package source as the runtime's admission reads a source
  * with stated sections: the table, length, then sections, then all; a source
  * that does not supply them is POCKET_PACKAGE_OPEN_SOURCE, a section outside
@@ -10,14 +11,15 @@
  *
  * The plans of tests/package.test.ts decide the rest:
  * {"app":{"id":"<id>"},"admit":<code>} is admitted when <code> is 0, with
- * the slot of <id>, and refused with <code> otherwise. */
+ * <id> as the app id, and refused with <code> otherwise. A plan turns a
+ * feature on when it holds "<name>":true. */
 
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "pocket/package_facts.h"
-#include "sha256.h"
 
 extern size_t test_offered[64];
 extern size_t test_offered_count;
@@ -95,6 +97,23 @@ int32_t pocket_idf_package_open_source(const pocket_package_source_v1 *source,
     out->pak = bytes + sections.pak_offset;
     out->pak_length = sections.pak_length;
   }
-  sha256_slot(id, (size_t)(end - id), out->slot);
+  out->app_id = (const char *)out->plan + (id - plan);
+  out->app_id_length = (size_t)(end - id);
+  return POCKET_PACKAGE_OPEN_OK;
+}
+
+int32_t pocket_idf_package_feature(const pocket_idf_package_facts *facts,
+                                   const char *name, bool *enabled) {
+  if (facts == NULL || facts->struct_size < sizeof *facts ||
+      facts->plan == NULL || name == NULL || enabled == NULL)
+    return POCKET_PACKAGE_OPEN_BAD_ARGUMENT;
+  char key[128];
+  char plan[1024];
+  if (facts->plan_length >= sizeof plan ||
+      (size_t)snprintf(key, sizeof key, "\"%s\":true", name) >= sizeof key)
+    return POCKET_PACKAGE_OPEN_PLAN_JSON;
+  memcpy(plan, facts->plan, facts->plan_length);
+  plan[facts->plan_length] = '\0';
+  *enabled = strstr(plan, key) != NULL;
   return POCKET_PACKAGE_OPEN_OK;
 }

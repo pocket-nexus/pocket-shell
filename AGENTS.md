@@ -125,7 +125,8 @@ modules as `@pocket-shell/runtime/<module>` (the exports of
 `runtime/package.json`):
 
 - `runtime/`: the contracts (`spec/`: Pocket Link 1 and 2, the applet
-  contract, the agent, owner setup, Wi-Fi, device, camera, media), the guest
+  contract, the agent, owner setup, Wi-Fi, device, camera, media, and the
+  capability ids Pocket Shell defines, `capabilities.ts`), the guest
   modules (`src/`: the applet surface, link, applet channel, launcher, system
   sheet, agent and its overlay, Wi-Fi, device, camera, media), the 3DS
   console simulator with its link, Wi-Fi, camera and agent fakes (`sim/`),

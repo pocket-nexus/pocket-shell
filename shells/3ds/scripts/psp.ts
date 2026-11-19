@@ -38,7 +38,8 @@ import { bakeVeilLogo } from "../../../devices/psp/veil-logo.ts";
 import { POCKET_BINDING_GENERATION } from "../../../vendor/pocketjs/contracts/spec/binding-generation.ts";
 import { hashPocketProfile } from "../../../vendor/pocketjs/framework/src/profile.ts";
 import { prepareApplication } from "../../../vendor/pocketjs/tools/build/inputs.ts";
-import { loadProfileDocument, profileRegistry } from "../../../vendor/pocketjs/tools/profile-resolver.ts";
+import { loadProfileDocument } from "../../../vendor/pocketjs/tools/profile-resolver.ts";
+import { shellRegistry } from "../../../runtime/manifest/registry.ts";
 import { buildPspProgram } from "../../../vendor/pocketjs/tools/psp.ts";
 import { APPS, appContract, LAUNCHER, projectRoot } from "./apps.ts";
 import { DIST_PSP, PLAN_DIR_PSP, POCKET_SHELL_CLI, PROJECT_ROOT, ROOT } from "./paths.ts";
@@ -56,7 +57,7 @@ export const pspProfile = () => loadProfileDocument(PSP_HOST_CONTRACT);
  *  it does not resolve. */
 export function resolvePspContract(contract: string): { plan: ResolvedBuildPlan } | { reasons: string } {
   const profile = pspProfile();
-  const resolution = validateAndResolveBuildPlan(readPocketManifest(contract).manifest, { target: profile.id }, profileRegistry(profile));
+  const resolution = validateAndResolveBuildPlan(readPocketManifest(contract).manifest, { target: profile.id }, shellRegistry(profile));
   if (!resolution.ok) return { reasons: resolution.diagnostics.map((item) => `${item.path || "/"}: ${item.message}`).join("; ") };
   return { plan: resolution.plan };
 }

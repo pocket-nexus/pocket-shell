@@ -146,9 +146,14 @@ int main(int argc, char **argv) {
     return 0;
   }
   const pocket_package_sections *s = &package.sections;
+  char slot[17];
+  package_slot(&facts, slot);
   printf(",\"hash\":\"%016" PRIx64 "\",\"variantHash\":\"%016" PRIx64
          "\",\"slot\":\"%s\",\"hostAbi\":%" PRIu32 ",",
-         package.hash, package.variant_hash, facts.slot, s->host_abi);
+         package.hash, package.variant_hash, slot, s->host_abi);
+  printf("\"features\":{\"camera.photo\":%s,\"data.fs\":%s},",
+         package_feature(&facts, "camera.photo") ? "true" : "false",
+         package_feature(&facts, "data.fs") ? "true" : "false");
   printf("\"inPlace\":%s,",
          package.bytes == bytes && package.size == size ? "true" : "false");
   printf("\"sections\":{");

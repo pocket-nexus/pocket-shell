@@ -13,7 +13,6 @@ import type {
   PresentationSpec,
 } from "../spec/pocket-manifest.ts";
 import {
-  POCKET_PLATFORM_CONTRACTS,
   type FixedDisplayProfile,
   type PlatformContractRegistry,
   type PresentationMode,
@@ -30,6 +29,7 @@ import type { ContractDiagnostic } from "../../vendor/pocketjs/contracts/spec/js
 import { POCKET_BINDING_GENERATION } from "../../vendor/pocketjs/contracts/spec/binding-generation.ts";
 import { appletManifestDiagnostics } from "../spec/applet.ts";
 import { cadenceFor } from "../spec/admission.ts";
+import { SHELL_PLATFORM_CONTRACTS } from "./registry.ts";
 
 /** The package rate when the manifest states none (`app.tickHz`). */
 export const DEFAULT_TICK_HZ = 60;
@@ -487,7 +487,7 @@ export function validatePlatformContractRegistry(
 export function resolveBuildPlan(
   manifest: PocketManifestV2,
   request: ResolveBuildRequest,
-  registry: PlatformContractRegistry = POCKET_PLATFORM_CONTRACTS,
+  registry: PlatformContractRegistry = SHELL_PLATFORM_CONTRACTS,
 ): ResolutionResult {
   const diagnostics: ContractDiagnostic[] = [...validatePlatformContractRegistry(registry)];
   if (request.hostExtension !== undefined && !isHostExtension(request.hostExtension)) {
@@ -851,7 +851,7 @@ export function resolveBuildPlan(
 export function validateAndResolveBuildPlan(
   input: unknown,
   request: ResolveBuildRequest,
-  registry: PlatformContractRegistry = POCKET_PLATFORM_CONTRACTS,
+  registry: PlatformContractRegistry = SHELL_PLATFORM_CONTRACTS,
 ): ResolutionResult {
   const validated = validatePocketManifest(input);
   if (!validated.ok) return validated;

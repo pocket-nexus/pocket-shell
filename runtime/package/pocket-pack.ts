@@ -15,7 +15,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { POCKET_BINDING_GENERATION } from "../../vendor/pocketjs/contracts/spec/binding-generation.ts";
-import { profileRegistry } from "../../vendor/pocketjs/tools/profile-resolver.ts";
+import { shellRegistry } from "../manifest/registry.ts";
 import {
   canonicalJson,
   planProfileDocument,
@@ -172,7 +172,7 @@ function verifyCommand(file: string): void {
       plan.target.hostAbi !== v.hostAbi || plan.profileHash !== v.profileHash) {
       throw new Error(`verify: variant ${v.target} has inconsistent plan identity`);
     }
-    const resolution = validateAndResolveBuildPlan(manifest, { target: v.target, hostExtension: plan.hostExtension }, profileRegistry(planProfileDocument(plan.profile)));
+    const resolution = validateAndResolveBuildPlan(manifest, { target: v.target, hostExtension: plan.hostExtension }, shellRegistry(planProfileDocument(plan.profile)));
     if (!resolution.ok) throw new Error(`verify: variant ${v.target} is no longer admitted by its own manifest`);
     if (canonicalJson(plan) !== canonicalJson(resolution.plan)) {
       throw new Error(`verify: variant ${v.target} resolved plan drifted from its manifest`);

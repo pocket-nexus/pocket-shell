@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "sha256.h"
+
 // ---------------------------------------------------------------------------
 // the package source
 // ---------------------------------------------------------------------------
@@ -164,6 +166,17 @@ bool package_open(const uint8_t *bytes, size_t size, const PackageHost *host,
   else
     snprintf(error, capacity, "the package is damaged (%ld)", (long)code);
   return false;
+}
+
+void package_slot(const pocket_idf_package_facts *facts, char slot[17]) {
+  sha256_slot(facts->app_id, facts->app_id_length, slot);
+}
+
+bool package_feature(const pocket_idf_package_facts *facts, const char *name) {
+  bool enabled = false;
+  return pocket_idf_package_feature(facts, name, &enabled) ==
+             POCKET_PACKAGE_OPEN_OK &&
+         enabled;
 }
 
 // ---------------------------------------------------------------------------
