@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Device admission in TypeScript (runtime/spec/admission.ts) over the corpus
-// PocketJS's device reader tests read: vendor/pocketjs/engine/package/tests/
-// fixtures/admission. The tools here and the firmware's engine give the same
-// result for every case.
+// Device admission in TypeScript (runtime/spec/admission.ts) over the
+// admission corpus in fixtures/admission, which the device programs' C
+// reader of `.pocket` reads in devices/services/test as well: the tools here
+// and the devices select the same variant for every case.
 
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
@@ -11,7 +11,7 @@ import { admitPlan, cadenceFor, describeRejection, selectVariant } from "../spec
 import { decodePocketPackage } from "../spec/pocket-package.ts";
 import { admissionCorpus, type AdmissionCase } from "./admission-corpus.ts";
 
-const directory = resolve(import.meta.dir, "../../vendor/pocketjs/engine/package/tests/fixtures/admission");
+const directory = resolve(import.meta.dir, "fixtures/admission");
 
 test("the committed admission corpus is the generator's output", () => {
   const corpus = admissionCorpus();

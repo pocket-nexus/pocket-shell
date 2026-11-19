@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { loadedManifestSchema, type PocketManifestV2 } from "../spec/pocket-manifest.ts";
-import { validateSchema, type ContractDiagnostic, type ValidationResult } from "./schema.ts";
-export { validateSchema, type ContractDiagnostic, type ValidationResult } from "./schema.ts";
+import { validateSchema, type ContractDiagnostic, type ValidationResult } from "../../vendor/pocketjs/contracts/spec/json-schema.ts";
 
 /** Validate a manifest as written or as `readPocketManifest` loads it: the
  *  loaded form carries `app.theme` content in place of the path. */

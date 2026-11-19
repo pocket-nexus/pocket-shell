@@ -29,7 +29,8 @@ import {
   validateAndResolveBuildPlan,
   validatePlatformContractRegistry,
 } from "../manifest/resolve.ts";
-import { validatePocketManifest, validateSchema, type ContractDiagnostic } from "../manifest/validate.ts";
+import { validatePocketManifest } from "../manifest/validate.ts";
+import { validateSchema, type ContractDiagnostic } from "../../vendor/pocketjs/contracts/spec/json-schema.ts";
 import { cadenceFor } from "../spec/admission.ts";
 import {
   POCKET_MANIFEST_SCHEMA_ID,

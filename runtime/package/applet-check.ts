@@ -24,8 +24,8 @@ import {
   appletManifestDiagnostics,
   capabilityMatches,
   type AppletDeclaration,
-  type ContractDiagnostic,
 } from "../spec/applet.ts";
+import type { ContractDiagnostic } from "../../vendor/pocketjs/contracts/spec/json-schema.ts";
 import type { PocketManifestV2 } from "../spec/pocket-manifest.ts";
 import { validatePocketManifest } from "../manifest/validate.ts";
 import { readPocketManifest } from "../manifest/load.ts";

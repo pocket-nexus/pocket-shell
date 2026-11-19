@@ -19,7 +19,8 @@
 // (runtime/manifest/resolve.ts); the source and bundle rules when the build
 // runs (runtime/package/applet-check.ts, called by cli/pocket-shell.ts).
 
-import type { JsonSchema, PocketManifestV2 } from "./pocket-manifest.ts";
+import type { PocketManifestV2 } from "./pocket-manifest.ts";
+import type { ContractDiagnostic, JsonSchema } from "../../vendor/pocketjs/contracts/spec/json-schema.ts";
 
 const APPLET_VERSION = 1 as const;
 
@@ -167,16 +168,6 @@ export const APPLET_SYSTEM_LINK_EXPORTS = ["installApp", "removeApp", "pairCompa
 /** Bare packages an applet may import besides @pocketjs/framework and
  *  @pocket-shell/runtime. */
 export const APPLET_PACKAGES = ["solid-js", "solid-js/store"] as const;
-
-/** A broken contract rule in a manifest, a platform registry or an applet's
- *  code (runtime/manifest/validate.ts re-exports it). */
-export interface ContractDiagnostic {
-  readonly code: string;
-  /** RFC 6901 JSON Pointer into the manifest (the root is the empty
-   *  string), or a source path. */
-  readonly path: string;
-  readonly message: string;
-}
 
 /** Whether capability `id` is `pattern`, or in its family when the pattern
  *  ends in "." ("camera." matches "camera.qr"). */

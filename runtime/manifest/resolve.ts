@@ -25,7 +25,8 @@ import {
   type ResolvedBuildPlan,
   type ResolvedBuildPlanContent,
 } from "./plan.ts";
-import { validatePocketManifest, type ContractDiagnostic } from "./validate.ts";
+import { validatePocketManifest } from "./validate.ts";
+import type { ContractDiagnostic } from "../../vendor/pocketjs/contracts/spec/json-schema.ts";
 import { POCKET_BINDING_GENERATION } from "../../vendor/pocketjs/contracts/spec/binding-generation.ts";
 import { appletManifestDiagnostics } from "../spec/applet.ts";
 import { cadenceFor } from "../spec/admission.ts";

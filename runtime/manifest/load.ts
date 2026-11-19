@@ -6,8 +6,9 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { animationThemeSchema, pocketManifestV2Schema, type AnimationTheme } from "../spec/pocket-manifest.ts";
-import { validateSchema, type ContractDiagnostic } from "./schema.ts";
+import { pocketManifestV2Schema } from "../spec/pocket-manifest.ts";
+import { animationThemeSchema, type AnimationTheme } from "../../vendor/pocketjs/contracts/spec/animation-theme.ts";
+import { validateSchema, type ContractDiagnostic } from "../../vendor/pocketjs/contracts/spec/json-schema.ts";
 
 export interface LoadedManifest {
   /** The manifest, with `app.theme` holding content. */
