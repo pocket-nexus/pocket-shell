@@ -7,9 +7,9 @@
 // tests/package-admission.c stands in for PocketJS's admission and decides
 // each variant by its plan.
 //
-// - an admitted package is read in place: its hashes, its slot, the sections
-//   of the variant admission took, its worker sections and every callback of
-//   the package source the runtime boots;
+// - an admitted package is read in place: its hashes, its slot, two features
+//   by id, the sections of the variant admission took, its worker sections
+//   and every callback of the package source the runtime boots;
 // - variants are offered in the order runtime/spec/admission.ts selects them;
 // - a refused or damaged package gets the message the store logs and an
 //   install reports.
@@ -73,8 +73,9 @@ function open(bytes: Uint8Array, hash = "profile"): any {
 }
 
 const text = (value: string) => new TextEncoder().encode(value);
+// Every plan turns camera.photo on and data.fs off; the probe reads both.
 const plan = (admit: number, id: string | null = ID) =>
-  text(JSON.stringify(id === null ? { admit } : { app: { id }, admit }));
+  text(JSON.stringify({ ...(id === null ? {} : { app: { id } }), admit, features: { "camera.photo": true, "data.fs": false } }));
 const otherHash = `sha256:${"ee".repeat(32)}`;
 
 /** A variant with every section the firmware reads; `admit` is what the
@@ -122,6 +123,7 @@ describe("an admitted package is read in place", () => {
       variantHash: fnv1a64(...decoded.sections.map((section) => section.bytes)).toString(16).padStart(16, "0"),
       slot: createHash("sha256").update(ID).digest("hex").slice(0, 16),
       hostAbi,
+      features: { "camera.photo": true, "data.fs": false },
       inPlace: true,
       sections: {
         plan: span(POCKET_SECTION.plan),

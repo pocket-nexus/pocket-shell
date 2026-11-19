@@ -11,7 +11,7 @@ pub use pocket_archive::*;
 use pocket_native_program as _;
 use core::ffi::c_void;
 use pocket_drivers::abi;
-use pocket_package::sha256::sha256_hex_prefix;
+use pocket_package::sha256::sha256;
 use pocket_runtime::abi::{open_c_source, OpenedPackage};
 
 /// Borrowed sections of one admitted program. The C runtime owns the
@@ -115,11 +115,24 @@ pub unsafe extern "C" fn pocket_package_open_source(
     }
 }
 
+/// The state slot of an app id below runtime/apps: the first 16 lowercase
+/// hex digits of SHA-256 of the id, NUL-terminated (devices/services
+/// sha256_slot makes the same).
+fn slot(id: &str) -> [u8; 17] {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let digest = sha256(id.as_bytes());
+    let mut slot = [0u8; 17];
+    for (index, byte) in digest[..8].iter().enumerate() {
+        slot[index * 2] = HEX[usize::from(byte >> 4)];
+        slot[index * 2 + 1] = HEX[usize::from(byte & 15)];
+    }
+    slot
+}
+
 fn record(opened: &OpenedPackage<'_>) -> PocketGuestPackage {
     let (guest, facts) = (&opened.guest, &opened.facts);
     let auxiliary = facts.auxiliary;
-    let mut slot = [0u8; 17];
-    slot[..16].copy_from_slice(&sha256_hex_prefix::<16>(guest.id.as_bytes()));
+    let slot = slot(guest.id);
     let feature = |name: &str, bit: u32| if facts.feature(name) { bit } else { 0 };
     PocketGuestPackage {
         javascript: guest.js.as_ptr(),

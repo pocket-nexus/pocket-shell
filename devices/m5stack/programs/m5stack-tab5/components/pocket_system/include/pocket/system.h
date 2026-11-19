@@ -108,6 +108,10 @@ const pocket_package_source_v1 *
 pocketjs_system_app_source(pocketjs_system_app_t *app, void **context);
 const pocket_idf_package_facts *
 pocketjs_system_app_facts(const pocketjs_system_app_t *app);
+/** Whether `app`'s plan turns the capability `name` on: a PocketJS id or
+ * one Pocket Shell defines (runtime/spec/capabilities.ts). */
+bool pocketjs_system_app_feature(const pocketjs_system_app_t *app,
+                                 const char *name);
 bool pocketjs_system_app_is_launcher(const pocketjs_system_app_t *app);
 
 /** Before the runtime boots `app` in `realm`: record it as the running app,

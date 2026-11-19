@@ -9,7 +9,6 @@
 #include "pocket/audio.h"
 #include "pocket/camera.h"
 #include "pocket/media.h"
-#include "pocket/package_facts.h"
 
 static const char *TAG = "tab5_camera_media";
 
@@ -48,9 +47,7 @@ static void audio_volume(void *context, uint32_t percent) {
 }
 
 void tab5_camera_media_install(JSContext *realm, pocket_runtime *runtime,
-                               uint32_t features) {
-  const bool qr = (features & POCKET_IDF_FEATURE_CAMERA_QR) != 0U;
-  const bool photo = (features & POCKET_IDF_FEATURE_CAMERA_PHOTO) != 0U;
+                               bool qr, bool photo, bool media) {
   if ((qr || photo) && !camera_ready) {
     pocketjs_camera_config_t config;
     pocketjs_camera_config_defaults(&config);
@@ -64,7 +61,7 @@ void tab5_camera_media_install(JSContext *realm, pocket_runtime *runtime,
   }
   if (camera_ready)
     ESP_ERROR_CHECK(pocketjs_camera_install(realm, runtime, qr, photo));
-  if ((features & POCKET_IDF_FEATURE_MEDIA) != 0U) {
+  if (media) {
     if (!media_ready) {
       pocketjs_media_config_t config;
       pocketjs_media_config_defaults(&config);

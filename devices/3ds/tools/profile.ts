@@ -4,15 +4,10 @@
 
 import { resolve } from "node:path";
 import { POCKET_BINDING_GENERATION } from "../../../vendor/pocketjs/contracts/spec/binding-generation.ts";
-import {
-  POCKET_CAPABILITIES,
-  definePlatformContractRegistry,
-  defineTargetRegistry,
-} from "../../../vendor/pocketjs/contracts/spec/platforms.ts";
+import { shellRegistry } from "../../../runtime/manifest/registry.ts";
 import type { ResolvedBuildPlan } from "../../../runtime/manifest/plan.ts";
 import { validateAndResolveBuildPlan } from "../../../runtime/manifest/resolve.ts";
 import { readPocketProfile } from "../../../vendor/pocketjs/framework/src/profile.ts";
-import { targetProfile } from "../../../vendor/pocketjs/hosts/contract.ts";
 
 /** The host contract this program is built for and admits packages against. */
 export const THREE_DS_HOST_CONTRACT = resolve(import.meta.dir, "../pocket.host.json");
@@ -35,12 +30,9 @@ export const THREE_DS_DEV_HOST_ABI = POCKET_BINDING_GENERATION;
 export const THREE_DS_VIEWPORT = softwareProfile.display.logicalViewports[0];
 export const THREE_DS_AUXILIARY_VIEWPORT = softwareProfile.display.auxiliary!.logicalViewports[0];
 
-export const THREE_DS_DEV_CONTRACTS = definePlatformContractRegistry(
-  POCKET_CAPABILITIES,
-  defineTargetRegistry({
-    [THREE_DS_DEV_TARGET_ID]: targetProfile(softwareProfile),
-  }),
-);
+/** The registry a 3DS plan resolves against: PocketJS's and Pocket Shell's
+ *  capability ids, and this contract as the one target. */
+export const THREE_DS_DEV_CONTRACTS = shellRegistry(softwareProfile);
 
 export function resolve3dsBuildPlan(input: unknown): ResolvedBuildPlan {
   const resolution = validateAndResolveBuildPlan(

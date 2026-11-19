@@ -902,15 +902,16 @@ static int32_t bind_system(JSContext *realm, pocket_runtime *runtime,
   const pocketjs_system_app_t *app = context;
   if (pocketjs_system_bind(realm, app) != ESP_OK)
     return POCKET_STATUS_FAILED;
-  const uint32_t features = pocketjs_system_app_facts(app)->features;
-  tab5_camera_media_install(realm, runtime, features);
-  if ((features & POCKET_IDF_FEATURE_DEVICE) != 0U &&
+  tab5_camera_media_install(realm, runtime,
+                            pocketjs_system_app_feature(app, "camera.qr"),
+                            pocketjs_system_app_feature(app, "camera.photo"),
+                            pocketjs_system_app_feature(app, "media.playback"));
+  if (pocketjs_system_app_feature(app, "system.device") &&
       pocket_device_install(realm) != ESP_OK)
     return POCKET_STATUS_FAILED;
-  if ((features & (POCKET_IDF_FEATURE_AUDIO_PCM |
-                   POCKET_IDF_FEATURE_AUDIO_CAPTURE)) != 0U &&
-      pocket_audio_install(
-          realm, (features & POCKET_IDF_FEATURE_AUDIO_CAPTURE) != 0U) != ESP_OK)
+  const bool capture = pocketjs_system_app_feature(app, "audio.capture");
+  if ((capture || pocketjs_system_app_feature(app, "audio.pcm")) &&
+      pocket_audio_install(realm, capture) != ESP_OK)
     return POCKET_STATUS_FAILED;
   return POCKET_STATUS_OK;
 }

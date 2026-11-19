@@ -89,7 +89,7 @@ its capability list. `requires` has at least one entry.
 Its availability on the selected target becomes a boolean in
 `plan.features` and in the compiled bundle, where `hasFeature("input.touch")`
 is specialized at compile time. An id in both lists is an error
-(`capability.duplicate`); an id outside the registry is an error
+(`capability.duplicate`); an id outside the registry below is an error
 (`capability.unknown`).
 
 A worker declaration adds `runtime.worker` and the capability of every node
@@ -108,9 +108,26 @@ Some ids depend on others:
 
 ### Capability ids
 
-The registry is `POCKET_CAPABILITIES` in PocketJS `contracts/spec/platform-types.ts`.
+**An app contract resolves against `SHELL_CAPABILITY_REGISTRY`
+(`runtime/spec/capabilities.ts`): PocketJS's ids and the ids Pocket Shell
+defines.** PocketJS registers the ids it defines in `POCKET_CAPABILITIES`
+(PocketJS `contracts/spec/capabilities.ts`) and treats an id a host contract
+lists outside it as that host's. Pocket Shell's ids are `SHELL_CAPABILITIES`:
+the 3DS, Tab5 and PSP host contracts list them, and their guest modules and
+host code are in this repository. Every id of either list is known on every
+Pocket Shell host, so an `enhances` entry that a host does not provide
+resolves to `false` there. PocketJS's own CLI (`pocket compile` of a host
+config) knows a Pocket Shell id only on a host contract that lists it.
+
 An id names behavior the application can observe; hosts with the same
 observable behavior share an id, and a different guarantee gets a new id.
+Ids have no namespace: Pocket Shell's ids keep the spelling published
+packages and plans carry, and PocketJS does not register a name this
+repository publishes; the two repositories coordinate it.
+`runtime/test/capabilities.test.ts` fails when PocketJS's registry gains one
+of these names.
+
+PocketJS's ids:
 
 | Id | Meaning |
 | --- | --- |
@@ -136,15 +153,23 @@ observable behavior share an id, and a different guarantee gets a new id.
 | `ui.physics` | 2D bodies stepped by the UI core: worlds, jelly bodies, colliders, zones and particle emitters (PocketJS `contracts/spec/physics.ts`). |
 | `ui.compositor-surfaces` | A System UI can place installed applications into native compositor surfaces. |
 | `audio.pcm` | Credit-based s16 PCM streaming through `globalThis.audio`. |
-| `media.playback` | Native encoded-media playback with audio clock, pause, volume and texture output ([docs/MEDIA.md](MEDIA.md)). |
+| `audio.capture` | Microphone input on the same namespace: the host records an input into a ring the guest drains each tick. |
+| `net.mqtt` | MQTT 3.1.1 and 5.0 sessions as a worker resource (`io.mqtt`), under the limits of PocketJS `contracts/spec/mqtt.ts`. |
 | `data.fs` | A per-app file tree behind `globalThis.fs`; paths are confined to the app's own root. |
 | `data.pack` | Read-only files under the game data root behind `globalThis.pack`: chapter textures and streamed PCM kept outside the program image (PocketJS `docs/PACKS.md`). |
 | `host.clipboard` | Copy, cut and paste with the OS clipboard. |
+
+Pocket Shell's ids:
+
+| Id | Meaning |
+| --- | --- |
+| `media.playback` | Native encoded-media playback with audio clock, pause, volume and texture output ([docs/MEDIA.md](MEDIA.md)). |
 | `camera.qr` | Outer-camera preview texture and an on-device QR decoder. |
 | `camera.photo` | Stills kept as JPEG under the storage's DCIM folder: list, decode, delete. |
 | `link.companion` | The console's link to a paired companion computer: pairing, status, catalog, installs. |
 | `link.channel` | The running applet's channel to its computer side over the link, behind `globalThis.link.channel`: requests, events and byte streams ([docs/POCKET-LINK.md](POCKET-LINK.md) §7). |
 | `system.wifi` | The console's radio and saved connections; reads and selects, never writes. |
+| `system.device` | The board's own controls behind `globalThis.device`: backlight, speaker level, power rails, plug detection, free header pins, the removable card's directory listing and power off. |
 | `system.agent` | The system mascot on the top screen and the agent channel to the companion. |
 | `system.extension` | A product extension linked into the program: it draws the primary display and publishes its own global, and the guest's interface stays on the auxiliary surface. |
 
@@ -394,7 +419,7 @@ reports every diagnostic with a JSON pointer into the app contract:
 
 | Code | Cause |
 | --- | --- |
-| `capability.unknown` | An id outside the registry. |
+| `capability.unknown` | An id that neither PocketJS nor Pocket Shell defines. |
 | `capability.unavailable` | A required id the target does not provide. |
 | `capability.duplicate` | An id declared twice. |
 | `capability.dependency`, `capability.offloadDependency` | A dependency from the table above is missing. |

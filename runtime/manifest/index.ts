@@ -11,6 +11,7 @@ export {
   type PocketFramework,
 } from "../spec/pocket-manifest.ts";
 export {
+  type FeatureId,
   type PackageRole,
   type PocketCapabilityId,
   type PresentationMode,
@@ -36,3 +37,9 @@ export {
   type ResolveBuildRequest,
 } from "./resolve.ts";
 export { createHostExtension, isHostExtension, type HostExtension } from "./host-extension.ts";
+export { SHELL_PLATFORM_CONTRACTS, shellRegistry } from "./registry.ts";
+export {
+  SHELL_CAPABILITIES,
+  SHELL_CAPABILITY_REGISTRY,
+  type ShellCapabilityId,
+} from "../spec/capabilities.ts";

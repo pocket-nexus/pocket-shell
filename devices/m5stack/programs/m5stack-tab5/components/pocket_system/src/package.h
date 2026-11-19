@@ -51,6 +51,15 @@ bool package_open(const uint8_t *bytes, size_t size, const PackageHost *host,
                   AdmittedPackage *out, pocket_idf_package_facts *facts,
                   char *error, size_t capacity);
 
+/* The store slot of an admitted package: the first 16 hex digits of
+ * SHA-256 of its app id (`facts->app_id`), NUL-terminated. */
+void package_slot(const pocket_idf_package_facts *facts, char slot[17]);
+
+/* Whether the admitted variant's plan turns the capability `name` on, a
+ * PocketJS id or one of Pocket Shell's (runtime/spec/capabilities.ts):
+ * pocket_idf_package_feature, false when it gives no answer. */
+bool package_feature(const pocket_idf_package_facts *facts, const char *name);
+
 /* The package source of an AdmittedPackage (the context): length, the whole
  * container through all, range and take, and the admitted variant's
  * sections. take hands the runtime the bytes in place with no release, so

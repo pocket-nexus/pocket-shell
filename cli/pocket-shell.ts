@@ -23,7 +23,8 @@ import { dirname, resolve } from "node:path";
 import { checkAppTypes } from "../vendor/pocketjs/framework/compiler/app-check.ts";
 import { BuildInputs, depfile } from "../vendor/pocketjs/framework/compiler/build-inputs.ts";
 import { runtimeVersionMismatch } from "../vendor/pocketjs/framework/compiler/runtime-packages.ts";
-import { profileRegistry, resolveProfile } from "../vendor/pocketjs/tools/profile-resolver.ts";
+import { resolveProfile } from "../vendor/pocketjs/tools/profile-resolver.ts";
+import { shellRegistry } from "../runtime/manifest/registry.ts";
 import { readAuthoredManifest } from "../runtime/manifest/load.ts";
 import { canonicalJson } from "../runtime/manifest/plan.ts";
 import { validateAndResolveBuildPlan } from "../runtime/manifest/resolve.ts";
@@ -93,7 +94,7 @@ async function run(command: "check" | "compile", argv: string[]): Promise<void> 
   // The host contract: PocketJS selects it from --target, POCKET_TARGET or the host config.
   const selected = await resolveProfile({ from: dirname(manifestPath), target, hostConfig, env: process.env });
   const loaded = readAuthoredManifest(manifestPath);
-  const resolution = validateAndResolveBuildPlan(loaded.manifest, { target: selected.profile.id, executionClass: "guest" }, profileRegistry(selected.profile));
+  const resolution = validateAndResolveBuildPlan(loaded.manifest, { target: selected.profile.id, executionClass: "guest" }, shellRegistry(selected.profile));
   if (!resolution.ok) throw new Error(resolution.diagnostics.map(item => `${item.code} ${item.path || "/"}: ${item.message}`).join("\n"));
   const plan = resolution.plan;
   const entry = resolve(projectRoot, plan.app.entry);

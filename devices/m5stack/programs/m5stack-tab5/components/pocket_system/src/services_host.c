@@ -215,7 +215,7 @@ static bool admit_resident(const uint8_t *bytes, size_t size, bool bundled,
   ResidentPackage entry = {.bundled = bundled};
   if (!open_package(bytes, size, &entry.package, &entry.facts, error, capacity))
     return false;
-  memcpy(entry.slot, entry.facts.slot, sizeof entry.slot);
+  package_slot(&entry.facts, entry.slot);
   *out = entry;
   return true;
 }
@@ -276,7 +276,9 @@ static bool load_path(const char *path, const char *slot, uint64_t expected,
     heap_caps_free(bytes);
     return false;
   }
-  if (strcmp(facts.slot, slot) != 0) {
+  char owner[17];
+  package_slot(&facts, owner);
+  if (strcmp(owner, slot) != 0) {
     snprintf(error, capacity, "the package belongs to another app");
     free(keep);
     heap_caps_free(bytes);
@@ -1009,6 +1011,11 @@ pocketjs_system_app_facts(const pocketjs_system_app_t *app) {
   return app == NULL ? NULL : &app->facts;
 }
 
+bool pocketjs_system_app_feature(const pocketjs_system_app_t *app,
+                                 const char *name) {
+  return app != NULL && package_feature(&app->facts, name);
+}
+
 bool pocketjs_system_app_is_launcher(const pocketjs_system_app_t *app) {
   return app != NULL && app->launcher;
 }
@@ -1020,7 +1027,7 @@ static void bind_app(void *argument) {
    * runtime.status; the guest's top level may already fetch. */
   launcher_set_current(app->slot, &package);
   link2_host_guest_begin(&package);
-  if ((app->facts.features & POCKET_IDF_FEATURE_FS) != 0U) {
+  if (package_feature(&app->facts, "data.fs")) {
     char data[SLOT_PATH_BYTES];
     char temp[SLOT_PATH_BYTES];
     char directory[SLOT_PATH_BYTES];
