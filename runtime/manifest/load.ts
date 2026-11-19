@@ -36,9 +36,8 @@ export function readPocketManifest(path: string): LoadedManifest {
 }
 
 /**
- * Read a manifest an author wrote: the file must satisfy the published
- * schema (runtime/schema/pocket-2.json), which takes `app.theme` as a path
- * only. Files a package or a tool wrote in the loaded form are read with
+ * Read a manifest an author wrote: the file must satisfy the schema
+ * (runtime/schema/pocket-2.json), which takes `app.theme` as a path only. Files a package or a tool wrote in the loaded form are read with
  * `readPocketManifest`.
  */
 export function readAuthoredManifest(path: string): LoadedManifest {
