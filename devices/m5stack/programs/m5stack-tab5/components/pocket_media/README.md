@@ -1,6 +1,6 @@
 # pocket_media
 
-`globalThis.media` (contracts/spec/media.ts, capability media.playback) for
+`globalThis.media` (runtime/spec/media.ts, capability media.playback) for
 the ESP-IDF QuickJS guest: the companion's PKMV stream played into one core
 texture and the board's speaker.
 

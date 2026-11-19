@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-/** The board's speaker for `globalThis.media` (contracts/spec/media.ts). */
+/** The board's speaker for `globalThis.media` (runtime/spec/media.ts). */
 typedef struct {
   size_t struct_size;
   /** Open the speaker for interleaved 16-bit stereo PCM at `rate` Hz. A
