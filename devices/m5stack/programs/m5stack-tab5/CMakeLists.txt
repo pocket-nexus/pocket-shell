@@ -16,7 +16,10 @@ if(NOT DEFINED POCKETJS_RUST_FROM_SOURCE)
     set(POCKETJS_RUST_FROM_SOURCE ON CACHE BOOL "")
 endif()
 
-set(POCKETJS_CLI "${m5_root}/tools/pocket" CACHE FILEPATH "PocketJS CLI")
+# Pocket Shell's CLI: pocket_shell_compile_app (pocket_system) runs its
+# `compile`, and PocketJS's pocketjs_profile_header its `host export`, which
+# it passes to the pinned PocketJS CLI.
+set(POCKETJS_CLI "${m5_root}/tools/pocket" CACHE FILEPATH "Pocket Shell CLI (tools/pocket)")
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 idf_build_set_property(MINIMAL_BUILD ON)

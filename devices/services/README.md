@@ -38,7 +38,7 @@ implements it.
 | Program | Build | `host_services.h` implementation |
 | --- | --- | --- |
 | Nintendo 3DS product | `devices/3ds/Makefile` (`SHARED`) | `devices/3ds/src/services_host.c`: libctru clocks and `ps:ps` randomness, the CFG owner name, `soc:U`, the SD card runtime slots (`runtime.c`), the agent channel (`agent.c`) |
-| M5Stack Tab5 | `devices/m5stack/programs/m5stack-tab5/components/pocket_system`, `pocket_camera`, `pocket_media` (each `CMakeLists.txt` sets `shared`) | `src/services_host.c` in `pocket_system`: `esp_timer`, `esp_fill_random`, lwIP, the `/pocket` store; the camera and media components compile the photo, QR and media sources |
+| M5Stack Tab5 | `devices/m5stack/programs/m5stack-tab5/components/pocket_system`, `pocket_camera`, `pocket_media` (each `CMakeLists.txt` sets `shared`) | `src/services_host.c` in `pocket_system`: `esp_timer`, `esp_fill_random`, lwIP, the `/pocket` store; `src/package.c` admits and boots `.pocket` files through `pocket_container.c`; the camera and media components compile the photo, QR and media sources |
 
 Two sources of the 3DS platform read headers from this directory through the
 3DS Makefile's include path: `devices/3ds/platform/media.c` includes
@@ -63,5 +63,6 @@ runs them (`test/`, with a C compiler):
 and `photos_image.c` with the product's sources, and
 `devices/m5stack/tests/link-host.test.ts` compiles the client, `link2_guest.c`,
 `link2_http.c` and `launcher.c` with the Tab5's `link2_host.c` and
-`companion.c`. `link2_http.c` needs PocketJS `engine/worker/include` on the
-include path.
+`companion.c`, and `devices/m5stack/tests/package.test.ts` compiles
+`pocket_container.c` and `sha256.c` with the Tab5's `package.c`.
+`link2_http.c` needs PocketJS `engine/worker/include` on the include path.

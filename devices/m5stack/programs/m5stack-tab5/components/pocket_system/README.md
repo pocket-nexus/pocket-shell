@@ -6,9 +6,12 @@ switching between them, the Pocket Link 2 client to a paired Hub, a guest's
 QR code.
 
 - Public header: `pocket/system.h`
+- CMake functions: `project_include.cmake` (`pocket_shell_compile_app`,
+  `pocket_shell_embed_package`, "Packages in the firmware image")
 - Shared state machines: `devices/services` (`link2.c` with
   `link2_proto.c`, `link2_guest.c`, `link2_http.c` and `link2_bsd.c`,
-  `launcher.c`, `fs.c`), compiled from the repository
+  `launcher.c`, `fs.c`, the `.pocket` reader `pocket_container.c`), compiled
+  from the repository
 - `esp_wifi` comes from `espressif/esp_wifi_remote` and `espressif/esp_hosted`,
   which the program lists with its coprocessor's pins
 
@@ -46,10 +49,8 @@ The link grants the Hub credit for more only after it has handed a piece
 over, so at most 64 KiB (the stream's window) are on their way while flash
 is written, and no file, on the card or on the `storage` partition, holds
 the package. When the last byte is in, the package is admitted where it lies
-(`pocket_idf_package_open`: footer, FNV-1a64, then the first variant the
-firmware's host facts satisfy: binding generation, raster density, animation
-class, tick rate, viewport, presentation, capabilities and auxiliary
-surface) and its header is written: no copy is read back into PSRAM and
+("Admission": the container's hashes, then the first variant the firmware's
+host facts satisfy) and its header is written: no copy is read back into PSRAM and
 nothing is programmed twice. On a Tab5 523,864 bytes took 3.4 s from the
 first byte to the commit, and the longest frame in it was 423 ms. A flash
 write stalls the other tasks for each piece, so the frames slow down for as
@@ -79,8 +80,8 @@ image: start admits each once and keeps its facts, removes a
 `package.pocket` or installed copy an earlier firmware kept for its slot,
 and rewrites the slot's `app.txt` when the cached hash differs. They are
 installed apps the Hub can neither replace nor remove. The runtime
-reads every package where it is, without a copy or a second hash pass
-(`POCKET_MEMORY_PACKAGE_VERIFIED`): the admission here is the hash pass.
+reads every package where it is, without a copy or a second hash pass:
+the admission here is the hash pass.
 
 **Without a card the directory is LittleFS on the `storage` partition**
 (`pocketjs_system_mount_flash`, the `joltwallet/littlefs` component).
@@ -101,12 +102,83 @@ store's first files, four of them while a file was being written: each
 mounted at the next start, with no format and no error. The reset was the
 chip's, over USB; a cut of the flash chip's own power was not tried.
 
+## Admission
+
+`package.c` admits a `.pocket` (format 2, Pocket Shell
+`docs/POCKET-PACKAGE.md`) and is the package source the runtime boots it
+from:
+
+1. `pocket_container_open` (`devices/services/pocket_container.c`) verifies
+   the whole container: header, layout, target ids, the footer (FNV-1a64 of
+   every byte before it) and each variant's payload hash. The footer is the
+   package's hash: `app.txt`, the `apps` partition's headers and the Pocket
+   Link name the package by it, and a package whose footer is 0 is refused,
+   0 standing for any package in a load or an install.
+2. `pocket_container_select` offers the variants in the order
+   `runtime/spec/admission.ts` selects them: those compiled against the
+   host's profile hash, then the rest, each group in file order.
+3. Each offer is `pocket_idf_package_open_source` (the IDF archive) on the
+   package source with that variant's sections stated
+   (`pocket_package_sections`: plan, JavaScript, asset pack, bytecode,
+   worker source and worker bytecode, offsets from the container's first
+   byte, and the variant's binding generation). PocketJS admits the plan
+   against the exported host facts as boot does and reads the app id from
+   the plan's `app.id`; its slot is the first 16 hex digits of the id's
+   SHA-256. The first variant admitted is the app's.
+
+| Message | Cause |
+| --- | --- |
+| `the file is not a .pocket package (2)`, `(3)` | another magic, such as a PocketJS bundle (`.pkb`), or another format version |
+| `the package is damaged (<code>)` | a `POCKET_PACKAGE_OPEN_*` code: the container's layout or hashes (1, 4, 5, 17; 4 also for a footer of 0), no app id in the plan (8), a plan admission cannot read (9, 13 to 15), a missing or malformed code section (10, 11, 18, 26), a variant without a plan (27) |
+| `the package has no variant` | a container with no variant |
+| `the package was built for another binding generation` | the first variant offered was compiled for another `host_abi` (7) |
+| `tab5-home does not provide the package's <item>` | the first admission item the first variant offered fails (19 to 25): raster density, animation class, tick rate, viewport, presentation, capabilities, auxiliary surface |
+
+`pocketjs_system_app_source` returns that source for a loaded app: `length`
+and `all` give the whole container, `range` copies from it, `take` hands the
+runtime the bytes in place with no release, and `sections` states the
+admitted variant. With stated sections the runtime checks no container hash,
+so the reader's pass at admission is the only one, and the bytes stay where
+they are: the firmware image, the mapped `apps` partition, or the PSRAM copy
+of a package read from the card, released after the runtime is destroyed.
+
+`tests/package.test.ts` builds `package.c` with the reader under ASan and
+UBSan against the contract `tools/pocket host export` writes, with
+`tests/package-admission.c` in place of PocketJS's admission: the stated
+sections, slot, hashes and worker sections of an admitted package, every
+callback of its source, the offer order and each message above.
+
+## Packages in the firmware image
+
+ESP-IDF includes `project_include.cmake` in every project that builds this
+component. Its functions link `.pocket` files into the image as
+`const pocketjs_system_package_t pocketjs_package_<name>` (`pocket/system.h`),
+declared in `pocketjs_package_<name>.h`:
+
+| Function | Package |
+| --- | --- |
+| `pocket_shell_compile_app(TARGET NAME MANIFEST [HOST_CONFIG] [PROJECT_ROOT] [PROFILE_EXPORT_DIR] [COMPILER_RECEIPT] [DEPENDS])` | compiled at build time from a `pocket.app.json` by Pocket Shell's CLI (`POCKETJS_CLI compile --manifest --host-config --depfile`) into `<binary dir>/pocket-shell/<name>/<name>.pocket`; the depfile lists the app's sources, theme and icon, the host config and the compiler's modules, so an edit to any of them compiles the app again |
+| `pocket_shell_embed_package(TARGET NAME PACKAGE [HOST_CONFIG] [PROFILE_EXPORT_DIR])` | a prebuilt `.pocket` |
+
+Both export the host config's contract with PocketJS's
+`pocketjs_profile_header` (`pocket_profile.h` and `pocket.host.json` in
+`PROFILE_EXPORT_DIR`, default `<binary dir>/pocket-shell/profile`, on the
+target's include path) and run `devices/m5stack/tools/embed-package.ts`,
+which checks the package as start admits it (layout and hashes, a variant
+the exported contract admits, an app id in its plan) and writes
+`pocketjs_package_<name>.{h,c,S}`: the `.S` includes the file with `.incbin`
+in `.rodata` at 16-byte alignment. A package the firmware would refuse
+fails the build. `HOST_CONFIG` defaults to
+`${CMAKE_SOURCE_DIR}/pocket.host.config.ts`, `PROJECT_ROOT` to the
+manifest's directory; `NAME` matches `[a-z][a-z0-9_]*`. The build needs Bun
+on `PATH`.
+
 ## Guest lifecycle
 
 The program loads the launcher (`pocketjs_system_load_launcher`), creates the
 guest, calls `pocketjs_system_bind` with its realm and boots the runtime
-with the app's bytes as its package source. Each tick, before the turn, it
-calls `pocketjs_system_pump`; SELECT outside the launcher calls
+with the app's package source (`pocketjs_system_app_source`, "Admission").
+Each tick, before the turn, it calls `pocketjs_system_pump`; SELECT outside the launcher calls
 `pocketjs_system_summon`. When `pocketjs_system_switch_pending` becomes true,
 the program stops the runner, destroys the runtime and guest, calls
 `pocketjs_system_unbind`, takes the target with `pocketjs_system_take_switch`
@@ -174,7 +246,7 @@ them with SHA-256. A connect or a read waits at most 10 s; a read that times
 out is tried again until no byte has come for 30 s. `install_pump`, on
 the system task once per frame, compares the hash with the URI's and commits
 the package with `link_host_install`, the path of an install from the Hub: it admits the
-package by the firmware's host facts (`pocket_idf_package_open`) and refuses
+package by the firmware's host facts ("Admission") and refuses
 one whose app id does not hash to the slot of `a`, as it does for a package
 read from any slot. A guest switch keeps the download running and drops only
 its events.
@@ -291,4 +363,4 @@ one exchange; lwIP then synchronizes every `CONFIG_LWIP_SNTP_UPDATE_DELAY` ms
 HTTP node from any task; `pocketjs_system_app_worker` and
 `pocketjs_system_app_worker_bytecode` return the worker source and the
 worker bytecode section of an app (sections 8 and 9 of the admitted variant,
-found by its variant hash), whose bytes live as long as the app.
+as its package source states them), whose bytes live as long as the app.

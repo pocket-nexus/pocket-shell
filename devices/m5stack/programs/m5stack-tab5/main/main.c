@@ -49,7 +49,6 @@
 #include "pocket/http_esp.h"
 #include "pocket/io_esp.h"
 #include "pocket/mqtt_esp.h"
-#include "pocket/package_source.h"
 #include "pocket/runner.h"
 #include "pocket/system.h"
 #include "pocket/worker_esp.h"
@@ -145,7 +144,6 @@ typedef struct {
   pocket_runner_t *runner;
   pocket_render_esp_ppa *renderers[2];
   pocketjs_esp32p4_ppa_lanes_t *lanes;
-  pocket_memory_package package;
   /* The app's worker domain and the bridge of its channels into the realm. */
   pocket_worker_esp *worker;
   pocket_worker_ui *worker_ui;
@@ -759,11 +757,12 @@ static void stop_guest(tab5_host_t *host) {
   pocket_display_esp_dpi_invalidate(host->display);
 }
 
-/* Boot the application in `bytes` and start its runner. `bind` records it
- * as the running app and installs the system namespaces into its realm;
+/* Boot the application `source` holds and start its runner. `bind` records
+ * it as the running app and installs the system namespaces into its realm;
  * `worker`, when not NULL, is the source of its worker domain. */
 static int32_t boot_guest(
-    tab5_host_t *host, const uint8_t *bytes, size_t size,
+    tab5_host_t *host, const pocket_package_source_v1 *source,
+    void *source_context,
     int32_t (*bind)(JSContext *realm, pocket_runtime *runtime, void *context),
     void *bind_context, const char *worker, size_t worker_size,
     const uint8_t *worker_bytecode, size_t worker_bytecode_size) {
@@ -794,13 +793,12 @@ static int32_t boot_guest(
     return POCKET_STATUS_FAILED;
   int32_t status = pocket_runtime_set_guest(
       running->runtime, pocket_guest_idf_vtable(), running->guest);
-  /* pocket_system verified the package's hashes when it admitted it; the
-   * runtime reads the bytes in place without a hash pass of its own. */
-  running->package =
-      (pocket_memory_package){bytes, size, POCKET_MEMORY_PACKAGE_VERIFIED};
+  /* pocket_system verified the .pocket's hashes when it admitted the app;
+   * the source states the admitted variant's sections, which the runtime
+   * reads in place without a hash pass of its own. */
   if (status == POCKET_STATUS_OK)
-    status = pocket_runtime_set_package_source(
-        running->runtime, pocket_memory_package_vtable(), &running->package);
+    status = pocket_runtime_set_package_source(running->runtime, source,
+                                               source_context);
   if (status == POCKET_STATUS_OK)
     status = pocket_runtime_add_input_source(running->runtime, &INPUT, host);
   /* Two renderers, one per core, split every strip. Their caches key on
@@ -919,8 +917,9 @@ static int32_t bind_system(JSContext *realm, pocket_runtime *runtime,
 
 /* Boot `app`; on failure the guest is torn down. */
 static int32_t boot_app(tab5_host_t *host, pocketjs_system_app_t *app) {
-  size_t size = 0;
-  const uint8_t *bytes = pocketjs_system_app_bytes(app, &size);
+  void *source_context = NULL;
+  const pocket_package_source_v1 *source =
+      pocketjs_system_app_source(app, &source_context);
   const char *worker = NULL;
   size_t worker_size = 0;
   if (!pocketjs_system_app_worker(app, &worker, &worker_size))
@@ -931,8 +930,8 @@ static int32_t boot_app(tab5_host_t *host, pocketjs_system_app_t *app) {
                                            &worker_bytecode_size))
     worker_bytecode = NULL;
   const int32_t status =
-      boot_guest(host, bytes, size, bind_system, app, worker, worker_size,
-                 worker_bytecode, worker_bytecode_size);
+      boot_guest(host, source, source_context, bind_system, app, worker,
+                 worker_size, worker_bytecode, worker_bytecode_size);
   if (status != POCKET_STATUS_OK) {
     stop_guest(host);
     pocketjs_system_unbind();
@@ -1151,15 +1150,14 @@ static const char *start_system(void) {
            esp_err_to_name(result));
   ESP_ERROR_CHECK(result);
   size_t bundled_count = 0;
-  const pocketjs_system_bundled_t *bundled = tab5_bundled(&bundled_count);
+  const pocketjs_system_package_t *bundled = tab5_bundled(&bundled_count);
   const pocketjs_system_config_t config = {
       .struct_size = sizeof(config),
       .target = pocket_profile.id,
       .facts = pocket_profile.facts,
       .host_abi = pocket_profile.host_abi,
       .profile_hash = pocket_profile.profile_hash,
-      .launcher = pocketjs_package_app.data,
-      .launcher_size = pocketjs_package_app.size,
+      .launcher = pocketjs_package_app,
       .bundled = bundled,
       .bundled_count = bundled_count,
       .root = root,

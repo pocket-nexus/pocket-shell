@@ -5,13 +5,15 @@
  * A slot holds one committed package, `package.pocket`; its hash is the
  * file's footer. An install streams into `link-upload.pocket` from the
  * companion, or into `url-upload.pocket` from an address (install.c), is
- * admitted (footer, FNV-1a64, a variant the firmware's host facts satisfy, an
- * app id that hashes to the slot) and replaces `package.pocket`. FAT refuses
- * a rename onto an existing name, so the old package is removed first: an
- * interrupted install loses the app, never leaves a package the firmware
- * would refuse. The launcher and the bundled packages stay in the firmware
- * image: their slots hold cached facts and data, and their bytes are read
- * from flash in place.
+ * admitted (package.c: the container's footer and variant hashes, a variant
+ * the firmware's host facts satisfy, an app id that hashes to the slot) and
+ * replaces `package.pocket`. FAT refuses a rename onto an existing name, so
+ * the old package is removed first: an interrupted install loses the app,
+ * never leaves a package the firmware would refuse. The launcher and the
+ * bundled packages stay in the firmware image: their slots hold cached facts
+ * and data, and their bytes are read from flash in place. Every app boots
+ * from package.c's package source, which states the sections of the variant
+ * admission took.
  *
  * Storage on the flash partition and the radio's NVS are flash, and a flash
  * access disables the cache, which a task with its stack in PSRAM cannot
@@ -43,6 +45,7 @@
 #include "jscan.h"
 #include "launcher.h"
 #include "link2_host.h"
+#include "package.h"
 #include "sha256.h"
 #include "system_internal.h"
 
@@ -57,21 +60,20 @@ struct pocketjs_system_app {
   /* A copy in PSRAM for a package read from the card; NULL for a package
    * the firmware embeds, read from flash in place. */
   uint8_t *owned;
-  const uint8_t *bytes;
-  size_t size;
+  /* The bytes, the admitted variant and the context of its package
+   * source. */
+  AdmittedPackage package;
   pocket_idf_package_facts facts;
   char slot[17];
   bool launcher;
 };
 
 /* A package read from flash in place: the launcher, a bundled app or an app
- * installed on the apps partition. Its facts are read once, when it is
- * admitted, so booting it costs no hash pass. */
+ * installed on the apps partition. It is admitted once, which verifies its
+ * hashes; booting it costs no hash pass. */
 typedef struct {
-  const uint8_t *bytes;
-  size_t size;
+  AdmittedPackage package;
   pocket_idf_package_facts facts;
-  uint64_t hash;
   char slot[17];
   /* Part of the firmware image: the companion can neither replace nor
    * remove it. */
@@ -94,7 +96,7 @@ static size_t resident_capacity;
 static ResidentPackage *resident_in_slot(const char *slot) {
   if (slot == NULL)
     return NULL;
-  if (launcher_package.bytes != NULL &&
+  if (launcher_package.package.bytes != NULL &&
       strcmp(slot, launcher_package.slot) == 0)
     return &launcher_package;
   for (size_t i = 0; i < resident_count; ++i)
@@ -174,134 +176,46 @@ void system_run(void (*job)(void *), void *context) {
 // packages
 // ---------------------------------------------------------------------------
 
-static uint64_t footer_of(const uint8_t *bytes, size_t size) {
+/* The hash the 8 bytes at `footer`, a package's last, declare: its footer,
+ * unverified. */
+static uint64_t footer_of(const uint8_t *footer) {
   uint64_t hash = 0;
-  if (size < 8)
-    return 0;
   for (int i = 7; i >= 0; i -= 1)
-    hash = (hash << 8) | bytes[size - 8 + (size_t)i];
+    hash = (hash << 8) | footer[i];
   return hash;
 }
 
-/* Admit `bytes` by the firmware's host facts and read the admitted
- * variant's facts. */
+/* Admit `bytes` by the firmware's host facts (package.c). */
 static bool open_package(const uint8_t *bytes, size_t size,
+                         AdmittedPackage *package,
                          pocket_idf_package_facts *facts, char *error,
                          size_t capacity) {
-  /* pocket_idf_package_open's codes 19..25: the first admission item the
-   * closest variant fails. */
-  static const char *const ITEMS[] = {
-      "raster density",    // 19
-      "animation class",   // 20
-      "tick rate",         // 21
-      "viewport",          // 22
-      "presentation",      // 23
-      "capabilities",      // 24
-      "auxiliary surface", // 25
+  const PackageHost host = {
+      .target = config.target,
+      .facts = config.facts,
+      .host_abi = config.host_abi,
+      .profile_hash = config.profile_hash,
   };
-  memset(facts, 0, sizeof *facts);
-  facts->struct_size = sizeof *facts;
-  const int32_t code = pocket_idf_package_open(
-      bytes, size, config.facts, config.host_abi, config.profile_hash, facts);
-  if (code == 0)
-    return true;
-  if (code == 6)
-    snprintf(error, capacity, "the package has no variant");
-  else if (code == 7)
-    snprintf(error, capacity,
-             "the package was built for another binding generation");
-  else if (code >= 19 && code <= 25)
-    snprintf(error, capacity, "%s does not provide the package's %s",
-             config.target, ITEMS[code - 19]);
-  else
-    snprintf(error, capacity, "the package is damaged (%ld)", (long)code);
-  return false;
+  return package_open(bytes, size, &host, package, facts, error, capacity);
 }
 
-static uint32_t le32(const uint8_t *p) {
-  return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 |
-         (uint32_t)p[3] << 24;
-}
-
-static uint64_t le64(const uint8_t *p) {
-  return (uint64_t)le32(p) | (uint64_t)le32(p + 4) << 32;
-}
-
-/* A section of the admitted variant, the one whose hash (variant offset 24,
- * runtime/spec/pocket-package.ts) is facts->variant_hash: `kind` 8, the
- * NUL-terminated worker source, or 9, its bytecode envelope. */
-static bool variant_section(const uint8_t *bytes, size_t size,
-                            const pocket_idf_package_facts *facts,
-                            uint32_t kind, const uint8_t **payload,
-                            size_t *length) {
-  enum { HEADER = 32, VARIANT = 64, SECTION = 16, FOOTER = 8 };
-  if (size < HEADER + FOOTER)
-    return false;
-  const uint64_t payload_end = size - FOOTER;
-#define WITHIN(offset, count)                                                  \
-  ((uint64_t)(offset) <= payload_end &&                                        \
-   (uint64_t)(count) <= payload_end - (offset))
-  const uint64_t table = HEADER + ((uint64_t)le32(bytes + 8) + 15) / 16 * 16;
-  const uint32_t variants = le32(bytes + 12);
-  if (variants > 64 || !WITHIN(table, (uint64_t)variants * VARIANT))
-    return false;
-  for (uint32_t v = 0; v < variants; ++v) {
-    const uint8_t *variant = bytes + table + (uint64_t)v * VARIANT;
-    if (le32(variant + 8) != config.host_abi ||
-        le64(variant + 24) != facts->variant_hash)
-      continue;
-    const uint32_t count = le32(variant + 12), sections = le32(variant + 16);
-    if (count > 64 || !WITHIN(sections, (uint64_t)count * SECTION))
-      return false;
-    for (uint32_t s = 0; s < count; ++s) {
-      const uint8_t *section = bytes + sections + (uint64_t)s * SECTION;
-      const uint32_t start = le32(section + 8), span = le32(section + 12);
-      if (le32(section) != kind)
-        continue;
-      if (span == 0 || !WITHIN(start, span))
-        return false;
-      *payload = bytes + start;
-      *length = span;
-      return true;
-    }
-    return false;
-  }
-#undef WITHIN
-  return false;
-}
-
-/* Section 8: the worker source, NUL-terminated, without its terminator. */
-static bool worker_section(const uint8_t *bytes, size_t size,
-                           const pocket_idf_package_facts *facts,
-                           const char **source, size_t *length) {
-  const uint8_t *payload = NULL;
-  size_t span = 0;
-  if (!variant_section(bytes, size, facts, 8, &payload, &span) || span < 2 ||
-      payload[span - 1] != 0)
-    return false;
-  *source = (const char *)payload;
-  *length = span - 1;
-  return true;
-}
-
-static LauncherPackage facts_of(const pocket_idf_package_facts *facts,
-                                const uint8_t *bytes, size_t size) {
+static LauncherPackage facts_of(const AdmittedPackage *package,
+                                const pocket_idf_package_facts *facts) {
   return (LauncherPackage){
       .plan = (const char *)facts->plan,
       .plan_length = facts->plan_length,
-      .hash = footer_of(bytes, size),
-      .bytes = size,
+      .hash = package->hash,
+      .bytes = package->size,
   };
 }
 
 /* Admit `bytes`, read in place, as the resident package of its slot. */
 static bool admit_resident(const uint8_t *bytes, size_t size, bool bundled,
                            ResidentPackage *out, char *error, size_t capacity) {
-  ResidentPackage entry = {.bytes = bytes, .size = size, .bundled = bundled};
-  if (!open_package(bytes, size, &entry.facts, error, capacity))
+  ResidentPackage entry = {.bundled = bundled};
+  if (!open_package(bytes, size, &entry.package, &entry.facts, error, capacity))
     return false;
   memcpy(entry.slot, entry.facts.slot, sizeof entry.slot);
-  entry.hash = footer_of(bytes, size);
   *out = entry;
   return true;
 }
@@ -346,14 +260,16 @@ static bool load_path(const char *path, const char *slot, uint64_t expected,
     snprintf(error, capacity, "the package cannot be read");
     return false;
   }
-  if (expected != 0 && footer_of(bytes, size) != expected) {
+  if (expected != 0 && (size < 8 || footer_of(bytes + size - 8) != expected)) {
     heap_caps_free(bytes);
     snprintf(error, capacity, "the package does not match its declared hash");
     return false;
   }
+  AdmittedPackage package;
   pocket_idf_package_facts facts;
   HeldPackage *keep = malloc(sizeof *keep);
-  if (keep == NULL || !open_package(bytes, size, &facts, error, capacity)) {
+  if (keep == NULL ||
+      !open_package(bytes, size, &package, &facts, error, capacity)) {
     if (keep == NULL)
       snprintf(error, capacity, "out of memory");
     free(keep);
@@ -367,7 +283,7 @@ static bool load_path(const char *path, const char *slot, uint64_t expected,
     return false;
   }
   keep->bytes = bytes;
-  *out = facts_of(&facts, bytes, size);
+  *out = facts_of(&package, &facts);
   *held = keep;
   return true;
 }
@@ -411,7 +327,7 @@ bool launcher_host_slot_path(const char *slot, const char *name, char *out,
 bool launcher_host_active_hash(const char *slot, uint64_t *hash) {
   const ResidentPackage *resident = resident_in_slot(slot);
   if (resident != NULL) {
-    *hash = resident->hash;
+    *hash = resident->package.hash;
     return true;
   }
   char path[SLOT_PATH_BYTES];
@@ -425,7 +341,7 @@ bool launcher_host_active_hash(const char *slot, uint64_t *hash) {
             fread(footer, 1, sizeof footer, file) == sizeof footer;
   fclose(file);
   if (ok)
-    *hash = footer_of(footer, sizeof footer);
+    *hash = footer_of(footer);
   return ok;
 }
 
@@ -433,9 +349,9 @@ bool launcher_host_load(const char *slot, uint64_t hash, LauncherPackage *out,
                         void **held) {
   const ResidentPackage *resident = resident_in_slot(slot);
   if (resident != NULL) {
-    if (hash != 0 && hash != resident->hash)
+    if (hash != 0 && hash != resident->package.hash)
       return false;
-    *out = facts_of(&resident->facts, resident->bytes, resident->size);
+    *out = facts_of(&resident->package, &resident->facts);
     *held = NULL;
     return true;
   }
@@ -541,7 +457,7 @@ static bool install_staged(const char *slot, uint64_t hash,
   else if (strcmp(slot, launcher_current_slot()) == 0)
     snprintf(error, capacity,
              "install: the app is running; return to the launcher first");
-  else if (size < 8 || (hash != 0 && footer_of(bytes, size) != hash))
+  else if (size < 8 || (hash != 0 && footer_of(bytes + size - 8) != hash))
     snprintf(error, capacity, "the package does not match its declared hash");
   else if (admit_resident(bytes, size, false, &entry, error, capacity)) {
     if (strcmp(entry.slot, slot) != 0)
@@ -570,7 +486,7 @@ static bool install_staged(const char *slot, uint64_t hash,
     remove(stale);
   ESP_LOGI(TAG, "slot %s: %u bytes installed where they were streamed", slot,
            (unsigned)size);
-  *out = facts_of(&entry.facts, entry.bytes, entry.size);
+  *out = facts_of(&entry.package, &entry.facts);
   *held = NULL;
   return true;
 }
@@ -757,7 +673,7 @@ static bool cached_hash(const char *slot, uint64_t *hash) {
 /* A bundled package is served from flash. Its slot directory holds the
  * launcher's cached facts and the app's data tree, never the package: one an
  * earlier firmware wrote there is removed. */
-static void admit_bundled(const pocketjs_system_bundled_t *bundled) {
+static void admit_bundled(const pocketjs_system_package_t *bundled) {
   ResidentPackage entry;
   char error[160];
   if (!admit_resident(bundled->bytes, bundled->size, true, &entry, error,
@@ -784,13 +700,12 @@ static void admit_bundled(const pocketjs_system_bundled_t *bundled) {
   if (launcher_host_slot_path(entry.slot, STAGING_NAME, path, sizeof path))
     remove(path);
   uint64_t cached = 0;
-  if (!cached_hash(entry.slot, &cached) || cached != entry.hash) {
-    const LauncherPackage package =
-        facts_of(&entry.facts, entry.bytes, entry.size);
+  if (!cached_hash(entry.slot, &cached) || cached != entry.package.hash) {
+    const LauncherPackage package = facts_of(&entry.package, &entry.facts);
     launcher_note_installed(entry.slot, &package);
   }
   ESP_LOGI(TAG, "slot %s: bundled package served from flash (%u bytes)",
-           entry.slot, (unsigned)entry.size);
+           entry.slot, (unsigned)entry.package.size);
 }
 
 /* The packages on the apps partition become resident apps. One whose slot
@@ -825,7 +740,7 @@ static void admit_flash_store(void) {
       i += 1;
       continue;
     }
-    if (entry.hash != hash || strcmp(entry.slot, slot) != 0) {
+    if (entry.package.hash != hash || strcmp(entry.slot, slot) != 0) {
       ESP_LOGW(TAG, "slot %s: the stored header names another package", slot);
       flash_store_remove(slot);
       continue;
@@ -917,23 +832,15 @@ static void start_store(void *argument) {
   esp_err_t *result = argument;
   mkdir(apps_dir, 0777);
   char error[160];
-  launcher_package.bytes = config.launcher;
-  launcher_package.size = config.launcher_size;
-  if (!open_package(launcher_package.bytes, launcher_package.size,
-                    &launcher_package.facts, error, sizeof error)) {
+  if (!admit_resident(config.launcher.bytes, config.launcher.size, true,
+                      &launcher_package, error, sizeof error)) {
     ESP_LOGE(TAG, "launcher: %s", error);
-    launcher_package.bytes = NULL;
     *result = ESP_ERR_INVALID_ARG;
     return;
   }
-  launcher_package.hash =
-      footer_of(launcher_package.bytes, launcher_package.size);
-  launcher_package.bundled = true;
-  memcpy(launcher_package.slot, launcher_package.facts.slot,
-         sizeof launcher_package.slot);
-  memcpy(launcher_slot, launcher_package.facts.slot, sizeof launcher_slot);
-  const LauncherPackage package = facts_of(
-      &launcher_package.facts, launcher_package.bytes, launcher_package.size);
+  memcpy(launcher_slot, launcher_package.slot, sizeof launcher_slot);
+  const LauncherPackage package =
+      facts_of(&launcher_package.package, &launcher_package.facts);
   launcher_init(launcher_slot, &package);
   resident_capacity = config.bundled_count + FLASH_STORE_MAX_ENTRIES;
   /* Pointers into flash and cached facts, read on the app task: PSRAM
@@ -965,7 +872,7 @@ esp_err_t pocketjs_system_start(const pocketjs_system_config_t *settings) {
     return ESP_ERR_INVALID_STATE;
   if (settings == NULL || settings->struct_size < sizeof *settings ||
       settings->target == NULL || settings->facts == NULL ||
-      settings->launcher == NULL || settings->root == NULL ||
+      settings->launcher.bytes == NULL || settings->root == NULL ||
       strlen(settings->root) >= sizeof root_dir - 8) {
     return ESP_ERR_INVALID_ARG;
   }
@@ -988,9 +895,8 @@ esp_err_t pocketjs_system_start(const pocketjs_system_config_t *settings) {
 static esp_err_t finish_app(pocketjs_system_app_t *app, const uint8_t *bytes,
                             size_t size, pocketjs_system_app_t **out) {
   char error[160];
-  app->bytes = bytes;
-  app->size = size;
-  if (!open_package(bytes, size, &app->facts, error, sizeof error)) {
+  if (!open_package(bytes, size, &app->package, &app->facts, error,
+                    sizeof error)) {
     ESP_LOGE(TAG, "slot %s: %s", app->slot, error);
     pocketjs_system_app_free(app);
     return ESP_ERR_INVALID_RESPONSE;
@@ -1006,8 +912,7 @@ static esp_err_t resident_app(const ResidentPackage *resident, bool launcher,
   pocketjs_system_app_t *app = calloc(1, sizeof *app);
   if (app == NULL)
     return ESP_ERR_NO_MEM;
-  app->bytes = resident->bytes;
-  app->size = resident->size;
+  app->package = resident->package;
   app->facts = resident->facts;
   memcpy(app->slot, resident->slot, sizeof app->slot);
   app->launcher = launcher;
@@ -1091,16 +996,12 @@ void pocketjs_system_app_free(pocketjs_system_app_t *app) {
   free(app);
 }
 
-const uint8_t *pocketjs_system_app_bytes(const pocketjs_system_app_t *app,
-                                         size_t *size) {
-  if (app == NULL) {
-    if (size != NULL)
-      *size = 0;
+const pocket_package_source_v1 *
+pocketjs_system_app_source(pocketjs_system_app_t *app, void **context) {
+  if (app == NULL || context == NULL)
     return NULL;
-  }
-  if (size != NULL)
-    *size = app->size;
-  return app->bytes;
+  *context = &app->package;
+  return package_source();
 }
 
 const pocket_idf_package_facts *
@@ -1114,7 +1015,7 @@ bool pocketjs_system_app_is_launcher(const pocketjs_system_app_t *app) {
 
 static void bind_app(void *argument) {
   const pocketjs_system_app_t *app = argument;
-  LauncherPackage package = facts_of(&app->facts, app->bytes, app->size);
+  LauncherPackage package = facts_of(&app->package, &app->facts);
   /* The link names the running app in every net.http request and in
    * runtime.status; the guest's top level may already fetch. */
   launcher_set_current(app->slot, &package);
@@ -1205,14 +1106,14 @@ void pocketjs_system_report_failure(const char *message) {
 bool pocketjs_system_app_worker(const pocketjs_system_app_t *app,
                                 const char **source, size_t *size) {
   return app != NULL && source != NULL && size != NULL &&
-         worker_section(app->bytes, app->size, &app->facts, source, size);
+         package_worker(&app->package, source, size);
 }
 
 bool pocketjs_system_app_worker_bytecode(const pocketjs_system_app_t *app,
                                          const uint8_t **envelope,
                                          size_t *size) {
   return app != NULL && envelope != NULL && size != NULL &&
-         variant_section(app->bytes, app->size, &app->facts, 9, envelope, size);
+         package_worker_bytecode(&app->package, envelope, size);
 }
 
 bool pocketjs_system_online(void) { return wifi_online(); }

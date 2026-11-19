@@ -47,12 +47,24 @@ the same way.
 `-DPOCKETJS_TAB5_SHELL_PACKAGE=<package.pocket>` embeds a package
 the host contract admits in place of Pocket Shell. The primary surface is
 laid out into a PSRAM buffer that nothing scans out.
-`pocket_idf_package_open` (the IDF archive) admits a package by the
-exported host facts (`pocket_profile.facts`) before the runtime boots it,
-once at start for the embedded packages and at each load for a package read
-from the card; the runtime then reads the bytes in place without a copy or
-a second hash pass (`POCKET_MEMORY_PACKAGE_VERIFIED`), and `pocket_runner`
-ticks at the cadence the runtime reports for it. `components/pocket_camera` serves
+
+**Every package the firmware boots is a `.pocket` (format 2)**, the
+container pocket-hub, the applet store and published packages carry; the
+firmware does not boot PocketJS bundles (`.pkb`). `components/pocket_system`
+verifies a package with the `.pocket` reader of `devices/services`
+(`pocket_container.c`: layout, footer hash, every variant's payload hash),
+then offers its variants to PocketJS's admission
+(`pocket_idf_package_open_source`, the IDF archive), the variants compiled
+against the host's profile hash first, then file order. Each offer is a
+package source whose `sections` callback states that variant's plan, code,
+asset pack and worker sections; admission checks them against the exported
+host facts (`pocket_profile.facts`) and the first variant admitted is the
+app's. This runs once at start for the embedded packages and the `apps`
+partition, and at each load for a package read from the card. The runtime
+boots the same source: `take` hands it the container in place, without a
+copy, and with stated sections it reads the variant at those offsets and
+checks no container hash. `pocket_runner` ticks at the cadence the runtime
+reports for it. `components/pocket_camera` serves
 `globalThis.camera` (the SC202CS on MIPI-CSI: a 320x240 preview at 15 fps,
 QR decoding, JPEG stills on the card) and `components/pocket_media` serves
 `globalThis.media` (the companion's stream on the ES8388 speaker) to a guest
@@ -157,8 +169,18 @@ idf.py -p /dev/cu.usbmodem1201 build flash monitor
 ```
 
 Builds run the repository's CLI (`cli/pocket-shell.ts`) through `tools/pocket`
-(`POCKETJS_CLI`) and, with `POCKETJS_RUST_FROM_SOURCE=ON` (the default here),
-need a Rust toolchain with the `riscv32imafc-unknown-none-elf` target. The image with Pocket Shell and
+(`POCKETJS_CLI`): `pocket_shell_compile_app` in
+`components/pocket_system/project_include.cmake` compiles Pocket Shell and
+each bundled app with `compile --manifest --host-config --depfile` into a
+`.pocket` in the build directory, so an edit to an app's sources, its
+`pocket.app.json` or the host config compiles that app again, and
+`pocket_shell_embed_package` takes a prebuilt `.pocket`. Both check the
+package against the exported host contract with `tools/embed-package.ts`,
+which fails the build for a package the firmware would refuse, and link it
+into `.rodata` as `pocketjs_package_<name>`. PocketJS's
+`pocketjs_profile_header` exports `pocket_profile.h` through the same CLI
+(`host export`). With `POCKETJS_RUST_FROM_SOURCE=ON` (the default here),
+builds need a Rust toolchain with the `riscv32imafc-unknown-none-elf` target. The image with Pocket Shell and
 the four bundled apps is 7.5 MiB of the 8 MiB `factory` partition.
 `-DPOCKETJS_TAB5_BUNDLED_APPS=` builds without
 them. `partitions.csv` lays the 16 MiB flash out as `nvs`, `phy_init`, the
@@ -178,7 +200,7 @@ for the UI bundle, 9 for the worker bundle) and, as `bytecode.source` is
 `drop`, leaves the source sections out: with the source kept beside the
 bytecode the image is 8.15 MiB and does not fit `factory`. The compiler is
 built on the build host from the component's own `quickjs-ng` sources
-(`POCKETJS_QUICKJS_SOURCE`, set by the CMake helper to
+(`POCKETJS_QUICKJS_SOURCE`, set by `pocket_shell_compile_app` to
 `managed_components/espressif__quickjs-ng/quickjs-ng`). The guest and the
 worker read those objects instead of parsing source, which drops the
 parser's peak and the function source text QuickJS otherwise keeps. A
