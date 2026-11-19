@@ -2,15 +2,19 @@
 // devices/3ds/test/3ds-composition.test.ts — the product archive
 // (devices/3ds/core, libpocketjs_3ds_core.a) built for this machine and
 // linked with the product's instance.c (fixtures/composition/instance.c
-// includes it): the archive registers no output of its own, the package
-// source and the product's op provider attach before boot, and a frame's
-// buttons, analog lanes and auxiliary touch reach the guest exactly.
+// includes it) and the `.pocket` reader (devices/services/pocket_container.c):
+// the archive's inspection admits the variant the package source states and
+// reads its surfaces, features and slot, the archive registers no output of
+// its own, the package source and the product's op provider attach before
+// boot, and a frame's buttons, analog lanes and auxiliary touch reach the
+// guest exactly.
 //
 // This is the composition half of PocketJS tests/pica-driver.test.ts; the
 // PICA driver's own half stays there. It also proves that the crate builds
 // from its own manifest and lockfile, with the stable compiler PocketJS pins.
 
 import { expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { POCKET_BINDING_GENERATION } from "../../../vendor/pocketjs/contracts/spec/binding-generation.ts";
@@ -45,10 +49,11 @@ test.skipIf(!cc)("the product archive admits a package, attaches the product's p
   const encoder = new TextEncoder();
   const packageBytes = encodePocketPackage({ manifest: new Uint8Array(), variants: [{ target: THREE_DS_PROFILE.id, hostAbi: POCKET_BINDING_GENERATION, profileHash: hashPocketProfile(THREE_DS_PROFILE), sections: [
     { kind: 1, bytes: encodeIdentity({ output: "fixture", id: "test.3ds", title: "3DS composition" }) },
-    { kind: 2, bytes: encoder.encode('{"animation":"composited","profile":{"tickHz":60},"viewport":{"logical":[400,240],"presentation":"native","rasterDensity":1},"features":{}}') },
+    { kind: 2, bytes: encoder.encode('{"animation":"composited","app":{"id":"test.3ds"},"profile":{"tickHz":60},"viewport":{"logical":[400,240],"presentation":"native","rasterDensity":1},"surfaces":{"auxiliary":{"logical":[320,240],"rasterDensity":1}},"features":{"data.fs":true,"display.auxiliary":true}}') },
     { kind: 3, bytes: encoder.encode("test\0") },
   ] }] });
-  writeFileSync(join(runDir, "package_fixture.h"), `static const uint8_t package_bytes[] = {${[...packageBytes].join(",")}};\n`);
+  const slot = createHash("sha256").update("test.3ds").digest("hex").slice(0, 16);
+  writeFileSync(join(runDir, "package_fixture.h"), `static const uint8_t package_bytes[] = {${[...packageBytes].join(",")}};\n#define FIXTURE_SLOT "${slot}"\n`);
   // The product archive: pocket-archive, the 3DS package inspection and the
   // native program without built-in outputs or hooks, as the .3dsx links it.
   run(["cargo", `+${STABLE_RUST_TOOLCHAIN}`, "rustc", "--lib", "--crate-type", "staticlib", "--locked", "--manifest-path", join(product, "core/Cargo.toml"),
@@ -57,6 +62,6 @@ test.skipIf(!cc)("the product archive admits a package, attaches the product's p
   run([cc!, "-std=c11", "-Wall", "-Wextra", "-Werror", "-Wno-unused-variable", `-DPOCKETJS_HOST_ABI=${POCKET_BINDING_GENERATION}`,
     "-I", fixtures, "-I", join(product, "include"),
     "-I", join(pocketjs, "contracts/generated"), "-I", join(pocketjs, "programs/native/runtime/include"), "-I", join(pocketjs, "platforms/3ds"), "-I", services, "-I", runDir,
-    join(fixtures, "instance.c"), join(pocketjs, "platforms/3ds/hooks.c"), join(pocketjs, "platforms/3ds/input_source.c"), join(target, "release/libpocketjs_3ds_core.a"), "-lm", "-o", instance]);
+    join(fixtures, "instance.c"), join(services, "pocket_container.c"), join(pocketjs, "platforms/3ds/hooks.c"), join(pocketjs, "platforms/3ds/input_source.c"), join(target, "release/libpocketjs_3ds_core.a"), "-lm", "-o", instance]);
   expect(run([instance])).toContain("3DS runtime composition: package, auxiliary metadata, providers and exact input passed");
 }, 300_000);

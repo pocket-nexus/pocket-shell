@@ -10,6 +10,8 @@
  */
 
 #include "runtime.h"
+#include "instance.h"
+#include "pocket_container.h"
 #include "pocket_profile.h"
 #include "error_text.h"
 #include "fs.h"
@@ -71,7 +73,6 @@ static const char *package_error(int32_t code) {
     case POCKET_PACKAGE_OPEN_BAD_VERSION: return "unsupported package version";
     case POCKET_PACKAGE_OPEN_HASH_MISMATCH: return "package integrity hash mismatch";
     case POCKET_PACKAGE_OPEN_BAD_UTF8: return "invalid package UTF-8";
-    case POCKET_PACKAGE_OPEN_NO_VARIANT: return "package has no " POCKETJS_TARGET_ID " variant";
     case POCKET_PACKAGE_OPEN_BINDING_GENERATION: return "package host ABI mismatch";
     case POCKET_PACKAGE_OPEN_NO_IDENTITY: return "package identity section missing";
     case POCKET_PACKAGE_OPEN_PLAN: return "package plan section missing";
@@ -82,6 +83,15 @@ static const char *package_error(int32_t code) {
     case POCKET_PACKAGE_OPEN_PLAN_AUXILIARY: return "package plan has an unusable auxiliary surface";
     case POCKET_PACKAGE_OPEN_BAD_LAYOUT: return "invalid package layout";
     case POCKET_PACKAGE_OPEN_WORKER_SECTION: return "worker capability and package section disagree";
+    case POCKET_PACKAGE_OPEN_RASTER_DENSITY: return POCKETJS_TARGET_ID " does not provide the package's raster density";
+    case POCKET_PACKAGE_OPEN_ANIMATION: return POCKETJS_TARGET_ID " does not provide the package's animation class";
+    case POCKET_PACKAGE_OPEN_RATE: return POCKETJS_TARGET_ID " does not provide the package's tick rate";
+    case POCKET_PACKAGE_OPEN_VIEWPORT: return POCKETJS_TARGET_ID " does not provide the package's viewport";
+    case POCKET_PACKAGE_OPEN_PRESENTATION: return POCKETJS_TARGET_ID " does not provide the package's presentation";
+    case POCKET_PACKAGE_OPEN_CAPABILITY: return POCKETJS_TARGET_ID " does not provide the package's capabilities";
+    case POCKET_PACKAGE_OPEN_AUXILIARY: return POCKETJS_TARGET_ID " does not provide the package's auxiliary surface";
+    case POCKET_PACKAGE_OPEN_BAD_BYTECODE: return "package bytecode is unusable";
+    case POCKET_PACKAGE_OPEN_SOURCE: return "package has no variant";
     default: return "invalid package arguments";
   }
 }
@@ -204,6 +214,25 @@ static bool scan_state(const char *directory_path, PocketRuntimeState *state) {
   return true;
 }
 
+/* Offer one variant of the package's `.pocket` to PocketJS's admission
+ * through the program's package source, which states its sections. */
+static int32_t admit_variant(void *context, const PocketContainerVariant *variant, uint32_t index) {
+  (void)index;
+  PocketRuntimePackage *package = context;
+  package->sections = variant->sections;
+  memset(&package->guest, 0, sizeof package->guest);
+  int32_t code = pocket_package_open_source(
+    instance_package_source(),
+    package,
+    &pocket_3ds_profile,
+    POCKETJS_HOST_ABI,
+    pocket_3ds_profile_hash,
+    &package->guest
+  );
+  if (code == POCKET_PACKAGE_OPEN_OK) package->guest.variant_hash = variant->variant_hash;
+  return code;
+}
+
 PocketRuntimePackage *runtime_package_load(
   const char *path,
   char *error,
@@ -254,15 +283,16 @@ PocketRuntimePackage *runtime_package_load(
     return NULL;
   }
 
+  /* The container reader verifies the file and its variants' hashes;
+   * PocketJS admits each variant it offers, at the sections it states, by
+   * the path boot takes. */
   step = push_timing_now();
-  int32_t result = pocket_package_open(
-    package->bytes,
-    package->length,
-    &pocket_3ds_profile,
-    POCKETJS_HOST_ABI,
-    pocket_3ds_profile_hash,
-    &package->guest
-  );
+  PocketContainer container;
+  int32_t result = pocket_container_open(package->bytes, package->length, &container);
+  if (result == POCKET_PACKAGE_OPEN_OK) {
+    result = pocket_container_select(&container, pocket_3ds_profile_hash, admit_variant, package, NULL);
+  }
+  if (result == POCKET_PACKAGE_OPEN_OK) package->guest.package_hash = container.package_hash;
   push_timing_step("package-open-verify", step, "%lu bytes, js %lu, pak %lu, result %ld", (unsigned long)package->length,
                    (unsigned long)package->guest.javascript_length, (unsigned long)package->guest.pak_length, (long)result);
   if (result != 0 || package->guest.package_hash == 0) {
