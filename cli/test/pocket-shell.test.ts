@@ -114,7 +114,7 @@ describe("a refused app contract", () => {
     const result = cli(["check", "--manifest", manifest, "--target", HOST_CONTRACT_3DS]);
     expect(result.code).toBe(1);
     expect(result.stdout).toBe("");
-    expect(result.stderr).toBe("pocket-shell: capability.unavailable /engine/capabilities/requires/1: target 3ds-dev does not provide input.pointer to role application\n");
+    expect(result.stderr).toBe("pocket-shell: capability.unavailable /engine/capabilities/requires/1: target 3ds-dev does not provide input.pointer\n");
   });
 
   test("every resolver diagnostic is printed, one per line, and compile writes nothing", () => {

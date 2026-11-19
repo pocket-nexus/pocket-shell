@@ -151,7 +151,6 @@ PocketJS's ids:
 | `display.viewport.live` | The logical viewport changes at run time. The host calls `resizeViewport`, which resizes the root layers; app code reads the size with `useViewport` (Solid) or `onViewport`. Console targets never provide it. |
 | `display.auxiliary` | One fixed-size auxiliary UI output presented beside the primary viewport by the same instance. |
 | `ui.physics` | 2D bodies stepped by the UI core: worlds, jelly bodies, colliders, zones and particle emitters (PocketJS `contracts/spec/physics.ts`). |
-| `ui.compositor-surfaces` | A System UI can place installed applications into native compositor surfaces. |
 | `audio.pcm` | Credit-based s16 PCM streaming through `globalThis.audio`. |
 | `audio.capture` | Microphone input on the same namespace: the host records an input into a ring the guest drains each tick. |
 | `net.mqtt` | MQTT 3.1.1 and 5.0 sessions as a worker resource (`io.mqtt`), under the limits of PocketJS `contracts/spec/mqtt.ts`. |

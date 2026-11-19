@@ -12,7 +12,6 @@ export {
 } from "../spec/pocket-manifest.ts";
 export {
   type FeatureId,
-  type PackageRole,
   type PocketCapabilityId,
   type PresentationMode,
   type Viewport,

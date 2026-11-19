@@ -415,16 +415,6 @@ describe("semantic resolution", () => {
     expect(validateAndResolveBuildPlan(roomy, { target: "macos-widget" }).ok).toBe(true);
   });
 
-  test("a System UI package resolves with the capabilities the target gives that role", async () => {
-    const systemUI = await Bun.file(fixtureUrl("system-ui")).json();
-    expect(
-      validateAndResolveBuildPlan(systemUI, {
-        target: "web-app",
-        role: "systemUI",
-      }).ok,
-    ).toBe(true);
-  });
-
   test("portable text admission requires its offload transport declaration", async () => {
     const manifest = await Bun.file(fixtureUrl("text-offload")).json();
     manifest.engine.capabilities.requires = manifest.engine.capabilities.requires.filter((cap: string) => cap !== "io.offload");
