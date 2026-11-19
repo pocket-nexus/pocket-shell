@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Pocket Shell's PSP program: the launcher as app 0 and the embedded applets
+# after it, one guest at a time, over the pocketjs-psp library's frame loop.
+# shells/3ds/scripts/psp.ts (`bun run psp`) builds it through PocketJS's
+# buildPspProgram().
+
+[package]
+name = "pocket-shell-psp"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+publish = false
+
+# A standalone graph: Cargo does not search the directories above for a workspace.
+[workspace]
+
+[dependencies]
+pocketjs-psp = { path = "../../../vendor/pocketjs/programs/psp" }
+pocketjs-core = { path = "../../../vendor/pocketjs/engine/core" }
+pocket-package = { path = "../../../vendor/pocketjs/engine/package" }
+pocket-runtime = { path = "../../../vendor/pocketjs/engine/runtime" }
+pocket-drivers = { path = "../../../vendor/pocketjs/engine/drivers" }
+
+[features]
+# The library's PPSSPPHeadless frame dumps; this program adds the veil's.
+capture = ["pocketjs-psp/capture"]
+bench = ["pocketjs-psp/bench"]
+
+# The settings PocketJS applies to its own PSP program.
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3

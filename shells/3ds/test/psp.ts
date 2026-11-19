@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // shells/3ds/test/psp.ts — the PSP's full screen in the sims: a program built
-// the way `bun run psp` builds it (scripts/psp.ts: compiled against the psp
-// host config, admitted by its host contract), its guest unpacked from that
-// package and booted on a 480x272 primary display with no auxiliary surface
+// the way `bun run psp` builds it (scripts/psp.ts: compiled against the PSP
+// program's host config, devices/psp/pocket.host.config.ts, and admitted by
+// its host contract), its guest unpacked from that package and booted on a 480x272 primary display with no auxiliary surface
 // and no touch, the way the PSP host presents it. The console is tethered:
 // its link rides the USB share of the computer it is plugged into.
 // POCKET_PSP_SHOTS=<dir> writes the screens as PNGs.
@@ -12,7 +12,7 @@ import { join } from "node:path";
 import { decodePocketPackage, findSection, findVariant, POCKET_SECTION } from "../../../runtime/spec/pocket-package.ts";
 import { bootConsole3ds, type Console3ds, type Console3dsOptions } from "../../../runtime/sim/console-3ds.ts";
 import { encodePNG } from "../../../vendor/pocketjs/tools/png.ts";
-import { buildPspPackage } from "../scripts/psp.ts";
+import { buildPspPackage, pspProfile } from "../scripts/psp.ts";
 
 export const PSP: [number, number] = [480, 272];
 
@@ -28,9 +28,10 @@ if (SHOTS) mkdirSync(SHOTS, { recursive: true });
  *  embeds; returns the guest's path without extension. */
 export async function buildPspGuest(app: string, out: string): Promise<string> {
   const { path, plan } = await buildPspPackage(app, out);
-  const variant = findVariant(decodePocketPackage(new Uint8Array(readFileSync(path))), "psp");
+  const target = pspProfile().id;
+  const variant = findVariant(decodePocketPackage(new Uint8Array(readFileSync(path))), target);
   const js = variant && findSection(variant, POCKET_SECTION.js);
-  if (!variant || !js) throw new Error(`${path} has no psp variant with JavaScript`);
+  if (!variant || !js) throw new Error(`${path} has no ${target} variant with JavaScript`);
   const guest = join(out, "guest", plan.app.output);
   mkdirSync(join(out, "guest"), { recursive: true });
   // The package's JavaScript ends in a NUL the guest does not read.

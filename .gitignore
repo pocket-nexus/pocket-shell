@@ -12,3 +12,8 @@ dist/
 
 # Cargo output of a host `cargo check` or `cargo test` in the 3DS archive crate.
 /devices/3ds/core/target/
+# The PSP program's build: cargo's target and the XMB metadata
+# buildPspProgram() writes from devices/psp/xmb/Psp.toml.
+devices/psp/program/target/
+devices/psp/program/Psp.toml
+devices/psp/host-test/target/
