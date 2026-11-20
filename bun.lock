@@ -14,11 +14,11 @@
     },
     "shells/3ds": {
       "name": "@pocket-shell/3ds",
-      "version": "0.2.0",
+      "version": "0.3.0",
     },
     "shells/touch": {
       "name": "@pocket-shell/touch",
-      "version": "0.2.0",
+      "version": "0.3.0",
     },
   },
   "packages": {
