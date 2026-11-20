@@ -76,22 +76,23 @@ computer:
 The Hub mints the link key and sends it under the code; the Tab5 stores it
 in its store's `link/` directory and links by itself, now and at every later
 start. No card, cable or camera is involved: without a card the store is the
-`storage` flash partition. With the reference Hub in `vendor/pocketjs`, from
-the repository root:
+`storage` flash partition. With the reference Hub, `link/v2/cli.ts` in this
+repository, from the repository root:
 
 ```sh
-bun run --cwd vendor/pocketjs link2 serve --apps <folder of .pocket files>
-bun run --cwd vendor/pocketjs link2 pair --code <the 6 digits>
+bun link/v2/cli.ts serve --apps <folder of .pocket files>
+bun link/v2/cli.ts pair --code <the 6 digits>
 ```
 
 `serve` stays in the foreground and names a Tab5 that asks to be paired;
-`pair` is run beside it. `link2 status` and `link2 apps` then answer from the
-Tab5, and `bun run offer --tab5` at the repository root builds the applets
-for this host and serves them from the same Hub.
+`pair` is run beside it. `bun link/v2/cli.ts status` and `apps` then answer
+from the Tab5, and `bun run offer --tab5` at the repository root builds the
+applets for this host and serves them from the same Hub.
 
 A Hub can also write the pairing files itself, as it does for a 3DS, onto a
-microSD card in the computer's reader (`link2 setup --card <mounted card>
---link-dir link`): the Tab5 reads them from the card at its next start. A
+microSD card in the computer's reader (`bun link/v2/cli.ts setup --card
+<mounted card> --link-dir link`): the Tab5 reads them from the card at its
+next start. A
 Tab5 paired by a scanned code under an earlier firmware (Pocket Link 1)
 keeps those key files, lists them in Settings > Mac and links to none of
 them: forget them there and pair again.
@@ -156,11 +157,13 @@ way (into `.pocket-build/dist/`) with the ESP-IDF environment exported.
 ## Pinned dependencies
 
 `vendor/pocketjs`, the repository's one PocketJS checkout, is pinned to a
-commit on pocketjs `main`. It carries Pocket Link 2 (pocket-nexus/pocketjs#678): the
-specification, the C client `pocket_system` compiles and the reference Hub
-the host test runs against. It
-includes the host-facts admission, host contracts and app contracts of
-pocket-nexus/pocketjs#631, and pocket-nexus/pocketjs#635, which adds the
+commit on pocketjs `main`. Pocket Link 2 came from pocket-nexus/pocketjs#678
+and is this repository's now: the specification (`docs/POCKET-LINK.md`), the
+C client `pocket_system` compiles (`devices/services`) and the reference Hub
+the host test runs against (`link/v2`). So are the host-facts admission and
+the app contracts of pocket-nexus/pocketjs#631 (`runtime/spec`,
+`runtime/manifest`); PocketJS keeps the host contracts. The pin
+includes pocket-nexus/pocketjs#635, which adds the
 `system.device` and `audio.capture` modules, the Wi-Fi access point ops, the
 package feature bits the ESP-IDF archive reports for them and the I2C probe
 opcode, and re-arms the worker scheduler's host timer after a timer fact.

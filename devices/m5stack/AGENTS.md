@@ -35,7 +35,7 @@ implementation notes belong in `docs/`, not here.
   `IDF_COMMIT`.
 - `bun run check:m5stack` at the repository root runs the format check and
   `tools/test-worker-io.sh`: the host C tests under ASan and UBSan and the
-  Pocket Link 2 host test against PocketJS's reference Hub. It needs a C
+  Pocket Link 2 host test against the reference Hub in `link/v2`. It needs a C
   compiler. `bun run m5stack <script>` runs any script of this package.
 
 ## Dependencies and third-party code
