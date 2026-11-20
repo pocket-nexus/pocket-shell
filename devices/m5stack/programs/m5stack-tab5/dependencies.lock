@@ -403,7 +403,7 @@ dependencies:
       type: service
     version: 0.1.5
   espressif/usb:
-    component_hash: 99eee72ea224d9117d4c342442717a1f20bf8112e2ab5d7d7038b827874f4c92
+    component_hash: 5bcbf1bde509faef0750bbae5595b38e91cbbbd9aa0e3d308be64f9279b78aa0
     dependencies:
     - name: idf
       require: private
@@ -418,7 +418,7 @@ dependencies:
     - esp32p4
     - esp32h4
     - linux
-    version: 1.6.0
+    version: 1.6.1
   espressif/usb_host_uvc:
     component_hash: f20c4e4dea50536e2e29daaf589b5f5984402284c155867daef27d6b64869f78
     dependencies:
@@ -512,6 +512,6 @@ direct_dependencies:
 - joltwallet/littlefs
 - pocket-nexus/pocket_guest_quickjs
 - pocket-nexus/pocket_runtime
-manifest_hash: bed6c4b94c5c00a2b4fab437d6bd0d8cd6548a34fb40b825834be9648a4edc7a
+manifest_hash: cfbfcbc981169281f8c167bdb8da2587985fc16b37fd5f3c6e061ea84a39043f
 target: esp32p4
 version: 3.0.0

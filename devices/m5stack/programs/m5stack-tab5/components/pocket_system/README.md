@@ -322,8 +322,8 @@ driver sent no packet for the 7 s the name lookup waited, and the link
 dropped for silence.
 
 `tests/link-host.test.ts` builds `link2_host.c` and `companion.c` with the
-link client under ASan and UBSan and runs them against pocketjs's reference
-Hub (`tools/pocket-link/v2/hub.ts`) in the test process: the pairing files of
+link client under ASan and UBSan and runs them against the reference Hub
+(`link/v2/hub.ts` at the repository root) in the test process: the pairing files of
 a setup, the handshake, `runtime.status`, `runtime.apps`, a launch, a
 removal, the companion route and a link that closes under a request.
 
