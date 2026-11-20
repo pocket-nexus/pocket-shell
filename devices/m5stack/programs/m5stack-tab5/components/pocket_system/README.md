@@ -265,7 +265,7 @@ The firmware lists these groups in its `hello` (§6.1):
 | Group | What the firmware does |
 | --- | --- |
 | `apps` | reports the launcher's row and the launcher's table as `runtime.apps`, after `ready` and after each install or removal |
-| `runtime` | answers `runtime.status` and switches to an installed app on `runtime.launch`; a push and a screenshot answer `unsupported` |
+| `runtime` | answers `runtime.status`, switches to an installed app on `runtime.launch`, and installs and starts a package on `runtime.push` (below); a screenshot answers `unsupported` |
 | `runtime.remove` | removes an installed applet at the Hub's request; never the launcher, the running app or a bundled package |
 | `catalog`, `install` | the store of `globalThis.link`: the Hub's offer for target `tab5-home`, and a package streamed into the `apps` partition ("Store") |
 | `net.http` | the worker's requests to `companion.pocket` ("Companion services") |
@@ -276,6 +276,29 @@ or of a last good package, so `runtime.status` says `generation` 0 and
 `lastGood` zeros; `active` and `running` are the hash of the package that
 runs, `phase` is `starting`, `booted` or `switching`, and `frame` counts the
 pumps.
+
+**A push from the Hub** (§6.2 `runtime.push`) is how a Hub installs an applet
+on the Tab5 without the owner opening the store on the device. Its bytes
+stream into the stage of the `apps` partition as a catalog install's do
+("Store"), and nowhere else: a push finds the stage taken by another install
+and answers `busy`, finds no run of free pages and answers `storage` with
+the free space, and is never staged in a file. The request names no app, so
+the slot is the one the package's own app id hashes to, read when the last
+byte is in. Admission is a catalog install's ("Admission"); a package whose
+footer is not the declared hash, that no variant of fits this firmware, or
+whose slot holds a package of the firmware image (the launcher's among
+them) is refused with `rejected`, phase `rejected`, and its pages stay free.
+An admitted package is committed in its slot and the launcher switches to
+it; the `staged` event leaves when its guest binds and the `accepted` reply
+at its first frame. A guest that does not boot puts the launcher in its
+place as for any app, and the push ends with `rejected` and "the app did
+not start", the package installed. **A push of the running app** is held
+admitted and uncommitted while that app runs, because it reads its package
+from the pages the commit frees: the switch is requested at admission, the
+commit made when its guest is torn down (`link2_host_guest_end`), and the new
+package boots in its place. A push that has not reached its app's first
+frame 20 s after admission ends with `timeout`, under the Hub's 30 s
+(§5.5).
 
 **Pairing.** The Tab5 pairs by a code it shows (§3.11): its owner opens a
 pairing in the launcher (`link.pairOpen()`), the client makes a code of 6

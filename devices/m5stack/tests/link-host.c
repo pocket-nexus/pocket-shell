@@ -14,12 +14,20 @@
  *   start <url> error <message>          the transport refused the request
  *   status linked | not linked           the link's state after a wait
  *   fetch <url> <status> <end> <body>    headers status, end status, body
- *   switch <output>                      a launch the launcher took
+ *   switch <output>                      a switch the program made, as its
+ *                                        app task does: the guest ends, the
+ *                                        request is taken, the next binds
  *   end <url> <status> <message>         a request the link ended
  *   ask <when> taken | refused           link.pairAsk's answer
  *   hub listed | not listed              the Hub among those to choose from
  *   code <digits>                        the code the device shows
- *   pair <state>                         the pairing's state */
+ *   pair <state>                         the pairing's state
+ *
+ * The store (store_push_*, link2_host.h) holds what Hub pushes in memory.
+ * A package here is its plan's JSON followed by an 8-byte footer, the hash
+ * little-endian as a `.pocket`'s: admission checks the footer, reads the
+ * app id and refuses the launcher's slot, and does not verify a container
+ * (tests/package.test.ts covers package.c's admission). */
 
 #include <poll.h>
 #include <stdio.h>
@@ -49,6 +57,147 @@ static char link_directory[512];
 static char home_slot[17];
 static char hn_slot[17];
 static bool hn_installed;
+static LauncherPackage launcher_facts;
+static LauncherPackage hn_facts;
+
+/* Packages a push committed, by slot. Their bytes stay until the slot's
+ * next commit, like the pages of the apps partition. */
+#define PUSHED_MAX 4
+#define PUSH_MAX_BYTES 4096u
+typedef struct {
+  char slot[17];
+  uint8_t *bytes;
+  LauncherPackage facts;
+} Pushed;
+static Pushed pushed[PUSHED_MAX];
+
+static struct {
+  bool active;
+  bool admitted;
+  uint8_t *bytes;
+  size_t size;
+  size_t written;
+  char slot[17];
+  LauncherPackage facts;
+} stage;
+
+static Pushed *pushed_in(const char *slot) {
+  for (size_t i = 0; i < PUSHED_MAX; i += 1)
+    if (pushed[i].bytes != NULL && strcmp(pushed[i].slot, slot) == 0)
+      return &pushed[i];
+  return NULL;
+}
+
+/* The package a slot boots: the launcher's, Hacker News or a pushed one. */
+static const LauncherPackage *package_in(const char *slot) {
+  if (strcmp(slot, home_slot) == 0)
+    return &launcher_facts;
+  const Pushed *entry = pushed_in(slot);
+  if (entry != NULL)
+    return &entry->facts;
+  return hn_installed && strcmp(slot, hn_slot) == 0 ? &hn_facts : NULL;
+}
+
+static void push_failure(Link2Failure *failure, const char *code,
+                         const char *message) {
+  snprintf(failure->code, sizeof failure->code, "%s", code);
+  snprintf(failure->message, sizeof failure->message, "%s", message);
+}
+
+bool store_push_begin(uint32_t bytes, Link2Failure *failure) {
+  if (stage.active) {
+    push_failure(failure, "busy", "an install is streaming");
+    return false;
+  }
+  if (bytes > PUSH_MAX_BYTES) {
+    push_failure(failure, "storage", "no room on the apps partition");
+    return false;
+  }
+  stage.bytes = malloc(bytes);
+  if (stage.bytes == NULL)
+    exit(30);
+  stage.active = true;
+  stage.admitted = false;
+  stage.size = bytes;
+  stage.written = 0;
+  return true;
+}
+
+bool store_push_write(const uint8_t *bytes, size_t length) {
+  if (!stage.active || length > stage.size - stage.written)
+    return false;
+  memcpy(stage.bytes + stage.written, bytes, length);
+  stage.written += length;
+  return true;
+}
+
+void store_push_abort(void) {
+  free(stage.bytes);
+  memset(&stage, 0, sizeof stage);
+}
+
+bool store_push_admit(uint64_t hash, char slot[17], LauncherPackage *facts,
+                      Link2Failure *failure) {
+  uint64_t footer = 0;
+  char id[LAUNCHER_ID_BYTES] = "";
+  const char *refusal = NULL;
+  if (!stage.active || stage.written != stage.size || stage.size < 8) {
+    refusal = "no package is staged";
+  } else {
+    for (int i = 7; i >= 0; i -= 1)
+      footer = (footer << 8) | stage.bytes[stage.size - 8 + (size_t)i];
+    stage.facts = (LauncherPackage){.plan = (const char *)stage.bytes,
+                                    .plan_length = stage.size - 8,
+                                    .hash = hash,
+                                    .bytes = stage.size};
+    if (footer != hash)
+      refusal = "the package does not match its declared hash";
+    else if (!launcher_package_app_id(&stage.facts, id, sizeof id))
+      refusal = "the package names no app";
+  }
+  if (refusal == NULL) {
+    sha256_slot(id, strlen(id), stage.slot);
+    if (strcmp(stage.slot, home_slot) == 0)
+      refusal = "the app is part of this Tab5's software and is not replaced";
+  }
+  if (refusal != NULL) {
+    store_push_abort();
+    push_failure(failure, "rejected", refusal);
+    snprintf(failure->members, sizeof failure->members,
+             "\"phase\":\"rejected\"");
+    return false;
+  }
+  stage.admitted = true;
+  memcpy(slot, stage.slot, 17);
+  *facts = stage.facts;
+  return true;
+}
+
+bool store_push_commit(Link2Failure *failure) {
+  if (!stage.admitted) {
+    store_push_abort();
+    push_failure(failure, "storage", "no admitted package is staged");
+    return false;
+  }
+  Pushed *entry = pushed_in(stage.slot);
+  for (size_t i = 0; entry == NULL && i < PUSHED_MAX; i += 1)
+    if (pushed[i].bytes == NULL)
+      entry = &pushed[i];
+  if (entry == NULL) {
+    store_push_abort();
+    push_failure(failure, "storage", "no room in the package table");
+    return false;
+  }
+  free(entry->bytes);
+  memcpy(entry->slot, stage.slot, 17);
+  entry->bytes = stage.bytes;
+  entry->facts = stage.facts;
+  char directory[600];
+  launcher_host_slot_path(stage.slot, NULL, directory, sizeof directory);
+  mkdir(directory, 0777);
+  memset(&stage, 0, sizeof stage);
+  return true;
+}
 
 uint64_t services_host_us(void) {
   struct timespec now;
@@ -79,9 +228,14 @@ bool launcher_host_slot_path(const char *slot, const char *name, char *out,
   return written > 0 && (size_t)written < capacity;
 }
 
-/* One installed app: its slot holds the launcher's cached facts and no
- * package file. */
+/* Hacker News and what a push committed: each slot holds the launcher's
+ * cached facts and no package file. */
 bool launcher_host_active_hash(const char *slot, uint64_t *hash) {
+  const Pushed *entry = pushed_in(slot);
+  if (entry != NULL) {
+    *hash = entry->facts.hash;
+    return true;
+  }
   if (!hn_installed || strcmp(slot, hn_slot) != 0)
     return false;
   *hash = HN_HASH;
@@ -166,13 +320,24 @@ bool link_host_data(uint32_t stream, const uint8_t *bytes, size_t length) {
   return false;
 }
 
-/* One frame of the firmware's loop: the pump, then a launch the launcher
- * took at Hub's request. */
+/* One frame of the firmware's loop: the pump, then the switch the launcher
+ * was asked for, in main.c's order (switch_guest): the guest is torn down,
+ * the request taken, and the next guest's slot set before it binds
+ * (services_host.c bind_app). */
 static void frame(void) {
   link2_host_pump();
+  if (!launcher_pending())
+    return;
+  link2_host_guest_end();
   LauncherTarget target;
-  if (launcher_pending() && launcher_take_request(&target))
-    printf("switch %s\n", target.output);
+  if (!launcher_take_request(&target))
+    return;
+  printf("switch %s\n", target.output);
+  const LauncherPackage *next = package_in(target.slot);
+  if (next == NULL)
+    exit(31);
+  launcher_set_current(target.slot, next);
+  link2_host_guest_begin(next);
 }
 
 /* Ask the test to act, and pump until it answers with a line. */
@@ -341,6 +506,8 @@ int main(int argc, char **argv) {
                                     .hash = SHELL_HASH};
   const LauncherPackage hn = {
       .plan = hn_plan, .plan_length = sizeof hn_plan - 1, .hash = HN_HASH};
+  launcher_facts = launcher;
+  hn_facts = hn;
   sha256_slot(SHELL_ID, strlen(SHELL_ID), home_slot);
   sha256_slot(HN_ID, strlen(HN_ID), hn_slot);
   launcher_init(home_slot, &launcher);
