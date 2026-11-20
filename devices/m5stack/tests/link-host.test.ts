@@ -183,6 +183,8 @@ describe("the Tab5 on Pocket Link 2", () => {
           const phases: unknown[] = [];
           runtime.pushNew = await outcome(device.push(first.bytes, first.hash, (event) => phases.push(event.phase)));
           runtime.pushNewPhases = phases;
+          // The status event leaves in the same pump as the reply, after it.
+          await until(() => device.status?.app?.id === weather.id, "the pushed applet in runtime.status");
           runtime.runningAfterPush = device.status?.app;
           await until(() => device.apps.some((app) => app.id === weather.id), "the pushed applet in the installed set");
           const second = pocket({ ...weather, version: "1.1.0" }, 0xfedcba9876543210n);
