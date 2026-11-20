@@ -8,14 +8,25 @@
  * The groups the firmware lists (§6.1):
  *
  *   apps              the installed set, from the launcher's table
- *   runtime           runtime.status, and runtime.launch of an installed
- *                     app; a push and a screenshot answer `unsupported`
+ *   runtime           runtime.status, runtime.launch of an installed app,
+ *                     and runtime.push into the apps partition (below); a
+ *                     screenshot answers `unsupported`
  *   runtime.remove    Hub's removal of an installed applet (link2_guest.c)
  *   catalog, install  the store of `globalThis.link` (link2_guest.c)
  *   net.http          the worker's requests to companion.pocket
  *                     (companion.c over link2_http.c)
  *
  * It opens no applet channel, runs no agent and has no DevTools stream.
+ *
+ * A push (§6.2 runtime.push) streams into the stage of the apps partition,
+ * as a catalog install does, and is admitted for the slot its own app id
+ * names: the request carries no id, so the slot is known only once the
+ * package is whole. It is committed there and the launcher switches to it;
+ * the reply leaves at the first frame of the app it installed. The running
+ * app reads its package from flash where it lies, and a commit frees those
+ * pages, so a push of the running app waits, admitted and uncommitted, until
+ * that guest is torn down (link2_host_guest_end) and then boots the new
+ * package in its place.
  *
  * The Tab5 pairs by a code it shows (§3.11): the client asks the Hub its
  * owner chose, and writes `companions/<hub id>.txt` under
@@ -31,6 +42,7 @@
  */
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include "host_services.h"
@@ -68,3 +80,27 @@ Link2 *link2_host_client(void);
 /* Close the link with CLOSE `going_away` and free the client: a host that
  * stops (the build machine's harness). The firmware never stops. */
 void link2_host_shutdown(void);
+
+/* --- what the store supplies for runtime.push (services_host.c) ---------- */
+
+/* Set the stage of the apps partition aside for a package of `bytes`.
+ * False with `failure`: `busy` while an install streams into the stage,
+ * `storage` without the partition or without a run of free pages that
+ * holds the package. */
+bool store_push_begin(uint32_t bytes, Link2Failure *failure);
+/* The next bytes of the stage; false when flash refused them. */
+bool store_push_write(const uint8_t *bytes, size_t length);
+/* Drop the stage: its pages stay free. */
+void store_push_abort(void);
+/* Admit the whole stage by the firmware's host facts: its footer must be
+ * `hash`. Fills the slot its app id names and its facts, which stay valid
+ * after the commit (the package is committed where it lies). False with
+ * `failure` `rejected` (and the stage dropped) when it is not a package
+ * this firmware runs, or when its slot holds a package bundled into the
+ * firmware (the launcher's among them). Nothing is committed. */
+bool store_push_admit(uint64_t hash, char slot[17], LauncherPackage *facts,
+                      Link2Failure *failure);
+/* Commit the admitted stage as its slot's package, replacing the one it
+ * had. Never while that slot's guest runs. The stage is gone afterwards
+ * either way; false with `failure` `storage`. */
+bool store_push_commit(Link2Failure *failure);

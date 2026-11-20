@@ -1594,6 +1594,17 @@ retired, `main.c`). Errors: `rejected` with `phase` (`rejected` or
 `recovered`) and the admission's message; `transfer`; `storage`; `busy`;
 `unsupported`; `too_large`.
 
+**The M5Stack Tab5** (`devices/m5stack`, `pocket_system` README "Pocket
+Link") streams a push into the stage of its `apps` partition, the flash a
+catalog install streams into (§6.4), and takes the slot from the package's
+own app id once the last byte is in. It sends `staged` when the app's guest
+binds and the reply at its first frame. Its running app reads its package
+from flash in place, so a push of the running app is committed only after
+that guest is torn down, and the new package then boots in its place. It
+keeps no last good package: a package that does not boot stays installed,
+the launcher takes its place, and the push ends with `rejected`, `phase`
+`rejected`.
+
 The development connection's chunks carried an absolute offset
 (`encodePocketRuntimeChunk`); version 2 drops it, since TCP order and the
 byte count fix every byte's place.

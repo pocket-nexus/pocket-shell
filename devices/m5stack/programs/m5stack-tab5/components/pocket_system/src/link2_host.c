@@ -11,6 +11,7 @@
 #include "launcher.h"
 #include "link2_guest.h"
 #include "link_http.h"
+#include "sha256.h"
 
 static const char *const FEATURES[] = {
     "apps", "runtime", "runtime.remove", "catalog", "install", "net.http",
@@ -214,6 +215,183 @@ static bool on_install_begin(void *context, uint32_t request, const char *app,
 
 uint32_t link2_host_install_bytes(void) { return install_bytes; }
 
+// ---------------------------------------------------------------------------
+// runtime.push (link2_host.h)
+// ---------------------------------------------------------------------------
+
+/* How long an admitted push may wait for its app's first frame before the
+ * request ends with `timeout`: under Hub's 30 s without a frame (§5.5), so
+ * the device's own message reaches Hub. A switch takes well under a second. */
+#define PUSH_START_MS 20000u
+
+typedef enum {
+  PUSH_IDLE,
+  /* The bytes go into the stage. */
+  PUSH_STREAMING,
+  /* Admitted for the running app's slot: committed when that guest ends. */
+  PUSH_HELD,
+  /* Committed; the switch to it is requested. */
+  PUSH_SWITCHING,
+  /* Its guest is bound: the reply leaves at the next pump, its first
+   * frame. */
+  PUSH_STARTED,
+} PushState;
+
+static struct {
+  PushState state;
+  uint64_t hash;
+  uint64_t admitted_ms;
+  char slot[17];
+  LauncherPackage facts;
+  char id[LAUNCHER_ID_BYTES];
+  char output[LAUNCHER_OUTPUT_BYTES];
+  char title[96];
+} push;
+
+static void fail_with(Link2Failure *failure, const char *code,
+                      const char *message) {
+  snprintf(failure->code, sizeof failure->code, "%s", code);
+  snprintf(failure->message, sizeof failure->message, "%s", message);
+}
+
+/* The admitted push ends with `code` and `message`; `rejected` carries the
+ * phase §6.2 gives it: the Tab5 keeps no last good package to go back to. */
+static void push_failed(const char *code, const char *message) {
+  Link2Failure failure;
+  memset(&failure, 0, sizeof failure);
+  fail_with(&failure, code, message);
+  if (strcmp(code, "rejected") == 0)
+    snprintf(failure.members, sizeof failure.members, "\"phase\":\"rejected\"");
+  push.state = PUSH_IDLE;
+  if (client != NULL)
+    link2_push_result(client, false, NULL, 0, &failure);
+}
+
+/* The package is its slot's now: the launcher's table and Hub's report of
+ * the installed set follow it. */
+static void push_committed(void) {
+  launcher_note_installed(push.slot, &push.facts);
+  if (client != NULL)
+    link2_apps_changed(client);
+}
+
+static bool on_push_begin(void *context, uint32_t bytes, const char *hash,
+                          Link2Failure *failure) {
+  (void)context;
+  uint8_t raw[8];
+  if (push.state != PUSH_IDLE) {
+    fail_with(failure, "busy", "a pushed package is being installed");
+    return false;
+  }
+  if (strlen(hash) != 16 || !hex_decode(hash, 16, raw, sizeof raw)) {
+    fail_with(failure, "malformed", "the hash is not 16 hex digits");
+    return false;
+  }
+  if (!store_push_begin(bytes, failure))
+    return false;
+  push.hash = 0;
+  for (size_t i = 0; i < 8; i += 1)
+    push.hash = (push.hash << 8) | raw[i];
+  push.state = PUSH_STREAMING;
+  return true;
+}
+
+static bool on_push_data(void *context, const uint8_t *bytes, size_t length) {
+  (void)context;
+  return push.state == PUSH_STREAMING && store_push_write(bytes, length);
+}
+
+/* The transfer stopped before its last byte: the link dropped, Hub
+ * cancelled, or a write failed. */
+static void on_push_abort(void *context) {
+  (void)context;
+  if (push.state != PUSH_STREAMING)
+    return;
+  store_push_abort();
+  push.state = PUSH_IDLE;
+}
+
+/* The last byte is in. Admission reads the package where it lies; the
+ * request then waits for link2_push_staged and link2_push_result, which
+ * the guest switch below sends. */
+static bool on_push_admit(void *context, Link2Failure *failure) {
+  (void)context;
+  if (push.state != PUSH_STREAMING) {
+    fail_with(failure, "internal", "no pushed package is staged");
+    return false;
+  }
+  if (!store_push_admit(push.hash, push.slot, &push.facts, failure)) {
+    push.state = PUSH_IDLE;
+    return false;
+  }
+  push.id[0] = '\0';
+  push.title[0] = '\0';
+  launcher_package_app_id(&push.facts, push.id, sizeof push.id);
+  launcher_package_title(&push.facts, push.title, sizeof push.title);
+  if (!launcher_package_output(&push.facts, push.output, sizeof push.output)) {
+    store_push_abort();
+    push.state = PUSH_IDLE;
+    fail_with(failure, "rejected", "the package names no output");
+    snprintf(failure->members, sizeof failure->members,
+             "\"phase\":\"rejected\"");
+    return false;
+  }
+  push.admitted_ms = services_host_ms();
+  if (guest_running && strcmp(push.slot, launcher_current_slot()) == 0) {
+    /* The switch is to the slot, which the launcher's table names by the
+     * output of the package that runs; the new package may name another. */
+    if (!launcher_launch(launcher_current_output())) {
+      store_push_abort();
+      push.state = PUSH_IDLE;
+      fail_with(failure, "internal", "the running app is not in the table");
+      return false;
+    }
+    push.state = PUSH_HELD;
+    return true;
+  }
+  if (!store_push_commit(failure)) {
+    push.state = PUSH_IDLE;
+    return false;
+  }
+  push_committed();
+  if (!launcher_launch(push.output)) {
+    push.state = PUSH_IDLE;
+    fail_with(failure, "internal",
+              "the installed app is not in the launcher's table");
+    return false;
+  }
+  push.state = PUSH_SWITCHING;
+  return true;
+}
+
+/* At the first pump of the pushed app's guest: the accepted reply. */
+static void push_pump(void) {
+  if (push.state == PUSH_STARTED) {
+    char members[512];
+    Link2Json json;
+    link2_json_init(&json, members, sizeof members);
+    link2_json_text(&json,
+                    "\"generation\":0,\"message\":\"\",\"app\":{\"id\":");
+    link2_json_cstring(&json, push.id);
+    link2_json_text(&json, ",\"output\":");
+    link2_json_cstring(&json, push.output);
+    link2_json_text(&json, ",\"title\":");
+    link2_json_cstring(&json, push.title);
+    link2_json_text(&json, "}");
+    push.state = PUSH_IDLE;
+    if (client != NULL)
+      link2_push_result(client, !json.failed, members, json.length, NULL);
+    return;
+  }
+  if ((push.state == PUSH_HELD || push.state == PUSH_SWITCHING) &&
+      services_host_ms() - push.admitted_ms > PUSH_START_MS) {
+    /* A held package was never committed: its pages go back. */
+    if (push.state == PUSH_HELD)
+      store_push_abort();
+    push_failed("timeout", "the app did not start");
+  }
+}
+
 static void on_linked(void *context, const char *hub, const char *why) {
   (void)context;
   /* The worker's open requests end; what it has not read yet stays. */
@@ -271,6 +449,10 @@ void link2_host_init(const Link2HostConfig *config) {
   host.runtime_status = on_runtime_status;
   host.runtime_apps = on_runtime_apps;
   host.launch = on_launch;
+  host.push_begin = on_push_begin;
+  host.push_data = on_push_data;
+  host.push_admit = on_push_admit;
+  host.push_abort = on_push_abort;
   /* Catalog, install and runtime.remove: the guest namespace's own paths. */
   link2_guest_host(&host);
   guest_install_begin = host.install_begin;
@@ -298,6 +480,7 @@ void link2_host_pump(void) {
    * failed attempts before the address came put the link 5.3 s behind it. A
    * link that is up is pumped whatever the radio's state: its socket then
    * reads as gone, and it drops. */
+  push_pump();
   if (link_host_net_ready() || link2_linked(client))
     link2_pump(client);
   link_http_pump();
@@ -313,11 +496,40 @@ void link2_host_guest_begin(const LauncherPackage *package) {
     launcher_package_title(package, running_title, sizeof running_title);
   if (client != NULL)
     link2_status_changed(client);
+  if (push.state != PUSH_SWITCHING)
+    return;
+  /* The program sets the slot that boots before it binds the guest. Another
+   * slot means the pushed app did not boot and the launcher took its place;
+   * the package stays installed. */
+  if (strcmp(launcher_current_slot(), push.slot) != 0) {
+    push_failed("rejected", "the app did not start");
+    return;
+  }
+  push.state = PUSH_STARTED;
+  if (client != NULL)
+    link2_push_staged(client, "");
 }
 
 void link2_host_guest_end(void) {
   link2_guest_reset();
   link_http_reset();
+  if (push.state == PUSH_HELD) {
+    /* The guest that read the old package from its pages is down: the
+     * commit frees them, and the switch boots the new package. */
+    Link2Failure failure;
+    memset(&failure, 0, sizeof failure);
+    if (store_push_commit(&failure)) {
+      push_committed();
+      push.state = PUSH_SWITCHING;
+    } else {
+      push.state = PUSH_IDLE;
+      if (client != NULL)
+        link2_push_result(client, false, NULL, 0, &failure);
+    }
+  } else if (push.state == PUSH_STARTED) {
+    /* Torn down before its first frame: its boot failed. */
+    push_failed("rejected", "the app did not start");
+  }
   if (!guest_running)
     return;
   guest_running = false;
@@ -346,4 +558,8 @@ void link2_host_shutdown(void) {
     link2_destroy(client);
   client = NULL;
   guest_running = false;
+  /* A stage nobody will commit gives its pages back. */
+  if (push.state == PUSH_STREAMING || push.state == PUSH_HELD)
+    store_push_abort();
+  push.state = PUSH_IDLE;
 }
