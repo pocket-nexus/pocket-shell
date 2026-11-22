@@ -44,7 +44,7 @@ const POCKETJS_COMPILER = resolve(ROOT, "vendor/pocketjs/tools/build.ts");
 
 const USAGE =
   "usage: pocket-shell check|compile [--manifest pocket.app.json] [--target <id|pocket.host.json>] [--host-config FILE] [--project-root DIR]\n" +
-  "       pocket-shell compile [--outdir DIR] [--plan-dir DIR] [--output app.pocket] [--depfile FILE] [--compiler-receipt FILE]\n" +
+  "       pocket-shell compile [--outdir DIR] [--plan-dir DIR] [--output app.pocket] [--layer MODULE]... [--depfile FILE] [--compiler-receipt FILE]\n" +
   "       pocket-shell <command> [...]   any other command runs PocketJS's CLI (vendor/pocketjs/tools/pocket.ts):\n" +
   "                                      host export, host fetch, build, pack, target, sdk, doctor, catalog, project, status";
 
@@ -87,6 +87,9 @@ async function run(command: "check" | "compile", argv: string[]): Promise<void> 
   const outputOption = takeOption("output");
   const dependencies = takeOption("depfile");
   const compilerReceipt = takeOption("compiler-receipt");
+  // a product's own system layers, beside the ones the plan gets: repeatable
+  const productLayers: string[] = [];
+  for (let layer = takeOption("layer"); layer !== undefined; layer = takeOption("layer")) productLayers.push(resolve(layer));
   if (argv.length) usage(`unknown option ${argv[0]}`);
   if (compilerReceipt && !existsSync(resolve(compilerReceipt))) usage("compiler receipt does not exist");
   if (!existsSync(manifestPath)) usage(`manifest not found: ${manifestPath}`);
@@ -138,7 +141,7 @@ async function run(command: "check" | "compile", argv: string[]): Promise<void> 
   // PocketJS compiles the plan into <output>.js, <output>.pak and, with a worker domain, <output>.worker.js;
   // the plan's system layers (the agent's overlay) go ahead of the entry.
   const inputsFile = resolve(outdir, `${plan.app.output}.inputs.json`);
-  const child = Bun.spawn([process.execPath, POCKETJS_COMPILER, `--plan=${planPath}`, `--project-root=${projectRoot}`, `--outdir=${outdir}`, ...systemLayerArguments(plan), ...(dependencies ? [`--inputs-file=${inputsFile}`] : [])], { cwd: projectRoot, stdout: "inherit", stderr: "inherit" });
+  const child = Bun.spawn([process.execPath, POCKETJS_COMPILER, `--plan=${planPath}`, `--project-root=${projectRoot}`, `--outdir=${outdir}`, ...systemLayerArguments(plan), ...productLayers.map((layer) => `--layer=${layer}`), ...(dependencies ? [`--inputs-file=${inputsFile}`] : [])], { cwd: projectRoot, stdout: "inherit", stderr: "inherit" });
   const status = await child.exited;
   if (status !== 0 || child.signalCode) throw new Error(`PocketJS compiler failed: ${child.signalCode ?? status}`);
   const js = new Uint8Array(readFileSync(resolve(outdir, `${plan.app.output}.js`)));

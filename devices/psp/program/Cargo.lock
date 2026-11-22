@@ -90,7 +90,7 @@ checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 
 [[package]]
 name = "pocket-archive"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "pocket-drivers",
  "pocket-render",
@@ -100,21 +100,21 @@ dependencies = [
 
 [[package]]
 name = "pocket-drivers"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "pocket-spec",
 ]
 
 [[package]]
 name = "pocket-media"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "pocket-spec",
 ]
 
 [[package]]
 name = "pocket-package"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "pocket-drivers",
  "pocket-spec",
@@ -122,18 +122,18 @@ dependencies = [
 
 [[package]]
 name = "pocket-profile-build"
-version = "0.16.0"
+version = "0.17.0"
 
 [[package]]
 name = "pocket-psp-alloc"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "psp",
 ]
 
 [[package]]
 name = "pocket-psp-audio"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "pocket-spec",
  "psp",
@@ -141,7 +141,7 @@ dependencies = [
 
 [[package]]
 name = "pocket-psp-display"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "pocket-psp-ge",
  "psp",
@@ -149,18 +149,18 @@ dependencies = [
 
 [[package]]
 name = "pocket-psp-ge"
-version = "0.16.0"
+version = "0.17.0"
 
 [[package]]
 name = "pocket-psp-input"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "psp",
 ]
 
 [[package]]
 name = "pocket-psp-io"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "pocket-drivers",
  "pocket-package",
@@ -170,7 +170,7 @@ dependencies = [
 
 [[package]]
 name = "pocket-psp-quickjs-alloc"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "libquickjs-sys",
  "pocket-psp-alloc",
@@ -178,7 +178,7 @@ dependencies = [
 
 [[package]]
 name = "pocket-psp-render"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "pocket-drivers",
  "pocket-psp-ge",
@@ -189,7 +189,7 @@ dependencies = [
 
 [[package]]
 name = "pocket-psp-system"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "cc",
  "psp",
@@ -197,7 +197,7 @@ dependencies = [
 
 [[package]]
 name = "pocket-render"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "pocket-drivers",
  "pocket-spec",
@@ -205,7 +205,7 @@ dependencies = [
 
 [[package]]
 name = "pocket-runtime"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "pocket-drivers",
  "pocket-package",
@@ -227,11 +227,11 @@ dependencies = [
 
 [[package]]
 name = "pocket-spec"
-version = "0.16.0"
+version = "0.17.0"
 
 [[package]]
 name = "pocketjs-core"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "pocket-drivers",
  "pocket-media",
@@ -243,7 +243,7 @@ dependencies = [
 
 [[package]]
 name = "pocketjs-psp"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "cc",
  "libquickjs-sys",
