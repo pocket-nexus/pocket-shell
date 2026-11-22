@@ -102,6 +102,8 @@ const APPLET_CAPABILITIES = [
   "input.text",
   "display.auxiliary",
   "input.touch.auxiliary",
+  "input.pointer",
+  "input.scroll",
   "net.http",
   "link.channel",
   "ui.physics",
@@ -139,6 +141,7 @@ export const APPLET_MODULES = [
   "audio",
   "display",
   "platform",
+  "ui",
 ] as const;
 /** `@pocketjs/framework/<subpath>` modules allowed when the manifest declares
  *  the capability that gates them. `worker/channels` is the UI's side of the

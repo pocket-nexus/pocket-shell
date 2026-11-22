@@ -29,7 +29,7 @@ all of them and writes one package with one variant.
 | Compare the framework runtime the application resolves with the one the compiler bundles | PocketJS `framework/compiler/runtime-packages.ts` |
 | Type-check `app.entry` and the worker entry | PocketJS `framework/compiler/app-check.ts` |
 | Write `<plan-dir>/<host id>/plan.json` | `cli/pocket-shell.ts` |
-| Compile the plan into `<output>.js`, `<output>.pak` and, with `domains.worker`, `<output>.worker.js`; a Solid plan with `system.agent` gets the agent's overlay (`runtime/src/agent-layer.tsx`) as a system layer | PocketJS `tools/build.ts --plan=<plan.json> --project-root=<dir> --outdir=<dir>`, with `--layer=<module>` from `runtime/manifest/system-layers.ts` |
+| Compile the plan into `<output>.js`, `<output>.pak` and, with `domains.worker`, `<output>.worker.js`; a Solid plan with `system.agent` gets the agent's overlay (`runtime/src/agent-layer.tsx`) as a system layer | PocketJS `tools/build.ts --plan=<plan.json> --project-root=<dir> --outdir=<dir>`, with `--layer=<module>` from `runtime/manifest/system-layers.ts`, then one for each `--layer <module>` the caller names: a product's own layer (a host that hands its pointer over as a contact turns it back into the frame's pointer there) |
 | Check an applet's sources and bundle sizes | `runtime/package/applet-check.ts` |
 | Assemble the variant's sections | `runtime/package/pocket-pack.ts` |
 | Compile sections 6 and 9 when the host contract names `bytecode.engine` | `runtime/package/bytecode.ts`, PocketJS `tools/quickjs-bytecode.ts` |
@@ -49,6 +49,7 @@ from it.
 | `--outdir DIR` | `dist` | Compiler outputs, relative to the project root. |
 | `--plan-dir DIR` | `.pocket` | The parent of `<host id>/plan.json`, relative to the project root. |
 | `--output FILE` | `<outdir>/<app.output>.pocket` | The package, relative to the project root. |
+| `--layer MODULE` | none | A system layer the compiler adds after the plan's own (`@pocketjs/framework/system-layers`), relative to the current directory; repeatable. |
 | `--depfile FILE` | none | A Make depfile for the package, relative to the project root: the app contract, theme and icon, the host config and host contract, the type-checked modules, the compiler's inputs and the modules of this CLI. |
 | `--compiler-receipt FILE` | none | An existing file added to the depfile's inputs. |
 

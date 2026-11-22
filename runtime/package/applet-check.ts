@@ -173,10 +173,11 @@ export function checkAppletSources(input: AppletSourceInput): ContractDiagnostic
         }
       }
     }
-    if (/\b(?:AuxiliarySurface|AppletSurface)\b/.test(code)) surface = true;
+    // mountPocketUI (@pocketjs/framework/ui) mounts on the auxiliary surface when the build has one, as AppletSurface does
+    if (/\b(?:AuxiliarySurface|AppletSurface|mountPocketUI)\b/.test(code)) surface = true;
   }
   if (!surface) {
-    out.push({ code: "applet.surface", path: input.entry, message: "an applet draws its UI inside AppletSurface (or AuxiliarySurface)" });
+    out.push({ code: "applet.surface", path: input.entry, message: "an applet draws its UI inside AppletSurface (or AuxiliarySurface, or mountPocketUI)" });
   }
   return out;
 }
