@@ -6,9 +6,9 @@
 //
 // A store Hub has not set up holds no pairing; after Hub's setup wrote the
 // pairing files and the firmware started again, it links, reports its status
-// and its installed applets, takes a launch and a removal from Hub, and sends
-// each companion.pocket request as net.http for the app that runs. With the
-// link down, a request fails with a message the app can show.
+// and its installed applets, takes a launch, pushes and a removal from Hub,
+// and sends each companion.pocket request as net.http for the app that runs.
+// With the link down, a request fails with a message the app can show.
 //
 // A store no Hub has set up also pairs by a code the device shows
 // (docs/POCKET-LINK.md §3.11): the firmware writes the key file itself, links,
@@ -48,14 +48,24 @@ function freeUdpPort(): Promise<number> {
   });
 }
 
-/** The code a request of Hub's failed with, or its reply. */
+/** The code and message a request of Hub's failed with, or its reply. */
 async function outcome(request: Promise<unknown>): Promise<unknown> {
   try {
     return await request;
   } catch (error) {
-    if (error instanceof LinkError) return { error: error.code, ...(error.extra as object) };
+    if (error instanceof LinkError) return { error: error.code, message: error.message, ...(error.extra as object) };
     throw error;
   }
+}
+
+/** A package as tests/link-host.c's store reads one: the plan's JSON, then
+ * the footer, `hash` little-endian. */
+function pocket(app: { id: string; output: string; title: string; version: string }, hash: bigint): { bytes: Uint8Array; hash: string } {
+  const plan = new TextEncoder().encode(JSON.stringify({ app }));
+  const bytes = new Uint8Array(plan.length + 8);
+  bytes.set(plan);
+  new DataView(bytes.buffer).setBigUint64(plan.length, hash, true);
+  return { bytes, hash: hash.toString(16).padStart(16, "0") };
 }
 
 describe("the Tab5 on Pocket Link 2", () => {
@@ -161,10 +171,33 @@ describe("the Tab5 on Pocket Link 2", () => {
           runtime.features = [...device.peer.peerFeatures].sort();
           runtime.unknownLaunch = await outcome(device.launch({ app: "nothing" }));
           runtime.launch = await outcome(device.launch({ app: "hn" }));
-          runtime.push = await outcome(device.push(new Uint8Array(64), "00000000000000ff"));
+          await until(() => device.status?.app?.id === "dev.pocket-nexus.hn", "Hacker News running");
+
+          // Pushes: refused ones first, then one into a new slot while
+          // Hacker News runs, then the running app's own.
+          runtime.pushMismatch = await outcome(device.push(new Uint8Array(64), "00000000000000ff"));
+          const shell = pocket({ id: "dev.pocket-nexus.shell", output: "pocket-shell", title: "Pocket Shell", version: "9.0.0" }, 0x5151515151515151n);
+          runtime.pushHome = await outcome(device.push(shell.bytes, shell.hash));
+          const weather = { id: "dev.pocket-nexus.weather", output: "weather", title: "Weather" };
+          const first = pocket({ ...weather, version: "1.0.0" }, 0x0123456789abcdefn);
+          const phases: unknown[] = [];
+          runtime.pushNew = await outcome(device.push(first.bytes, first.hash, (event) => phases.push(event.phase)));
+          runtime.pushNewPhases = phases;
+          // The status event leaves in the same pump as the reply, after it.
+          await until(() => device.status?.app?.id === weather.id, "the pushed applet in runtime.status");
+          runtime.runningAfterPush = device.status?.app;
+          await until(() => device.apps.some((app) => app.id === weather.id), "the pushed applet in the installed set");
+          const second = pocket({ ...weather, version: "1.1.0" }, 0xfedcba9876543210n);
+          runtime.pushRunning = await outcome(device.push(second.bytes, second.hash));
+          await until(() => device.apps.some((app) => app.id === weather.id && app.version === "1.1.0"), "the new version in the installed set");
+          runtime.appsAfterPush = device.apps.map((app) => ({ ...app }));
+
+          // Back to the launcher, then removals.
+          runtime.home = await outcome(device.launch({ app: "pocket-shell" }));
+          await until(() => device.status?.app?.id === "dev.pocket-nexus.shell", "the launcher running again");
           runtime.removeHome = await outcome(device.remove("dev.pocket-nexus.shell"));
           runtime.remove = await outcome(device.remove("dev.pocket-nexus.hn"));
-          await until(() => device.apps.length === 1, "the set without the removed applet");
+          await until(() => device.apps.length === 2, "the set without the removed applet");
           runtime.appsAfter = device.apps.map((app) => app.id);
           answer();
         } else if (line === "wait stop") {
@@ -217,15 +250,39 @@ describe("the Tab5 on Pocket Link 2", () => {
       { id: "dev.pocket-nexus.shell", output: "pocket-shell", version: "0.1.1", hash: "8877665544332211", home: true },
       { id: "dev.pocket-nexus.hn", output: "hn", version: "1.2.0", hash: "1122334455667788" },
     ]);
-    // runtime.launch switches to an installed applet; a push is not served.
+    // runtime.launch switches to an installed applet.
     expect(runtime.unknownLaunch).toMatchObject({ error: "not_found" });
     expect(runtime.launch).toMatchObject({ phase: "switching", output: "hn" });
     expect(lines).toContain("switch hn");
-    expect(runtime.push).toMatchObject({ error: "unsupported" });
+    // runtime.push: a package whose footer is not the declared hash, and one
+    // for the launcher's slot, are refused and change nothing.
+    expect(runtime.pushMismatch).toEqual({ error: "rejected", phase: "rejected", message: "the package does not match its declared hash" });
+    expect(runtime.pushHome).toEqual({ error: "rejected", phase: "rejected", message: "the app is part of this Tab5's software and is not replaced" });
+    // A push into a slot of its own commits there and switches to it; the
+    // reply leaves at the app's first frame, after the `staged` event.
+    expect(runtime.pushNew).toEqual({
+      phase: "accepted",
+      hash: "0123456789abcdef",
+      generation: 0,
+      message: "",
+      app: { id: "dev.pocket-nexus.weather", output: "weather", title: "Weather" },
+    });
+    expect(runtime.pushNewPhases).toEqual(["receiving", "received", "staged"]);
+    expect(runtime.runningAfterPush).toEqual({ id: "dev.pocket-nexus.weather", output: "weather", title: "Weather" });
+    // A push of the running app replaces it: committed once its guest ended,
+    // then booted in its place.
+    expect(runtime.pushRunning).toMatchObject({ phase: "accepted", hash: "fedcba9876543210", app: { id: "dev.pocket-nexus.weather" } });
+    expect(lines.filter((line) => line.startsWith("switch "))).toEqual(["switch hn", "switch weather", "switch weather", "switch pocket-shell"]);
+    expect(runtime.appsAfterPush).toEqual([
+      { id: "dev.pocket-nexus.shell", output: "pocket-shell", version: "0.1.1", hash: "8877665544332211", home: true },
+      { id: "dev.pocket-nexus.hn", output: "hn", version: "1.2.0", hash: "1122334455667788" },
+      { id: "dev.pocket-nexus.weather", output: "weather", version: "1.1.0", hash: "fedcba9876543210" },
+    ]);
     // runtime.remove: never the launcher; an installed applet leaves the set.
+    expect(runtime.home).toMatchObject({ phase: "switching", output: "pocket-shell" });
     expect(runtime.removeHome).toMatchObject({ error: "rejected", reason: "home" });
     expect(runtime.remove).not.toHaveProperty("error");
-    expect(runtime.appsAfter).toEqual(["dev.pocket-nexus.shell"]);
+    expect(runtime.appsAfter).toEqual(["dev.pocket-nexus.shell", "dev.pocket-nexus.weather"]);
 
     // The link closed under an open request, then took none.
     expect(lines).toContain(`end ${slow} -3 unavailable: the Pocket Link closed`);

@@ -440,6 +440,32 @@ bool link_host_slot_ready(const char *slot) {
   return true;
 }
 
+/* Make the admitted stage `entry`'s slot's package where it lies, and the
+ * resident package of that slot. The stage is gone afterwards either way. */
+static bool commit_stage(const ResidentPackage *entry, char *error,
+                         size_t capacity) {
+  size_t size = 0;
+  flash_store_staged(&size);
+  const esp_err_t result = flash_store_stage_commit(entry->slot, NULL);
+  if (result != ESP_OK) {
+    snprintf(error, capacity,
+             "install: the apps partition could not be written (%s)",
+             esp_err_to_name(result));
+    return false;
+  }
+  if (!resident_put(entry)) {
+    flash_store_remove(entry->slot);
+    snprintf(error, capacity, "install: no room in the package table");
+    return false;
+  }
+  char stale[SLOT_PATH_BYTES];
+  if (launcher_host_slot_path(entry->slot, PACKAGE_NAME, stale, sizeof stale))
+    remove(stale);
+  ESP_LOGI(TAG, "slot %s: %u bytes installed where they were streamed",
+           entry->slot, (unsigned)size);
+  return true;
+}
+
 /* Admit the package an install streamed into the apps partition and commit
  * it where it is: no copy is read back into PSRAM and none is programmed a
  * second time. */
@@ -471,25 +497,115 @@ static bool install_staged(const char *slot, uint64_t hash,
     flash_store_stage_abort();
     return false;
   }
-  const esp_err_t result = flash_store_stage_commit(slot, NULL);
-  if (result != ESP_OK) {
-    snprintf(error, capacity,
-             "install: the apps partition could not be written (%s)",
-             esp_err_to_name(result));
+  if (!commit_stage(&entry, error, capacity))
     return false;
-  }
-  if (!resident_put(&entry)) {
-    flash_store_remove(slot);
-    snprintf(error, capacity, "install: no room in the package table");
-    return false;
-  }
-  char stale[SLOT_PATH_BYTES];
-  if (launcher_host_slot_path(slot, PACKAGE_NAME, stale, sizeof stale))
-    remove(stale);
-  ESP_LOGI(TAG, "slot %s: %u bytes installed where they were streamed", slot,
-           (unsigned)size);
   *out = facts_of(&entry.package, &entry.facts);
   *held = NULL;
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// runtime.push (link2_host.h): the stage, for a slot the package names
+// ---------------------------------------------------------------------------
+
+/* The admitted push, between store_push_admit and store_push_commit. */
+static ResidentPackage pushed;
+static bool push_admitted;
+
+static void push_failure(Link2Failure *failure, const char *code,
+                         const char *message) {
+  snprintf(failure->code, sizeof failure->code, "%s", code);
+  snprintf(failure->message, sizeof failure->message, "%s", message);
+}
+
+bool store_push_begin(uint32_t bytes, Link2Failure *failure) {
+  if (!flash_store_ready()) {
+    push_failure(failure, "storage", "this Tab5 has no apps partition");
+    return false;
+  }
+  if (flash_store_staging()) {
+    push_failure(failure, "busy", "an install is streaming");
+    return false;
+  }
+  if (!flash_store_stage_begin(bytes)) {
+    char message[LINK2_MESSAGE_BYTES];
+    snprintf(message, sizeof message,
+             "no room for %u KiB on the apps partition (%u KiB free)",
+             (unsigned)((bytes + 1023u) / 1024u),
+             (unsigned)(flash_store_free_bytes() / 1024u));
+    push_failure(failure, "storage", message);
+    return false;
+  }
+  push_admitted = false;
+  ESP_LOGI(TAG, "push: %u bytes stream into the apps partition",
+           (unsigned)bytes);
+  return true;
+}
+
+bool store_push_write(const uint8_t *bytes, size_t length) {
+  const esp_err_t result = flash_store_stage_write(bytes, length);
+  if (result != ESP_OK)
+    ESP_LOGW(TAG, "push: the apps partition refused a write (%s)",
+             esp_err_to_name(result));
+  return result == ESP_OK;
+}
+
+void store_push_abort(void) {
+  flash_store_stage_abort();
+  push_admitted = false;
+}
+
+bool store_push_admit(uint64_t hash, char slot[17], LauncherPackage *facts,
+                      Link2Failure *failure) {
+  char error[LINK2_MESSAGE_BYTES] = "";
+  size_t size = 0;
+  const uint8_t *bytes = flash_store_staged(&size);
+  bool admitted = false;
+  if (bytes == NULL)
+    snprintf(error, sizeof error, "no package is staged");
+  else if (size < 8 || footer_of(bytes + size - 8) != hash)
+    snprintf(error, sizeof error,
+             "the package does not match its declared hash");
+  else if (admit_resident(bytes, size, false, &pushed, error, sizeof error)) {
+    const ResidentPackage *resident = resident_in_slot(pushed.slot);
+    if (resident != NULL && resident->bundled)
+      snprintf(error, sizeof error,
+               "the app is part of this Tab5's software and is not replaced");
+    else
+      admitted = true;
+  }
+  if (!admitted) {
+    flash_store_stage_abort();
+    push_failure(failure, "rejected",
+                 error[0] != '\0' ? error : "the package was refused");
+    snprintf(failure->members, sizeof failure->members,
+             "\"phase\":\"rejected\"");
+    ESP_LOGW(TAG, "push: %s", failure->message);
+    return false;
+  }
+  push_admitted = true;
+  memcpy(slot, pushed.slot, 17);
+  *facts = facts_of(&pushed.package, &pushed.facts);
+  return true;
+}
+
+bool store_push_commit(Link2Failure *failure) {
+  char error[LINK2_MESSAGE_BYTES] = "";
+  if (!push_admitted) {
+    flash_store_stage_abort();
+    push_failure(failure, "storage", "no admitted package is staged");
+    return false;
+  }
+  push_admitted = false;
+  /* The caller commits a push of the running app only once its guest is
+   * torn down (link2_host.h); the launcher names that slot as the current
+   * one until the next guest binds, so it cannot be asked here. The slot's
+   * folder is made for the launcher's cached facts (app.txt). */
+  link_host_slot_ready(pushed.slot);
+  if (!commit_stage(&pushed, error, sizeof error)) {
+    push_failure(failure, "storage", error);
+    return false;
+  }
   return true;
 }
 
